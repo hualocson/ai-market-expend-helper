@@ -26,7 +26,7 @@ const options = [
     icon: <StarIcon className="text-muted-foreground mb-2.5" />,
   },
   {
-    value: "embe",
+    value: "",
     label: "Embe",
     description: "Embe tra",
     icon: <WormIcon className="text-muted-foreground mb-2.5" />,
