@@ -26,10 +26,12 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
   return (
     <>
       <div className="rounded border bg-white p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 rounded-xl px-2 shadow ring-1 ring-blue-200">
             <span className="size-2 flex-shrink-0 rounded-full bg-blue-500"></span>
-            <p className="text-sm text-gray-500">{editableExpense.category}</p>
+            <p className="truncate text-sm text-gray-500">
+              {editableExpense.category}
+            </p>
           </div>
           <div className="flex items-center">
             <Input
@@ -43,17 +45,18 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
             <span className="ml-1 text-sm">VND</span>
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2 flex flex-col gap-2">
           <Input
             value={editableExpense.note || ""}
             onChange={(e) => handleFieldChange("note", e.target.value)}
             placeholder="Note"
             className="h-auto border-none bg-transparent text-gray-500 shadow focus:ring-0"
           />
-          <Input
-            value={editableExpense.date}
+          <input
+            type="date"
+            value={new Date(editableExpense.date).toISOString().split("T")[0]}
             onChange={(e) => handleFieldChange("date", e.target.value)}
-            className="h-auto border-none bg-transparent text-right text-gray-400 shadow focus:ring-0"
+            className="h-8 rounded-md border-none bg-transparent px-2 text-gray-600 shadow focus:ring-0"
           />
         </div>
         <Button size="sm" className="mt-3 w-full" onClick={handleAddToSheet}>
