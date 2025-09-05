@@ -17,7 +17,7 @@ export async function appendToGoogleSheet(data: TExpense & { by: string }) {
     const sheets = google.sheets({ version: "v4", auth });
 
     const rowData = [
-      data.date,
+      new Date(data.date).toLocaleDateString("en-GB"),
       data.amount,
       data.note || "Add by AI",
       data.category,
@@ -28,6 +28,7 @@ export async function appendToGoogleSheet(data: TExpense & { by: string }) {
       spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
       range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:G", // Default to first sheet
       valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [rowData],
       },
