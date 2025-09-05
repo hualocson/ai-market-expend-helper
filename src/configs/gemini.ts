@@ -31,7 +31,7 @@ export const systemInstruction = `You are a financial assistant that extracts st
 
     Rules:
     - Always return **only valid JSON** that follows the schema.
-    - If the input does not provide a date, use the current date: ${new Date().toLocaleDateString("vi-VN")}
+    - If the input does not provide a date, use the current date: ${new Date().toLocaleDateString("en-GB")} in format DD/MM/YYYY
     - Parse amounts like "45k" → 45000, "1.2tr" → 1200000.
     - Translate months to numbers (e.g., "tháng 8" → "08").
     - Map categories:
