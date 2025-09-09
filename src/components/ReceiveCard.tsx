@@ -88,7 +88,7 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
                 value={editableExpense.category}
                 onValueChange={(value) => handleFieldChange("category", value)}
               >
-                <SelectTrigger className="h-12 w-full pl-10">
+                <SelectTrigger className="h-12 w-full rounded-lg pl-10">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -114,17 +114,23 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
           </div>
 
           {/* Date */}
-          <div className="space-y-2">
-            <label className="text-foreground text-sm font-medium">Date</label>
-            <div className="relative">
+          <div className="w-full space-y-2">
+            <label
+              htmlFor="date"
+              className="text-foreground text-sm font-medium"
+            >
+              Date
+            </label>
+            <div className="dark:bg-input/30 relative w-full rounded-lg border pl-6">
               <Calendar className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-              <input
+              <Input
+                id="date"
                 type="date"
                 value={
                   new Date(editableExpense.date).toISOString().split("T")[0]
                 }
                 onChange={(e) => handleFieldChange("date", e.target.value)}
-                className="border-input bg-background text-foreground focus:ring-ring h-10 w-full rounded-md border pr-4 pl-10 focus:ring-2 focus:outline-none"
+                className="h-10 w-full rounded-lg border-none !bg-transparent pr-4 ring-0 focus:ring-0 focus:outline-none"
               />
             </div>
           </div>
