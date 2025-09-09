@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { appendToGoogleSheet } from "@/app/actions/sheet-actions";
 import { cn } from "@/lib/utils";
 import * as RadioGroup from "@radix-ui/react-radio-group";
-import { CircleCheck, Loader2, StarIcon, WormIcon } from "lucide-react";
+import { Check, Loader2, User, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "./ui/button";
@@ -23,13 +23,13 @@ const options = [
     value: "Cubi",
     label: "Anhbe",
     description: "Anhbe tra",
-    icon: <StarIcon className="text-muted-foreground mb-2.5" />,
+    icon: <User className="h-5 w-5" />,
   },
   {
     value: "",
     label: "Embe",
     description: "Embe tra",
-    icon: <WormIcon className="text-muted-foreground mb-2.5" />,
+    icon: <Users className="h-5 w-5" />,
   },
 ];
 
@@ -66,9 +66,8 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
     try {
       setLoading(true);
       await appendToGoogleSheet(finalData);
-
       setOpen(false);
-      toast.success("Expense added successfully");
+      toast.success("Expense added successfully!");
     } catch (error) {
       console.error(error);
       toast.error("Failed to add expense");
@@ -79,42 +78,101 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="mx-auto w-full max-w-md px-4">
-        <DrawerHeader>
-          <DrawerTitle>Confirm Add Expense</DrawerTitle>
-          <DrawerDescription>{JSON.stringify(finalData)}</DrawerDescription>
+      <DrawerContent className="mx-auto w-full max-w-md">
+        <DrawerHeader className="pb-4 text-center">
+          <DrawerTitle className="text-foreground text-xl font-semibold">
+            Confirm Expense
+          </DrawerTitle>
+          <DrawerDescription className="text-muted-foreground">
+            Choose who paid for this expense
+          </DrawerDescription>
         </DrawerHeader>
-        <RadioGroup.Root
-          defaultValue={finalData.by}
-          onValueChange={(value) =>
-            setFinalData((prev) => ({ ...prev, by: value }))
-          }
-          className="grid w-full grid-cols-2 gap-3"
-        >
-          {options.map((option) => (
-            <RadioGroup.Item
-              key={option.value}
-              value={option.value}
-              className={cn(
-                "group ring-border relative rounded px-3 py-2 text-start ring-[1px]",
-                "data-[state=checked]:ring-2 data-[state=checked]:ring-blue-500"
-              )}
-            >
-              <CircleCheck className="text-primary absolute top-0 right-0 h-6 w-6 translate-x-1/2 -translate-y-1/2 fill-blue-500 stroke-white group-data-[state=unchecked]:hidden" />
-              {option.icon}
-              <span className="font-semibold tracking-tight">
-                {option.label}
-              </span>
-              <p className="text-xs">{option.description}</p>
-            </RadioGroup.Item>
-          ))}
-        </RadioGroup.Root>
 
-        <DrawerFooter className="mx-auto w-full max-w-md px-0">
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader2 className="animate-spin" /> : "Submit"}
+        <div className="px-6 pb-6">
+          {/* Expense Summary */}
+          <div className="bg-muted mb-6 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-foreground font-medium">
+                  {finalData.category}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {finalData.note || "No note"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-foreground text-lg font-semibold">
+                  {finalData.amount.toLocaleString()} VND
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {new Date(finalData.date).toLocaleDateString("en-GB")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Person Selection */}
+          <div className="space-y-3">
+            <label className="text-foreground text-sm font-medium">
+              Who paid for this?
+            </label>
+            <RadioGroup.Root
+              defaultValue={finalData.by}
+              onValueChange={(value) =>
+                setFinalData((prev) => ({ ...prev, by: value }))
+              }
+              className="grid grid-cols-2 gap-4"
+            >
+              {options.map((option) => (
+                <RadioGroup.Item
+                  key={option.value}
+                  value={option.value}
+                  className={cn(
+                    "group border-border relative flex flex-col items-center gap-4 rounded-xl border-2 p-4 transition-all duration-200",
+                    "hover:border-border hover:bg-muted/50",
+                    "data-[state=checked]:border-primary data-[state=checked]:bg-primary/10"
+                  )}
+                >
+                  <span className="bg-muted group-data-[state=checked]:bg-primary/20 flex h-10 w-10 items-center justify-center rounded-full">
+                    {option.icon}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-foreground font-medium">
+                      {option.label}
+                    </p>
+                    <p className="text-muted-foreground text-sm">
+                      {option.description}
+                    </p>
+                  </div>
+                  <span className="absolute top-4 right-4">
+                    <Check className="text-primary size-4 group-data-[state=unchecked]:hidden" />
+                  </span>
+                </RadioGroup.Item>
+              ))}
+            </RadioGroup.Root>
+          </div>
+        </div>
+
+        <DrawerFooter className="px-6 pb-6">
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-medium"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              "Add Expense"
+            )}
           </Button>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="border-border text-foreground hover:bg-muted h-12 rounded-xl"
+          >
             Cancel
           </Button>
         </DrawerFooter>
