@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { processInput } from "@/app/actions/ai-actionts";
-import { cn } from "@/lib/utils";
-import { Loader2, SendIcon } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 
 import ReceiveCard from "./ReceiveCard";
 import { Button } from "./ui/button";
@@ -14,14 +13,32 @@ const AIInput = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TExpense | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize effect
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+    }
+  }, [input]);
+
   async function handleSubmit() {
+    if (!input.trim()) {
+      return;
+    }
+
     try {
+      setResult(null);
       setLoading(true);
       const result = await processInput(input);
       setResult(result ?? null);
-      setLoading(false);
+      setInput(""); // Clear input after successful processing
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -33,46 +50,40 @@ const AIInput = () => {
   };
 
   return (
-    <div className="relative flex w-full max-w-md flex-col gap-3 *:w-full">
+    <div className="space-y-6">
+      {/* Input Section */}
       <div className="relative">
         <Textarea
-          placeholder="Enter your expense"
+          ref={textareaRef}
+          aria-label="Expense input"
+          placeholder="Tell me about your expense..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="min-h-10 resize-none px-4 py-2 pr-12"
           onKeyDown={handleKeyDown}
           rows={1}
-          style={{
-            height: "auto",
-          }}
-          onInput={(e) => {
-            const target = e.target as HTMLTextAreaElement;
-            target.style.height = "auto";
-            target.style.height = target.scrollHeight + "px";
-          }}
+          className="max-h-[120px] min-h-[44px] resize-none overflow-hidden rounded-xl px-4 pr-12 text-base leading-normal transition-all duration-200 focus:ring-2 sm:text-base"
         />
-        <div className="absolute right-2 bottom-1">
-          <Button
-            type="submit"
-            variant={"outline"}
-            onClick={handleSubmit}
-            size={"icon"}
-            disabled={loading || input.trim() === ""}
-            className="size-8 transition-all duration-300"
-          >
-            {loading ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <SendIcon
-                className={cn(
-                  input.trim() === "" ? "-translate-x-0.5 rotate-45" : ""
-                )}
-              />
-            )}
-          </Button>
-        </div>
+        <Button
+          type="submit"
+          onClick={handleSubmit}
+          disabled={loading || input.trim() === ""}
+          size="icon"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 absolute top-1/2 right-2 size-8 -translate-y-1/2 rounded-full shadow-lg transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </Button>
       </div>
-      {result && <ReceiveCard expense={result} />}
+
+      {/* Result Section */}
+      {result && (
+        <div className="animate-in slide-in-from-bottom-4 duration-300">
+          <ReceiveCard expense={result} />
+        </div>
+      )}
     </div>
   );
 };
