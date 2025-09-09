@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { ExternalLink } from "lucide-react";
 
+import SiriOrb from "@/components/ui/siri-orb";
+
 import AIInput from "@/components/AIInput";
 
 const LINK =
@@ -12,7 +14,8 @@ export default function Home() {
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-12 text-center">
+        <div className="mb-12 flex flex-col items-center gap-2 text-center">
+          <SiriOrb size="64px" />
           <h1 className="mb-2 text-3xl font-light">Expense Tracker</h1>
           <p className="text-muted-foreground">
             Add expenses naturally with AI assistance
