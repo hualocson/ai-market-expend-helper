@@ -1,6 +1,10 @@
 {
   "name": "Tracker",
   "short_name": "Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000",
+  "theme_color": "#000",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -14,8 +18,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "theme_color": "#e8d7d7",
-  "background_color": "#e8d7d7",
-  "display": "standalone"
+  ]
 }
