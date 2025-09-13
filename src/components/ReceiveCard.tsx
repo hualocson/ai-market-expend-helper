@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import dayjs from "@/configs/date";
 import { Category } from "@/enums/category";
 import { Calendar, DollarSign, Edit3, PlusIcon, Tag } from "lucide-react";
 
@@ -126,9 +127,9 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
               <Input
                 id="date"
                 type="date"
-                value={
-                  new Date(editableExpense.date).toISOString().split("T")[0]
-                }
+                value={dayjs(editableExpense.date, "DD/MM/YYYY").format(
+                  "YYYY-MM-DD"
+                )}
                 onChange={(e) => handleFieldChange("date", e.target.value)}
                 className="h-10 w-full rounded-lg border-none !bg-transparent pr-4 ring-0 focus:ring-0 focus:outline-none"
               />
