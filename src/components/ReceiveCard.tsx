@@ -130,8 +130,13 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
                 value={dayjs(editableExpense.date, "DD/MM/YYYY").format(
                   "YYYY-MM-DD"
                 )}
-                onChange={(e) => handleFieldChange("date", e.target.value)}
-                className="h-10 w-full rounded-lg border-none !bg-transparent pr-4 ring-0 focus:ring-0 focus:outline-none"
+                onChange={(e) =>
+                  handleFieldChange(
+                    "date",
+                    dayjs(e.target.value).format("DD/MM/YYYY")
+                  )
+                }
+                className="h-10 w-full rounded-lg border-none !bg-transparent pr-4 ring-0 focus:ring-0 focus:outline-none focus-visible:ring-0"
               />
             </div>
           </div>
