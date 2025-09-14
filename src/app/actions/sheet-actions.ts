@@ -1,5 +1,6 @@
 "use server";
 
+import dayjs from "@/configs/date";
 import { google } from "googleapis";
 
 export async function appendToGoogleSheet(data: TExpense & { by: string }) {
@@ -17,7 +18,7 @@ export async function appendToGoogleSheet(data: TExpense & { by: string }) {
     const sheets = google.sheets({ version: "v4", auth });
 
     const rowData = [
-      new Date(data.date).toLocaleDateString("en-GB"),
+      dayjs(data.date, "DD/MM/YYYY").format("DD/MM/YYYY"),
       data.amount,
       data.note || "Add by AI",
       data.category,
