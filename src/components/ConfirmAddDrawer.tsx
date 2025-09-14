@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { appendToGoogleSheet } from "@/app/actions/sheet-actions";
+import dayjs from "@/configs/date";
 import { cn } from "@/lib/utils";
 import * as RadioGroup from "@radix-ui/react-radio-group";
 import { Check, Loader2, User, Users } from "lucide-react";
@@ -105,7 +106,7 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
                   {finalData.amount.toLocaleString()} VND
                 </p>
                 <p className="text-muted-foreground text-sm">
-                  {new Date(finalData.date).toLocaleDateString("en-GB")}
+                  {dayjs(data.date, "DD/MM/YYYY").format("DD/MM/YYYY")}
                 </p>
               </div>
             </div>
