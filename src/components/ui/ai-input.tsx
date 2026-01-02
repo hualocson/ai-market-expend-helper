@@ -133,7 +133,7 @@ function Dock() {
 
         <Button
           type="button"
-          className="flex h-fit flex-1 cursor-pointer justify-end rounded-full px-2 !py-0.5"
+          className="flex h-fit flex-1 cursor-pointer justify-end rounded-full px-2 py-0.5!"
           variant="ghost"
           onClick={openFeedback}
         >
@@ -242,12 +242,6 @@ function Feedback({
     </form>
   );
 }
-
-const LOGO_SPRING = {
-  type: "spring",
-  stiffness: 350 / SPEED,
-  damping: 35,
-} as const;
 
 function Kbd({
   children,
