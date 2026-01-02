@@ -18,7 +18,7 @@ export const schema = {
     },
     category: {
       type: Type.STRING,
-      enum: ["Tiền chợ", "Ăn ngoài", "Mua sắm", "Chi tiêu khác"],
+      enum: ["Food", "Shopping", "Other"],
       format: "enum",
       description: "Category of the expense",
     },
@@ -35,10 +35,9 @@ export const systemInstruction = `You are a financial assistant that extracts st
     - Parse amounts like "45k" → 45000, "1.2tr" → 1200000.
     - Translate months to numbers (e.g., "tháng 8" → "08").
     - Map categories:
-      - groceries/market/rau/cá/thịt → "Tiền chợ"
-      - eating out/restaurant/cafe/bún phở → "Ăn ngoài"
-      - shopping/buying stuff/clothes/electronics → "Mua sắm"
-      - everything else → "Chi tiêu khác"
+      - groceries/market/restaurant/cafe/meal/food → "Food"
+      - shopping/buying stuff/clothes/electronics → "Shopping"
+      - everything else → "Other"
     - Keep notes short.
   `;
 
