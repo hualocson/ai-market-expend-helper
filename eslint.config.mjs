@@ -1,9 +1,10 @@
 import pluginJs from "@eslint/js";
 import pluginReact from "eslint-plugin-react";
+import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-export default [
+export default defineConfig([
   // Global configuration for all files
   {
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
@@ -78,4 +79,12 @@ export default [
       },
     },
   },
-];
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
