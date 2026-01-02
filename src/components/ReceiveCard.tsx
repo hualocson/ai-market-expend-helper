@@ -9,13 +9,13 @@ import { Calendar, DollarSign, Edit3, PlusIcon, Tag } from "lucide-react";
 import ConfirmAddDrawer from "./ConfirmAddDrawer";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { WheelPicker, WheelPickerWrapper } from "./ui/wheel-picker";
+import { formatVnd, parseVndInput } from "@/lib/utils";
+
+const categoryWheelOptions = Object.values(Category).map((category) => ({
+  value: category,
+  label: category,
+}));
 
 const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
   const [editableExpense, setEditableExpense] = useState(expense);
@@ -64,13 +64,14 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
             </label>
             <div className="relative">
               <Input
-                type="number"
-                value={editableExpense.amount}
+                type="text"
+                inputMode="numeric"
+                value={formatVnd(editableExpense.amount)}
                 onChange={(e) =>
-                  handleFieldChange("amount", parseFloat(e.target.value) || 0)
+                  handleFieldChange("amount", parseVndInput(e.target.value))
                 }
-                className="h-10 [appearance:textfield] pr-14 text-right text-lg font-semibold [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                placeholder="0.00"
+                className="h-10 pr-14 text-right text-lg font-semibold"
+                placeholder="0"
               />
               <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-sm">
                 VND
@@ -80,27 +81,25 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
 
           {/* Category */}
           <div className="space-y-2">
-            <label className="text-foreground text-sm font-medium">
+            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+              <Tag className="text-muted-foreground h-4 w-4" />
               Category
             </label>
-            <div className="relative">
-              <Tag className="text-muted-foreground absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2" />
-              <Select
+            <WheelPickerWrapper className="w-full">
+              <WheelPicker
                 value={editableExpense.category}
-                onValueChange={(value) => handleFieldChange("category", value)}
-              >
-                <SelectTrigger className="h-12 w-full rounded-lg pl-10">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(Category).map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                onValueChange={(value) =>
+                  handleFieldChange("category", value)
+                }
+                options={categoryWheelOptions}
+                visibleCount={4}
+                optionItemHeight={36}
+                classNames={{
+                  optionItem: "text-sm",
+                  highlightWrapper: "bg-muted text-foreground font-semibold",
+                }}
+              />
+            </WheelPickerWrapper>
           </div>
 
           {/* Note */}
@@ -116,14 +115,26 @@ const ReceiveCard: React.FC<{ expense: TExpense }> = ({ expense }) => {
 
           {/* Date */}
           <div className="w-full space-y-2">
-            <label
-              htmlFor="date"
-              className="text-foreground text-sm font-medium"
-            >
-              Date
-            </label>
-            <div className="dark:bg-input/30 relative w-full rounded-lg border pl-6">
-              <Calendar className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="date"
+                className="text-foreground flex items-center gap-2 text-sm font-medium"
+              >
+                <Calendar className="text-muted-foreground h-4 w-4" />
+                Date
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-6 px-2 text-xs"
+                onClick={() =>
+                  handleFieldChange("date", dayjs().format("DD/MM/YYYY"))
+                }
+              >
+                Today
+              </Button>
+            </div>
+            <div className="dark:bg-input/30 w-full rounded-lg border">
               <Input
                 id="date"
                 type="date"
