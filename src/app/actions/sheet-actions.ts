@@ -20,14 +20,14 @@ export async function appendToGoogleSheet(data: TExpense & { by: string }) {
     const rowData = [
       dayjs(data.date, "DD/MM/YYYY").format("DD/MM/YYYY"),
       data.amount,
-      data.note || "Add by AI",
+      data.note || "",
       data.category,
       data.by,
     ];
 
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
-      range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:G", // Default to first sheet
+      range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:E", // Default to first sheet
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
@@ -38,6 +38,10 @@ export async function appendToGoogleSheet(data: TExpense & { by: string }) {
     return response.data;
   } catch (error) {
     console.error("Error appending to Google Sheet:", error);
-    return null; // Or throw an error if you prefer
+    const errorResponse = error as {
+      response: { data: { error: { message: string } } };
+    };
+    console.error(errorResponse.response);
+    throw new Error("Failed to append to Google Sheet");
   }
 }
