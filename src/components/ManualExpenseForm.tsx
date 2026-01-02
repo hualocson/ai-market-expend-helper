@@ -1,20 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { appendToGoogleSheet } from "@/app/actions/sheet-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums/category";
 import { formatVnd, parseVndInput } from "@/lib/utils";
 import {
   Calendar,
   DollarSign,
+  Loader2,
   NotebookPen,
   RotateCcw,
   Tag,
   UserRound,
 } from "lucide-react";
+import { toast } from "sonner";
 
-import ConfirmAddDrawer from "./ConfirmAddDrawer";
 import { Button } from "./ui/button";
 import DatePicker from "./ui/date-picker";
 import { Input } from "./ui/input";
@@ -38,10 +40,56 @@ const categoryWheelOptions = Object.values(Category).map((category) => ({
   label: category,
 }));
 
-const ManualExpenseForm = () => {
-  const [expense, setExpense] = useState<TExpense>(defaultExpense);
+type ManualExpenseFormProps = {
+  initialExpense?: TExpense | null;
+};
+
+const buildExpense = (initialExpense?: TExpense | null) => {
+  if (!initialExpense) {
+    return defaultExpense;
+  }
+
+  return {
+    ...defaultExpense,
+    ...initialExpense,
+  };
+};
+
+const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
+  const [expense, setExpense] = useState<TExpense>(() =>
+    buildExpense(initialExpense)
+  );
   const [paidBy, setPaidBy] = useState(paidByOptions[0]);
-  const [openConfirmAddDrawer, setOpenConfirmAddDrawer] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof initialExpense === "undefined") {
+      return;
+    }
+
+    setExpense(buildExpense(initialExpense));
+  }, [initialExpense]);
+
+  const handleSubmit = async () => {
+    if (!canSubmit || loading) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = {
+        ...expense,
+        by: paidBy?.trim() || paidByOptions[0],
+      };
+      await appendToGoogleSheet(payload);
+      toast.success("Expense added successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to add expense");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const canSubmit = useMemo(() => {
     return expense.amount > 0 && expense.date && expense.category;
@@ -161,20 +209,20 @@ const ManualExpenseForm = () => {
         </div>
 
         <Button
-          onClick={() => setOpenConfirmAddDrawer(true)}
-          disabled={!canSubmit}
+          onClick={handleSubmit}
+          disabled={!canSubmit || loading}
           className="h-10 w-full rounded-xl text-base font-medium"
         >
-          Add to Sheet
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            "Add to Sheet"
+          )}
         </Button>
       </div>
-
-      <ConfirmAddDrawer
-        open={openConfirmAddDrawer}
-        setOpen={setOpenConfirmAddDrawer}
-        data={expense}
-        defaultPaidBy={paidBy}
-      />
     </>
   );
 };
