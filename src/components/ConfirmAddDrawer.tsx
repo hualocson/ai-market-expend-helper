@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 
 import { appendToGoogleSheet } from "@/app/actions/sheet-actions";
 import dayjs from "@/configs/date";
-import { cn } from "@/lib/utils";
-import * as RadioGroup from "@radix-ui/react-radio-group";
-import { Check, Loader2, User, Users } from "lucide-react";
+import { Loader2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "./ui/button";
@@ -18,32 +16,26 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "./ui/drawer";
+import { WheelPicker, WheelPickerWrapper } from "./ui/wheel-picker";
 
-const options = [
-  {
-    value: "Cubi",
-    label: "Anhbe",
-    description: "Anhbe tra",
-    icon: <User className="h-5 w-5" />,
-  },
-  {
-    value: "",
-    label: "Embe",
-    description: "Embe tra",
-    icon: <Users className="h-5 w-5" />,
-  },
-];
+const paidByOptions = ["Cubi", "Embe", "Other"];
+const paidByWheelOptions = paidByOptions.map((option) => ({
+  value: option,
+  label: option,
+}));
 
 interface ConfirmAddDrawerProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   data: TExpense;
+  defaultPaidBy?: string;
 }
 
 const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
   open,
   setOpen,
   data,
+  defaultPaidBy,
 }) => {
   const [finalData, setFinalData] = useState<
     TExpense & {
@@ -51,22 +43,26 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
     }
   >({
     ...data,
-    by: options[0].value,
+    by: defaultPaidBy || paidByOptions[0],
   });
 
   useEffect(() => {
     setFinalData({
       ...data,
-      by: options[0].value,
+      by: defaultPaidBy || paidByOptions[0],
     });
-  }, [data]);
+  }, [data, defaultPaidBy]);
 
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      await appendToGoogleSheet(finalData);
+      const payload = {
+        ...finalData,
+        by: finalData.by?.trim() || paidByOptions[0],
+      };
+      await appendToGoogleSheet(payload);
       setOpen(false);
       toast.success("Expense added successfully!");
     } catch (error) {
@@ -85,7 +81,7 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
             Confirm Expense
           </DrawerTitle>
           <DrawerDescription className="text-muted-foreground">
-            Choose who paid for this expense
+            Review details before adding to your sheet
           </DrawerDescription>
         </DrawerHeader>
 
@@ -100,6 +96,9 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
                 <p className="text-muted-foreground text-sm">
                   {finalData.note || "No note"}
                 </p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Paid by {finalData.by || "Me"}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-foreground text-lg font-semibold">
@@ -112,49 +111,32 @@ const ConfirmAddDrawer: React.FC<ConfirmAddDrawerProps> = ({
             </div>
           </div>
 
-          {/* Person Selection */}
+          {/* Paid By */}
           <div className="space-y-3">
-            <label className="text-foreground text-sm font-medium">
-              Who paid for this?
-            </label>
-            <RadioGroup.Root
-              defaultValue={finalData.by}
-              onValueChange={(value) =>
-                setFinalData((prev) => ({ ...prev, by: value }))
-              }
-              className="grid grid-cols-2 gap-4"
-            >
-              {options.map((option) => (
-                <RadioGroup.Item
-                  key={option.value}
-                  value={option.value}
-                  className={cn(
-                    "group border-border relative flex flex-col items-center gap-4 rounded-xl border-2 p-4 transition-all duration-200",
-                    "hover:border-border hover:bg-muted/50",
-                    "data-[state=checked]:border-primary data-[state=checked]:bg-primary/10"
-                  )}
-                >
-                  <span className="bg-muted group-data-[state=checked]:bg-primary/20 flex h-10 w-10 items-center justify-center rounded-full">
-                    {option.icon}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-foreground font-medium">
-                      {option.label}
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      {option.description}
-                    </p>
-                  </div>
-                  <span className="absolute top-4 right-4">
-                    <Check className="text-primary size-4 group-data-[state=unchecked]:hidden" />
-                  </span>
-                </RadioGroup.Item>
-              ))}
-            </RadioGroup.Root>
+            <div className="flex items-center gap-2">
+              <UserRound className="text-muted-foreground h-4 w-4" />
+              <label className="text-foreground text-sm font-medium">
+                Paid by
+              </label>
+            </div>
+            <div className="relative">
+              <WheelPickerWrapper className="w-full">
+                <WheelPicker
+                  value={finalData.by}
+                  onValueChange={(value) =>
+                    setFinalData((prev) => ({ ...prev, by: value }))
+                  }
+                  options={paidByWheelOptions}
+                  infinite
+                  visibleCount={3 * 4}
+                  dragSensitivity={5}
+                />
+              </WheelPickerWrapper>
+            </div>
           </div>
         </div>
 
-        <DrawerFooter className="px-6 pb-6">
+        <DrawerFooter className="px-6 pb-10">
           <Button
             onClick={handleSubmit}
             disabled={loading}
