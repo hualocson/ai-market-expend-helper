@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { processInput } from "@/app/actions/ai-actionts";
 import { Loader2, Plus, Send, X } from "lucide-react";
 
-import ReceiveCard from "./ReceiveCard";
+import ManualExpenseForm from "./ManualExpenseForm";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 
@@ -127,7 +127,7 @@ const AIInput = () => {
       {/* Result Section */}
       {result && (
         <div className="animate-in slide-in-from-bottom-4 duration-300">
-          <ReceiveCard expense={result} />
+          <ManualExpenseForm initialExpense={result} />
         </div>
       )}
     </div>
