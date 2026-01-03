@@ -98,11 +98,11 @@ const ExpenseList = async ({ selectedMonth }: ExpenseListProps) => {
         <ExpenseMonthTabs items={monthItems} />
       </div>
 
-      <div className="bg-muted/30 scroll-fade-y no-scrollbar flex grow flex-col gap-4 overflow-y-auto rounded-3xl p-4 sm:p-6">
+      <div className="bg-muted/30 no-scrollbar relative flex grow flex-col gap-4 overflow-y-auto rounded-3xl px-4 sm:px-6">
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key}>
-              <div className="flex items-center justify-between">
+              <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between bg-white/10 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6">
                 <p className="text-muted-foreground text-xs font-semibold tracking-wide">
                   {group.label}
                 </p>
