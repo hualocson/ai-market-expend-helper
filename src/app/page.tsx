@@ -25,13 +25,9 @@ export default async function Home({ searchParams }: HomeProps) {
                 <SiriOrb size="48px" />
               </div>
               <h1 className="text-3xl leading-tight font-semibold text-slate-100 sm:text-4xl">
-                Track expenses in seconds.
+                Track expenses
               </h1>
             </div>
-            <p className="text-muted-foreground text-base sm:text-lg">
-              Use AI or a simple form. Confirm once and it goes straight to your
-              sheet.
-            </p>
           </div>
           <ExpenseEntryDrawer />
         </header>
