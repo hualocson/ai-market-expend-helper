@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { Toaster } from "@/components/ui/sonner";
 
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import "./globals.css";
@@ -49,7 +50,9 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <main>{children}</main>
+          <main>
+            <PullToRefresh>{children}</PullToRefresh>
+          </main>
         </ThemeProvider>
         <Toaster />
       </body>
