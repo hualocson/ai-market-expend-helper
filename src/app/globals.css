@@ -177,112 +177,6 @@
       }
     }
   }
-
-  /* Scroll Fade Effect */
-  @supports (animation-timeline: scroll()) {
-    @property --ft {
-      syntax: "<length>";
-      inherits: false;
-      initial-value: 0px;
-    }
-
-    @property --fb {
-      syntax: "<length>";
-      inherits: false;
-      initial-value: 0px;
-    }
-
-    .scroll-fade-y,
-    [data-slot="scroll-area-viewport"] {
-      --ft: 0px;
-      --fb: 0px;
-      mask-image: linear-gradient(
-        to bottom,
-        transparent 0,
-        #000 var(--ft),
-        #000 calc(100% - var(--fb)),
-        transparent 100%
-      );
-      mask-size: 100% 100%;
-      mask-repeat: no-repeat;
-      animation:
-        fadeTop 1 linear both,
-        fadeBottom 1 linear both;
-      animation-timeline: scroll(self), scroll(self);
-      animation-range:
-        0% 12%,
-        88% 100%;
-    }
-
-    @keyframes fadeTop {
-      from {
-        --ft: 0px;
-      }
-      to {
-        --ft: 40px;
-      }
-    }
-
-    @keyframes fadeBottom {
-      from {
-        --fb: 40px;
-      }
-      to {
-        --fb: 0px;
-      }
-    }
-
-    @property --fl {
-      syntax: "<length>";
-      inherits: false;
-      initial-value: 0px;
-    }
-
-    @property --fr {
-      syntax: "<length>";
-      inherits: false;
-      initial-value: 40px;
-    }
-    .scroll-fade-x,
-    [data-slot="scroll-area-viewport"] {
-      --fl: 0px;
-      --fr: 0px;
-      mask-image: linear-gradient(
-        to right,
-        transparent 0,
-        #000 var(--fl),
-        #000 calc(100% - var(--fr)),
-        transparent 100%
-      );
-      mask-size: 100% 100%;
-      mask-repeat: no-repeat;
-      animation:
-        fadeLeft 1 linear both,
-        fadeRight 1 linear both;
-      animation-timeline: scroll(self), scroll(self);
-      animation-range:
-        0% 12%,
-        88% 100%;
-    }
-
-    @keyframes fadeLeft {
-      from {
-        --fl: 0px;
-      }
-      to {
-        --fl: 40px;
-      }
-    }
-
-    @keyframes fadeRight {
-      from {
-        --fr: 40px;
-      }
-      to {
-        --fr: 0px;
-      }
-    }
-  }
 }
 
 @utility no-scrollbar {
@@ -293,6 +187,120 @@
     display: none;
   }
 }
+/* Scroll Fade Effect */
+@property --ft {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fb {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@utility scroll-fade-y {
+  @supports (animation-timeline: scroll()) {
+    --ft: 0px;
+    --fb: 0px;
+
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--ft),
+      #000 calc(100% - var(--fb)),
+      transparent 100%
+    );
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+
+    animation:
+      fade-top 1 linear both,
+      fade-bottom 1 linear both;
+
+    animation-timeline: scroll(self), scroll(self);
+    animation-range:
+      0% 12%,
+      88% 100%;
+
+    @keyframes fade-top {
+      from {
+        --ft: 0px;
+      }
+      to {
+        --ft: 40px;
+      }
+    }
+
+    @keyframes fade-bottom {
+      from {
+        --fb: 40px;
+      }
+      to {
+        --fb: 0px;
+      }
+    }
+  }
+}
+
+@property --fl {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fr {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 40px;
+}
+
+@utility scroll-fade-x {
+  @supports (animation-timeline: scroll()) {
+    --fl: 0px;
+    --fr: 0px;
+
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--fl),
+      #000 calc(100% - var(--fr)),
+      transparent 100%
+    );
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+
+    animation:
+      fade-left 1 linear both,
+      fade-right 1 linear both;
+
+    animation-timeline: scroll(self), scroll(self);
+    animation-range:
+      0% 12%,
+      88% 100%;
+
+    @keyframes fade-left {
+      from {
+        --fl: 0px;
+      }
+      to {
+        --fl: 40px;
+      }
+    }
+
+    @keyframes fade-right {
+      from {
+        --fr: 40px;
+      }
+      to {
+        --fr: 0px;
+      }
+    }
+  }
+}
+
+/* } */
 
 /* Custom animations for smooth interactions */
 @keyframes slide-in-from-bottom {
