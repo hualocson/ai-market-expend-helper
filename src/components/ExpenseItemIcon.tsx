@@ -1,4 +1,5 @@
 import { Category } from "@/enums";
+import { cn } from "@/lib/utils";
 import {
   AppleIcon,
   ShellIcon,
@@ -6,30 +7,66 @@ import {
   ShoppingCartIcon,
 } from "lucide-react";
 
-const ExpenseItemIcon = ({ category }: { category: Category }) => {
+const ExpenseItemIcon = ({
+  category,
+  size = "default",
+}: {
+  category: Category;
+  size?: "sm" | "default";
+}) => {
+  const sizeClass =
+    size === "sm"
+      ? {
+          wrapper: "size-5",
+          icon: "size-3.5",
+        }
+      : {
+          wrapper: "size-10",
+          icon: "size-6",
+        };
   switch (category) {
     case Category.FOOD:
       return (
-        <span className="flex size-10 items-center justify-center rounded-full bg-teal-400/15 text-teal-400">
-          <AppleIcon className="size-6" />
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-teal-400/15 text-teal-400",
+            sizeClass.wrapper
+          )}
+        >
+          <AppleIcon className={sizeClass.icon} />
         </span>
       );
     case Category.SHOPPING:
       return (
-        <span className="flex size-10 items-center justify-center rounded-full bg-purple-400/15 text-purple-400">
-          <ShoppingCartIcon className="size-6" />
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-purple-400/15 text-purple-400",
+            sizeClass.wrapper
+          )}
+        >
+          <ShoppingCartIcon className={sizeClass.icon} />
         </span>
       );
     case Category.OTHER:
       return (
-        <span className="flex size-10 items-center justify-center rounded-full bg-orange-400/15 text-orange-400">
-          <ShoppingBagIcon className="size-6" />
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-orange-400/15 text-orange-400",
+            sizeClass.wrapper
+          )}
+        >
+          <ShoppingBagIcon className={sizeClass.icon} />
         </span>
       );
     default:
       return (
-        <span className="flex size-10 items-center justify-center rounded-full bg-gray-400/15 text-gray-400">
-          <ShellIcon className="size-6" />
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-gray-400/15 text-gray-400",
+            sizeClass.wrapper
+          )}
+        >
+          <ShellIcon className={sizeClass.icon} />
         </span>
       );
   }
