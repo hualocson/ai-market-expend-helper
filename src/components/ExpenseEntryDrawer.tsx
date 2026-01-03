@@ -1,25 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { Plus, XIcon } from "lucide-react";
+import { Loader2, Plus, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerContent,
   DrawerDescription,
+  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
 import ExpenseEntry from "@/components/ExpenseEntry";
+import { type ManualExpenseFormHandle } from "@/components/ManualExpenseForm";
 
 const ExpenseEntryDrawer = () => {
   const [open, setOpen] = useState(false);
+  const [formState, setFormState] = useState({
+    canSubmit: false,
+    loading: false,
+  });
+  const formRef = useRef<ManualExpenseFormHandle>(null);
+  const submitLabel = "Add Expense";
+  const loadingLabel = "Adding...";
   return (
-    <Drawer open={open} onOpenChange={setOpen} direction="right">
+    <Drawer
+      open={open}
+      onOpenChange={setOpen}
+      direction="right"
+      dismissible={false}
+    >
       <DrawerTrigger asChild>
         <Button className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
@@ -41,9 +55,29 @@ const ExpenseEntryDrawer = () => {
             <XIcon className="h-4 w-4" />
           </Button>
         </DrawerHeader>
-        <div className="no-scrollbar overflow-y-auto px-4 pb-6 sm:px-6">
-          <ExpenseEntry />
+        <div className="no-scrollbar scroll-fade-y flex-1 overflow-y-auto px-2 pb-4">
+          <ExpenseEntry
+            formRef={formRef}
+            showSubmitButton={false}
+            onStateChange={setFormState}
+          />
         </div>
+        <DrawerFooter className="border-t">
+          <Button
+            onClick={() => formRef.current?.submit()}
+            disabled={!formState.canSubmit || formState.loading}
+            className="h-10 w-full rounded-xl text-base font-medium"
+          >
+            {formState.loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {loadingLabel}
+              </>
+            ) : (
+              submitLabel
+            )}
+          </Button>
+        </DrawerFooter>
       </DrawerContent>
     </Drawer>
   );
