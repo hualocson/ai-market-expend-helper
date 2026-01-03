@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { appendToGoogleSheet } from "@/app/actions/sheet-actions";
+import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
-import { Category } from "@/enums/category";
+import { Category } from "@/enums";
 import { formatVnd, parseVndInput } from "@/lib/utils";
 import {
   Calendar,
@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Tag,
   UserRound,
+  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,7 +42,13 @@ const categoryWheelOptions = Object.values(Category).map((category) => ({
 }));
 
 type ManualExpenseFormProps = {
-  initialExpense?: TExpense | null;
+  initialExpense?: (TExpense & { paidBy?: string }) | null;
+  onSubmit?: (payload: TExpense & { paidBy: string }) => Promise<void>;
+  submitLabel?: string;
+  loadingLabel?: string;
+  successMessage?: string;
+  errorMessage?: string;
+  onSuccess?: () => void;
 };
 
 const buildExpense = (initialExpense?: TExpense | null) => {
@@ -55,7 +62,15 @@ const buildExpense = (initialExpense?: TExpense | null) => {
   };
 };
 
-const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
+const ManualExpenseForm = ({
+  initialExpense,
+  onSubmit,
+  submitLabel = "Add Expense",
+  loadingLabel = "Adding...",
+  successMessage = "Expense added successfully!",
+  errorMessage = "Failed to add expense",
+  onSuccess,
+}: ManualExpenseFormProps) => {
   const [expense, setExpense] = useState<TExpense>(() =>
     buildExpense(initialExpense)
   );
@@ -68,6 +83,16 @@ const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
     }
 
     setExpense(buildExpense(initialExpense));
+    if (initialExpense?.paidBy) {
+      const fallback = paidByOptions[paidByOptions.length - 1];
+      setPaidBy(
+        paidByOptions.includes(initialExpense.paidBy)
+          ? initialExpense.paidBy
+          : fallback
+      );
+    } else {
+      setPaidBy(paidByOptions[0]);
+    }
   }, [initialExpense]);
 
   const handleSubmit = async () => {
@@ -79,13 +104,15 @@ const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
       setLoading(true);
       const payload = {
         ...expense,
-        by: paidBy?.trim() || paidByOptions[0],
+        paidBy: paidBy?.trim() || paidByOptions[0],
       };
-      await appendToGoogleSheet(payload);
-      toast.success("Expense added successfully!");
+      const submitAction = onSubmit ?? createExpenseEntry;
+      await submitAction(payload);
+      toast.success(successMessage);
+      onSuccess?.();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to add expense");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -110,10 +137,50 @@ const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
       <div className="space-y-5">
         <div className="space-y-2">
           <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-            <DollarSign className="text-muted-foreground h-4 w-4" />
-            Amount
+            <NotebookPen className="text-muted-foreground h-4 w-4" />
+            Note
           </label>
+          <Textarea
+            value={expense.note}
+            onChange={(e) => handleExpenseChange("note", e.target.value)}
+            placeholder="Optional note about this expense"
+            className="min-h-[96px] resize-none rounded-xl"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+              <DollarSign className="text-muted-foreground h-4 w-4" />
+              Amount
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setExpense((prev) => ({
+                  ...prev,
+                  amount: prev.amount * 1000,
+                }))
+              }
+            >
+              000
+            </Button>
+          </div>
           <div className="relative">
+            {/* clear button */}
+            {expense.amount > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute top-1/2 left-2 -translate-y-1/2"
+                onClick={() => handleExpenseChange("amount", 0)}
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
+            )}
             <Input
               type="text"
               inputMode="numeric"
@@ -195,19 +262,6 @@ const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-            <NotebookPen className="text-muted-foreground h-4 w-4" />
-            Note
-          </label>
-          <Textarea
-            value={expense.note}
-            onChange={(e) => handleExpenseChange("note", e.target.value)}
-            placeholder="Optional note about this expense"
-            className="min-h-[96px] resize-none rounded-xl"
-          />
-        </div>
-
         <Button
           onClick={handleSubmit}
           disabled={!canSubmit || loading}
@@ -216,10 +270,10 @@ const ManualExpenseForm = ({ initialExpense }: ManualExpenseFormProps) => {
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding...
+              {loadingLabel}
             </>
           ) : (
-            "Add to Sheet"
+            submitLabel
           )}
         </Button>
       </div>
