@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
@@ -18,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import ExpenseItemIcon from "./ExpenseItemIcon";
 import { Button } from "./ui/button";
 import DatePicker from "./ui/date-picker";
 import { Input } from "./ui/input";
@@ -38,8 +46,22 @@ const paidByWheelOptions = paidByOptions.map((option) => ({
 }));
 const categoryWheelOptions = Object.values(Category).map((category) => ({
   value: category,
-  label: category,
+  label: (
+    <div className="flex items-center gap-2">
+      <ExpenseItemIcon category={category as Category} size="sm" />
+      <span className="text-sm font-medium">{category}</span>
+    </div>
+  ),
 }));
+
+export type ManualExpenseFormHandle = {
+  submit: () => void;
+};
+
+export type ManualExpenseFormState = {
+  canSubmit: boolean;
+  loading: boolean;
+};
 
 type ManualExpenseFormProps = {
   initialExpense?: (TExpense & { paidBy?: string }) | null;
@@ -49,6 +71,8 @@ type ManualExpenseFormProps = {
   successMessage?: string;
   errorMessage?: string;
   onSuccess?: () => void;
+  showSubmitButton?: boolean;
+  onStateChange?: (state: ManualExpenseFormState) => void;
 };
 
 const buildExpense = (initialExpense?: TExpense | null) => {
@@ -62,223 +86,258 @@ const buildExpense = (initialExpense?: TExpense | null) => {
   };
 };
 
-const ManualExpenseForm = ({
-  initialExpense,
-  onSubmit,
-  submitLabel = "Add Expense",
-  loadingLabel = "Adding...",
-  successMessage = "Expense added successfully!",
-  errorMessage = "Failed to add expense",
-  onSuccess,
-}: ManualExpenseFormProps) => {
-  const [expense, setExpense] = useState<TExpense>(() =>
-    buildExpense(initialExpense)
-  );
-  const [paidBy, setPaidBy] = useState(paidByOptions[0]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (typeof initialExpense === "undefined") {
-      return;
-    }
-
-    setExpense(buildExpense(initialExpense));
-    if (initialExpense?.paidBy) {
-      const fallback = paidByOptions[paidByOptions.length - 1];
-      setPaidBy(
-        paidByOptions.includes(initialExpense.paidBy)
-          ? initialExpense.paidBy
-          : fallback
-      );
-    } else {
-      setPaidBy(paidByOptions[0]);
-    }
-  }, [initialExpense]);
-
-  const handleSubmit = async () => {
-    if (!canSubmit || loading) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const payload = {
-        ...expense,
-        paidBy: paidBy?.trim() || paidByOptions[0],
-      };
-      const submitAction = onSubmit ?? createExpenseEntry;
-      await submitAction(payload);
-      toast.success(successMessage);
-      onSuccess?.();
-    } catch (error) {
-      console.error(error);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const canSubmit = useMemo(() => {
-    return expense.amount > 0 && expense.date && expense.category;
-  }, [expense.amount, expense.category, expense.date]);
-
-  const handleExpenseChange = (
-    field: keyof TExpense,
-    value: string | number
+const ManualExpenseForm = forwardRef<
+  ManualExpenseFormHandle,
+  ManualExpenseFormProps
+>(
+  (
+    {
+      initialExpense,
+      onSubmit,
+      submitLabel = "Add Expense",
+      loadingLabel = "Adding...",
+      successMessage = "Expense added successfully!",
+      errorMessage = "Failed to add expense",
+      onSuccess,
+      showSubmitButton = true,
+      onStateChange,
+    },
+    ref
   ) => {
-    setExpense((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+    const [expense, setExpense] = useState<TExpense>(() =>
+      buildExpense(initialExpense)
+    );
+    const [paidBy, setPaidBy] = useState(paidByOptions[0]);
+    const [loading, setLoading] = useState(false);
 
-  return (
-    <>
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-            <NotebookPen className="text-muted-foreground h-4 w-4" />
-            Note
-          </label>
-          <Textarea
-            value={expense.note}
-            onChange={(e) => handleExpenseChange("note", e.target.value)}
-            placeholder="Optional note about this expense"
-            className="min-h-[96px] resize-none rounded-xl"
-          />
-        </div>
+    useEffect(() => {
+      if (typeof initialExpense === "undefined") {
+        return;
+      }
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
+      setExpense(buildExpense(initialExpense));
+      if (initialExpense?.paidBy) {
+        const fallback = paidByOptions[paidByOptions.length - 1];
+        setPaidBy(
+          paidByOptions.includes(initialExpense.paidBy)
+            ? initialExpense.paidBy
+            : fallback
+        );
+      } else {
+        setPaidBy(paidByOptions[0]);
+      }
+    }, [initialExpense]);
+
+    const canSubmit = useMemo(() => {
+      return Boolean(expense.amount > 0 && expense.date && expense.category);
+    }, [expense.amount, expense.category, expense.date]);
+
+    const handleSubmit = useCallback(async () => {
+      if (!canSubmit || loading) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const payload = {
+          ...expense,
+          paidBy: paidBy?.trim() || paidByOptions[0],
+        };
+        const submitAction = onSubmit ?? createExpenseEntry;
+        await submitAction(payload);
+        toast.success(successMessage);
+        onSuccess?.();
+      } catch (error) {
+        console.error(error);
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    }, [
+      canSubmit,
+      errorMessage,
+      expense,
+      loading,
+      onSubmit,
+      onSuccess,
+      paidBy,
+      successMessage,
+    ]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        submit: handleSubmit,
+      }),
+      [handleSubmit]
+    );
+
+    useEffect(() => {
+      onStateChange?.({ canSubmit, loading });
+    }, [canSubmit, loading, onStateChange]);
+
+    const handleExpenseChange = (
+      field: keyof TExpense,
+      value: string | number
+    ) => {
+      setExpense((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    };
+
+    return (
+      <>
+        <div className="space-y-5">
+          <div className="space-y-2">
             <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-              <DollarSign className="text-muted-foreground h-4 w-4" />
-              Amount
+              <NotebookPen className="text-muted-foreground h-4 w-4" />
+              Note
             </label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setExpense((prev) => ({
-                  ...prev,
-                  amount: prev.amount * 1000,
-                }))
-              }
-            >
-              000
-            </Button>
+            <Textarea
+              value={expense.note}
+              onChange={(e) => handleExpenseChange("note", e.target.value)}
+              placeholder="Optional note about this expense"
+              className="min-h-[96px] resize-none rounded-xl"
+            />
           </div>
-          <div className="relative">
-            {/* clear button */}
-            {expense.amount > 0 && (
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+                <DollarSign className="text-muted-foreground h-4 w-4" />
+                Amount
+              </label>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="absolute top-1/2 left-2 -translate-y-1/2"
-                onClick={() => handleExpenseChange("amount", 0)}
-              >
-                <XIcon className="h-4 w-4" />
-              </Button>
-            )}
-            <Input
-              type="text"
-              inputMode="numeric"
-              value={formatVnd(expense.amount)}
-              onChange={(e) =>
-                handleExpenseChange("amount", parseVndInput(e.target.value))
-              }
-              className="h-10 rounded-xl pr-12 text-right text-lg font-semibold"
-              placeholder="0"
-            />
-            <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs">
-              VND
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-              <Calendar className="text-muted-foreground h-4 w-4" />
-              Date
-            </label>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                handleExpenseChange("date", dayjs().format("DD/MM/YYYY"))
-              }
-            >
-              <RotateCcw className="h-4 w-4" />
-              Today
-            </Button>
-          </div>
-          <DatePicker
-            value={dayjs(expense.date, "DD/MM/YYYY").toDate()}
-            onChange={(date) =>
-              handleExpenseChange(
-                "date",
-                date ? dayjs(date).format("DD/MM/YYYY") : ""
-              )
-            }
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-              <Tag className="text-muted-foreground h-4 w-4" />
-              Category
-            </label>
-            <WheelPickerWrapper className="w-full">
-              <WheelPicker
-                value={expense.category}
-                onValueChange={(value) =>
-                  handleExpenseChange("category", value)
+                onClick={() =>
+                  setExpense((prev) => ({
+                    ...prev,
+                    amount: prev.amount * 1000,
+                  }))
                 }
-                options={categoryWheelOptions}
-                visibleCount={3 * 4}
-                infinite
-                dragSensitivity={5}
+              >
+                000
+              </Button>
+            </div>
+            <div className="relative">
+              {/* clear button */}
+              {expense.amount > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-1/2 left-2 -translate-y-1/2"
+                  onClick={() => handleExpenseChange("amount", 0)}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              )}
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formatVnd(expense.amount)}
+                onChange={(e) =>
+                  handleExpenseChange("amount", parseVndInput(e.target.value))
+                }
+                className="h-10 rounded-xl pr-12 text-right text-lg font-semibold"
+                placeholder="0"
               />
-            </WheelPickerWrapper>
+              <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs">
+                VND
+              </span>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-              <UserRound className="text-muted-foreground h-4 w-4" />
-              Paid by
-            </label>
-            <WheelPickerWrapper className="w-full">
-              <WheelPicker
-                value={paidBy}
-                onValueChange={setPaidBy}
-                options={paidByWheelOptions}
-                infinite
-                visibleCount={3 * 4}
-                dragSensitivity={5}
-              />
-            </WheelPickerWrapper>
-          </div>
-        </div>
 
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit || loading}
-          className="h-10 w-full rounded-xl text-base font-medium"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {loadingLabel}
-            </>
-          ) : (
-            submitLabel
-          )}
-        </Button>
-      </div>
-    </>
-  );
-};
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+                <Calendar className="text-muted-foreground h-4 w-4" />
+                Date
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  handleExpenseChange("date", dayjs().format("DD/MM/YYYY"))
+                }
+              >
+                <RotateCcw className="h-4 w-4" />
+                Today
+              </Button>
+            </div>
+            <DatePicker
+              value={dayjs(expense.date, "DD/MM/YYYY").toDate()}
+              onChange={(date) =>
+                handleExpenseChange(
+                  "date",
+                  date ? dayjs(date).format("DD/MM/YYYY") : ""
+                )
+              }
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+                <Tag className="text-muted-foreground h-4 w-4" />
+                Category
+              </label>
+              <WheelPickerWrapper className="w-full">
+                <WheelPicker
+                  value={expense.category}
+                  onValueChange={(value) =>
+                    handleExpenseChange("category", value)
+                  }
+                  options={categoryWheelOptions}
+                  visibleCount={3 * 4}
+                  infinite
+                  dragSensitivity={5}
+                />
+              </WheelPickerWrapper>
+            </div>
+            <div className="space-y-2">
+              <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+                <UserRound className="text-muted-foreground h-4 w-4" />
+                Paid by
+              </label>
+              <WheelPickerWrapper className="w-full">
+                <WheelPicker
+                  value={paidBy}
+                  onValueChange={setPaidBy}
+                  options={paidByWheelOptions}
+                  infinite
+                  visibleCount={3 * 4}
+                  dragSensitivity={5}
+                />
+              </WheelPickerWrapper>
+            </div>
+          </div>
+
+          {showSubmitButton ? (
+            <Button
+              onClick={handleSubmit}
+              disabled={!canSubmit || loading}
+              className="h-10 w-full rounded-xl text-base font-medium"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {loadingLabel}
+                </>
+              ) : (
+                submitLabel
+              )}
+            </Button>
+          ) : null}
+        </div>
+      </>
+    );
+  }
+);
+
+ManualExpenseForm.displayName = "ManualExpenseForm";
 
 export default ManualExpenseForm;
