@@ -25,7 +25,7 @@ const modes = [
 type Mode = (typeof modes)[number]["id"];
 
 const ExpenseEntry = () => {
-  const [mode, setMode] = useState<Mode>("ai");
+  const [mode, setMode] = useState<Mode>("manual");
 
   return (
     <div className="bg-card/70 border-border/60 rounded-3xl border p-4 shadow-xl backdrop-blur sm:p-6">
