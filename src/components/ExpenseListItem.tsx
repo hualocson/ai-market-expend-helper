@@ -247,23 +247,22 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
           <div className="flex flex-wrap items-center gap-4 py-4">
             <ExpenseItemIcon category={expense.category as Category} />
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-foreground truncate text-base font-semibold">
-                {expense.category}
-              </p>
               {expense.note ? (
-                <p className="text-muted-foreground truncate text-xs">
+                <p className="text-muted-foreground truncate font-semibold">
                   {expense.note}
                 </p>
               ) : null}
+              <p className="w-fit truncate rounded-2xl bg-gray-500/30 px-3 text-sm text-gray-500">
+                {expense.category}
+              </p>
             </div>
             <div className="space-y-1">
               <p className="text-right text-sm font-semibold text-rose-400">
                 -{formattedAmount} VND
               </p>
               {expense.paidBy ? (
-                <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                <div className="flex justify-end">
                   <PaidByIcon paidBy={expense.paidBy} size="sm" />
-                  <span className="truncate">Paid by {expense.paidBy}</span>
                 </div>
               ) : null}
             </div>
