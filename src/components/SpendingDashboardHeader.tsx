@@ -6,6 +6,8 @@ import { and, eq, gte, lt } from "drizzle-orm";
 
 import SpendingTrendChart from "@/components/SpendingTrendChart";
 
+import SiriOrb from "./ui/siri-orb";
+
 type SpendingDashboardHeaderProps = {
   selectedMonth?: string;
 };
@@ -69,9 +71,12 @@ const SpendingDashboardHeader = async ({
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <p className="text-[34px] font-semibold tracking-tight text-white sm:text-[40px]">
-          {formatVnd(totalAmount)} VND
-        </p>
+        <div className="flex items-center gap-3">
+          <SiriOrb size="40px" />
+          <p className="text-[32px] font-semibold tracking-tight text-white">
+            {formatVnd(totalAmount)} VND
+          </p>
+        </div>
         <p className="text-sm text-slate-400">
           Spent in {activeMonth.format("MMMM YYYY")}
         </p>
