@@ -144,17 +144,23 @@ function DatePicker({
           onValueChange={(value) => handlePartsChange({ day: Number(value) })}
           options={dayOptions}
           infinite
+          dragSensitivity={5}
+          visibleCount={3 * 4}
         />
         <WheelPicker
           infinite
           value={parts.month ? String(parts.month) : monthOptions[0]?.value}
           onValueChange={(value) => handlePartsChange({ month: Number(value) })}
           options={monthOptions}
+          dragSensitivity={5}
+          visibleCount={3 * 4}
         />
         <WheelPicker
           value={parts.year ? String(parts.year) : yearOptions[0]?.value}
           onValueChange={(value) => handlePartsChange({ year: Number(value) })}
           options={yearOptions}
+          dragSensitivity={5}
+          visibleCount={3 * 4}
         />
       </WheelPickerWrapper>
     </div>
