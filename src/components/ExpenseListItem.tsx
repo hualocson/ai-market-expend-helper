@@ -184,7 +184,11 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
 
   return (
     <>
-      <div className="relative isolate overflow-hidden" ref={containerRef}>
+      <div
+        className="relative isolate overflow-hidden"
+        ref={containerRef}
+        data-expense-list-item
+      >
         <motion.div
           initial={false}
           animate={{ opacity: isOpen ? 1 : 0, x: isOpen ? "0%" : "100%" }}
@@ -244,7 +248,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
           }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex flex-wrap items-center gap-4 py-4">
+          <div className="flex flex-wrap items-center gap-4">
             <ExpenseItemIcon category={expense.category as Category} />
             <div className="min-w-0 flex-1 space-y-1">
               {expense.note ? (
