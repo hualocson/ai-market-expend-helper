@@ -108,7 +108,10 @@ const ExpenseEntryDrawer = () => {
       const deltaX = touchX - swipeStartX.current;
       const deltaY = touchY - swipeStartY.current;
 
-      if (deltaX < -SWIPE_OPEN_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (
+        deltaX < -SWIPE_OPEN_THRESHOLD &&
+        Math.abs(deltaX) > Math.abs(deltaY)
+      ) {
         swipeTriggered.current = true;
         setOpen(true);
       }
@@ -145,9 +148,11 @@ const ExpenseEntryDrawer = () => {
       onOpenChange={setOpen}
       direction="right"
       dismissible={false}
+      autoFocus
+      repositionInputs
     >
       <DrawerTrigger asChild>
-        <Button className="w-full sm:w-auto">
+        <Button className="rounded-full shadow-[0_25px_60px_rgba(0,0,0,0.45)] active:scale-[0.97]">
           <Plus className="h-4 w-4" />
           Add expense
         </Button>
@@ -163,6 +168,7 @@ const ExpenseEntryDrawer = () => {
             size="icon"
             className="absolute top-4 right-4 rounded-full"
             onClick={() => setOpen(false)}
+            tabIndex={-1}
           >
             <XIcon className="h-4 w-4" />
           </Button>
