@@ -40,7 +40,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+      className="no-scrollbar"
+    >
       <body
         className={cn(geistSans.variable, geistMono.variable, "antialiased")}
       >
@@ -54,7 +59,7 @@ export default function RootLayout({
             <PullToRefresh>{children}</PullToRefresh>
           </main>
         </ThemeProvider>
-        <Toaster />
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
