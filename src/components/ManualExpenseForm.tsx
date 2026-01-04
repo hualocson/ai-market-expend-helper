@@ -6,6 +6,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -110,6 +111,18 @@ const ManualExpenseForm = forwardRef<
     const [paidBy, setPaidBy] = useState(paidByOptions[0]);
     const [loading, setLoading] = useState(false);
 
+    const noteRef = useRef<HTMLTextAreaElement>(null);
+    const amountRef = useRef<HTMLInputElement>(null);
+
+    const handleOnNoteKeyDown = (
+      e: React.KeyboardEvent<HTMLTextAreaElement>
+    ) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        amountRef.current?.select();
+      }
+    };
+
     useEffect(() => {
       if (typeof initialExpense === "undefined") {
         return;
@@ -189,17 +202,36 @@ const ManualExpenseForm = forwardRef<
     return (
       <>
         <div className="space-y-5">
-          <div className="space-y-2">
+          <div className="relative space-y-2">
             <label className="text-foreground flex items-center gap-2 text-sm font-medium">
               <NotebookPen className="text-muted-foreground h-4 w-4" />
               Note
             </label>
             <Textarea
+              ref={noteRef}
               value={expense.note}
               onChange={(e) => handleExpenseChange("note", e.target.value)}
               placeholder="Optional note about this expense"
-              className="min-h-[96px] resize-none rounded-xl"
+              className="min-h-[80px] resize-none rounded-xl"
+              onKeyDown={handleOnNoteKeyDown}
+              tabIndex={0}
             />
+            {/* reset button */}
+            {expense.note && (
+              <div className="absolute right-1 bottom-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    handleExpenseChange("note", "");
+                    noteRef.current?.focus();
+                  }}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -230,7 +262,10 @@ const ManualExpenseForm = forwardRef<
                   variant="ghost"
                   size="sm"
                   className="absolute top-1/2 left-2 -translate-y-1/2"
-                  onClick={() => handleExpenseChange("amount", 0)}
+                  onClick={() => {
+                    handleExpenseChange("amount", 0);
+                    amountRef.current?.focus();
+                  }}
                 >
                   <XIcon className="h-4 w-4" />
                 </Button>
@@ -242,8 +277,10 @@ const ManualExpenseForm = forwardRef<
                 onChange={(e) =>
                   handleExpenseChange("amount", parseVndInput(e.target.value))
                 }
+                ref={amountRef}
                 className="h-10 rounded-xl pr-12 text-right text-lg font-semibold"
                 placeholder="0"
+                onFocus={() => amountRef.current?.select()}
               />
               <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs">
                 VND
