@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { Toaster } from "@/components/ui/sonner";
 
+import ExpenseEntryDrawer from "@/components/ExpenseEntryDrawer";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -47,8 +48,14 @@ export default function RootLayout({
       className="no-scrollbar"
     >
       <body
-        className={cn(geistSans.variable, geistMono.variable, "antialiased")}
+        className={cn(
+          geistSans.variable,
+          geistMono.variable,
+          "bg-[radial-gradient(circle_at_top,#1b1d25,#151822_50%,#0e1118_100%)] antialiased"
+        )}
       >
+        <div className="pointer-events-none absolute -top-32 right-0 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(122,92,255,0.18),transparent_60%)] blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-[-120px] h-[380px] w-[380px] rounded-full bg-[radial-gradient(circle,rgba(28,210,180,0.18),transparent_60%)] blur-3xl" />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -56,7 +63,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <main>
-            <PullToRefresh>{children}</PullToRefresh>
+            <PullToRefresh>
+              {children}
+              {/* floating action button */}
+              <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
+                <ExpenseEntryDrawer />
+              </div>
+            </PullToRefresh>
           </main>
         </ThemeProvider>
         <Toaster position="top-right" richColors />
