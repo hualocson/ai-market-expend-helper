@@ -156,6 +156,7 @@
   }
   html {
     @apply overscroll-y-none;
+    scrollbar-gutter: stable;
   }
 
   [data-slot="layout"] {
@@ -249,7 +250,7 @@
 
   .scroll-fade-x {
     --fl: 0px;
-    --fr: 0px;
+    --fr: 40px;
 
     mask-image: linear-gradient(
       to right,
