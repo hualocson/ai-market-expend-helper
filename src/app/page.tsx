@@ -15,7 +15,12 @@ export default async function Home({ searchParams }: HomeProps) {
     <div className="relative mx-auto flex max-w-lg flex-col gap-6 px-4 pt-6 pb-16 sm:px-6">
       <SpendingDashboardHeader selectedMonth={selectedMonth} />
 
-      <ExpenseList selectedMonth={selectedMonth} mode="recent" showViewFull />
+      <ExpenseList
+        selectedMonth={selectedMonth}
+        mode="recent"
+        recentDays={3}
+        showViewFull
+      />
 
       <JumpToTopButton />
     </div>
