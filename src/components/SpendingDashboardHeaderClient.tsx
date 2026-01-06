@@ -42,14 +42,14 @@ const SpendingDashboardHeaderClient = ({
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <SiriOrb size="40px" />
-            <p className="text-[32px] font-semibold tracking-tight text-white">
-              {formatVnd(activeTotals?.total ?? 0)} VND
-            </p>
-          </div>
-
+        <div className="flex items-center gap-2">
+          <SiriOrb size="40px" className="shrink-0" />
+          <p className="text-[32px] font-semibold tracking-tight text-white">
+            {formatVnd(activeTotals?.total ?? 0)} VND
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-slate-400">{subtitle}</p>
           <Select value={activePayer} onValueChange={setActivePayer}>
             <SelectTrigger className="h-10 w-32 focus-visible:border-0 focus-visible:border-transparent focus-visible:ring-0">
               <SelectValue placeholder="Select payer" />
@@ -63,7 +63,6 @@ const SpendingDashboardHeaderClient = ({
             </SelectContent>
           </Select>
         </div>
-        <p className="text-sm text-slate-400">{subtitle}</p>
       </div>
 
       <div className="relative overflow-hidden rounded-[28px] bg-white/5 p-4 shadow-[0_25px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
