@@ -1,12 +1,9 @@
 import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { expenses } from "@/db/schema";
-import { formatVnd } from "@/lib/utils";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 
-import SpendingTrendChart from "@/components/SpendingTrendChart";
-
-import SiriOrb from "./ui/siri-orb";
+import SpendingDashboardHeaderClient from "@/components/SpendingDashboardHeaderClient";
 
 type SpendingDashboardHeaderProps = {
   selectedMonth?: string;
@@ -46,7 +43,8 @@ const SpendingDashboardHeader = async ({
   const rows = await db
     .select({
       date: expenses.date,
-      amount: expenses.amount,
+      paidBy: expenses.paidBy,
+      amount: sql<number>`sum(${expenses.amount})`.as("amount"),
     })
     .from(expenses)
     .where(
@@ -55,51 +53,55 @@ const SpendingDashboardHeader = async ({
         gte(expenses.date, startOfMonth.format("YYYY-MM-DD")),
         lt(expenses.date, endOfMonth.format("YYYY-MM-DD"))
       )
+    )
+    .groupBy(expenses.date, expenses.paidBy);
+
+  const normalizedRows = rows
+    .map((row) => ({
+      date: String(row.date),
+      amount: Number(row.amount ?? 0),
+      paidBy: row.paidBy,
+    }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+
+  const totalsByPayer = new Map<
+    string,
+    Array<{ date: string; amount: number }>
+  >();
+  normalizedRows.forEach((row) => {
+    const current = totalsByPayer.get(row.paidBy) ?? [];
+    current.push({ date: row.date, amount: row.amount });
+    totalsByPayer.set(row.paidBy, current);
+  });
+
+  const allTotals = buildDailyTotals(
+    startOfMonth,
+    normalizedRows.map(({ date, amount }) => ({ date, amount }))
+  );
+  const totalAmount = normalizedRows.reduce((sum, row) => sum + row.amount, 0);
+
+  const payerTotals = Array.from(totalsByPayer.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .reduce<Record<string, { total: number; totals: number[] }>>(
+      (acc, [payer, amounts]) => {
+        const { totals } = buildDailyTotals(startOfMonth, amounts);
+        const total = amounts.reduce((sum, row) => sum + row.amount, 0);
+        acc[payer] = { total, totals };
+        return acc;
+      },
+      {}
     );
 
-  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
-  const { totals } = buildDailyTotals(
-    startOfMonth,
-    rows
-      .map((row) => ({
-        date: String(row.date),
-        amount: row.amount,
-      }))
-      .sort((a, b) => (a.date < b.date ? -1 : 1))
-  );
-
+  const totalsForDisplay = {
+    All: { total: totalAmount, totals: allTotals.totals },
+    ...payerTotals,
+  };
   return (
-    <section className="space-y-4">
-      <div className="space-y-1">
-        <div className="flex items-center gap-3">
-          <SiriOrb size="40px" />
-          <p className="text-[32px] font-semibold tracking-tight text-white">
-            {formatVnd(totalAmount)} VND
-          </p>
-        </div>
-        <p className="text-sm text-slate-400">
-          Spent in {activeMonth.format("MMMM YYYY")}
-        </p>
-      </div>
-
-      <div className="relative overflow-hidden rounded-[28px] bg-white/5 p-4 shadow-[0_25px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(78,241,255,0.22),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(58,242,162,0.12),transparent_50%)]" />
-        <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(58,242,162,0.25),transparent_60%)] blur-2xl" />
-
-        <div className="relative">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-slate-300">
-              Spending trend
-            </p>
-            <span className="text-xs text-slate-500">This month</span>
-          </div>
-
-          <div className="mt-4">
-            <SpendingTrendChart totals={totals} />
-          </div>
-        </div>
-      </div>
-    </section>
+    <SpendingDashboardHeaderClient
+      activeMonthLabel={activeMonth.format("MMMM YYYY")}
+      payerOptions={Object.keys(totalsForDisplay)}
+      totalsByPayer={totalsForDisplay}
+    />
   );
 };
 
