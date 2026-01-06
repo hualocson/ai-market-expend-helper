@@ -72,7 +72,15 @@ export default function RootLayout({
             </PullToRefresh>
           </main>
         </ThemeProvider>
-        <Toaster position="top-right" richColors />
+        <Toaster
+          position="top-right"
+          richColors
+          toastOptions={{
+            classNames: {
+              toast: "group-[.toaster]:pointer-events-auto",
+            },
+          }}
+        />
       </body>
     </html>
   );
