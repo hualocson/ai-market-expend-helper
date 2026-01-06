@@ -30,6 +30,10 @@ const ExpenseEntryDrawer = () => {
   const swipeStartY = useRef(0);
   const isTrackingSwipe = useRef(false);
   const swipeTriggered = useRef(false);
+  const closeSwipeStartX = useRef(0);
+  const closeSwipeStartY = useRef(0);
+  const isTrackingCloseSwipe = useRef(false);
+  const closeSwipeTriggered = useRef(false);
   const submitLabel = "Add Expense";
   const loadingLabel = "Adding...";
 
@@ -123,6 +127,96 @@ const ExpenseEntryDrawer = () => {
 
     const handleTouchCancel = () => {
       isTrackingSwipe.current = false;
+    };
+
+    document.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    document.addEventListener("touchmove", handleTouchMove, { passive: true });
+    document.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", handleTouchCancel, {
+      passive: true,
+    });
+
+    return () => {
+      document.removeEventListener("touchstart", handleTouchStart);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("touchcancel", handleTouchCancel);
+    };
+  }, [isMobile, open]);
+
+  useEffect(() => {
+    if (!isMobile || !open) {
+      return;
+    }
+
+    const SWIPE_CLOSE_THRESHOLD = 70;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const openDrawer = document.querySelector(
+        '[data-vaul-drawer][data-state="open"]'
+      ) as HTMLElement | null;
+
+      if (!openDrawer) {
+        isTrackingCloseSwipe.current = false;
+        return;
+      }
+
+      const target = event.target as HTMLElement;
+      if (!openDrawer.contains(target)) {
+        isTrackingCloseSwipe.current = false;
+        return;
+      }
+
+      let element = target;
+      while (element && element !== openDrawer) {
+        const style = window.getComputedStyle(element);
+        const overflowX = style.overflowX;
+        const isScrollable =
+          overflowX === "auto" ||
+          overflowX === "scroll" ||
+          overflowX === "overlay";
+
+        if (isScrollable && element.scrollWidth > element.clientWidth) {
+          isTrackingCloseSwipe.current = false;
+          return;
+        }
+
+        element = element.parentElement as HTMLElement;
+      }
+
+      closeSwipeTriggered.current = false;
+      isTrackingCloseSwipe.current = true;
+      closeSwipeStartX.current = event.touches[0].clientX;
+      closeSwipeStartY.current = event.touches[0].clientY;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!isTrackingCloseSwipe.current || closeSwipeTriggered.current) {
+        return;
+      }
+
+      const touchX = event.touches[0].clientX;
+      const touchY = event.touches[0].clientY;
+      const deltaX = touchX - closeSwipeStartX.current;
+      const deltaY = touchY - closeSwipeStartY.current;
+
+      if (
+        deltaX > SWIPE_CLOSE_THRESHOLD &&
+        Math.abs(deltaX) > Math.abs(deltaY)
+      ) {
+        closeSwipeTriggered.current = true;
+        setOpen(false);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isTrackingCloseSwipe.current = false;
+    };
+
+    const handleTouchCancel = () => {
+      isTrackingCloseSwipe.current = false;
     };
 
     document.addEventListener("touchstart", handleTouchStart, {
