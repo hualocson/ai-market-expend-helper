@@ -251,11 +251,9 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
           <div className="flex flex-wrap items-center gap-4">
             <ExpenseItemIcon category={expense.category as Category} />
             <div className="min-w-0 flex-1 space-y-1">
-              {expense.note ? (
-                <p className="text-muted-foreground truncate font-semibold">
-                  {expense.note}
-                </p>
-              ) : null}
+              <p className="text-muted-foreground truncate font-semibold">
+                {expense.note ?? "<No note>"}
+              </p>
               <p className="w-fit truncate rounded-2xl bg-gray-500/30 px-3 text-sm text-gray-500">
                 {expense.category}
               </p>
