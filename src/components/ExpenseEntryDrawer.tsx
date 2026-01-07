@@ -251,7 +251,10 @@ const ExpenseEntryDrawer = () => {
           Add expense
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="backdrop-blur data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:max-w-[min(100svw,680px)]!">
+      <DrawerContent
+        onInteractOutside={() => setOpen(false)}
+        className="rounded-l-3xl backdrop-blur data-[vaul-drawer-direction=right]:w-[90svw] data-[vaul-drawer-direction=right]:max-w-[min(100svw,680px)]!"
+      >
         <DrawerHeader className="text-left">
           <DrawerTitle>Add a new expense</DrawerTitle>
           <DrawerDescription>
