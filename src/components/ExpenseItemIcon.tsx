@@ -2,8 +2,9 @@ import { Category } from "@/enums";
 import { cn } from "@/lib/utils";
 import {
   AppleIcon,
+  BubblesIcon,
+  BusIcon,
   ShellIcon,
-  ShoppingBagIcon,
   ShoppingCartIcon,
 } from "lucide-react";
 
@@ -51,11 +52,22 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-orange-400/15 text-orange-400",
+            "flex items-center justify-center rounded-full bg-blue-400/15 text-blue-400",
             sizeClass.wrapper
           )}
         >
-          <ShoppingBagIcon className={sizeClass.icon} />
+          <BubblesIcon className={sizeClass.icon} />
+        </span>
+      );
+    case Category.TRANSPORT:
+      return (
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-teal-400/15 text-teal-400",
+            sizeClass.wrapper
+          )}
+        >
+          <BusIcon className={sizeClass.icon} />
         </span>
       );
     default:
