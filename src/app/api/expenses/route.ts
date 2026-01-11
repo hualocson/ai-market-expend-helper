@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { createExpense } from "@/db/queries";
 import { expenses } from "@/db/schema";
+import { CreateExpenseInput } from "@/db/type";
 import { desc } from "drizzle-orm";
 
 export const GET = async () => {
@@ -16,10 +17,8 @@ export const GET = async () => {
 
 export const POST = async (request: Request) => {
   try {
-    const payload = (await request.json()) as TExpense & { paidBy: string };
-    console.log("payload", payload);
+    const payload = (await request.json()) as CreateExpenseInput;
     const created = await createExpense(payload);
-    console.log("created", created);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create expense:", error);
