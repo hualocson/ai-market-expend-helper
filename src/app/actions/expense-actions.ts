@@ -1,9 +1,10 @@
 "use server";
 
 import { createExpense, softDeleteExpense, updateExpense } from "@/db/queries";
+import { CreateExpenseInput } from "@/db/type";
 import { revalidatePath } from "next/cache";
 
-export async function createExpenseEntry(data: TExpense & { paidBy: string }) {
+export async function createExpenseEntry(data: CreateExpenseInput) {
   try {
     const created = await createExpense(data);
     revalidatePath("/");
@@ -16,7 +17,7 @@ export async function createExpenseEntry(data: TExpense & { paidBy: string }) {
 
 export async function updateExpenseEntry(
   id: number,
-  data: TExpense & { paidBy: string }
+  data: CreateExpenseInput
 ) {
   try {
     const updated = await updateExpense(id, data);
