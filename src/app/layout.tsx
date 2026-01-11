@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 
 import ExpenseEntryDrawer from "@/components/ExpenseEntryDrawer";
+import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -264,6 +265,7 @@ export default function RootLayout({
       >
         <div className="pointer-events-none absolute -top-32 right-0 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(122,92,255,0.18),transparent_60%)] blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-[-120px] h-[380px] w-[380px] rounded-full bg-[radial-gradient(circle,rgba(28,210,180,0.18),transparent_60%)] blur-3xl" />
+        <ProgressiveBlur position="top" height="80px" className="fixed z-500" />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
