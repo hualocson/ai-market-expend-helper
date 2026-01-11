@@ -1,0 +1,53 @@
+{
+  "id": "http://localhost:3000/?source=pwa",
+  "name": "Spendly: AI Expense Tracker",
+  "short_name": "Spendly",
+  "description": "Spendly is an AI expense tracker that helps you track your expenses and save money.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#222326",
+  "theme_color": "#222326",
+  "display_override": ["window-controls-overlay", "fullscreen"],
+  "icons": [
+    {
+      "src": "/manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/apple-splash-640-1136.jpg",
+      "sizes": "640x1136",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Quick add on mobile"
+    },
+    {
+      "src": "/apple-splash-1792-828.jpg",
+      "sizes": "1792x828",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Dashboard on desktop"
+    }
+  ]
+}
