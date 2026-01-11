@@ -112,8 +112,6 @@ const ManualExpenseForm = forwardRef<
     const amountRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
 
-    const [isFocusing, setIsFocusing] = useState(false);
-
     const handleOnNoteKeyDown = (
       e: React.KeyboardEvent<HTMLTextAreaElement>
     ) => {
@@ -208,12 +206,8 @@ const ManualExpenseForm = forwardRef<
     }, []);
 
     const suggestionsList = useMemo(() => {
-      if (!isFocusing) {
-        return [];
-      }
-
       return getSuggestionsList(Number(expense.amount));
-    }, [expense.amount, isFocusing]);
+    }, [expense.amount]);
 
     return (
       <>
@@ -266,9 +260,7 @@ const ManualExpenseForm = forwardRef<
                 placeholder="0"
                 onFocus={() => {
                   amountRef.current?.select();
-                  setIsFocusing(true);
                 }}
-                onBlur={() => setIsFocusing(false)}
                 autoFocus
               />
               <span className="text-muted-foreground absolute top-1/2 right-5 -translate-y-1/2 text-sm font-medium">
@@ -406,14 +398,20 @@ const ManualExpenseForm = forwardRef<
             </Button>
           ) : null}
         </div>
-        {suggestionsList.length > 0 && isFocusing && (
-          <div className="fixed inset-x-0 bottom-[73px] z-99 flex items-center justify-start gap-2 p-2 backdrop-blur-md md:hidden">
+        {suggestionsList.length > 0 && (
+          <div
+            className={cn(
+              "fixed inset-x-0 bottom-[73px] z-99 flex items-center justify-start gap-2 p-2 backdrop-blur-md"
+            )}
+          >
             {suggestionsList.map((suggestion) => (
               <Button
                 key={suggestion}
                 type="button"
                 variant="outline"
-                onClick={() => handleExpenseChange("amount", suggestion)}
+                onClick={() => {
+                  handleExpenseChange("amount", suggestion);
+                }}
               >
                 {formatVnd(suggestion)}
               </Button>
