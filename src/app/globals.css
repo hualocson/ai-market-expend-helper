@@ -43,6 +43,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 :root {
+  /* oklch(0.23 0.01 260.69) ≈ #23243c */
   --background: oklch(0.23 0.01 260.69);
   --foreground: oklch(0.93 0 0);
   --card: oklch(0.26 0.01 260.7);
@@ -340,4 +341,11 @@ textarea:focus {
 
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.7 0.001 106.424);
+}
+
+/* It targets only the app used with a system icon in standalone mode */
+@media (display-mode: standalone) and (max-width: 768px) {
+  body {
+    padding-top: calc(env(safe-area-inset-top));
+  }
 }
