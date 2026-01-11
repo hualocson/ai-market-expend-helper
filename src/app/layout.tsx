@@ -22,22 +22,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Expense Tracker",
-  description: "AI Expense Tracker",
-  icons: {
-    icon: [
-      {
-        url: "/favicon-196.png",
-        sizes: "196x196",
-        type: "image/png",
-      },
-    ],
-    apple: [
-      {
-        url: "/apple-icon-180.png",
-      },
-    ],
-  },
+  title: "Spendly",
+  description:
+    "Spendly is an AI expense tracker that helps you track your expenses and save money.",
+  keywords: ["expense tracker", "ai expense tracker", "spendly", "spendly ai"],
+  robots: "noindex, nofollow",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -244,6 +233,8 @@ export const metadata: Metadata = {
       },
     ],
   },
+  manifest:
+    "https://ai-market-expend-helper-jade.vercel.app/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
