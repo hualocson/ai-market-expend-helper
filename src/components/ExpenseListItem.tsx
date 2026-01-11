@@ -10,7 +10,7 @@ import {
 } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
-import { formatVnd } from "@/lib/utils";
+import { cn, formatVnd } from "@/lib/utils";
 import { Loader2, NotebookIcon, Pencil, Trash2, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -249,10 +249,16 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
           transition={{ duration: 0.3 }}
         >
           <div className="flex flex-wrap items-center gap-4">
-            <ExpenseItemIcon category={expense.category as Category} />
+            <ExpenseItemIcon
+              category={expense.category as Category}
+              className={cn(
+                "shrink-0",
+                !expense.note && "bg-amber-400/10 text-amber-300"
+              )}
+            />
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-muted-foreground truncate font-semibold">
-                {expense.note ?? "<No note>"}
+                {expense.note || "<No note>"}
               </p>
               <p className="w-fit truncate rounded-2xl bg-gray-500/30 px-3 text-sm text-gray-500">
                 {expense.category}
