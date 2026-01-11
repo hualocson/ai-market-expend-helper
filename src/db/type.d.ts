@@ -1,0 +1,1 @@
+export type CreateExpenseInput = TExpense & { paidBy: PaidBy };

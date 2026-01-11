@@ -1,20 +1,14 @@
 import dayjs from "@/configs/date";
-
 import { eq } from "drizzle-orm";
 
 import { db } from "./index";
 import { expenses } from "./schema";
-
-export type CreateExpenseInput = TExpense & { paidBy: string };
+import { CreateExpenseInput } from "./type";
 
 export const createExpense = async (input: CreateExpenseInput) => {
   const parsedDate = dayjs(input.date, "DD/MM/YYYY", true);
   if (!parsedDate.isValid()) {
     throw new Error("Invalid date format");
-  }
-  const paidBy = input.paidBy?.trim();
-  if (!paidBy) {
-    throw new Error("Paid by is required");
   }
 
   const [created] = await db
@@ -24,7 +18,7 @@ export const createExpense = async (input: CreateExpenseInput) => {
       amount: input.amount,
       note: input.note?.trim() || "",
       category: input.category,
-      paidBy,
+      paidBy: input.paidBy,
     })
     .returning();
 
@@ -36,11 +30,6 @@ export const updateExpense = async (id: number, input: CreateExpenseInput) => {
   if (!parsedDate.isValid()) {
     throw new Error("Invalid date format");
   }
-  const paidBy = input.paidBy?.trim();
-  if (!paidBy) {
-    throw new Error("Paid by is required");
-  }
-
   const [updated] = await db
     .update(expenses)
     .set({
@@ -48,7 +37,7 @@ export const updateExpense = async (id: number, input: CreateExpenseInput) => {
       amount: input.amount,
       note: input.note?.trim() || "",
       category: input.category,
-      paidBy,
+      paidBy: input.paidBy,
     })
     .where(eq(expenses.id, id))
     .returning();

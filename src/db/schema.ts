@@ -1,3 +1,4 @@
+import { PaidBy } from "@/enums";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -18,7 +19,7 @@ export const expenses = pgTable(
     amount: integer("amount").notNull(),
     note: text("note").notNull(),
     category: text("category").notNull(),
-    paidBy: text("paid_by").notNull(),
+    paidBy: text("paid_by").$type<PaidBy>().notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
