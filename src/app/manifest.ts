@@ -1,0 +1,39 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "AI Expense Tracker",
+    short_name: "Spendly",
+    description: "AI Expense Tracker for your expenses",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#222326",
+    theme_color: "#222326",
+    icons: [
+      {
+        src: "manifest-icon-192.maskable.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "manifest-icon-192.maskable.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "manifest-icon-512.maskable.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "manifest-icon-512.maskable.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+  };
+}
