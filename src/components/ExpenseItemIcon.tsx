@@ -11,9 +11,11 @@ import {
 const ExpenseItemIcon = ({
   category,
   size = "default",
+  className,
 }: {
   category: Category;
   size?: "sm" | "default";
+  className?: string;
 }) => {
   const sizeClass =
     size === "sm"
@@ -31,7 +33,8 @@ const ExpenseItemIcon = ({
         <span
           className={cn(
             "flex items-center justify-center rounded-full bg-teal-400/15 text-teal-400",
-            sizeClass.wrapper
+            sizeClass.wrapper,
+            className
           )}
         >
           <AppleIcon className={sizeClass.icon} />
@@ -42,7 +45,8 @@ const ExpenseItemIcon = ({
         <span
           className={cn(
             "flex items-center justify-center rounded-full bg-purple-400/15 text-purple-400",
-            sizeClass.wrapper
+            sizeClass.wrapper,
+            className
           )}
         >
           <ShoppingCartIcon className={sizeClass.icon} />
@@ -53,7 +57,8 @@ const ExpenseItemIcon = ({
         <span
           className={cn(
             "flex items-center justify-center rounded-full bg-blue-400/15 text-blue-400",
-            sizeClass.wrapper
+            sizeClass.wrapper,
+            className
           )}
         >
           <BubblesIcon className={sizeClass.icon} />
@@ -64,7 +69,8 @@ const ExpenseItemIcon = ({
         <span
           className={cn(
             "flex items-center justify-center rounded-full bg-teal-400/15 text-teal-400",
-            sizeClass.wrapper
+            sizeClass.wrapper,
+            className
           )}
         >
           <BusIcon className={sizeClass.icon} />
@@ -75,7 +81,8 @@ const ExpenseItemIcon = ({
         <span
           className={cn(
             "flex items-center justify-center rounded-full bg-gray-400/15 text-gray-400",
-            sizeClass.wrapper
+            sizeClass.wrapper,
+            className
           )}
         >
           <ShellIcon className={sizeClass.icon} />
