@@ -12,7 +12,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const { month } = await searchParams;
   const selectedMonth = typeof month === "string" ? month : undefined;
   return (
-    <div className="relative mx-auto flex max-w-lg flex-col gap-6 px-4 pt-6 pb-16 sm:px-6">
+    <div className="relative mx-auto flex min-h-svh max-w-lg flex-col gap-6 px-4 pt-6 pb-16 sm:px-6">
       <SpendingDashboardHeader selectedMonth={selectedMonth} />
 
       <ExpenseList
