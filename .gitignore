@@ -42,3 +42,7 @@ next-env.d.ts
 google-keys.json
 
 certificates
+
+# Serwist
+public/sw*
+public/swe-worker*
