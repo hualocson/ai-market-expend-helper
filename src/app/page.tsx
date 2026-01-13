@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import ExpenseList from "@/components/ExpenseList";
 import JumpToTopButton from "@/components/JumpToTopButton";
 import SpendingDashboardHeader from "@/components/SpendingDashboardHeader";
@@ -13,14 +15,26 @@ export default async function Home({ searchParams }: HomeProps) {
   const selectedMonth = typeof month === "string" ? month : undefined;
   return (
     <div className="relative mx-auto flex min-h-svh max-w-lg flex-col gap-6 px-4 pt-6 pb-16 sm:px-6">
-      <SpendingDashboardHeader selectedMonth={selectedMonth} />
+      <Suspense
+        fallback={
+          <div className="bg-muted/30 h-24 w-full animate-pulse rounded-3xl" />
+        }
+      >
+        <SpendingDashboardHeader selectedMonth={selectedMonth} />
+      </Suspense>
 
-      <ExpenseList
-        selectedMonth={selectedMonth}
-        mode="recent"
-        recentDays={3}
-        showViewFull
-      />
+      <Suspense
+        fallback={
+          <div className="bg-muted/30 h-24 w-full animate-pulse rounded-3xl" />
+        }
+      >
+        <ExpenseList
+          selectedMonth={selectedMonth}
+          mode="recent"
+          recentDays={3}
+          showViewFull
+        />
+      </Suspense>
 
       <JumpToTopButton />
     </div>
