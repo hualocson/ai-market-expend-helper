@@ -132,9 +132,22 @@ const ExpenseList = async ({
           </h2>
           <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>
-        <span className="text-muted-foreground text-xs">
-          {rows.length} items
-        </span>
+        <div className="flex flex-col justify-end text-right">
+          <span className="text-muted-foreground text-xs">
+            {rows.length} items
+          </span>
+          {showViewFull ? (
+            <Link href="/transactions" className="w-full">
+              <Button
+                variant="ghost"
+                className="w-full rounded-full active:scale-[0.97]"
+              >
+                View full
+                <ArrowRightIcon />
+              </Button>
+            </Link>
+          ) : null}
+        </div>
       </div>
       {showTabs ? (
         <div className="shrink-0">
@@ -182,17 +195,6 @@ const ExpenseList = async ({
               : "No expenses for this month yet. Add one above to see it here."}
           </div>
         )}
-        {showViewFull ? (
-          <Link href="/transactions" className="w-full">
-            <Button
-              variant="ghost"
-              className="w-full rounded-full active:scale-[0.97]"
-            >
-              View full
-              <ArrowRightIcon />
-            </Button>
-          </Link>
-        ) : null}
 
         {mode === "full" && (
           <JumpToTopButton
