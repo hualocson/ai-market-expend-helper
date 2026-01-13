@@ -274,7 +274,7 @@ const ManualExpenseForm = forwardRef<
               <Tag className="text-muted-foreground h-4 w-4" />
               Category
             </label>
-            <div className="no-scrollbar flex w-full flex-nowrap items-center gap-2 overflow-x-auto py-2">
+            <div className="flex w-full flex-wrap items-center gap-2 py-2">
               {categoryOptions.map((category) => {
                 const isActive = expense.category === category;
                 return (
