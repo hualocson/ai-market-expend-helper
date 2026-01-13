@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   robots: "noindex, nofollow",
   appleWebApp: {
     capable: true,
+    statusBarStyle: "black",
     startupImage: [
       {
         url: "/apple-splash-2048-2732.jpg",
