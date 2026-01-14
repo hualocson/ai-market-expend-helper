@@ -166,8 +166,8 @@
     --chart-5: oklch(0.769 0.188 70.08);
     --color-food: #2dd4bf;
     --color-shopping: #c084fc;
-    --color-transport: oklch(71.2% 0.194 13.428);
-    --color-other: #60a5fa;
+    --color-transport: oklch(82.3% 0.12 346.018);
+    --color-other: oklch(70.7% 0.165 254.624);
   }
 
   .dark {
@@ -178,8 +178,8 @@
     --chart-5: oklch(0.645 0.246 16.439);
     --color-food: #2dd4bf;
     --color-shopping: #c084fc;
-    --color-transport: oklch(71.2% 0.194 13.428);
-    --color-other: #60a5fa;
+    --color-transport: oklch(82.3% 0.12 346.018);
+    --color-other: oklch(70.7% 0.165 254.624);
   }
   * {
     @apply border-border outline-ring/50;
