@@ -30,6 +30,18 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black",
     startupImage: [
+      // iPhone 13
+      {
+        url: "/apple-splash-390-844.png",
+        media:
+          "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+      },
+      // iPhone 14 Plus
+      {
+        url: "/apple-splash-428-926.png",
+        media:
+          "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+      },
       {
         url: "/apple-splash-2048-2732.jpg",
         media:
@@ -235,7 +247,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0e1118",
+  themeColor: "#222326",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
