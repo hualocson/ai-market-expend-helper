@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 
 import { Toaster } from "@/components/ui/sonner";
 
-import ExpenseEntryDrawer from "@/components/ExpenseEntryDrawer";
+import BottomNav from "@/components/BottomNav";
+import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -285,15 +286,15 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <main>
-            <PullToRefresh>
-              {children}
-              {/* floating action button */}
-              <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
-                <ExpenseEntryDrawer />
-              </div>
-            </PullToRefresh>
+          <main className="pb-24">
+            <PullToRefresh>{children}</PullToRefresh>
           </main>
+          <ProgressiveBlur
+            className="fixed right-0 bottom-0 left-0"
+            position="bottom"
+            height="120px"
+          />
+          <BottomNav />
         </ThemeProvider>
         <Toaster
           position="top-right"
