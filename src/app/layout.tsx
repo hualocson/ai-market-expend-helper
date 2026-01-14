@@ -244,6 +244,9 @@ export const metadata: Metadata = {
       },
     ],
   },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
