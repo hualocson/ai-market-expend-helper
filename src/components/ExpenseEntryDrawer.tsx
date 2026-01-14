@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { Loader2, Plus, XIcon } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -18,7 +20,11 @@ import {
 import ExpenseEntry from "@/components/ExpenseEntry";
 import { type ManualExpenseFormHandle } from "@/components/ManualExpenseForm";
 
-const ExpenseEntryDrawer = () => {
+type ExpenseEntryDrawerProps = {
+  compact?: boolean;
+};
+
+const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [formState, setFormState] = useState({
@@ -246,9 +252,16 @@ const ExpenseEntryDrawer = () => {
       repositionInputs
     >
       <DrawerTrigger asChild>
-        <Button className="rounded-full shadow-[0_25px_60px_rgba(0,0,0,0.45)] active:scale-[0.97]">
-          <Plus className="h-4 w-4" />
-          Add expense
+        <Button
+          size={compact ? "icon-lg" : "default"}
+          aria-label={compact ? "Add expense" : undefined}
+          className={cn(
+            "rounded-full shadow-[0_25px_60px_rgba(0,0,0,0.45)] active:scale-[0.97]",
+            compact && "size-12"
+          )}
+        >
+          <Plus className={compact ? "h-5 w-5" : "h-4 w-4"} />
+          {compact ? null : "Add expense"}
         </Button>
       </DrawerTrigger>
       <DrawerContent
