@@ -93,7 +93,7 @@ const JumpToTopButton = ({
       aria-label={label}
       onClick={handleClick}
       className={cn(
-        "active:bg-secondary/90 fixed right-5 bottom-6 z-40 rounded-full shadow-lg transition-all duration-200 active:scale-[0.97]",
+        "active:bg-secondary/90 fixed right-5 bottom-[120px] z-40 rounded-full shadow-lg transition-all duration-200 active:scale-[0.97]",
         isVisible
           ? "translate-y-0 opacity-100"
           : "pointer-events-none translate-y-3 opacity-0",
