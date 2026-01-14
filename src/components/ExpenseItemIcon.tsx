@@ -68,7 +68,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-teal-400/15 text-teal-400",
+            "flex items-center justify-center rounded-full bg-teal-400/15 text-rose-400",
             sizeClass.wrapper,
             className
           )}
