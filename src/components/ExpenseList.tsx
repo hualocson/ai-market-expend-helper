@@ -199,7 +199,7 @@ const ExpenseList = async ({
         {mode === "full" && (
           <JumpToTopButton
             targetId="expense-list"
-            className="right-6 bottom-[72px]"
+            className="right-6 bottom-[100px]"
           />
         )}
       </div>
