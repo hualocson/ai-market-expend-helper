@@ -19,7 +19,7 @@ export default async function TransactionsPage({
   const selectedMonth = typeof month === "string" ? month : undefined;
 
   return (
-    <div className="relative mx-auto flex h-[calc(100svh-100px)] max-w-lg flex-col gap-3 px-4 pt-6 sm:px-6">
+    <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom)-12px)] max-w-lg flex-col gap-3 px-4 pt-6 sm:px-6">
       <div className="flex shrink-0 items-center gap-2">
         <Link href="/">
           <Button variant="ghost" size="icon" className="active:scale-[0.97]">
