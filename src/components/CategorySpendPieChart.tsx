@@ -63,11 +63,6 @@ const CategorySpendPieChart = ({
       },
     }
   ) satisfies ChartConfig;
-  console.log({
-    chartData,
-    chartConfig,
-  });
-
   const emptyState = !totals.length;
 
   return (
