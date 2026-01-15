@@ -4,6 +4,7 @@ import {
   AppleIcon,
   BubblesIcon,
   BusIcon,
+  DumbbellIcon,
   ShellIcon,
   ShoppingCartIcon,
 } from "lucide-react";
@@ -74,6 +75,18 @@ const ExpenseItemIcon = ({
           )}
         >
           <BusIcon className={sizeClass.icon} />
+        </span>
+      );
+    case Category.BADMINTON:
+      return (
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400",
+            sizeClass.wrapper,
+            className
+          )}
+        >
+          <DumbbellIcon className={sizeClass.icon} />
         </span>
       );
     default:
