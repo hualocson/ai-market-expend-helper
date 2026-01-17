@@ -49,6 +49,7 @@
   --color-food: var(--color-food);
   --color-shopping: var(--color-shopping);
   --color-transport: var(--color-transport);
+  --color-badminton: var(--color-badminton);
   --color-other: var(--color-other);
 }
 :root {
@@ -167,6 +168,7 @@
     --color-food: #2dd4bf;
     --color-shopping: #c084fc;
     --color-transport: oklch(82.3% 0.12 346.018);
+    --color-badminton: oklch(76.5% 0.177 163.223);
     --color-other: oklch(70.7% 0.165 254.624);
   }
 
@@ -178,6 +180,7 @@
     --chart-5: oklch(0.645 0.246 16.439);
     --color-food: #2dd4bf;
     --color-shopping: #c084fc;
+    --color-badminton: oklch(76.5% 0.177 163.223);
     --color-transport: oklch(82.3% 0.12 346.018);
     --color-other: oklch(70.7% 0.165 254.624);
   }
