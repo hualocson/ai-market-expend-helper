@@ -51,6 +51,7 @@
   --color-transport: var(--color-transport);
   --color-badminton: var(--color-badminton);
   --color-other: var(--color-other);
+  --color-entertainment: var(--color-entertainment);
 }
 :root {
   /* oklch(0.23 0.01 260.69) ≈ #23243c */
@@ -170,6 +171,7 @@
     --color-transport: oklch(82.3% 0.12 346.018);
     --color-badminton: oklch(76.5% 0.177 163.223);
     --color-other: oklch(70.7% 0.165 254.624);
+    --color-entertainment:oklch(67.3% 0.182 276.935);
   }
 
   .dark {
@@ -183,6 +185,7 @@
     --color-badminton: oklch(76.5% 0.177 163.223);
     --color-transport: oklch(82.3% 0.12 346.018);
     --color-other: oklch(70.7% 0.165 254.624);
+    --color-entertainment:oklch(67.3% 0.182 276.935);
   }
   * {
     @apply border-border outline-ring/50;
