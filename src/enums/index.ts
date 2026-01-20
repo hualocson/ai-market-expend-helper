@@ -3,6 +3,7 @@ export enum Category {
   SHOPPING = "Shopping",
   TRANSPORT = "Transport",
   BADMINTON = "Badminton",
+  ENTERTAINMENT = "Entertainment",
   OTHER = "Other",
 }
 
