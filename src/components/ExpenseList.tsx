@@ -4,7 +4,7 @@ import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { expenses } from "@/db/schema";
 import { formatVnd } from "@/lib/utils";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowRightIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import JumpToTopButton from "./JumpToTopButton";
 
 type ExpenseListProps = {
   selectedMonth?: string;
+  searchQuery?: string;
   mode?: "full" | "recent";
   recentDays?: number;
   showMonthTabs?: boolean;
@@ -33,6 +34,7 @@ const buildMonthOptions = (count = 12) => {
 
 const ExpenseList = async ({
   selectedMonth,
+  searchQuery,
   mode = "full",
   recentDays = 7,
   showMonthTabs,
@@ -75,16 +77,23 @@ const ExpenseList = async ({
     };
   });
 
+  const trimmedSearch = searchQuery?.trim();
+  const baseWhere = and(
+    eq(expenses.isDeleted, false),
+    gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
+    lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
+  );
+  const whereClause = trimmedSearch
+    ? and(
+        baseWhere,
+        sql`to_tsvector('simple', ${expenses.note} || ' ' || ${expenses.category}) @@ websearch_to_tsquery('simple', ${trimmedSearch})`
+      )
+    : baseWhere;
+
   const rows = await db
     .select()
     .from(expenses)
-    .where(
-      and(
-        eq(expenses.isDeleted, false),
-        gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
-        lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
-      )
-    )
+    .where(whereClause)
     .orderBy(desc(expenses.date), desc(expenses.id));
 
   type ExpenseRow = (typeof rows)[number];
@@ -116,12 +125,16 @@ const ExpenseList = async ({
     }>
   );
 
-  const title = isRecent
-    ? `Latest ${effectiveRecentDays} days`
-    : "All expenses";
-  const subtitle = isRecent
-    ? "Recent entries from this month."
-    : "Latest entries from your sheet.";
+  const title = trimmedSearch
+    ? "Search results"
+    : isRecent
+      ? `Latest ${effectiveRecentDays} days`
+      : "All expenses";
+  const subtitle = trimmedSearch
+    ? `Matching "${trimmedSearch}"`
+    : isRecent
+      ? "Recent entries from this month."
+      : "Latest entries from your sheet.";
 
   return (
     <section className="flex w-full grow flex-col gap-4 overflow-auto">
@@ -190,9 +203,11 @@ const ExpenseList = async ({
           ))
         ) : (
           <div className="text-muted-foreground py-6 text-center text-sm">
-            {isRecent
-              ? `No expenses in the last ${effectiveRecentDays} days.`
-              : "No expenses for this month yet. Add one above to see it here."}
+            {trimmedSearch
+              ? "No expenses match your search."
+              : isRecent
+                ? `No expenses in the last ${effectiveRecentDays} days.`
+                : "No expenses for this month yet. Add one above to see it here."}
           </div>
         )}
 
