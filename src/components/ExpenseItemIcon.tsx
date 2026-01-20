@@ -5,6 +5,7 @@ import {
   BubblesIcon,
   BusIcon,
   DumbbellIcon,
+  PartyPopperIcon,
   ShellIcon,
   ShoppingCartIcon,
 } from "lucide-react";
@@ -87,6 +88,18 @@ const ExpenseItemIcon = ({
           )}
         >
           <DumbbellIcon className={sizeClass.icon} />
+        </span>
+      );
+    case Category.ENTERTAINMENT:
+      return (
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-indigo-400/15 text-indigo-400",
+            sizeClass.wrapper,
+            className
+          )}
+        >
+          <PartyPopperIcon className={sizeClass.icon} />
         </span>
       );
     default:
