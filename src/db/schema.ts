@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   pgTable,
   serial,
@@ -41,6 +42,10 @@ export const expenses = pgTable(
       `soft_delete_consistency`,
       sql`${t.isDeleted} = (${t.deletedAt} IS NOT NULL)`
     ),
+    index("search_idx").using(
+    "gin",
+    sql`to_tsvector('simple', f_unaccent(${t.note}) || ' ' || f_unaccent(${t.category}))`
+  )
   ]
 );
 
