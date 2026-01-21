@@ -18,6 +18,7 @@ const TransactionsSearch = ({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [value, setValue] = React.useState(searchParams.get("q") ?? "");
+  const deferredValue = React.useDeferredValue(value);
 
   React.useEffect(() => {
     setValue(searchParams.get("q") ?? "");
@@ -26,7 +27,7 @@ const TransactionsSearch = ({
   React.useEffect(() => {
     const handle = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
-      const trimmed = value.trim();
+      const trimmed = deferredValue.trim();
       const currentQuery = searchParams.get("q") ?? "";
       if (trimmed === currentQuery) {
         return;
@@ -43,7 +44,7 @@ const TransactionsSearch = ({
     }, 300);
 
     return () => clearTimeout(handle);
-  }, [value, searchParams, router, pathname]);
+  }, [deferredValue, searchParams, router, pathname]);
 
   return (
     <div className="relative">
