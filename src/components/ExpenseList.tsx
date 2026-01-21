@@ -83,12 +83,13 @@ const ExpenseList = async ({
     gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
     lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
   );
-  const whereClause = trimmedSearch
-    ? and(
-        baseWhere,
-        sql`to_tsvector('simple', ${expenses.note} || ' ' || ${expenses.category}) @@ websearch_to_tsquery('simple', ${trimmedSearch})`
-      )
-    : baseWhere;
+const whereClause = trimmedSearch
+  ? and(
+      baseWhere,
+      sql`to_tsvector('simple', f_unaccent(${expenses.note}) || ' ' || f_unaccent(${expenses.category}))
+          @@ websearch_to_tsquery('simple', f_unaccent(${trimmedSearch}))`
+    )
+  : baseWhere;
 
   const rows = await db
     .select()
