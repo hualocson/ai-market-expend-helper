@@ -72,6 +72,7 @@ type ManualExpenseFormProps = {
   onSuccess?: () => void;
   showSubmitButton?: boolean;
   onStateChange?: (state: ManualExpenseFormState) => void;
+  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
 };
 
 const buildExpense = (initialExpense?: TExpense | null) => {
@@ -100,6 +101,7 @@ const ManualExpenseForm = forwardRef<
       onSuccess,
       showSubmitButton = true,
       onStateChange,
+      prefillExpense = null,
     },
     ref
   ) => {
@@ -189,6 +191,31 @@ const ManualExpenseForm = forwardRef<
     useEffect(() => {
       onStateChange?.({ canSubmit, loading });
     }, [canSubmit, loading, onStateChange]);
+
+    useEffect(() => {
+      if (!prefillExpense) {
+        return;
+      }
+
+      const nextAmount = Number(prefillExpense.amount);
+      const nextCategory = categoryOptions.includes(
+        prefillExpense.category as Category
+      )
+        ? (prefillExpense.category as Category)
+        : defaultExpense.category;
+
+      setExpense((prev) => ({
+        ...prev,
+        amount: Number.isFinite(nextAmount) ? nextAmount : 0,
+        note: prefillExpense.note ?? "",
+        category: nextCategory,
+      }));
+
+      requestAnimationFrame(() => {
+        amountRef.current?.focus();
+        amountRef.current?.select();
+      });
+    }, [prefillExpense]);
 
     const handleExpenseChange = (
       field: keyof TExpense,
