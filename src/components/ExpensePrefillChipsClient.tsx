@@ -19,6 +19,7 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
+
   // Handle scroll to update fade visibility
   useEffect(() => {
     const container = scrollContainerRef.current;
