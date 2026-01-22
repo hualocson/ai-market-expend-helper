@@ -12,7 +12,7 @@ import {
 
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
-import { Category } from "@/enums";
+import { Category, PaidBy } from "@/enums";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import {
   Calendar,
@@ -25,6 +25,8 @@ import {
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import ExpenseItemIcon from "./ExpenseItemIcon";
 import { Button } from "./ui/button";
@@ -46,7 +48,7 @@ const getSuggestionsList = (amount: number) => {
     .filter((s) => s > 0);
 };
 
-const paidByOptions = ["Cubi", "Embe", "Other"];
+const paidByOptions: string[] = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
 const paidByWheelOptions = paidByOptions.map((option) => ({
   value: option,
   label: option,
@@ -105,10 +107,26 @@ const ManualExpenseForm = forwardRef<
     },
     ref
   ) => {
+    const settingsPaidBy = useSettingsStore((state) => state.paidBy);
     const [expense, setExpense] = useState<TExpense>(() =>
       buildExpense(initialExpense)
     );
-    const [paidBy, setPaidBy] = useState(paidByOptions[0]);
+    const hasManualPaidBy = useRef(false);
+    const normalizePaidBy = useCallback(
+      (value?: string) => {
+        const fallback = PaidBy.OTHER;
+        if (value) {
+          return paidByOptions.includes(value) ? value : fallback;
+        }
+        return paidByOptions.includes(settingsPaidBy)
+          ? settingsPaidBy
+          : fallback;
+      },
+      [settingsPaidBy]
+    );
+    const [paidBy, setPaidBy] = useState(() =>
+      normalizePaidBy(initialExpense?.paidBy)
+    );
     const [loading, setLoading] = useState(false);
 
     const amountRef = useRef<HTMLInputElement>(null);
@@ -125,21 +143,16 @@ const ManualExpenseForm = forwardRef<
 
     useEffect(() => {
       if (typeof initialExpense === "undefined") {
+        if (!hasManualPaidBy.current) {
+          setPaidBy(normalizePaidBy());
+        }
         return;
       }
 
       setExpense(buildExpense(initialExpense));
-      if (initialExpense?.paidBy) {
-        const fallback = paidByOptions[paidByOptions.length - 1];
-        setPaidBy(
-          paidByOptions.includes(initialExpense.paidBy)
-            ? initialExpense.paidBy
-            : fallback
-        );
-      } else {
-        setPaidBy(paidByOptions[0]);
-      }
-    }, [initialExpense]);
+      setPaidBy(normalizePaidBy(initialExpense?.paidBy));
+      hasManualPaidBy.current = false;
+    }, [initialExpense, normalizePaidBy]);
 
     const canSubmit = useMemo(() => {
       return Boolean(expense.amount > 0);
@@ -226,6 +239,10 @@ const ManualExpenseForm = forwardRef<
         [field]: value,
       }));
     };
+    const handlePaidByChange = useCallback((value: string) => {
+      hasManualPaidBy.current = true;
+      setPaidBy(value);
+    }, []);
 
     useEffect(() => {
       amountRef.current?.focus();
@@ -399,7 +416,7 @@ const ManualExpenseForm = forwardRef<
             <WheelPickerWrapper className="w-full">
               <WheelPicker
                 value={paidBy}
-                onValueChange={setPaidBy}
+                onValueChange={handlePaidByChange}
                 options={paidByWheelOptions}
                 infinite
                 visibleCount={3 * 4}
