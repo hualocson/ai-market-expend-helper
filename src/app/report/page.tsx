@@ -57,21 +57,28 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
     .groupBy(expenses.category, expenses.paidBy)
     .orderBy(desc(totalSum));
 
-  const paidByTotals = await db
-    .select({
-      paidBy: expenses.paidBy,
-      total: sql<number>`coalesce(${totalSum}, 0)`.mapWith(Number),
-    })
-    .from(expenses)
-    .where(
-      and(
-        eq(expenses.isDeleted, false),
-        gte(expenses.date, startOfMonth.format("YYYY-MM-DD")),
-        lt(expenses.date, endOfMonth.format("YYYY-MM-DD"))
-      )
-    )
-    .groupBy(expenses.paidBy)
-    .orderBy(desc(totalSum));
+  const categoryTotalsMap = new Map<string, number>();
+  const paidByTotalsMap = new Map<string, number>();
+  for (const item of paidByCategoryTotals) {
+    categoryTotalsMap.set(
+      item.category,
+      (categoryTotalsMap.get(item.category) ?? 0) + item.total
+    );
+    paidByTotalsMap.set(
+      item.paidBy,
+      (paidByTotalsMap.get(item.paidBy) ?? 0) + item.total
+    );
+  }
+
+  const categoryTotals = Array.from(categoryTotalsMap, ([category, total]) => ({
+    category,
+    total,
+  })).sort((a, b) => b.total - a.total);
+
+  const paidByTotals = Array.from(paidByTotalsMap, ([paidBy, total]) => ({
+    paidBy,
+    total,
+  })).sort((a, b) => b.total - a.total);
 
   const paidByTotalSpent = paidByTotals.reduce(
     (sum, item) => sum + item.total,
@@ -109,6 +116,10 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
         <ExpenseMonthTabs items={monthItems} />
       </div>
       <div className="grow flex flex-col gap-4 overflow-y-auto no-scrollbar">
+      <CategorySpendPieChart
+        totals={categoryTotals}
+        monthLabel={`${activeMonth.format("MMM YYYY")} - All`}
+      />
       {paidByCategoryTotals.length ? (
         Array.from(
           paidByCategoryTotals.reduce(
