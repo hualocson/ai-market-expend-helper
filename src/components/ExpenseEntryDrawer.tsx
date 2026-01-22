@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { Loader2, Plus, XIcon } from "lucide-react";
 
+import {
+  EXPENSE_PREFILL_EVENT,
+  type ExpensePrefillPayload,
+} from "@/lib/expense-prefill";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +31,9 @@ type ExpenseEntryDrawerProps = {
 const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [prefillExpense, setPrefillExpense] = useState<
+    Pick<TExpense, "amount" | "note" | "category"> | null
+  >(null);
   const [formState, setFormState] = useState({
     canSubmit: false,
     loading: false,
@@ -59,6 +66,32 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    const handlePrefill = (event: Event) => {
+      const detail = (event as CustomEvent<ExpensePrefillPayload>).detail;
+      if (!detail) {
+        return;
+      }
+
+      setPrefillExpense({
+        amount: detail.amount,
+        note: detail.note,
+        category: detail.category,
+      });
+      setOpen(true);
+    };
+
+    window.addEventListener(EXPENSE_PREFILL_EVENT, handlePrefill);
+    return () =>
+      window.removeEventListener(EXPENSE_PREFILL_EVENT, handlePrefill);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setPrefillExpense(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!isMobile || open) {
@@ -288,6 +321,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
             formRef={formRef}
             showSubmitButton={false}
             onStateChange={setFormState}
+            prefillExpense={prefillExpense}
           />
         </div>
         <DrawerFooter className="border-t">
