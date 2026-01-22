@@ -10,8 +10,16 @@ import {
 } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { cn, formatVnd } from "@/lib/utils";
-import { Loader2, NotebookIcon, Pencil, Trash2, XIcon } from "lucide-react";
+import {
+  Copy,
+  Loader2,
+  NotebookIcon,
+  Pencil,
+  Trash2,
+  XIcon,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 
@@ -48,7 +56,7 @@ type ExpenseListItemData = {
   paidBy: string;
 };
 
-const ACTION_WIDTH = 180;
+const ACTION_WIDTH = 270;
 const OPEN_THRESHOLD = ACTION_WIDTH * 0.3;
 const CLOSE_THRESHOLD = ACTION_WIDTH * 0.1;
 const VELOCITY_THRESHOLD = 600;
@@ -182,6 +190,15 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     router.refresh();
   };
 
+  const handleDuplicate = () => {
+    dispatchExpensePrefill({
+      amount: expense.amount,
+      note: expense.note ?? "",
+      category: expense.category,
+    });
+    setIsOpen(false);
+  };
+
   return (
     <>
       <div
@@ -203,7 +220,16 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         >
           <Button
             type="button"
-            size="sm"
+            size="icon"
+            variant="secondary"
+            onClick={handleDuplicate}
+            className="backdrop-blur-md"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
             variant="secondary"
             onClick={() => {
               setEditOpen(true);
@@ -212,18 +238,16 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
             className="backdrop-blur-md"
           >
             <Pencil className="h-4 w-4" />
-            Update
           </Button>
           <Button
             type="button"
-            size="sm"
+            size="icon"
             variant="destructive"
             onClick={handleDeleteRequest}
             disabled={isDeleting}
             className="backdrop-blur-md"
           >
             <Trash2 className="h-4 w-4" />
-            Delete
           </Button>
         </motion.div>
 
