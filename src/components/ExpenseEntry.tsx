@@ -11,12 +11,14 @@ type ExpenseEntryProps = {
   formRef?: Ref<ManualExpenseFormHandle>;
   showSubmitButton?: boolean;
   onStateChange?: (state: ManualExpenseFormState) => void;
+  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
 };
 
 const ExpenseEntry = ({
   formRef,
   showSubmitButton,
   onStateChange,
+  prefillExpense,
 }: ExpenseEntryProps) => {
   return (
     <div className="p-2 pt-0">
@@ -24,6 +26,7 @@ const ExpenseEntry = ({
         ref={formRef}
         showSubmitButton={showSubmitButton}
         onStateChange={onStateChange}
+        prefillExpense={prefillExpense}
       />
     </div>
   );
