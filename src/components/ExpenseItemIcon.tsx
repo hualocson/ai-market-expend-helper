@@ -5,6 +5,8 @@ import {
   BubblesIcon,
   BusIcon,
   DumbbellIcon,
+  HandHeartIcon,
+  HomeIcon,
   PartyPopperIcon,
   ShellIcon,
   ShoppingCartIcon,
@@ -54,6 +56,18 @@ const ExpenseItemIcon = ({
           <ShoppingCartIcon className={sizeClass.icon} />
         </span>
       );
+    case Category.HOUSING:
+      return (
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-sky-400/15 text-sky-400",
+            sizeClass.wrapper,
+            className
+          )}
+        >
+          <HomeIcon className={sizeClass.icon} />
+        </span>
+      );
     case Category.OTHER:
       return (
         <span
@@ -100,6 +114,18 @@ const ExpenseItemIcon = ({
           )}
         >
           <PartyPopperIcon className={sizeClass.icon} />
+        </span>
+      );
+    case Category.GIVING:
+      return (
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-rose-400/15 text-rose-400",
+            sizeClass.wrapper,
+            className
+          )}
+        >
+          <HandHeartIcon className={sizeClass.icon} />
         </span>
       );
     default:
