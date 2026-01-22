@@ -28,7 +28,7 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/report"),
   },
   {
-    href: "/#",
+    href: "/settings",
     label: "Settings",
     icon: Cog,
     isActive: (pathname: string) => pathname.startsWith("/settings"),
