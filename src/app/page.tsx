@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import ExpenseList from "@/components/ExpenseList";
+import ExpensePrefillChips from "@/components/ExpensePrefillChips";
 import JumpToTopButton from "@/components/JumpToTopButton";
 import SpendingDashboardHeader from "@/components/SpendingDashboardHeader";
 
@@ -21,6 +22,14 @@ export default async function Home({ searchParams }: HomeProps) {
         }
       >
         <SpendingDashboardHeader selectedMonth={selectedMonth} />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="bg-muted/30 h-16 w-full animate-pulse rounded-3xl" />
+        }
+      >
+        <ExpensePrefillChips />
       </Suspense>
 
       <Suspense
