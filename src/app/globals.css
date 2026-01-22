@@ -48,10 +48,12 @@
   --chart-5: var(--chart-5);
   --color-food: var(--color-food);
   --color-shopping: var(--color-shopping);
+  --color-housing: var(--color-housing);
   --color-transport: var(--color-transport);
   --color-badminton: var(--color-badminton);
   --color-other: var(--color-other);
   --color-entertainment: var(--color-entertainment);
+  --color-giving: var(--color-giving);
 }
 :root {
   /* oklch(0.23 0.01 260.69) ≈ #23243c */
@@ -166,12 +168,14 @@
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --color-food: #2dd4bf;
-    --color-shopping: #c084fc;
+    --color-food: oklch(77.7% 0.152 181.912);
+    --color-shopping: oklch(71.4% 0.203 305.504);
+    --color-housing: oklch(74.6% 0.16 232.661);
     --color-transport: oklch(82.3% 0.12 346.018);
     --color-badminton: oklch(76.5% 0.177 163.223);
     --color-other: oklch(70.7% 0.165 254.624);
-    --color-entertainment:oklch(67.3% 0.182 276.935);
+    --color-entertainment: oklch(67.3% 0.182 276.935);
+    --color-giving: oklch(71.2% 0.194 13.428);
   }
 
   .dark {
@@ -180,12 +184,14 @@
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --color-food: #2dd4bf;
-    --color-shopping: #c084fc;
+    --color-food: oklch(77.7% 0.152 181.912);
+    --color-shopping: oklch(71.4% 0.203 305.504);
+    --color-housing: oklch(74.6% 0.16 232.661);
     --color-badminton: oklch(76.5% 0.177 163.223);
     --color-transport: oklch(82.3% 0.12 346.018);
     --color-other: oklch(70.7% 0.165 254.624);
-    --color-entertainment:oklch(67.3% 0.182 276.935);
+    --color-entertainment: oklch(67.3% 0.182 276.935);
+    --color-giving: oklch(71.2% 0.194 13.428);
   }
   * {
     @apply border-border outline-ring/50;
