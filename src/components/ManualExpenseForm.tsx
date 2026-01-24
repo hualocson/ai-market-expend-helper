@@ -269,8 +269,13 @@ const ManualExpenseForm = forwardRef<
 
     return (
       <>
-        <div className={cn("space-y-4", suggestionsList.length > 0 && "pb-10")}>
-          <div className="space-y-3">
+        <div
+          className={cn(
+            "flex w-full flex-col gap-4",
+            suggestionsList.length > 0 && "pb-10"
+          )}
+        >
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <label className="text-foreground flex items-center gap-2 text-sm font-medium">
                 <DollarSign className="text-muted-foreground h-4 w-4" />
@@ -296,7 +301,7 @@ const ManualExpenseForm = forwardRef<
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
+                  size="icon-sm"
                   className="absolute top-1/2 left-3 -translate-y-1/2"
                   onClick={() => {
                     handleExpenseChange("amount", 0);
@@ -325,6 +330,38 @@ const ManualExpenseForm = forwardRef<
                 VND
               </span>
             </div>
+          </div>
+
+          <div className="relative isolate flex flex-col gap-2">
+            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+              <NotebookPen className="text-muted-foreground h-4 w-4" />
+              Note
+            </label>
+            <Textarea
+              ref={noteRef}
+              value={expense.note}
+              onChange={(e) => handleExpenseChange("note", e.target.value)}
+              placeholder="Optional note about this expense"
+              className="min-h-[80px] resize-none rounded-xl"
+              onKeyDown={handleOnNoteKeyDown}
+              tabIndex={0}
+            />
+            {/* reset button */}
+            {expense.note && (
+              <div className="absolute right-1 bottom-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    handleExpenseChange("note", "");
+                    noteRef.current?.focus();
+                  }}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -359,39 +396,7 @@ const ManualExpenseForm = forwardRef<
             </div>
           </div>
 
-          <div className="relative space-y-2">
-            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-              <NotebookPen className="text-muted-foreground h-4 w-4" />
-              Note
-            </label>
-            <Textarea
-              ref={noteRef}
-              value={expense.note}
-              onChange={(e) => handleExpenseChange("note", e.target.value)}
-              placeholder="Optional note about this expense"
-              className="min-h-[80px] resize-none rounded-xl"
-              onKeyDown={handleOnNoteKeyDown}
-              tabIndex={0}
-            />
-            {/* reset button */}
-            {expense.note && (
-              <div className="absolute right-1 bottom-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    handleExpenseChange("note", "");
-                    noteRef.current?.focus();
-                  }}
-                >
-                  <XIcon className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
+          <div className="grid w-full grid-cols-2 gap-2">
             <Root open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
               <Trigger asChild>
                 <Button

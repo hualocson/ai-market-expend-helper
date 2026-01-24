@@ -12,14 +12,7 @@ import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { cn, formatVnd } from "@/lib/utils";
-import {
-  Copy,
-  Loader2,
-  NotebookIcon,
-  Pencil,
-  Trash2,
-  XIcon,
-} from "lucide-react";
+import { Copy, Loader2, NotebookIcon, Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 
@@ -33,13 +26,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import ManualExpenseForm, {
@@ -302,27 +295,14 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         </motion.div>
       </div>
 
-      <Drawer
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        direction="right"
-        dismissible={false}
-      >
-        <DrawerContent className="backdrop-blur data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:max-w-[min(100svw,680px)]!">
-          <DrawerHeader className="text-left">
-            <DrawerTitle>Edit expense</DrawerTitle>
-            <DrawerDescription>
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent className="h-svh w-[90svw] backdrop-blur">
+          <SheetHeader className="text-left">
+            <SheetTitle>Edit expense</SheetTitle>
+            <SheetDescription>
               Update the details for this entry.
-            </DrawerDescription>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 rounded-full"
-              onClick={() => setEditOpen(false)}
-            >
-              <XIcon className="h-4 w-4" />
-            </Button>
-          </DrawerHeader>
+            </SheetDescription>
+          </SheetHeader>
           <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
             <ManualExpenseForm
               ref={editFormRef}
@@ -337,7 +317,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
               onStateChange={setEditFormState}
             />
           </div>
-          <DrawerFooter className="border-t">
+          <SheetFooter className="border-t">
             <Button
               onClick={() => editFormRef.current?.submit()}
               disabled={!editFormState.canSubmit || editFormState.loading}
@@ -352,9 +332,9 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
                 editSubmitLabel
               )}
             </Button>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="p-0 sm:max-w-md">

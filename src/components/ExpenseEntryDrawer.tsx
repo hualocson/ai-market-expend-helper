@@ -20,8 +20,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import ExpenseEntry from "@/components/ExpenseEntry";
-import { type ManualExpenseFormHandle } from "@/components/ManualExpenseForm";
+import ManualExpenseForm, {
+  type ManualExpenseFormHandle,
+} from "@/components/ManualExpenseForm";
 
 type ExpenseEntryDrawerProps = {
   compact?: boolean;
@@ -82,22 +83,22 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
           {compact ? null : "Add expense"}
         </Button>
       </SheetTrigger>
-      <SheetContent className="h-svh w-[90svw]">
+      <SheetContent className="h-svh w-[90svw] gap-0">
         <SheetHeader className="text-left">
           <SheetTitle>Add a new expense</SheetTitle>
           <SheetDescription>
             Use AI or the quick form to add a new entry.
           </SheetDescription>
         </SheetHeader>
-        <div className="no-scrollbar scroll-fade-y flex-1 overflow-y-auto px-2 pb-4">
-          <ExpenseEntry
-            formRef={formRef}
+        <div className="no-scrollbar overflow-y-auto px-2 pb-4">
+          <ManualExpenseForm
+            ref={formRef}
             showSubmitButton={false}
             onStateChange={setFormState}
             prefillExpense={prefillExpense}
           />
         </div>
-        <SheetFooter className="standalone:pb-safe border-t">
+        <SheetFooter className={cn("standalone:pb-safe border-t")}>
           <Button
             onClick={() => formRef.current?.submit()}
             disabled={!formState.canSubmit || formState.loading}
