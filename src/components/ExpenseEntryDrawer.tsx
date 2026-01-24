@@ -2,24 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Loader2, Plus, XIcon } from "lucide-react";
-
 import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
 import { cn } from "@/lib/utils";
+import { Loader2, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 import ExpenseEntry from "@/components/ExpenseEntry";
 import { type ManualExpenseFormHandle } from "@/components/ManualExpenseForm";
@@ -30,42 +29,17 @@ type ExpenseEntryDrawerProps = {
 
 const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
   const [open, setOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [prefillExpense, setPrefillExpense] = useState<
-    Pick<TExpense, "amount" | "note" | "category"> | null
-  >(null);
+  const [prefillExpense, setPrefillExpense] = useState<Pick<
+    TExpense,
+    "amount" | "note" | "category"
+  > | null>(null);
   const [formState, setFormState] = useState({
     canSubmit: false,
     loading: false,
   });
   const formRef = useRef<ManualExpenseFormHandle>(null);
-  const swipeStartX = useRef(0);
-  const swipeStartY = useRef(0);
-  const isTrackingSwipe = useRef(false);
-  const swipeTriggered = useRef(false);
-  const closeSwipeStartX = useRef(0);
-  const closeSwipeStartY = useRef(0);
-  const isTrackingCloseSwipe = useRef(false);
-  const closeSwipeTriggered = useRef(false);
   const submitLabel = "Add Expense";
   const loadingLabel = "Adding...";
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const hasTouchScreen =
-        "ontouchstart" in window ||
-        navigator.maxTouchPoints > 0 ||
-        ((navigator as Navigator & { msMaxTouchPoints?: number })
-          .msMaxTouchPoints ?? 0) > 0;
-      const isMobileWidth = window.innerWidth < 768;
-      setIsMobile(hasTouchScreen && isMobileWidth);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   useEffect(() => {
     const handlePrefill = (event: Event) => {
@@ -93,198 +67,9 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!isMobile || open) {
-      return;
-    }
-
-    const SWIPE_OPEN_THRESHOLD = 70;
-
-    const handleTouchStart = (event: TouchEvent) => {
-      const isDrawerOpen = document.querySelector(
-        '[data-vaul-drawer][data-state="open"]'
-      );
-      if (isDrawerOpen) {
-        isTrackingSwipe.current = false;
-        return;
-      }
-
-      const target = event.target as HTMLElement;
-      if (target.closest("[data-expense-list-item]")) {
-        isTrackingSwipe.current = false;
-        return;
-      }
-      let element = target;
-      while (
-        element &&
-        element !== document.body &&
-        element !== document.documentElement
-      ) {
-        const style = window.getComputedStyle(element);
-        const overflowX = style.overflowX;
-        const isScrollable =
-          overflowX === "auto" ||
-          overflowX === "scroll" ||
-          overflowX === "overlay";
-
-        if (isScrollable && element.scrollWidth > element.clientWidth) {
-          isTrackingSwipe.current = false;
-          return;
-        }
-
-        element = element.parentElement as HTMLElement;
-      }
-
-      swipeTriggered.current = false;
-      isTrackingSwipe.current = true;
-      swipeStartX.current = event.touches[0].clientX;
-      swipeStartY.current = event.touches[0].clientY;
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      if (!isTrackingSwipe.current || swipeTriggered.current) {
-        return;
-      }
-
-      const touchX = event.touches[0].clientX;
-      const touchY = event.touches[0].clientY;
-      const deltaX = touchX - swipeStartX.current;
-      const deltaY = touchY - swipeStartY.current;
-
-      if (
-        deltaX < -SWIPE_OPEN_THRESHOLD &&
-        Math.abs(deltaX) > Math.abs(deltaY)
-      ) {
-        swipeTriggered.current = true;
-        setOpen(true);
-      }
-    };
-
-    const handleTouchEnd = () => {
-      isTrackingSwipe.current = false;
-    };
-
-    const handleTouchCancel = () => {
-      isTrackingSwipe.current = false;
-    };
-
-    document.addEventListener("touchstart", handleTouchStart, {
-      passive: true,
-    });
-    document.addEventListener("touchmove", handleTouchMove, { passive: true });
-    document.addEventListener("touchend", handleTouchEnd, { passive: true });
-    document.addEventListener("touchcancel", handleTouchCancel, {
-      passive: true,
-    });
-
-    return () => {
-      document.removeEventListener("touchstart", handleTouchStart);
-      document.removeEventListener("touchmove", handleTouchMove);
-      document.removeEventListener("touchend", handleTouchEnd);
-      document.removeEventListener("touchcancel", handleTouchCancel);
-    };
-  }, [isMobile, open]);
-
-  useEffect(() => {
-    if (!isMobile || !open) {
-      return;
-    }
-
-    const SWIPE_CLOSE_THRESHOLD = 70;
-
-    const handleTouchStart = (event: TouchEvent) => {
-      const openDrawer = document.querySelector(
-        '[data-vaul-drawer][data-state="open"]'
-      ) as HTMLElement | null;
-
-      if (!openDrawer) {
-        isTrackingCloseSwipe.current = false;
-        return;
-      }
-
-      const target = event.target as HTMLElement;
-      if (!openDrawer.contains(target)) {
-        isTrackingCloseSwipe.current = false;
-        return;
-      }
-
-      let element = target;
-      while (element && element !== openDrawer) {
-        const style = window.getComputedStyle(element);
-        const overflowX = style.overflowX;
-        const isScrollable =
-          overflowX === "auto" ||
-          overflowX === "scroll" ||
-          overflowX === "overlay";
-
-        if (isScrollable && element.scrollWidth > element.clientWidth) {
-          isTrackingCloseSwipe.current = false;
-          return;
-        }
-
-        element = element.parentElement as HTMLElement;
-      }
-
-      closeSwipeTriggered.current = false;
-      isTrackingCloseSwipe.current = true;
-      closeSwipeStartX.current = event.touches[0].clientX;
-      closeSwipeStartY.current = event.touches[0].clientY;
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      if (!isTrackingCloseSwipe.current || closeSwipeTriggered.current) {
-        return;
-      }
-
-      const touchX = event.touches[0].clientX;
-      const touchY = event.touches[0].clientY;
-      const deltaX = touchX - closeSwipeStartX.current;
-      const deltaY = touchY - closeSwipeStartY.current;
-
-      if (
-        deltaX > SWIPE_CLOSE_THRESHOLD &&
-        Math.abs(deltaX) > Math.abs(deltaY)
-      ) {
-        closeSwipeTriggered.current = true;
-        setOpen(false);
-      }
-    };
-
-    const handleTouchEnd = () => {
-      isTrackingCloseSwipe.current = false;
-    };
-
-    const handleTouchCancel = () => {
-      isTrackingCloseSwipe.current = false;
-    };
-
-    document.addEventListener("touchstart", handleTouchStart, {
-      passive: true,
-    });
-    document.addEventListener("touchmove", handleTouchMove, { passive: true });
-    document.addEventListener("touchend", handleTouchEnd, { passive: true });
-    document.addEventListener("touchcancel", handleTouchCancel, {
-      passive: true,
-    });
-
-    return () => {
-      document.removeEventListener("touchstart", handleTouchStart);
-      document.removeEventListener("touchmove", handleTouchMove);
-      document.removeEventListener("touchend", handleTouchEnd);
-      document.removeEventListener("touchcancel", handleTouchCancel);
-    };
-  }, [isMobile, open]);
-
   return (
-    <Drawer
-      open={open}
-      onOpenChange={setOpen}
-      direction="right"
-      dismissible={false}
-      autoFocus
-      repositionInputs
-    >
-      <DrawerTrigger asChild>
+    <Sheet open={open} onOpenChange={setOpen} modal>
+      <SheetTrigger asChild>
         <Button
           size={compact ? "icon-lg" : "default"}
           aria-label={compact ? "Add expense" : undefined}
@@ -296,26 +81,14 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
           <Plus className={compact ? "h-5 w-5" : "h-4 w-4"} />
           {compact ? null : "Add expense"}
         </Button>
-      </DrawerTrigger>
-      <DrawerContent
-        onInteractOutside={() => setOpen(false)}
-        className="rounded-l-3xl backdrop-blur data-[vaul-drawer-direction=right]:w-[90svw] data-[vaul-drawer-direction=right]:max-w-[min(100svw,680px)]!"
-      >
-        <DrawerHeader className="text-left">
-          <DrawerTitle>Add a new expense</DrawerTitle>
-          <DrawerDescription>
+      </SheetTrigger>
+      <SheetContent className="h-svh w-[90svw]">
+        <SheetHeader className="text-left">
+          <SheetTitle>Add a new expense</SheetTitle>
+          <SheetDescription>
             Use AI or the quick form to add a new entry.
-          </DrawerDescription>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 rounded-full"
-            onClick={() => setOpen(false)}
-            tabIndex={-1}
-          >
-            <XIcon className="h-4 w-4" />
-          </Button>
-        </DrawerHeader>
+          </SheetDescription>
+        </SheetHeader>
         <div className="no-scrollbar scroll-fade-y flex-1 overflow-y-auto px-2 pb-4">
           <ExpenseEntry
             formRef={formRef}
@@ -324,7 +97,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
             prefillExpense={prefillExpense}
           />
         </div>
-        <DrawerFooter className="border-t">
+        <SheetFooter className="standalone:pb-safe border-t">
           <Button
             onClick={() => formRef.current?.submit()}
             disabled={!formState.canSubmit || formState.loading}
@@ -339,9 +112,9 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
               submitLabel
             )}
           </Button>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 
