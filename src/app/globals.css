@@ -1,7 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "tailwindcss-safe-area";
 
 @custom-variant dark (&:is(.dark *));
+
+@custom-variant standalone {
+  @media all and (display-mode: standalone) {
+    @slot;
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
