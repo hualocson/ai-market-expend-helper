@@ -13,6 +13,7 @@ import {
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
+import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import {
   Calendar,
@@ -32,6 +33,16 @@ import ExpenseItemIcon from "./ExpenseItemIcon";
 import { Button } from "./ui/button";
 import DatePicker from "./ui/date-picker";
 import { Input } from "./ui/input";
+import {
+  SheetClose as Close,
+  SheetContent as Content,
+  SheetDescription as Description,
+  SheetFooter as Footer,
+  SheetHeader as Header,
+  Sheet as Root,
+  SheetTitle as Title,
+  SheetTrigger as Trigger,
+} from "./ui/sheet";
 import { Textarea } from "./ui/textarea";
 import { WheelPicker, WheelPickerWrapper } from "./ui/wheel-picker";
 
@@ -128,6 +139,8 @@ const ManualExpenseForm = forwardRef<
       normalizePaidBy(initialExpense?.paidBy)
     );
     const [loading, setLoading] = useState(false);
+    const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
+    const [paidByDrawerOpen, setPaidByDrawerOpen] = useState(false);
 
     const amountRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -252,10 +265,11 @@ const ManualExpenseForm = forwardRef<
     const suggestionsList = useMemo(() => {
       return getSuggestionsList(Number(expense.amount));
     }, [expense.amount]);
+    const keyboardOffset = useKeyboardOffset();
 
     return (
       <>
-        <div className={cn("space-y-5", suggestionsList.length > 0 && "pb-10")}>
+        <div className={cn("space-y-4", suggestionsList.length > 0 && "pb-10")}>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-foreground flex items-center gap-2 text-sm font-medium">
@@ -318,7 +332,7 @@ const ManualExpenseForm = forwardRef<
               <Tag className="text-muted-foreground h-4 w-4" />
               Category
             </label>
-            <div className="flex w-full flex-wrap items-center gap-2 py-2">
+            <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto pt-1">
               {categoryOptions.map((category) => {
                 const isActive = expense.category === category;
                 return (
@@ -377,52 +391,126 @@ const ManualExpenseForm = forwardRef<
             )}
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-                <Calendar className="text-muted-foreground h-4 w-4" />
-                Date
-              </label>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  handleExpenseChange("date", dayjs().format("DD/MM/YYYY"))
-                }
+          <div className="space-y-3">
+            <Root open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
+              <Trigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full justify-between rounded-xl"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Calendar className="text-muted-foreground h-4 w-4" />
+                    Date
+                  </span>
+                  <span className="text-muted-foreground text-xs font-medium">
+                    {expense.date || defaultExpense.date}
+                  </span>
+                </Button>
+              </Trigger>
+              <Content
+                side="bottom"
+                showCloseButton={false}
+                className="rounded-t-3xl"
               >
-                <RotateCcw className="h-4 w-4" />
-                Today
-              </Button>
-            </div>
-            <DatePicker
-              value={dayjs(
-                expense.date || defaultExpense.date,
-                "DD/MM/YYYY"
-              ).toDate()}
-              onChange={(date) =>
-                handleExpenseChange(
-                  "date",
-                  date ? dayjs(date).format("DD/MM/YYYY") : defaultExpense.date
-                )
-              }
-            />
-          </div>
+                <Header className="text-left">
+                  <Title>Date</Title>
+                  <Description>Pick the expense date.</Description>
+                </Header>
+                <div
+                  className="no-scrollbar flex-1 space-y-3 overflow-y-auto px-4 pb-6 sm:px-6"
+                  tabIndex={0}
+                >
+                  <div className="flex items-center justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      tabIndex={-1}
+                      onClick={() =>
+                        handleExpenseChange(
+                          "date",
+                          dayjs().format("DD/MM/YYYY")
+                        )
+                      }
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Today
+                    </Button>
+                  </div>
+                  <DatePicker
+                    value={dayjs(
+                      expense.date || defaultExpense.date,
+                      "DD/MM/YYYY"
+                    ).toDate()}
+                    onChange={(date) =>
+                      handleExpenseChange(
+                        "date",
+                        date
+                          ? dayjs(date).format("DD/MM/YYYY")
+                          : defaultExpense.date
+                      )
+                    }
+                  />
+                </div>
+                <Footer className="border-t">
+                  <Close asChild>
+                    <Button className="h-10 w-full rounded-xl text-base font-medium">
+                      Done
+                    </Button>
+                  </Close>
+                </Footer>
+              </Content>
+            </Root>
 
-          <div className="space-y-2">
-            <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-              <UserRound className="text-muted-foreground h-4 w-4" />
-              Paid by
-            </label>
-            <WheelPickerWrapper className="w-full">
-              <WheelPicker
-                value={paidBy}
-                onValueChange={handlePaidByChange}
-                options={paidByWheelOptions}
-                infinite
-                visibleCount={3 * 4}
-                dragSensitivity={5}
-              />
-            </WheelPickerWrapper>
+            <Root open={paidByDrawerOpen} onOpenChange={setPaidByDrawerOpen}>
+              <Trigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full justify-between rounded-xl"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <UserRound className="text-muted-foreground h-4 w-4" />
+                    Paid by
+                  </span>
+                  <span className="text-muted-foreground text-xs font-medium">
+                    {paidBy}
+                  </span>
+                </Button>
+              </Trigger>
+              <Content
+                side="bottom"
+                showCloseButton={false}
+                className="rounded-t-3xl"
+              >
+                <Header className="text-left">
+                  <Title>Paid by</Title>
+                  <Description>Choose who paid for this expense.</Description>
+                </Header>
+                <div
+                  className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6"
+                  tabIndex={0}
+                >
+                  <WheelPickerWrapper className="w-full">
+                    <WheelPicker
+                      value={paidBy}
+                      onValueChange={handlePaidByChange}
+                      options={paidByWheelOptions}
+                      infinite
+                      visibleCount={3 * 4}
+                      dragSensitivity={5}
+                    />
+                  </WheelPickerWrapper>
+                </div>
+                <Footer className="border-t">
+                  <Close asChild>
+                    <Button className="h-10 w-full rounded-xl text-base font-medium">
+                      Done
+                    </Button>
+                  </Close>
+                </Footer>
+              </Content>
+            </Root>
           </div>
 
           {showSubmitButton ? (
@@ -445,8 +533,12 @@ const ManualExpenseForm = forwardRef<
         {suggestionsList.length > 0 && (
           <div
             className={cn(
-              "fixed inset-x-0 bottom-[73px] z-99 flex items-center justify-start gap-2 p-2 backdrop-blur-md"
+              "fixed inset-x-0 bottom-[73px] z-99 ml-auto flex w-[90svw] items-center justify-start gap-2 border-l p-2 backdrop-blur-md",
+              keyboardOffset <= 0 && "hidden"
             )}
+            style={{
+              bottom: `calc(${keyboardOffset}px)`,
+            }}
           >
             {suggestionsList.map((suggestion) => (
               <Button
