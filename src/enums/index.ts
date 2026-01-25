@@ -1,12 +1,12 @@
 export enum Category {
-  FOOD = "Food",
+  FOOD = "Food", // chợ + nước lọc
   SHOPPING = "Shopping",
-  HOUSING = "Housing",
-  TRANSPORT = "Transport",
-  BADMINTON = "Badminton",
-  ENTERTAINMENT = "Entertainment",
-  GIVING = "Giving",
-  OTHER = "Other",
+  HOUSING = "Housing", // nhà
+  TRANSPORT = "Transport", // xăng
+  BADMINTON = "Badminton", // thể thao
+  ENTERTAINMENT = "Entertainment", // cà phê cuối tuần
+  GIVING = "Giving", // GD
+  OTHER = "Other", // lặt vặt
 }
 
 export enum PaidBy {
