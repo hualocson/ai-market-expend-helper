@@ -32,7 +32,7 @@ const SpendingTrendChart = ({ totals }: SpendingTrendChartProps) => {
           color: "rgba(76,225,255,1)",
         },
       }}
-      className="h-[150px]"
+      className="h-[150px] w-full"
     >
       <AreaChart data={chartData} margin={{ left: 0, right: 0, top: 8 }}>
         <defs>
