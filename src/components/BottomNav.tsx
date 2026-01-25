@@ -43,7 +43,7 @@ const BottomNav = () => {
       className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)]"
     >
       <div className="relative flex w-full max-w-lg items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-6 py-3 backdrop-blur">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           {navItems.slice(0, 2).map((item) => {
             const Icon = item.icon;
             return (
@@ -62,7 +62,7 @@ const BottomNav = () => {
             );
           })}
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           {navItems.slice(2).map((item) => {
             const Icon = item.icon;
             return (
