@@ -7,7 +7,7 @@ import { ArrowUpIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-type JumbToTopButtonProps = {
+type JumpToTopButtonProps = {
   className?: string;
   threshold?: number;
   targetId?: string;
@@ -58,7 +58,7 @@ const JumpToTopButton = ({
   targetId,
   targetSelector,
   label = "Jump to top",
-}: JumbToTopButtonProps) => {
+}: JumpToTopButtonProps) => {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     const targetElement = resolveScrollTarget(targetId, targetSelector);
