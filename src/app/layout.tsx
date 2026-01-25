@@ -273,14 +273,8 @@ export default function RootLayout({
       className="no-scrollbar"
     >
       <body
-        className={cn(
-          geistSans.variable,
-          geistMono.variable,
-          "bg-[radial-gradient(circle_at_top,#1b1d25,#151822_50%,#0e1118_100%)] antialiased"
-        )}
+        className={cn(geistSans.variable, geistMono.variable, "antialiased")}
       >
-        <div className="pointer-events-none absolute -top-32 right-0 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(122,92,255,0.18),transparent_60%)] blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 left-[-120px] h-[380px] w-[380px] rounded-full bg-[radial-gradient(circle,rgba(28,210,180,0.18),transparent_60%)] blur-3xl" />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
