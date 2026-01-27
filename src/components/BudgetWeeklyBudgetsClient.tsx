@@ -9,7 +9,7 @@ import {
   deleteWeeklyBudgetEntry,
   updateWeeklyBudgetEntry,
 } from "@/app/actions/budget-weekly-actions";
-import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
+import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { WeeklyBudgetListItem } from "@/types/budget-weekly";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -134,45 +134,75 @@ const BudgetWeeklyBudgetsClient = ({
     return budgets.map((budget) => {
       const progress =
         budget.amount > 0 ? Math.min(budget.spent / budget.amount, 1) : 0;
+      const percentSpent =
+        budget.amount > 0
+          ? Math.round((budget.spent / budget.amount) * 100)
+          : 0;
       const isOver = budget.amount > 0 && budget.spent > budget.amount;
+      const remainingValue =
+        budget.remaining < 0
+          ? formatVnd(Math.abs(budget.remaining))
+          : formatVnd(budget.remaining);
       return (
         <button
           key={budget.id}
           type="button"
           onClick={() => openEdit(budget)}
-          className="flex w-full flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10 active:scale-[0.99]"
+          className={cn(
+            "group relative flex min-w-[80svw] flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10 active:scale-[0.99] sm:min-w-0",
+            "focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]"
+          )}
         >
           <div className="flex w-full items-start justify-between gap-3">
-            <div>
-              <p className="text-foreground text-sm font-semibold">
+            <div className="min-w-0">
+              <p className="text-foreground line-clamp-1 text-base font-semibold">
                 {budget.name}
               </p>
               <p className="text-muted-foreground text-xs">
                 {formatVnd(budget.amount)} VND budgeted
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-foreground text-sm font-semibold">
-                {formatVnd(budget.spent)} VND spent
-              </p>
+            <div className="shrink-0 text-right">
               <p
                 className={cn(
-                  "text-xs font-semibold",
-                  budget.remaining < 0 ? "text-rose-400" : "text-emerald-400"
+                  "text-base font-semibold",
+                  budget.remaining < 0 ? "text-rose-300" : "text-emerald-300"
                 )}
               >
-                {formatVndSigned(budget.remaining)} VND remaining
+                {remainingValue} VND
+              </p>
+              <p className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                {budget.remaining < 0 ? "Over" : "Remaining"}
               </p>
             </div>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-white/10">
+          <div className="text-muted-foreground mt-auto flex items-center justify-between text-xs">
+            <span>{formatVnd(budget.spent)} VND spent</span>
+            <span>{percentSpent}% used</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-white/10">
             <div
               className={cn(
-                "h-full rounded-full",
+                "h-full rounded-full transition-[width]",
                 isOver ? "bg-rose-500" : "bg-emerald-400"
               )}
               style={{ width: `${progress * 100}%` }}
             />
+          </div>
+          <div className="flex items-center justify-between">
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                isOver
+                  ? "bg-rose-500/20 text-rose-200"
+                  : "bg-emerald-500/20 text-emerald-200"
+              )}
+            >
+              {isOver ? "Over budget" : "On track"}
+            </span>
+            <span className="text-muted-foreground text-[11px]">
+              Tap to edit
+            </span>
           </div>
         </button>
       );
@@ -181,20 +211,25 @@ const BudgetWeeklyBudgetsClient = ({
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-foreground text-lg font-semibold">Budgets</h2>
           <p className="text-muted-foreground text-sm">
             Track weekly spend per budget.
           </p>
         </div>
-        <Button onClick={openCreate}>
+        <Button
+          onClick={openCreate}
+          className="h-11 w-full rounded-full sm:w-auto"
+        >
           <Plus className="h-4 w-4" />
-          Add
+          Add budget
         </Button>
       </div>
       {budgets.length ? (
-        <div className="flex flex-col gap-3">{budgetCards}</div>
+        <div className="no-scrollbar flex gap-3 overflow-x-auto">
+          {budgetCards}
+        </div>
       ) : (
         <div className="text-muted-foreground rounded-3xl border border-white/10 bg-white/5 px-4 py-6 text-sm">
           No budgets yet. Add your first weekly budget to get started.
@@ -206,7 +241,7 @@ const BudgetWeeklyBudgetsClient = ({
         onOpenChange={handleOpenChange}
         repositionInputs={false}
       >
-        <DrawerContent className="border-t-none! rounded-t-3xl!">
+        <DrawerContent className="rounded-t-3xl! border-t-0!">
           <DrawerHeader>
             <DrawerTitle>{formTitle}</DrawerTitle>
           </DrawerHeader>
