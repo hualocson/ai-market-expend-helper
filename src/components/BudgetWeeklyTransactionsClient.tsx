@@ -46,8 +46,7 @@ const resolveCategory = (category: string) =>
     : Category.OTHER;
 
 const PAGE_SIZE = 12;
-const FILTER_OPTIONS = ["all", "unassigned", "assigned"] as const;
-type FilterOption = (typeof FILTER_OPTIONS)[number];
+type FilterOption = "all" | "unassigned" | "assigned";
 
 const BudgetWeeklyTransactionsClient = ({
   weekStartDate,
@@ -98,6 +97,16 @@ const BudgetWeeklyTransactionsClient = ({
 
   const hasUnassigned = unassignedTransactions.length > 0;
   const hasAssigned = assignedTransactions.length > 0;
+  const availableFilterOptions = useMemo<FilterOption[]>(() => {
+    const options: FilterOption[] = ["all"];
+    if (hasUnassigned) {
+      options.push("unassigned");
+    }
+    if (hasAssigned) {
+      options.push("assigned");
+    }
+    return options;
+  }, [hasAssigned, hasUnassigned]);
 
   useEffect(() => {
     setVisibleUnassignedCount(
@@ -256,7 +265,7 @@ const BudgetWeeklyTransactionsClient = ({
       <div className="space-y-2">
         <TransactionsSearch placeholder="Search transactions by note or category" />
         <div className="flex flex-wrap gap-2">
-          {FILTER_OPTIONS.map((option) => (
+          {availableFilterOptions.map((option) => (
             <Button
               key={option}
               type="button"
@@ -296,7 +305,7 @@ const BudgetWeeklyTransactionsClient = ({
                   {visibleUnassigned.map(renderTransactionRow)}
                 </div>
               ) : (
-                <div className="text-muted-foreground rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                <div className="text-muted-foreground rounded-3xl bg-white/5 px-4 py-3 text-sm">
                   All transactions are assigned.
                 </div>
               )}
