@@ -176,7 +176,7 @@ const BudgetWeeklyBudgetsClient = ({
               </p>
             </div>
           </div>
-          <div className="text-muted-foreground mt-auto flex items-center justify-between text-xs">
+          <div className="text-muted-foreground mt-auto flex w-full items-center justify-between text-xs">
             <span>{formatVnd(budget.spent)} VND spent</span>
             <span>{percentSpent}% used</span>
           </div>
