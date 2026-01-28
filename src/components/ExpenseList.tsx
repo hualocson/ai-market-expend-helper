@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import dayjs from "@/configs/date";
 import { db } from "@/db";
-import { expenses } from "@/db/schema";
+import { expenses, transactionBudgets, weeklyBudgets } from "@/db/schema";
 import { formatVnd } from "@/lib/utils";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowRightIcon } from "lucide-react";
@@ -92,8 +92,22 @@ const whereClause = trimmedSearch
   : baseWhere;
 
   const rows = await db
-    .select()
+    .select({
+      id: expenses.id,
+      date: expenses.date,
+      amount: expenses.amount,
+      note: expenses.note,
+      category: expenses.category,
+      paidBy: expenses.paidBy,
+      budgetId: transactionBudgets.budgetId,
+      budgetName: weeklyBudgets.name,
+    })
     .from(expenses)
+    .leftJoin(
+      transactionBudgets,
+      eq(transactionBudgets.transactionId, expenses.id)
+    )
+    .leftJoin(weeklyBudgets, eq(weeklyBudgets.id, transactionBudgets.budgetId))
     .where(whereClause)
     .orderBy(desc(expenses.date), desc(expenses.id));
 
@@ -196,6 +210,11 @@ const whereClause = trimmedSearch
                       note: expense.note,
                       category: expense.category,
                       paidBy: expense.paidBy,
+                      budgetId:
+                        expense.budgetId === null
+                          ? null
+                          : Number(expense.budgetId),
+                      budgetName: expense.budgetName ?? null,
                     }}
                   />
                 ))}
