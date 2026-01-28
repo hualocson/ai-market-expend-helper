@@ -8,6 +8,9 @@ export async function createExpenseEntry(data: CreateExpenseInput) {
   try {
     const created = await createExpense(data);
     revalidatePath("/");
+    if (Number.isFinite(data.budgetId)) {
+      revalidatePath("/budget-weekly");
+    }
     return created;
   } catch (error) {
     console.error("Error creating expense:", error);
@@ -22,6 +25,9 @@ export async function updateExpenseEntry(
   try {
     const updated = await updateExpense(id, data);
     revalidatePath("/");
+    if ("budgetId" in data) {
+      revalidatePath("/budget-weekly");
+    }
     return updated;
   } catch (error) {
     console.error("Error updating expense:", error);
