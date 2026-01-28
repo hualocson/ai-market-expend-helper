@@ -11,7 +11,7 @@ import {
 } from "@/app/actions/budget-weekly-actions";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { WeeklyBudgetListItem } from "@/types/budget-weekly";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, SaveIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -189,7 +189,7 @@ const BudgetWeeklyBudgetsClient = ({
               style={{ width: `${progress * 100}%` }}
             />
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex w-full items-center justify-between">
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[11px] font-semibold",
@@ -280,25 +280,27 @@ const BudgetWeeklyBudgetsClient = ({
             </div>
           </div>
           <DrawerFooter className="gap-2 border-t border-white/10">
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="rounded-xl"
+            >
+              <SaveIcon />
+              {submitLabel}
+            </Button>
             {activeBudget ? (
               <Button
                 type="button"
-                variant="destructive"
+                variant="ghost"
                 onClick={() => setConfirmOpen(true)}
                 disabled={isSaving}
+                className="text-destructive bg-destructive/10 rounded-full"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete
               </Button>
             ) : null}
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              className="h-10 rounded-xl text-base"
-            >
-              {submitLabel}
-            </Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
