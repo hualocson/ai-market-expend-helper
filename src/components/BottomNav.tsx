@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { BarChart3, Cog, Home, Receipt } from "lucide-react";
+import { BarChart3, Cog, Home, Wallet } from "lucide-react";
 
 import ExpenseEntryDrawer from "@/components/ExpenseEntryDrawer";
 
@@ -16,10 +16,10 @@ const navItems = [
     isActive: (pathname: string) => pathname === "/",
   },
   {
-    href: "/transactions",
-    label: "Transactions",
-    icon: Receipt,
-    isActive: (pathname: string) => pathname.startsWith("/transactions"),
+    href: "/budget-weekly",
+    label: "Budgets",
+    icon: Wallet,
+    isActive: (pathname: string) => pathname.startsWith("/budget-weekly"),
   },
   {
     href: "/report",
@@ -43,7 +43,7 @@ const BottomNav = () => {
       className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)]"
     >
       <div className="relative flex w-full max-w-lg items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-6 py-3 backdrop-blur">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           {navItems.slice(0, 2).map((item) => {
             const Icon = item.icon;
             return (
