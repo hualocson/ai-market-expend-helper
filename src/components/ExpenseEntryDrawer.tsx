@@ -83,7 +83,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
           {compact ? null : "Add expense"}
         </Button>
       </SheetTrigger>
-      <SheetContent className="h-svh w-[90svw] gap-0">
+      <SheetContent className="h-full w-[90svw] gap-0">
         <SheetHeader className="text-left">
           <SheetTitle>Add a new expense</SheetTitle>
           <SheetDescription>
@@ -96,6 +96,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
             showSubmitButton={false}
             onStateChange={setFormState}
             prefillExpense={prefillExpense}
+            showBudgetSelect
           />
         </div>
         <SheetFooter className={cn("standalone:pb-safe border-t")}>
