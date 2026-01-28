@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import BudgetWeeklyBudgetsClient from "@/components/BudgetWeeklyBudgetsClient";
-import BudgetWeeklyTransactionsClient from "@/components/BudgetWeeklyTransactionsClient";
 
 interface BudgetWeeklyPageProps {
   searchParams: Promise<{
@@ -123,14 +122,6 @@ export default async function BudgetWeeklyPage({
         <BudgetWeeklyBudgetsClient
           weekStartDate={report.weekStartDate}
           budgets={report.budgets}
-        />
-        <BudgetWeeklyTransactionsClient
-          weekStartDate={report.weekStartDate}
-          budgets={report.budgets.map((budget) => ({
-            id: budget.id,
-            name: budget.name,
-          }))}
-          transactions={report.transactions}
         />
       </div>
     </div>
