@@ -47,6 +47,8 @@ type ExpenseListItemData = {
   note: string;
   category: string;
   paidBy: string;
+  budgetId?: number | null;
+  budgetName?: string | null;
 };
 
 const ACTION_WIDTH = 270;
@@ -78,6 +80,15 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     () => dayjs(expense.date).format("DD/MM/YYYY"),
     [expense.date]
   );
+  const budgetBadgeLabel = useMemo(() => {
+    if (expense.budgetName?.trim()) {
+      return expense.budgetName;
+    }
+    if (expense.budgetId) {
+      return "Budget assigned";
+    }
+    return "";
+  }, [expense.budgetId, expense.budgetName]);
   const initialExpense = useMemo(
     () => ({
       date: formattedDate,
@@ -85,12 +96,14 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
       note: expense.note,
       category: expense.category,
       paidBy: expense.paidBy,
+      budgetId: expense.budgetId ?? null,
     }),
     [
       expense.amount,
       expense.category,
       expense.note,
       expense.paidBy,
+      expense.budgetId,
       formattedDate,
     ]
   );
@@ -178,7 +191,9 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     setIsOpen(false);
   };
 
-  const handleUpdate = async (payload: TExpense & { paidBy: string }) => {
+  const handleUpdate = async (
+    payload: TExpense & { paidBy: string; budgetId?: number | null }
+  ) => {
     await updateExpenseEntry(expense.id, payload);
     router.refresh();
   };
@@ -277,9 +292,18 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
               <p className="text-muted-foreground truncate font-semibold">
                 {expense.note || "<No note>"}
               </p>
-              <p className="w-fit truncate rounded-2xl bg-gray-500/30 px-3 text-sm text-gray-500">
-                {expense.category}
-              </p>
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                <p className="max-w-[140px] truncate rounded-2xl bg-gray-500/30 px-3 text-sm text-gray-500">
+                  {expense.category}
+                </p>
+                {expense.budgetId ? (
+                  <p className="max-w-[160px] truncate rounded-2xl bg-emerald-400/10 px-3 text-sm text-emerald-300">
+                    {budgetBadgeLabel}
+                  </p>
+                ) : (
+                  <span className="size-2 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.55)]" />
+                )}
+              </div>
             </div>
             <div className="space-y-1">
               <p className="text-right text-sm font-semibold text-rose-400">
@@ -315,6 +339,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
               onSuccess={() => setEditOpen(false)}
               showSubmitButton={false}
               onStateChange={setEditFormState}
+              showBudgetSelect
             />
           </div>
           <SheetFooter className="border-t">
