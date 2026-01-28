@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { Suspense } from "react";
 
 import ExpenseList from "@/components/ExpenseList";
 import ExpensePrefillChips from "@/components/ExpensePrefillChips";
 import JumpToTopButton from "@/components/JumpToTopButton";
 import SpendingDashboardHeader from "@/components/SpendingDashboardHeader";
-import { Button } from "@/components/ui/button";
 
 interface HomeProps {
   searchParams: Promise<{
@@ -34,18 +32,6 @@ export default async function Home({ searchParams }: HomeProps) {
       >
         <ExpensePrefillChips />
       </Suspense>
-
-      <div className="flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
-        <div>
-          <p className="text-foreground text-sm font-semibold">Budget Weekly</p>
-          <p className="text-muted-foreground text-xs">
-            Plan and assign this week&apos;s spend.
-          </p>
-        </div>
-        <Link href="/budget-weekly">
-          <Button size="sm">Open</Button>
-        </Link>
-      </div>
 
       <Suspense
         fallback={
