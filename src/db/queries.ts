@@ -1,7 +1,9 @@
 import dayjs from "@/configs/date";
+import { getWeekRange } from "@/lib/week";
 import { eq } from "drizzle-orm";
 
 import { db } from "./index";
+import { setTransactionBudget } from "./budget-queries";
 import { expenses } from "./schema";
 import { CreateExpenseInput } from "./type";
 
@@ -22,6 +24,17 @@ export const createExpense = async (input: CreateExpenseInput) => {
     })
     .returning();
 
+  if (Number.isFinite(input.budgetId)) {
+    const weekStartDate = getWeekRange(parsedDate).weekStartDate.format(
+      "YYYY-MM-DD"
+    );
+    await setTransactionBudget({
+      transactionId: created.id,
+      budgetId: Number(input.budgetId),
+      weekStartDate,
+    });
+  }
+
   return created;
 };
 
@@ -41,6 +54,17 @@ export const updateExpense = async (id: number, input: CreateExpenseInput) => {
     })
     .where(eq(expenses.id, id))
     .returning();
+
+  if (typeof input.budgetId !== "undefined") {
+    const weekStartDate = getWeekRange(parsedDate).weekStartDate.format(
+      "YYYY-MM-DD"
+    );
+    await setTransactionBudget({
+      transactionId: updated.id,
+      budgetId: input.budgetId,
+      weekStartDate,
+    });
+  }
 
   return updated;
 };
