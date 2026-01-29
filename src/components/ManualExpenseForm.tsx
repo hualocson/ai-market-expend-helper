@@ -514,6 +514,126 @@ const ManualExpenseForm = forwardRef<
             </div>
           </div>
 
+          {showBudgetSelect && (
+            <Root open={budgetDrawerOpen} onOpenChange={setBudgetDrawerOpen}>
+              <Trigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full justify-between rounded-xl"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Wallet className="text-muted-foreground h-4 w-4" />
+                    Budget
+                  </span>
+                  <span className="text-muted-foreground text-xs font-medium">
+                    {budgetLabel}
+                  </span>
+                </Button>
+              </Trigger>
+              <Content
+                side="bottom"
+                showCloseButton={false}
+                className="rounded-t-3xl"
+              >
+                <Header className="text-left">
+                  <Title>Budget</Title>
+                  <Description>
+                    Assign this expense to a weekly budget.
+                  </Description>
+                </Header>
+                <div
+                  className="no-scrollbar max-h-[50svh] flex-1 space-y-3 overflow-y-auto px-4 sm:px-6"
+                  tabIndex={0}
+                >
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => handleBudgetChange(null)}
+                      aria-pressed={budgetId === null}
+                      className={cn(
+                        "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
+                        budgetId === null
+                          ? "border-emerald-400/40 bg-emerald-400/10"
+                          : "border-white/10 bg-white/5 hover:bg-white/10"
+                      )}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={cn(
+                            "size-2 shrink-0 rounded-full",
+                            budgetId === null
+                              ? "bg-emerald-300"
+                              : "bg-amber-300/80"
+                          )}
+                        />
+                        <span className="truncate">No budget</span>
+                      </span>
+                      {budgetId === null ? (
+                        <CheckIcon className="h-4 w-4 text-emerald-300" />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          Clear
+                        </span>
+                      )}
+                    </button>
+
+                    {budgetLoading ? (
+                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading budgets...
+                      </div>
+                    ) : budgetOptions.length ? (
+                      budgetOptions.map((budget) => {
+                        const isActive = budget.id === budgetId;
+                        return (
+                          <button
+                            key={budget.id}
+                            type="button"
+                            onClick={() => handleBudgetChange(budget.id)}
+                            aria-pressed={isActive}
+                            className={cn(
+                              "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
+                              isActive
+                                ? "border-emerald-400/40 bg-emerald-400/10"
+                                : "border-white/10 bg-white/5 hover:bg-white/10"
+                            )}
+                          >
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span
+                                className={cn(
+                                  "size-2 shrink-0 rounded-full",
+                                  isActive ? "bg-emerald-300" : "bg-white/40"
+                                )}
+                              />
+                              <span className="truncate">{budget.name}</span>
+                            </span>
+                            {isActive ? (
+                              <CheckIcon className="h-4 w-4 text-emerald-300" />
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-3 py-4">
+                        <p className="text-muted-foreground text-xs">
+                          No budgets for this week yet.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Footer className="standalone:pb-safe border-t">
+                  <Close asChild>
+                    <Button className="h-10 w-full rounded-xl text-base font-medium">
+                      Done
+                    </Button>
+                  </Close>
+                </Footer>
+              </Content>
+            </Root>
+          )}
+
           <div className="grid w-full grid-cols-2 gap-2">
             <Root open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
               <Trigger asChild>
@@ -635,126 +755,6 @@ const ManualExpenseForm = forwardRef<
               </Content>
             </Root>
           </div>
-
-          {showBudgetSelect ? (
-            <Root open={budgetDrawerOpen} onOpenChange={setBudgetDrawerOpen}>
-              <Trigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 w-full justify-between rounded-xl"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <Wallet className="text-muted-foreground h-4 w-4" />
-                    Budget
-                  </span>
-                  <span className="text-muted-foreground text-xs font-medium">
-                    {budgetLabel}
-                  </span>
-                </Button>
-              </Trigger>
-              <Content
-                side="bottom"
-                showCloseButton={false}
-                className="rounded-t-3xl"
-              >
-                <Header className="text-left">
-                  <Title>Budget</Title>
-                  <Description>
-                    Assign this expense to a weekly budget.
-                  </Description>
-                </Header>
-                <div
-                  className="no-scrollbar max-h-[50svh] flex-1 space-y-3 overflow-y-auto px-4 sm:px-6"
-                  tabIndex={0}
-                >
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => handleBudgetChange(null)}
-                      aria-pressed={budgetId === null}
-                      className={cn(
-                        "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
-                        budgetId === null
-                          ? "border-emerald-400/40 bg-emerald-400/10"
-                          : "border-white/10 bg-white/5 hover:bg-white/10"
-                      )}
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={cn(
-                            "size-2 shrink-0 rounded-full",
-                            budgetId === null
-                              ? "bg-emerald-300"
-                              : "bg-amber-300/80"
-                          )}
-                        />
-                        <span className="truncate">No budget</span>
-                      </span>
-                      {budgetId === null ? (
-                        <CheckIcon className="h-4 w-4 text-emerald-300" />
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          Clear
-                        </span>
-                      )}
-                    </button>
-
-                    {budgetLoading ? (
-                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading budgets...
-                      </div>
-                    ) : budgetOptions.length ? (
-                      budgetOptions.map((budget) => {
-                        const isActive = budget.id === budgetId;
-                        return (
-                          <button
-                            key={budget.id}
-                            type="button"
-                            onClick={() => handleBudgetChange(budget.id)}
-                            aria-pressed={isActive}
-                            className={cn(
-                              "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
-                              isActive
-                                ? "border-emerald-400/40 bg-emerald-400/10"
-                                : "border-white/10 bg-white/5 hover:bg-white/10"
-                            )}
-                          >
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span
-                                className={cn(
-                                  "size-2 shrink-0 rounded-full",
-                                  isActive ? "bg-emerald-300" : "bg-white/40"
-                                )}
-                              />
-                              <span className="truncate">{budget.name}</span>
-                            </span>
-                            {isActive ? (
-                              <CheckIcon className="h-4 w-4 text-emerald-300" />
-                            ) : null}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-3 py-4">
-                        <p className="text-muted-foreground text-xs">
-                          No budgets for this week yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <Footer className="standalone:pb-safe border-t">
-                  <Close asChild>
-                    <Button className="h-10 w-full rounded-xl text-base font-medium">
-                      Done
-                    </Button>
-                  </Close>
-                </Footer>
-              </Content>
-            </Root>
-          ) : null}
 
           {showSubmitButton ? (
             <Button
