@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import dayjs from "@/configs/date";
 import { db } from "@/db";
-import { expenses, transactionBudgets, weeklyBudgets } from "@/db/schema";
+import { budgets, expenseBudgets, expenses } from "@/db/schema";
 import { formatVnd } from "@/lib/utils";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowRightIcon } from "lucide-react";
@@ -83,13 +83,13 @@ const ExpenseList = async ({
     gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
     lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
   );
-const whereClause = trimmedSearch
-  ? and(
-      baseWhere,
-      sql`to_tsvector('simple', f_unaccent(${expenses.note}) || ' ' || f_unaccent(${expenses.category}))
-          @@ websearch_to_tsquery('simple', f_unaccent(${trimmedSearch}))`
-    )
-  : baseWhere;
+  const whereClause = trimmedSearch
+    ? and(
+        baseWhere,
+        sql`to_tsvector('simple', f_unaccent(${expenses.note}) || ' ' || f_unaccent(${expenses.category}))
+            @@ websearch_to_tsquery('simple', f_unaccent(${trimmedSearch}))`
+      )
+    : baseWhere;
 
   const rows = await db
     .select({
@@ -99,15 +99,12 @@ const whereClause = trimmedSearch
       note: expenses.note,
       category: expenses.category,
       paidBy: expenses.paidBy,
-      budgetId: transactionBudgets.budgetId,
-      budgetName: weeklyBudgets.name,
+      budgetId: expenseBudgets.budgetId,
+      budgetName: budgets.name,
     })
     .from(expenses)
-    .leftJoin(
-      transactionBudgets,
-      eq(transactionBudgets.transactionId, expenses.id)
-    )
-    .leftJoin(weeklyBudgets, eq(weeklyBudgets.id, transactionBudgets.budgetId))
+    .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
+    .leftJoin(budgets, eq(budgets.id, expenseBudgets.budgetId))
     .where(whereClause)
     .orderBy(desc(expenses.date), desc(expenses.id));
 
