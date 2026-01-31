@@ -539,7 +539,7 @@ const ManualExpenseForm = forwardRef<
                 <Header className="text-left">
                   <Title>Budget</Title>
                   <Description>
-                    Assign this expense to a weekly budget.
+                    Assign this expense to a budget.
                   </Description>
                 </Header>
                 <div
@@ -617,7 +617,7 @@ const ManualExpenseForm = forwardRef<
                     ) : (
                       <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-3 py-4">
                         <p className="text-muted-foreground text-xs">
-                          No budgets for this week yet.
+                          No budgets for this date yet.
                         </p>
                       </div>
                     )}
