@@ -29,6 +29,27 @@
       "when": 1769349095369,
       "tag": "0003_numerous_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769694489408,
+      "tag": "0004_stale_nicolaos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769694620424,
+      "tag": "0005_backfill_budgets",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769695361297,
+      "tag": "0006_drop_old_weekly_tables",
+      "breakpoints": true
     }
   ]
 }
