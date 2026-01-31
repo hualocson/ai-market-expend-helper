@@ -16,10 +16,10 @@ const navItems = [
     isActive: (pathname: string) => pathname === "/",
   },
   {
-    href: "/budget-weekly",
+    href: "/budgets",
     label: "Budgets",
     icon: Wallet,
-    isActive: (pathname: string) => pathname.startsWith("/budget-weekly"),
+    isActive: (pathname: string) => pathname.startsWith("/budgets"),
   },
   {
     href: "/report",
