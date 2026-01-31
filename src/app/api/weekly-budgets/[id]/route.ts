@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { deleteWeeklyBudget, updateWeeklyBudget } from "@/db/budget-queries";
-import { WeeklyBudgetUpdateInput } from "@/types/budget-weekly";
+import { deleteBudget, updateBudget } from "@/db/budget-queries";
+import { BudgetUpdateInput } from "@/types/budget-weekly";
 
 export const PATCH = async (
   request: Request,
@@ -13,13 +13,13 @@ export const PATCH = async (
   }
 
   try {
-    const payload = (await request.json()) as WeeklyBudgetUpdateInput;
-    const updated = await updateWeeklyBudget(id, payload);
+    const payload = (await request.json()) as BudgetUpdateInput;
+    const updated = await updateBudget(id, payload);
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Failed to update weekly budget:", error);
+    console.error("Failed to update budget:", error);
     return NextResponse.json(
-      { error: "Failed to update weekly budget" },
+      { error: "Failed to update budget" },
       { status: 400 }
     );
   }
@@ -35,12 +35,12 @@ export const DELETE = async (
   }
 
   try {
-    const deleted = await deleteWeeklyBudget(id);
+    const deleted = await deleteBudget(id);
     return NextResponse.json(deleted);
   } catch (error) {
-    console.error("Failed to delete weekly budget:", error);
+    console.error("Failed to delete budget:", error);
     return NextResponse.json(
-      { error: "Failed to delete weekly budget" },
+      { error: "Failed to delete budget" },
       { status: 400 }
     );
   }
