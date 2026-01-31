@@ -18,9 +18,9 @@ export const GET = async (request: Request) => {
     const report = await getWeeklyBudgetReport(resolvedWeekStart, searchQuery);
     return NextResponse.json(report);
   } catch (error) {
-    console.error("Failed to fetch weekly budget report:", error);
+    console.error("Failed to fetch budget report:", error);
     return NextResponse.json(
-      { error: "Failed to fetch weekly budget report" },
+      { error: "Failed to fetch budget report" },
       { status: 400 }
     );
   }
