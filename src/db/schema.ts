@@ -6,6 +6,7 @@ import {
   date,
   index,
   integer,
+  pgEnum,
   pgTable,
   serial,
   text,
@@ -43,47 +44,70 @@ export const expenses = pgTable(
       sql`${t.isDeleted} = (${t.deletedAt} IS NOT NULL)`
     ),
     index("search_idx").using(
-    "gin",
-    sql`to_tsvector('simple', f_unaccent(${t.note}) || ' ' || f_unaccent(${t.category}))`
-  )
+      "gin",
+      sql`to_tsvector('simple', f_unaccent(${t.note}) || ' ' || f_unaccent(${t.category}))`
+    ),
   ]
 );
 
 export type TExpense = typeof expenses.$inferSelect;
 export type TNewExpense = typeof expenses.$inferInsert;
 
-export const weeklyBudgets = pgTable(
-  "weekly_budgets",
+export const budgetPeriod = pgEnum("budget_period", [
+  "week",
+  "month",
+  "custom",
+]);
+
+export const budgets = pgTable(
+  "budgets",
   {
     id: serial("id").primaryKey(),
-    weekStartDate: date("week_start_date").notNull(),
+
     name: text("name").notNull(),
     amount: integer("amount").notNull(),
+
+    period: budgetPeriod("period").notNull(),
+
+    periodStartDate: date("period_start_date").notNull(),
+    periodEndDate: date("period_end_date"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
-  (t) => [index("weekly_budgets_week_start_date_idx").on(t.weekStartDate)]
+  (t) => [
+    index("budgets_period_start_idx").on(t.periodStartDate),
+    index("budgets_period_idx").on(t.period),
+  ]
 );
 
-export const transactionBudgets = pgTable(
-  "transaction_budgets",
+export const expenseBudgets = pgTable(
+  "expense_budgets",
   {
-    transactionId: integer("transaction_id")
+    expenseId: integer("expense_id")
       .notNull()
       .references(() => expenses.id, { onDelete: "cascade" })
       .primaryKey(),
+
     budgetId: integer("budget_id")
       .notNull()
-      .references(() => weeklyBudgets.id, { onDelete: "cascade" }),
+      .references(() => budgets.id, { onDelete: "cascade" }),
+
     assignedAt: timestamp("assigned_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => [
-    index("transaction_budgets_budget_id_idx").on(t.budgetId),
-    index("transaction_budgets_transaction_id_idx").on(t.transactionId),
+    index("expense_budgets_budget_id_idx").on(t.budgetId),
+    index("expense_budgets_expense_id_idx").on(t.expenseId),
   ]
 );
 
-export type TWeeklyBudget = typeof weeklyBudgets.$inferSelect;
-export type TNewWeeklyBudget = typeof weeklyBudgets.$inferInsert;
-export type TTransactionBudget = typeof transactionBudgets.$inferSelect;
-export type TNewTransactionBudget = typeof transactionBudgets.$inferInsert;
+export type TBudget = typeof budgets.$inferSelect;
+export type TNewBudget = typeof budgets.$inferInsert;
+export type TExpenseBudget = typeof expenseBudgets.$inferSelect;
+export type TNewExpenseBudget = typeof expenseBudgets.$inferInsert;
