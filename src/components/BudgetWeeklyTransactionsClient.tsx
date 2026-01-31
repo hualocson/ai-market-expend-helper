@@ -34,7 +34,6 @@ import TransactionsSearch from "@/components/TransactionsSearch";
 import { Input } from "./ui/input";
 
 type BudgetWeeklyTransactionsClientProps = {
-  weekStartDate: string;
   budgets: Array<{ id: number; name: string }>;
   transactions: WeeklyBudgetTransaction[];
 };
@@ -49,7 +48,6 @@ const PAGE_SIZE = 12;
 type FilterOption = "all" | "unassigned" | "assigned";
 
 const BudgetWeeklyTransactionsClient = ({
-  weekStartDate,
   budgets,
   transactions,
 }: BudgetWeeklyTransactionsClientProps) => {
@@ -153,9 +151,8 @@ const BudgetWeeklyTransactionsClient = ({
       setIsAssigning(true);
       setPendingBudgetId(budgetId);
       await setTransactionBudgetEntry({
-        transactionId: activeTransaction.id,
+        expenseId: activeTransaction.id,
         budgetId,
-        weekStartDate,
       });
       toast.success(budgetId ? "Budget assigned." : "Budget unassigned.");
       setAssignOpen(false);
