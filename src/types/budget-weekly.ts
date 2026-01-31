@@ -1,19 +1,24 @@
-export type WeeklyBudgetSummary = {
+export type BudgetPeriod = "week" | "month" | "custom";
+
+export type BudgetSummary = {
   totalBudget: number;
   totalSpentAssigned: number;
   unassignedSpent: number;
   totalRemaining: number;
 };
 
-export type WeeklyBudgetListItem = {
+export type BudgetListItem = {
   id: number;
   name: string;
   amount: number;
   spent: number;
   remaining: number;
+  period: BudgetPeriod;
+  periodStartDate: string;
+  periodEndDate: string | null;
 };
 
-export type WeeklyBudgetTransaction = {
+export type BudgetTransaction = {
   id: number;
   date: string;
   note: string;
@@ -23,27 +28,52 @@ export type WeeklyBudgetTransaction = {
   budgetName: string | null;
 };
 
-export type WeeklyBudgetReport = {
+export type BudgetReport = {
   weekStartDate: string;
   weekEndDate: string;
-  summary: WeeklyBudgetSummary;
-  budgets: WeeklyBudgetListItem[];
-  transactions: WeeklyBudgetTransaction[];
+  summary: BudgetSummary;
+  budgets: BudgetListItem[];
+  transactions: BudgetTransaction[];
 };
 
-export type WeeklyBudgetCreateInput = {
-  weekStartDate: string;
+export type BudgetOverviewSummary = {
+  totalBudget: number;
+  totalSpent: number;
+  totalRemaining: number;
+  budgetCount: number;
+};
+
+export type BudgetOverviewReport = {
+  summary: BudgetOverviewSummary;
+  budgets: BudgetListItem[];
+};
+
+export type BudgetCreateInput = {
   name: string;
   amount: number;
+  period: BudgetPeriod;
+  periodStartDate: string;
+  periodEndDate?: string | null;
 };
 
-export type WeeklyBudgetUpdateInput = {
+export type BudgetUpdateInput = {
   name?: string;
   amount?: number;
+  period?: BudgetPeriod;
+  periodStartDate?: string;
+  periodEndDate?: string | null;
 };
 
-export type TransactionBudgetInput = {
-  transactionId: number;
+export type ExpenseBudgetInput = {
+  expenseId: number;
   budgetId: number | null;
-  weekStartDate: string;
 };
+
+// Legacy aliases for existing imports.
+export type WeeklyBudgetSummary = BudgetSummary;
+export type WeeklyBudgetListItem = BudgetListItem;
+export type WeeklyBudgetTransaction = BudgetTransaction;
+export type WeeklyBudgetReport = BudgetReport;
+export type WeeklyBudgetCreateInput = BudgetCreateInput;
+export type WeeklyBudgetUpdateInput = BudgetUpdateInput;
+export type TransactionBudgetInput = ExpenseBudgetInput;
