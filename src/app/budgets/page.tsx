@@ -2,12 +2,10 @@ import Link from "next/link";
 
 import dayjs from "@/configs/date";
 import { getBudgetOverview } from "@/db/budget-queries";
-import { formatVnd, formatVndSigned } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import BudgetWeeklyBudgetsClient from "@/components/BudgetWeeklyBudgetsClient";
 
@@ -35,46 +33,6 @@ export default async function BudgetsPage() {
       </div>
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-x-auto overflow-y-auto">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Budget overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-muted-foreground text-xs">Total budget</p>
-                <p className="text-foreground text-lg font-semibold">
-                  {formatVnd(report.summary.totalBudget)} VND
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Total spent</p>
-                <p className="text-foreground text-lg font-semibold">
-                  {formatVnd(report.summary.totalSpent)} VND
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Budgets</p>
-                <p className="text-foreground text-lg font-semibold">
-                  {report.summary.budgetCount}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Remaining</p>
-                <p
-                  className={`text-lg font-semibold ${
-                    report.summary.totalRemaining < 0
-                      ? "text-rose-400"
-                      : "text-emerald-400"
-                  }`}
-                >
-                  {formatVndSigned(report.summary.totalRemaining)} VND
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         <BudgetWeeklyBudgetsClient
           weekStartDate={currentWeekStart}
           budgets={report.budgets}
