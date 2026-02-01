@@ -17,7 +17,7 @@ import {
 export async function createWeeklyBudgetEntry(input: BudgetCreateInput) {
   try {
     const created = await createBudget(input);
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return created;
   } catch (error) {
     console.error("Error creating budget:", error);
@@ -31,7 +31,7 @@ export async function updateWeeklyBudgetEntry(
 ) {
   try {
     const updated = await updateBudget(id, input);
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return updated;
   } catch (error) {
     console.error("Error updating budget:", error);
@@ -42,7 +42,7 @@ export async function updateWeeklyBudgetEntry(
 export async function deleteWeeklyBudgetEntry(id: number) {
   try {
     const deleted = await deleteBudget(id);
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return deleted;
   } catch (error) {
     console.error("Error deleting budget:", error);
@@ -53,7 +53,7 @@ export async function deleteWeeklyBudgetEntry(id: number) {
 export async function setTransactionBudgetEntry(input: ExpenseBudgetInput) {
   try {
     const assigned = await setExpenseBudget(input);
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return assigned;
   } catch (error) {
     console.error("Error setting transaction budget:", error);

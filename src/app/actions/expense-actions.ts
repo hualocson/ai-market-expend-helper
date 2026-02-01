@@ -8,7 +8,7 @@ export async function createExpenseEntry(data: CreateExpenseInput) {
   try {
     const created = await createExpense(data);
     revalidatePath("/");
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return created;
   } catch (error) {
     console.error("Error creating expense:", error);
@@ -23,7 +23,7 @@ export async function updateExpenseEntry(
   try {
     const updated = await updateExpense(id, data);
     revalidatePath("/");
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return updated;
   } catch (error) {
     console.error("Error updating expense:", error);
@@ -35,7 +35,7 @@ export async function deleteExpenseEntry(id: number) {
   try {
     const deleted = await softDeleteExpense(id);
     revalidatePath("/");
-    revalidatePath("/budget-weekly");
+    revalidatePath("/budgets");
     return deleted;
   } catch (error) {
     console.error("Error deleting expense:", error);
