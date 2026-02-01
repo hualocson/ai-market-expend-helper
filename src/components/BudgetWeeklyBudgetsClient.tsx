@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -49,6 +49,7 @@ type BudgetSectionSummary = {
 type WeeklyGroup = {
   key: string;
   label: string;
+  shortLabel: string;
   budgets: BudgetListItem[];
   summary: BudgetSectionSummary;
 };
@@ -80,6 +81,25 @@ const getMonthKey = (dateValue: string) => {
 const formatMonthLabel = (monthKey: string, format = "MMM YYYY") => {
   const parsed = monthKeyToDate(monthKey);
   return parsed.isValid() ? parsed.format(format) : monthKey;
+};
+
+const getWeekKey = (dateValue: string) => {
+  const parsed = dayjs(dateValue);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
+};
+
+const formatWeekLabel = (weekKey: string) => {
+  const parsed = dayjs(weekKey, "YYYY-MM-DD", true);
+  if (!parsed.isValid()) {
+    return weekKey;
+  }
+  const { weekStartDate, weekEndDate } = getWeekRange(parsed);
+  return `${weekStartDate.format("DD MMM")} - ${weekEndDate.format("DD MMM")}`;
+};
+
+const formatWeekPillLabel = (weekKey: string) => {
+  const parsed = dayjs(weekKey, "YYYY-MM-DD", true);
+  return parsed.isValid() ? parsed.format("DD MMM") : weekKey;
 };
 
 const formatPeriodLabel = (budget: BudgetListItem) => {
@@ -127,6 +147,9 @@ const BudgetWeeklyBudgetsClient = ({
 
   const currentMonthKey = dayjs().format("YYYY-MM");
   const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey);
+  const [activeWeekKey, setActiveWeekKey] = useState<string | null>(
+    weekStartDate
+  );
 
   const formTitle = activeBudget ? "Edit budget" : "New budget";
   const submitLabel = activeBudget ? "Save changes" : "Create budget";
@@ -178,25 +201,19 @@ const BudgetWeeklyBudgetsClient = ({
   const monthOptions = useMemo(
     () => [
       { id: "all", label: "All months" },
-      { id: "this", label: "This month only" },
       ...monthKeys.map((key) => ({
         id: key,
-        label: formatMonthLabel(key),
+        label: key === currentMonthKey ? "This month" : formatMonthLabel(key),
       })),
     ],
-    [monthKeys]
+    [monthKeys, currentMonthKey]
   );
 
-  const activeMonthKey =
-    monthFilter === "all"
-      ? null
-      : monthFilter === "this"
-        ? currentMonthKey
-        : monthFilter;
+  const activeMonthKey = monthFilter === "all" ? null : monthFilter;
   const activeMonthLabel =
     monthFilter === "all"
       ? "all months"
-      : monthFilter === "this"
+      : monthFilter === currentMonthKey
         ? "this month"
         : formatMonthLabel(monthFilter, "MMMM YYYY");
 
@@ -226,10 +243,33 @@ const BudgetWeeklyBudgetsClient = ({
     );
   }, [activeMonthKey, monthlyBudgets]);
 
+  const monthSummaryBudgets = useMemo(() => {
+    if (!activeMonthKey) {
+      return budgets;
+    }
+    return budgets.filter(
+      (budget) => getMonthKey(budget.periodStartDate) === activeMonthKey
+    );
+  }, [activeMonthKey, budgets]);
+
+  const monthSummary = useMemo(
+    () => summarizeBudgets(monthSummaryBudgets),
+    [monthSummaryBudgets]
+  );
+
+  const weeklyBudgetsForMonth = useMemo(() => {
+    if (!activeMonthKey) {
+      return [];
+    }
+    return weeklyBudgets.filter(
+      (budget) => getMonthKey(budget.periodStartDate) === activeMonthKey
+    );
+  }, [activeMonthKey, weeklyBudgets]);
+
   const weeklyGroups = useMemo<WeeklyGroup[]>(() => {
     const grouped = new Map<string, BudgetListItem[]>();
-    weeklyBudgets.forEach((budget) => {
-      const key = getMonthKey(budget.periodStartDate);
+    weeklyBudgetsForMonth.forEach((budget) => {
+      const key = getWeekKey(budget.periodStartDate);
       if (!key) {
         return;
       }
@@ -239,35 +279,22 @@ const BudgetWeeklyBudgetsClient = ({
     });
 
     return Array.from(grouped.entries())
-      .sort(
-        ([a], [b]) => monthKeyToDate(b).valueOf() - monthKeyToDate(a).valueOf()
-      )
+      .sort(([a], [b]) => dayjs(b).valueOf() - dayjs(a).valueOf())
       .map(([key, items]) => {
-        const sorted = [...items].sort(
-          (a, b) =>
-            dayjs(a.periodStartDate).valueOf() -
-            dayjs(b.periodStartDate).valueOf()
-        );
+        const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name));
         return {
           key,
-          label: formatMonthLabel(key, "MMMM YYYY"),
+          label: formatWeekLabel(key),
+          shortLabel: formatWeekPillLabel(key),
           budgets: sorted,
           summary: summarizeBudgets(sorted),
         };
       });
-  }, [weeklyBudgets]);
+  }, [weeklyBudgetsForMonth]);
 
-  const filteredWeeklyGroups = useMemo(
-    () =>
-      activeMonthKey
-        ? weeklyGroups.filter((group) => group.key === activeMonthKey)
-        : weeklyGroups,
-    [activeMonthKey, weeklyGroups]
-  );
-
-  const weeklyBudgetsFlat = useMemo(
-    () => filteredWeeklyGroups.flatMap((group) => group.budgets),
-    [filteredWeeklyGroups]
+  const activeWeekGroup = useMemo(
+    () => weeklyGroups.find((group) => group.key === activeWeekKey) ?? null,
+    [activeWeekKey, weeklyGroups]
   );
 
   const sortedCustomBudgets = useMemo(
@@ -280,20 +307,27 @@ const BudgetWeeklyBudgetsClient = ({
     [customBudgets]
   );
 
-  const monthlySummary = useMemo(
-    () => summarizeBudgets(filteredMonthlyBudgets),
-    [filteredMonthlyBudgets]
-  );
-  const weeklySummary = useMemo(
-    () => summarizeBudgets(weeklyBudgetsFlat),
-    [weeklyBudgetsFlat]
-  );
   const customSummary = useMemo(
     () => summarizeBudgets(sortedCustomBudgets),
     [sortedCustomBudgets]
   );
 
-  const showCustomBudgets = monthFilter !== "this";
+  useEffect(() => {
+    if (!weeklyGroups.length) {
+      setActiveWeekKey(null);
+      return;
+    }
+
+    setActiveWeekKey((current) => {
+      if (current && weeklyGroups.some((group) => group.key === current)) {
+        return current;
+      }
+      const currentWeek = weeklyGroups.find(
+        (group) => group.key === weekStartDate
+      );
+      return currentWeek?.key ?? weeklyGroups[0].key;
+    });
+  }, [weekStartDate, weeklyGroups]);
 
   const renderBudgetCard = (budget: BudgetListItem) => {
     const progress =
@@ -537,23 +571,12 @@ const BudgetWeeklyBudgetsClient = ({
 
   return (
     <section className="relative space-y-4">
-      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-foreground text-lg font-semibold">Budgets</h2>
-          <p className="text-muted-foreground text-sm">
-            Monthly first, then weekly breakdowns.
-          </p>
-        </div>
-        <Button
-          onClick={openCreate}
-          className="hidden h-10 rounded-full sm:flex"
-        >
-          <Plus className="h-4 w-4" />
-          Add budget
-        </Button>
-      </div>
+      <Button onClick={openCreate} className="hidden h-10 rounded-full sm:flex">
+        <Plus className="h-4 w-4" />
+        Add budget
+      </Button>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="no-scrollbar scroll-fade-x flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1">
         {monthOptions.map((option) => (
           <Button
             key={option.id}
@@ -562,7 +585,7 @@ const BudgetWeeklyBudgetsClient = ({
             variant="secondary"
             onClick={() => setMonthFilter(option.id)}
             className={cn(
-              "h-8 rounded-full px-3 text-xs font-semibold",
+              "h-8 snap-center rounded-full px-3 text-xs font-semibold",
               monthFilter === option.id
                 ? "bg-foreground text-background hover:bg-foreground/90"
                 : "text-muted-foreground bg-white/5 hover:bg-white/10"
@@ -577,17 +600,33 @@ const BudgetWeeklyBudgetsClient = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-foreground text-sm font-semibold">
+              Month summary
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              {monthSummary.count} budgets ·{" "}
+              {activeMonthKey
+                ? formatMonthLabel(activeMonthKey, "MMMM YYYY")
+                : "All months"}
+            </p>
+          </div>
+        </div>
+        {renderSectionSummary(monthSummary)}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-foreground text-sm font-semibold">
               Monthly budgets
             </h3>
             <p className="text-muted-foreground text-xs">
-              {monthlySummary.count} budgets
+              {filteredMonthlyBudgets.length} budgets
             </p>
           </div>
           <p className="text-muted-foreground text-xs">
             {activeMonthKey ? formatMonthLabel(activeMonthKey) : "All months"}
           </p>
         </div>
-        {renderSectionSummary(monthlySummary)}
         {filteredMonthlyBudgets.length ? (
           <div className="flex flex-col gap-3">
             {filteredMonthlyBudgets.map(renderBudgetCard)}
@@ -606,42 +645,53 @@ const BudgetWeeklyBudgetsClient = ({
               Weekly budgets
             </h3>
             <p className="text-muted-foreground text-xs">
-              {weeklySummary.count} weeks
+              {activeMonthKey ? `${weeklyGroups.length} weeks` : "Pick a month"}
             </p>
           </div>
         </div>
-        {renderSectionSummary(weeklySummary)}
-        {filteredWeeklyGroups.length ? (
-          <div className="space-y-4">
-            {filteredWeeklyGroups.map((group) => (
-              <div key={group.key} className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
+        {!activeMonthKey ? (
+          <div className="text-muted-foreground rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-xs">
+            Select a month to see weekly breakdown.
+          </div>
+        ) : weeklyGroups.length ? (
+          <div className="space-y-3">
+            <div className="no-scrollbar scroll-fade-x flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1">
+              {weeklyGroups.map((group) => (
+                <Button
+                  key={group.key}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setActiveWeekKey(group.key)}
+                  className={cn(
+                    "h-8 snap-center rounded-full px-3 text-xs font-semibold",
+                    activeWeekKey === group.key
+                      ? "bg-foreground text-background hover:bg-foreground/90"
+                      : "text-muted-foreground bg-white/5 hover:bg-white/10"
+                  )}
+                >
+                  {group.shortLabel}
+                </Button>
+              ))}
+            </div>
+            {activeWeekGroup ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-foreground text-sm font-semibold">
-                      {group.label}
+                      {activeWeekGroup.label}
                     </h4>
                     <p className="text-muted-foreground text-xs">
-                      {group.budgets.length} weekly budgets
+                      {activeWeekGroup.budgets.length} budgets
                     </p>
                   </div>
-                  <p className="text-muted-foreground text-xs">
-                    {formatVnd(group.summary.totalSpent)} spent ·{" "}
-                    <span
-                      className={cn(
-                        group.summary.totalRemaining < 0
-                          ? "text-rose-300"
-                          : "text-emerald-300"
-                      )}
-                    >
-                      {formatVndSigned(group.summary.totalRemaining)} left
-                    </span>
-                  </p>
                 </div>
+                {renderSectionSummary(activeWeekGroup.summary)}
                 <div className="flex flex-col gap-3">
-                  {group.budgets.map(renderBudgetCard)}
+                  {activeWeekGroup.budgets.map(renderBudgetCard)}
                 </div>
               </div>
-            ))}
+            ) : null}
           </div>
         ) : (
           <div className="text-muted-foreground rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-xs">
@@ -650,31 +700,29 @@ const BudgetWeeklyBudgetsClient = ({
         )}
       </div>
 
-      {showCustomBudgets ? (
-        <div className="space-y-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-foreground text-sm font-semibold">
-                Custom budgets
-              </h3>
-              <p className="text-muted-foreground text-xs">
-                {customSummary.count} budgets
-              </p>
-            </div>
-            <p className="text-muted-foreground text-xs">All ranges</p>
+      <div className="space-y-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-foreground text-sm font-semibold">
+              Custom budgets
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              {customSummary.count} budgets
+            </p>
           </div>
-          {renderSectionSummary(customSummary)}
-          {sortedCustomBudgets.length ? (
-            <div className="flex flex-col gap-3">
-              {sortedCustomBudgets.map(renderBudgetCard)}
-            </div>
-          ) : (
-            <div className="text-muted-foreground rounded-2xl border border-dashed border-white/10 bg-white/10 px-4 py-3 text-xs">
-              No custom budgets yet.
-            </div>
-          )}
+          <p className="text-muted-foreground text-xs">All ranges</p>
         </div>
-      ) : null}
+        {renderSectionSummary(customSummary)}
+        {sortedCustomBudgets.length ? (
+          <div className="flex flex-col gap-3">
+            {sortedCustomBudgets.map(renderBudgetCard)}
+          </div>
+        ) : (
+          <div className="text-muted-foreground rounded-2xl border border-dashed border-white/10 bg-white/10 px-4 py-3 text-xs">
+            No custom budgets yet.
+          </div>
+        )}
+      </div>
 
       <div className="bg-background/80 sticky bottom-0 left-0 z-20 -mx-4 mt-2 w-full border-t border-white/10 pt-3 pb-4 backdrop-blur sm:hidden">
         <Button onClick={openCreate} className="h-11 w-full rounded-full">
