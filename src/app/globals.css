@@ -297,12 +297,12 @@
   @property --fr {
     syntax: "<length>";
     inherits: false;
-    initial-value: 40px;
+    initial-value: 0px;
   }
 
   .scroll-fade-x {
     --fl: 0px;
-    --fr: 40px;
+    --fr: 0px;
 
     mask-image: linear-gradient(
       to right,
