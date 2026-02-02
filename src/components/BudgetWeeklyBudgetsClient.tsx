@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -130,6 +130,45 @@ const resolvePeriodStart = (periodValue: BudgetPeriod, dateValue: string) => {
   return base.format("YYYY-MM-DD");
 };
 
+const useHorizontalFadeMask = (deps: unknown[] = []) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(true);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setShowLeftFade(scrollLeft > 10);
+      setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+    };
+
+    handleScroll();
+    container.addEventListener("scroll", handleScroll);
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, deps);
+
+  const maskImage =
+    showLeftFade && showRightFade
+      ? "linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent)"
+      : showLeftFade && !showRightFade
+        ? "linear-gradient(to right, transparent, black 2rem, black 100%)"
+        : !showLeftFade && showRightFade
+          ? "linear-gradient(to right, black 0%, black calc(100% - 2rem), transparent)"
+          : "none";
+
+  return { scrollContainerRef, maskImage };
+};
+
 const BudgetWeeklyBudgetsClient = ({
   weekStartDate,
   budgets,
@@ -208,6 +247,7 @@ const BudgetWeeklyBudgetsClient = ({
     ],
     [monthKeys, currentMonthKey]
   );
+  const monthFade = useHorizontalFadeMask([monthOptions.length]);
 
   const activeMonthKey = monthFilter === "all" ? null : monthFilter;
   const activeMonthLabel =
@@ -291,6 +331,7 @@ const BudgetWeeklyBudgetsClient = ({
         };
       });
   }, [weeklyBudgetsForMonth]);
+  const weekFade = useHorizontalFadeMask([weeklyGroups.length, activeMonthKey]);
 
   const activeWeekGroup = useMemo(
     () => weeklyGroups.find((group) => group.key === activeWeekKey) ?? null,
@@ -576,7 +617,14 @@ const BudgetWeeklyBudgetsClient = ({
         Add budget
       </Button>
 
-      <div className="no-scrollbar scroll-fade-x flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1">
+      <div
+        ref={monthFade.scrollContainerRef}
+        className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1"
+        style={{
+          maskImage: monthFade.maskImage,
+          WebkitMaskImage: monthFade.maskImage,
+        }}
+      >
         {monthOptions.map((option) => (
           <Button
             key={option.id}
@@ -655,7 +703,14 @@ const BudgetWeeklyBudgetsClient = ({
           </div>
         ) : weeklyGroups.length ? (
           <div className="space-y-3">
-            <div className="no-scrollbar scroll-fade-x flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1">
+            <div
+              ref={weekFade.scrollContainerRef}
+              className="no-scrollbar flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1"
+              style={{
+                maskImage: weekFade.maskImage,
+                WebkitMaskImage: weekFade.maskImage,
+              }}
+            >
               {weeklyGroups.map((group) => (
                 <Button
                   key={group.key}
@@ -724,7 +779,7 @@ const BudgetWeeklyBudgetsClient = ({
         )}
       </div>
 
-      <div className="bg-background/80 sticky bottom-0 left-0 z-20 -mx-4 mt-2 w-full border-t border-white/10 pt-3 pb-4 backdrop-blur sm:hidden">
+      <div className="bg-background/80 sticky bottom-0 left-0 z-20 -mx-4 mt-2 w-full translate-y-px pt-3 pb-4 backdrop-blur-md sm:hidden">
         <Button onClick={openCreate} className="h-11 w-full rounded-full">
           <Plus className="h-4 w-4" />
           Add budget
