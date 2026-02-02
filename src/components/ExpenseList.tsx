@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
 import { formatVnd } from "@/lib/utils";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -187,15 +187,21 @@ const ExpenseList = async ({
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-xs font-semibold tracking-wide">
-                  {group.label}
-                </p>
+              <Link
+                href={`/report/day/${group.key}`}
+                className="group flex items-center justify-between rounded-2xl border border-transparent px-2 py-1 transition hover:border-white/10 hover:bg-white/5"
+              >
+                <div className="flex items-center gap-2">
+                  <p className="text-muted-foreground text-xs font-semibold tracking-wide transition group-hover:text-foreground">
+                    {group.label}
+                  </p>
+                  <ChevronRight className="text-muted-foreground h-3.5 w-3.5 transition group-hover:text-foreground" />
+                </div>
                 {/* total amount of day */}
                 <div className="text-foreground text-right text-sm font-semibold">
                   -{formatVnd(group.totalAmount)} VND
                 </div>
-              </div>
+              </Link>
               <div className="flex flex-col gap-3">
                 {group.items.map((expense) => (
                   <ExpenseListItem
