@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { updateExpense } from "@/db/queries";
+import { softDeleteExpense, updateExpense } from "@/db/queries";
 import { CreateExpenseInput } from "@/db/type";
 import { PaidBy } from "@/enums";
 import { verifyInternalToken } from "@/lib/internal-auth";
@@ -77,6 +77,42 @@ export const PATCH = async (
     console.error("Failed to update internal transaction:", error);
     return NextResponse.json(
       { error: "Failed to update transaction" },
+      { status: 400 }
+    );
+  }
+};
+
+export const DELETE = async (
+  request: Request,
+  { params }: { params: { id: string } }
+) => {
+  const authResult = verifyInternalToken(request);
+  if (!authResult.ok) {
+    return NextResponse.json(
+      { error: authResult.error },
+      { status: authResult.status }
+    );
+  }
+
+  const id = Number(params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json(
+      { error: "Invalid transaction id" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const deleted = await softDeleteExpense(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(deleted);
+  } catch (error) {
+    console.error("Failed to delete internal transaction:", error);
+    return NextResponse.json(
+      { error: "Failed to delete transaction" },
       { status: 400 }
     );
   }
