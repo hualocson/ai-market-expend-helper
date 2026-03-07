@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { updateBudget } from "@/db/budget-queries";
+import { deleteBudget, updateBudget } from "@/db/budget-queries";
 import { verifyInternalToken } from "@/lib/internal-auth";
 import { BudgetPeriod, BudgetUpdateInput } from "@/types/budget-weekly";
 
@@ -98,6 +98,39 @@ export const PATCH = async (
     console.error("Failed to update internal budget:", error);
     return NextResponse.json(
       { error: "Failed to update budget" },
+      { status: 400 }
+    );
+  }
+};
+
+export const DELETE = async (
+  request: Request,
+  { params }: { params: { id: string } }
+) => {
+  const authResult = verifyInternalToken(request);
+  if (!authResult.ok) {
+    return NextResponse.json(
+      { error: authResult.error },
+      { status: authResult.status }
+    );
+  }
+
+  const id = Number(params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Invalid budget id" }, { status: 400 });
+  }
+
+  try {
+    const deleted = await deleteBudget(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Budget not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(deleted);
+  } catch (error) {
+    console.error("Failed to delete internal budget:", error);
+    return NextResponse.json(
+      { error: "Failed to delete budget" },
       { status: 400 }
     );
   }
