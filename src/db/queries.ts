@@ -50,6 +50,10 @@ export const updateExpense = async (id: number, input: CreateExpenseInput) => {
     .where(eq(expenses.id, id))
     .returning();
 
+  if (!updated) {
+    throw new Error("Expense not found");
+  }
+
   if (typeof input.budgetId !== "undefined") {
     await setExpenseBudget({
       expenseId: updated.id,
