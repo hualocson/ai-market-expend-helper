@@ -217,6 +217,30 @@ curl -X PATCH "http://localhost:3000/api/internal/transactions/12" \
   }'
 ```
 
+## Endpoint: Delete Transaction
+
+- Method: `DELETE`
+- Path: `/api/internal/transactions/:id`
+- Purpose: soft-delete a transaction (sets `isDeleted = true`)
+
+### Path params
+
+- `id` (required, positive integer)
+
+### Responses
+
+- `200`: deleted transaction row
+- `400 { "error": "Invalid transaction id" }`
+- `404 { "error": "Expense not found" }`
+- `400 { "error": "Failed to delete transaction" }`
+
+### cURL example
+
+```bash
+curl -X DELETE "http://localhost:3000/api/internal/transactions/12" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN"
+```
+
 ## Endpoint: List Budgets
 
 - Method: `GET`
@@ -336,4 +360,28 @@ curl -X PATCH "http://localhost:3000/api/internal/budgets/12" \
     "amount":2500000,
     "name":"Groceries + household"
   }'
+```
+
+## Endpoint: Delete Budget
+
+- Method: `DELETE`
+- Path: `/api/internal/budgets/:id`
+- Purpose: delete a budget
+
+### Path params
+
+- `id` (required, positive integer)
+
+### Responses
+
+- `200`: deleted budget row
+- `400 { "error": "Invalid budget id" }`
+- `404 { "error": "Budget not found" }`
+- `400 { "error": "Failed to delete budget" }`
+
+### cURL example
+
+```bash
+curl -X DELETE "http://localhost:3000/api/internal/budgets/12" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN"
 ```
