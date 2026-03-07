@@ -20,6 +20,50 @@ If token is missing or invalid:
 - `401 { "error": "Missing internal token" }`
 - `401 { "error": "Invalid internal token" }`
 
+## Reference Data: Category and PaidBy
+
+Source of truth: `src/enums/index.ts`.
+
+### Category list
+
+Current canonical category values:
+
+- `Food`
+- `Shopping`
+- `Housing`
+- `Transport`
+- `Badminton`
+- `Entertainment`
+- `Giving`
+- `Other`
+
+Notes:
+
+- Internal API currently validates `category` as `string` only.
+- Recommended: send one of the canonical values above for consistency in UI/reporting.
+
+### PaidBy list
+
+Current allowed paidBy values:
+
+- `Cubi`
+- `Embe`
+- `Other`
+
+Notes:
+
+- Internal API strictly validates `paidBy` against this list.
+
+## Reference Data: Budget Period
+
+Source of truth: `src/types/budget-weekly.ts`.
+
+Allowed `period` values:
+
+- `week`
+- `month`
+- `custom`
+
 ## Endpoint: Create Transaction
 
 - Method: `POST`
@@ -43,8 +87,8 @@ Fields:
 
 - `date` (required, string): format `DD/MM/YYYY`
 - `amount` (required, number)
-- `category` (required, string)
-- `paidBy` (required, enum): `Cubi | Embe | Other`
+- `category` (required, string): recommended values are listed in `Category list`
+- `paidBy` (required, enum): values listed in `PaidBy list`
 - `note` (optional, string)
 - `budgetId` (optional, number or null)
 
@@ -115,4 +159,181 @@ Date range:
 ```bash
 curl "http://localhost:3000/api/internal/transactions?from=2026-03-01&to=2026-03-07&limit=100" \
   -H "Authorization: Bearer $INTERNAL_API_TOKEN"
+```
+
+## Endpoint: Update Transaction
+
+- Method: `PATCH`
+- Path: `/api/internal/transactions/:id`
+- Purpose: update an existing transaction (expense)
+
+### Path params
+
+- `id` (required, positive integer)
+
+### Request body
+
+```json
+{
+  "date": "07/03/2026",
+  "amount": 150000,
+  "category": "Food",
+  "paidBy": "Cubi",
+  "note": "Dinner",
+  "budgetId": 12
+}
+```
+
+Fields:
+
+- `date` (required, string): format `DD/MM/YYYY`
+- `amount` (required, number)
+- `category` (required, string): recommended values are listed in `Category list`
+- `paidBy` (required, enum): values listed in `PaidBy list`
+- `note` (optional, string)
+- `budgetId` (optional, number or null)
+
+### Responses
+
+- `200`: updated transaction row
+- `400 { "error": "Invalid transaction id" }`
+- `400 { "error": "Invalid payload" }`
+- `404 { "error": "Expense not found" }`
+- `400 { "error": "Failed to update transaction" }`
+
+### cURL example
+
+```bash
+curl -X PATCH "http://localhost:3000/api/internal/transactions/12" \
+  -H "Content-Type: application/json" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN" \
+  -d '{
+    "date":"07/03/2026",
+    "amount":150000,
+    "category":"Food",
+    "paidBy":"Cubi",
+    "note":"Dinner",
+    "budgetId":12
+  }'
+```
+
+## Endpoint: List Budgets
+
+- Method: `GET`
+- Path: `/api/internal/budgets`
+- Purpose: list budgets (overview) or weekly budget report
+
+### Query params
+
+- `weekStart` (optional): format `YYYY-MM-DD`
+  - when provided, returns weekly report payload
+  - when omitted, returns budget overview payload
+- `q` (optional): search query for weekly transactions (used only when `weekStart` is provided)
+
+### Responses
+
+- `200`: budget overview object or weekly budget report object
+- `400 { "error": "Failed to fetch budgets" }`
+
+### cURL examples
+
+Budget overview:
+
+```bash
+curl "http://localhost:3000/api/internal/budgets" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN"
+```
+
+Weekly report:
+
+```bash
+curl "http://localhost:3000/api/internal/budgets?weekStart=2026-03-02&q=food" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN"
+```
+
+## Endpoint: Create Budget
+
+- Method: `POST`
+- Path: `/api/internal/budgets`
+- Purpose: create a budget
+
+### Request body
+
+```json
+{
+  "name": "Groceries",
+  "amount": 2000000,
+  "period": "month",
+  "periodStartDate": "2026-03-01",
+  "periodEndDate": null
+}
+```
+
+Fields:
+
+- `name` (required, string)
+- `amount` (required, number)
+- `period` (required, enum): `week | month | custom`
+- `periodStartDate` (required, string): format `YYYY-MM-DD`
+- `periodEndDate` (optional, string or null): required logically for `custom`
+
+### Responses
+
+- `201`: created budget row
+- `400 { "error": "Invalid payload" }`
+- `400 { "error": "Failed to create budget" }`
+
+### cURL example
+
+```bash
+curl -X POST "http://localhost:3000/api/internal/budgets" \
+  -H "Content-Type: application/json" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN" \
+  -d '{
+    "name":"Groceries",
+    "amount":2000000,
+    "period":"month",
+    "periodStartDate":"2026-03-01"
+  }'
+```
+
+## Endpoint: Update Budget
+
+- Method: `PATCH`
+- Path: `/api/internal/budgets/:id`
+- Purpose: update a budget
+
+### Path params
+
+- `id` (required, positive integer)
+
+### Request body
+
+Any subset of:
+
+- `name` (string)
+- `amount` (number)
+- `period` (`week | month | custom`)
+- `periodStartDate` (string, `YYYY-MM-DD`)
+- `periodEndDate` (string or null)
+
+### Responses
+
+- `200`: updated budget row
+- `400 { "error": "Invalid budget id" }`
+- `400 { "error": "Invalid payload" }`
+- `400 { "error": "No fields provided for update" }`
+- `404 { "error": "Budget not found" }`
+- `400 { "error": "Failed to update budget" }`
+
+### cURL example
+
+```bash
+curl -X PATCH "http://localhost:3000/api/internal/budgets/12" \
+  -H "Content-Type: application/json" \
+  -H "x-internal-token: $INTERNAL_API_TOKEN" \
+  -d '{
+    "amount":2500000,
+    "name":"Groceries + household"
+  }'
 ```
