@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import BottomNav from "@/components/BottomNav";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -275,33 +276,36 @@ export default function RootLayout({
       <body
         className={cn(geistSans.variable, geistMono.variable, "antialiased")}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <SettingsStoreProvider>
-            <main className="pb-24">
-              <PullToRefresh>{children}</PullToRefresh>
-            </main>
-            <ProgressiveBlur
-              className="fixed right-0 bottom-0 left-0"
-              position="bottom"
-              height="120px"
-            />
-            <BottomNav />
-          </SettingsStoreProvider>
-        </ThemeProvider>
-        <Toaster
-          position="top-right"
-          richColors
-          toastOptions={{
-            classNames: {
-              toast: "group-[.toaster]:pointer-events-auto",
-            },
-          }}
-        />
+        <ReactQueryProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <SettingsStoreProvider>
+              <main className="pb-24">
+                <PullToRefresh>{children}</PullToRefresh>
+              </main>
+              <ProgressiveBlur
+                className="fixed right-0 bottom-0 left-0"
+                position="bottom"
+                height="120px"
+              />
+              <BottomNav />
+            </SettingsStoreProvider>
+          </ThemeProvider>
+
+          <Toaster
+            position="top-right"
+            richColors
+            toastOptions={{
+              classNames: {
+                toast: "group-[.toaster]:pointer-events-auto",
+              },
+            }}
+          />
+        </ReactQueryProvider>
       </body>
     </html>
   );
