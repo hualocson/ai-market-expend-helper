@@ -125,6 +125,7 @@ curl -X POST "http://localhost:3000/api/internal/transactions" \
 - `date` (optional): exact date, format `YYYY-MM-DD`
 - `from` (optional): start date (inclusive), format `YYYY-MM-DD`
 - `to` (optional): end date (inclusive), format `YYYY-MM-DD`
+- `q` (optional): full-text search on transaction `note` and `category`
 - `limit` (optional): positive integer
   - default: `100`
   - max: `500` (higher values are clamped to 500)
@@ -152,6 +153,13 @@ Exact date:
 ```bash
 curl "http://localhost:3000/api/internal/transactions?date=2026-03-07&limit=50" \
   -H "x-internal-token: $INTERNAL_API_TOKEN"
+```
+
+Search in date range:
+
+```bash
+curl "http://localhost:3000/api/internal/transactions?from=2026-03-01&to=2026-03-07&q=lunch&limit=100" \
+  -H "Authorization: Bearer $INTERNAL_API_TOKEN"
 ```
 
 Date range:
