@@ -7,7 +7,7 @@ import { expenses } from "@/db/schema";
 import { CreateExpenseInput } from "@/db/type";
 import { PaidBy } from "@/enums";
 import { verifyInternalToken } from "@/lib/internal-auth";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 type InternalCreateTransactionInput = {
   amount: number;
@@ -62,6 +62,7 @@ export const GET = async (request: Request) => {
   const exactDate = searchParams.get("date");
   const fromDate = searchParams.get("from");
   const toDate = searchParams.get("to");
+  const query = searchParams.get("q");
   const limitParam = searchParams.get("limit");
 
   const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : DEFAULT_LIMIT;
@@ -99,11 +100,16 @@ export const GET = async (request: Request) => {
     );
   }
 
+  const trimmedQuery = query?.trim();
   const whereClause = and(
     eq(expenses.isDeleted, false),
     exactDate ? eq(expenses.date, exactDate) : undefined,
     fromDate ? gte(expenses.date, fromDate) : undefined,
-    toDate ? lte(expenses.date, toDate) : undefined
+    toDate ? lte(expenses.date, toDate) : undefined,
+    trimmedQuery
+      ? sql`to_tsvector('simple', f_unaccent(${expenses.note}) || ' ' || f_unaccent(${expenses.category}))
+          @@ websearch_to_tsquery('simple', f_unaccent(${trimmedQuery}))`
+      : undefined
   );
 
   try {
