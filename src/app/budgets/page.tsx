@@ -1,7 +1,13 @@
 import Link from "next/link";
 
+import {
+  HydrationBoundary,
+  dehydrate,
+} from "@tanstack/react-query";
 import dayjs from "@/configs/date";
 import { getBudgetOverview } from "@/db/budget-queries";
+import { getQueryClient } from "@/lib/get-query-client";
+import { budgetOverviewQueryKey } from "@/lib/queries/budgets";
 import { getWeekRange } from "@/lib/week";
 import { ArrowLeftIcon } from "lucide-react";
 
@@ -12,7 +18,12 @@ import BudgetWeeklyBudgetsClient from "@/components/BudgetWeeklyBudgetsClient";
 export default async function BudgetsPage() {
   const currentWeekStart =
     getWeekRange(dayjs()).weekStartDate.format("YYYY-MM-DD");
-  const report = await getBudgetOverview();
+  const queryClient = getQueryClient();
+
+  await queryClient.prefetchQuery({
+    queryKey: budgetOverviewQueryKey,
+    queryFn: () => getBudgetOverview(),
+  });
 
   return (
     <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col gap-4 px-4 pt-6 sm:px-6">
@@ -33,10 +44,9 @@ export default async function BudgetsPage() {
       </div>
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-x-auto overflow-y-auto">
-        <BudgetWeeklyBudgetsClient
-          weekStartDate={currentWeekStart}
-          budgets={report.budgets}
-        />
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <BudgetWeeklyBudgetsClient weekStartDate={currentWeekStart} />
+        </HydrationBoundary>
       </div>
     </div>
   );
