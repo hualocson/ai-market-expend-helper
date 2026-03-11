@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   createWeeklyBudgetEntry,
@@ -10,6 +11,10 @@ import {
   updateWeeklyBudgetEntry,
 } from "@/app/actions/budget-weekly-actions";
 import dayjs from "@/configs/date";
+import {
+  budgetOverviewQueryKey,
+  fetchBudgetOverview,
+} from "@/lib/queries/budgets";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { BudgetListItem, BudgetPeriod } from "@/types/budget-weekly";
@@ -36,7 +41,6 @@ import { Input } from "@/components/ui/input";
 
 type BudgetWeeklyBudgetsClientProps = {
   weekStartDate: string;
-  budgets: BudgetListItem[];
 };
 
 type BudgetSectionSummary = {
@@ -171,9 +175,19 @@ const useHorizontalFadeMask = (deps: unknown[] = []) => {
 
 const BudgetWeeklyBudgetsClient = ({
   weekStartDate,
-  budgets,
 }: BudgetWeeklyBudgetsClientProps) => {
   const router = useRouter();
+  const {
+    data: overview,
+    error,
+    isError,
+    isPending,
+    refetch,
+  } = useQuery({
+    queryKey: budgetOverviewQueryKey,
+    queryFn: fetchBudgetOverview,
+  });
+  const budgets = overview?.budgets ?? [];
   const [sheetOpen, setSheetOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [activeBudget, setActiveBudget] = useState<BudgetListItem | null>(null);
@@ -609,6 +623,40 @@ const BudgetWeeklyBudgetsClient = ({
       setIsSaving(false);
     }
   };
+
+  if (isPending && !overview) {
+    return (
+      <section className="relative space-y-4">
+        <div className="text-muted-foreground rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-sm">
+          Loading budgets...
+        </div>
+      </section>
+    );
+  }
+
+  if (isError && !overview) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to load budgets.";
+    return (
+      <section className="relative space-y-4">
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-rose-200">
+            Failed to load budgets
+          </p>
+          <p className="mt-1 text-xs text-rose-200/90">{errorMessage}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => refetch()}
+            className="mt-3 h-8 rounded-full px-3 text-xs font-semibold"
+          >
+            Retry
+          </Button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative space-y-4">
