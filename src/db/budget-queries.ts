@@ -7,6 +7,7 @@ import {
   BudgetPeriod,
   BudgetOverviewReport,
   BudgetReport,
+  BudgetTransactionsResponse,
   BudgetUpdateInput,
   ExpenseBudgetInput,
 } from "@/types/budget-weekly";
@@ -379,6 +380,93 @@ export const deleteBudget = async (id: number) => {
     .returning();
 
   return deleted;
+};
+
+export const getBudgetTransactions = async (
+  budgetId: number,
+  {
+    limit = 20,
+    offset = 0,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<BudgetTransactionsResponse> => {
+  const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 100);
+  const safeOffset = Math.max(0, Math.trunc(offset));
+
+  const [budget] = await db
+    .select({
+      id: budgets.id,
+      periodStartDate: budgets.periodStartDate,
+      periodEndDate: budgets.periodEndDate,
+    })
+    .from(budgets)
+    .where(eq(budgets.id, budgetId))
+    .limit(1);
+
+  if (!budget) {
+    throw new Error("Budget not found");
+  }
+
+  const endDate = budget.periodEndDate ?? budget.periodStartDate;
+  const whereClause = and(
+    eq(expenseBudgets.budgetId, budgetId),
+    eq(expenses.isDeleted, false),
+    gte(expenses.date, budget.periodStartDate),
+    lte(expenses.date, endDate)
+  );
+
+  const [summaryRow] = await db
+    .select({
+      count: sql<number>`count(*)`.mapWith(Number),
+      totalSpent: sql<number>`coalesce(sum(${expenses.amount}), 0)`.mapWith(
+        Number
+      ),
+    })
+    .from(expenseBudgets)
+    .innerJoin(expenses, eq(expenses.id, expenseBudgets.expenseId))
+    .where(whereClause);
+
+  const rows = await db
+    .select({
+      id: expenses.id,
+      date: expenses.date,
+      note: expenses.note,
+      amount: expenses.amount,
+      category: expenses.category,
+      paidBy: expenses.paidBy,
+    })
+    .from(expenseBudgets)
+    .innerJoin(expenses, eq(expenses.id, expenseBudgets.expenseId))
+    .where(whereClause)
+    .orderBy(desc(expenses.date), desc(expenses.id))
+    .limit(safeLimit)
+    .offset(safeOffset);
+
+  const items = rows.map((row) => ({
+    id: Number(row.id),
+    date: String(row.date),
+    note: row.note ?? "",
+    amount: Number(row.amount ?? 0),
+    category: row.category ?? "",
+    paidBy: row.paidBy ?? "",
+  }));
+
+  const count = Number(summaryRow?.count ?? 0);
+  return {
+    budgetId,
+    summary: {
+      count,
+      totalSpent: Number(summaryRow?.totalSpent ?? 0),
+    },
+    items,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore: safeOffset + items.length < count,
+    },
+  };
 };
 
 export const setExpenseBudget = async (input: ExpenseBudgetInput) => {
