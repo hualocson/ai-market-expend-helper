@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
-const paidByOptions: string[] = [PaidBy.CUBI, PaidBy.EMBE];
+const paidByOptions: string[] = Object.values(PaidBy);
 
 const SettingsMain = () => {
   const { paidBy, setPaidBy } = useSettingsStore((state) => state);
@@ -25,7 +25,7 @@ const SettingsMain = () => {
         <div
           role="radiogroup"
           aria-label="Paid by"
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-3 gap-3"
         >
           {paidByOptions.map((option) => {
             const isSelected = paidBy === option;
