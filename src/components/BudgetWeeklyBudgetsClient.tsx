@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import {
   createWeeklyBudgetEntry,
@@ -11,17 +10,29 @@ import {
   updateWeeklyBudgetEntry,
 } from "@/app/actions/budget-weekly-actions";
 import dayjs from "@/configs/date";
+import { Category } from "@/enums";
 import {
   budgetOverviewQueryKey,
+  budgetTransactionsQueryKey,
   fetchBudgetOverview,
+  fetchBudgetTransactions,
 } from "@/lib/queries/budgets";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
-import { BudgetListItem, BudgetPeriod } from "@/types/budget-weekly";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftIcon, Plus, SaveIcon, Trash2 } from "lucide-react";
+import {
+  BudgetAssignedTransaction,
+  BudgetListItem,
+  BudgetPeriod,
+} from "@/types/budget-weekly";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { ArrowLeftIcon, Loader2, Plus, SaveIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +45,7 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
@@ -61,6 +73,14 @@ type WeeklyGroup = {
 
 type DashboardTab = "month" | "week" | "custom";
 
+type BudgetStatus = {
+  progress: number;
+  percentSpent: number;
+  statusLabel: "On track" | "Near limit" | "Over budget";
+  isOver: boolean;
+  isNearLimit: boolean;
+};
+
 const PERIOD_OPTIONS: Array<{ value: BudgetPeriod; label: string }> = [
   { value: "week", label: "Weekly" },
   { value: "month", label: "Monthly" },
@@ -68,10 +88,19 @@ const PERIOD_OPTIONS: Array<{ value: BudgetPeriod; label: string }> = [
 ];
 
 const DASHBOARD_TABS: Array<{ id: DashboardTab; label: string }> = [
-  { id: "month", label: "Monthly" },
   { id: "week", label: "Weekly" },
+  { id: "month", label: "Monthly" },
   { id: "custom", label: "Custom" },
 ];
+
+const DETAIL_PAGE_SIZE = 20;
+const WEEKLY_FILTER_LIMIT = 5;
+const CATEGORY_VALUES = new Set(Object.values(Category));
+
+const resolveCategory = (category: string) =>
+  CATEGORY_VALUES.has(category as Category)
+    ? (category as Category)
+    : Category.OTHER;
 
 const summarizeBudgets = (items: BudgetListItem[]): BudgetSectionSummary => {
   const totalBudget = items.reduce((sum, budget) => sum + budget.amount, 0);
@@ -115,20 +144,29 @@ const formatWeekPillLabel = (weekKey: string) => {
   return parsed.isValid() ? parsed.format("DD MMM") : weekKey;
 };
 
-const formatPeriodLabel = (budget: BudgetListItem) => {
-  const start = dayjs(budget.periodStartDate);
-  const end = budget.periodEndDate ? dayjs(budget.periodEndDate) : null;
+const formatBudgetPeriodRange = (budget: BudgetListItem) => {
+  const start = dayjs(budget.periodStartDate, "YYYY-MM-DD", true);
+  const end = budget.periodEndDate
+    ? dayjs(budget.periodEndDate, "YYYY-MM-DD", true)
+    : null;
+
+  if (!start.isValid()) {
+    return "Invalid period";
+  }
+
   if (budget.period === "month") {
-    return start.isValid() ? start.format("MMM YYYY") : "Monthly";
+    return `${start.startOf("month").format("DD MMM YYYY")} - ${start.endOf("month").format("DD MMM YYYY")}`;
   }
+
   if (budget.period === "custom") {
-    if (start.isValid() && end?.isValid()) {
-      return `${start.format("DD MMM")} - ${end.format("DD MMM")}`;
+    if (!end?.isValid()) {
+      return "Custom range";
     }
-    return "Custom range";
+    return `${start.format("DD MMM YYYY")} - ${end.format("DD MMM YYYY")}`;
   }
-  const { weekStartDate } = getWeekRange(start.isValid() ? start : dayjs());
-  return `Week of ${weekStartDate.format("DD MMM")}`;
+
+  const { weekStartDate, weekEndDate } = getWeekRange(start);
+  return `${weekStartDate.format("DD MMM YYYY")} - ${weekEndDate.format("DD MMM YYYY")}`;
 };
 
 const resolvePeriodStart = (periodValue: BudgetPeriod, dateValue: string) => {
@@ -141,6 +179,26 @@ const resolvePeriodStart = (periodValue: BudgetPeriod, dateValue: string) => {
     return getWeekRange(base).weekStartDate.format("YYYY-MM-DD");
   }
   return base.format("YYYY-MM-DD");
+};
+
+const getBudgetStatus = (budget: BudgetListItem): BudgetStatus => {
+  const spentRate = budget.amount > 0 ? budget.spent / budget.amount : 0;
+  const percentSpent = Math.max(Math.round(spentRate * 100), 0);
+  const progress = Math.min(Math.max(spentRate, 0), 1);
+  const isOver = budget.amount > 0 && budget.spent > budget.amount;
+  const isNearLimit = !isOver && percentSpent >= 80;
+
+  return {
+    progress,
+    percentSpent,
+    statusLabel: isOver
+      ? "Over budget"
+      : isNearLimit
+        ? "Near limit"
+        : "On track",
+    isOver,
+    isNearLimit,
+  };
 };
 
 const useHorizontalFadeMask = (deps: unknown[] = []) => {
@@ -185,7 +243,7 @@ const useHorizontalFadeMask = (deps: unknown[] = []) => {
 const BudgetWeeklyBudgetsClient = ({
   weekStartDate,
 }: BudgetWeeklyBudgetsClientProps) => {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     data: overview,
     error,
@@ -198,10 +256,15 @@ const BudgetWeeklyBudgetsClient = ({
   });
 
   const budgets = overview?.budgets ?? [];
-  const [activeTab, setActiveTab] = useState<DashboardTab>("month");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("week");
+
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
   const [activeBudget, setActiveBudget] = useState<BudgetListItem | null>(null);
+  const [detailBudget, setDetailBudget] = useState<BudgetListItem | null>(null);
+
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(0);
   const [period, setPeriod] = useState<BudgetPeriod>("week");
@@ -211,8 +274,6 @@ const BudgetWeeklyBudgetsClient = ({
 
   const currentMonthKey = dayjs().format("YYYY-MM");
   const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey);
-  const [weeklyMonthFilter, setWeeklyMonthFilter] =
-    useState<string>(currentMonthKey);
   const [activeWeekKey, setActiveWeekKey] = useState<string | null>(
     weekStartDate
   );
@@ -229,6 +290,34 @@ const BudgetWeeklyBudgetsClient = ({
       (parsedEnd?.isValid() && !parsedEnd.isBefore(parsedStart, "day")));
   const isValid = name.trim().length > 0 && amount > 0 && hasValidPeriod;
   const canSubmit = isValid && !isSaving;
+
+  const {
+    data: transactionPages,
+    isPending: transactionsPending,
+    isFetching: transactionsFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error: transactionError,
+  } = useInfiniteQuery({
+    queryKey: budgetTransactionsQueryKey(detailBudget?.id ?? 0),
+    queryFn: ({ pageParam }) => {
+      if (!detailBudget) {
+        throw new Error("Budget not found");
+      }
+      return fetchBudgetTransactions(detailBudget.id, {
+        limit: DETAIL_PAGE_SIZE,
+        offset: pageParam,
+      });
+    },
+    initialPageParam: 0,
+    enabled: detailOpen && Boolean(detailBudget),
+    staleTime: 30_000,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore
+        ? lastPage.pagination.offset + lastPage.pagination.limit
+        : undefined,
+  });
 
   const periodRangeLabel = useMemo(() => {
     const start = dayjs(periodStartDate, "YYYY-MM-DD", true);
@@ -289,15 +378,6 @@ const BudgetWeeklyBudgetsClient = ({
     [monthKeys, currentMonthKey]
   );
 
-  const weeklyMonthOptions = useMemo(
-    () =>
-      monthKeys.map((key) => ({
-        id: key,
-        label: key === currentMonthKey ? "This month" : formatMonthLabel(key),
-      })),
-    [currentMonthKey, monthKeys]
-  );
-
   useEffect(() => {
     if (!monthKeys.length) {
       return;
@@ -306,17 +386,9 @@ const BudgetWeeklyBudgetsClient = ({
     if (!monthKeys.includes(monthFilter) && monthFilter !== "all") {
       setMonthFilter(monthKeys[0]);
     }
-
-    if (!monthKeys.includes(weeklyMonthFilter)) {
-      setWeeklyMonthFilter(monthKeys[0]);
-    }
-  }, [monthFilter, monthKeys, weeklyMonthFilter]);
+  }, [monthFilter, monthKeys]);
 
   const monthFade = useHorizontalFadeMask([monthOptions.length, monthFilter]);
-  const weekMonthFade = useHorizontalFadeMask([
-    weeklyMonthOptions.length,
-    weeklyMonthFilter,
-  ]);
 
   const activeMonthKey = monthFilter === "all" ? null : monthFilter;
   const activeMonthLabel =
@@ -366,17 +438,9 @@ const BudgetWeeklyBudgetsClient = ({
     [monthSummaryBudgets]
   );
 
-  const weeklyBudgetsForMonth = useMemo(
-    () =>
-      weeklyBudgets.filter(
-        (budget) => getMonthKey(budget.periodStartDate) === weeklyMonthFilter
-      ),
-    [weeklyBudgets, weeklyMonthFilter]
-  );
-
   const weeklyGroups = useMemo<WeeklyGroup[]>(() => {
     const grouped = new Map<string, BudgetListItem[]>();
-    weeklyBudgetsForMonth.forEach((budget) => {
+    weeklyBudgets.forEach((budget) => {
       const key = getWeekKey(budget.periodStartDate);
       if (!key) {
         return;
@@ -388,6 +452,7 @@ const BudgetWeeklyBudgetsClient = ({
 
     return Array.from(grouped.entries())
       .sort(([a], [b]) => dayjs(b).valueOf() - dayjs(a).valueOf())
+      .slice(0, WEEKLY_FILTER_LIMIT)
       .map(([key, items]) => {
         const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name));
         return {
@@ -398,7 +463,7 @@ const BudgetWeeklyBudgetsClient = ({
           summary: summarizeBudgets(sorted),
         };
       });
-  }, [weeklyBudgetsForMonth]);
+  }, [weeklyBudgets]);
 
   const weekFade = useHorizontalFadeMask([weeklyGroups.length, activeWeekKey]);
 
@@ -422,22 +487,15 @@ const BudgetWeeklyBudgetsClient = ({
     [sortedCustomBudgets]
   );
 
-  const overBudgetCount = useMemo(
-    () => budgets.filter((budget) => budget.spent > budget.amount).length,
-    [budgets]
+  const transactionItems = useMemo<BudgetAssignedTransaction[]>(
+    () => transactionPages?.pages.flatMap((page) => page.items) ?? [],
+    [transactionPages]
   );
 
-  const dashboardSummary = overview?.summary ?? {
-    totalBudget: 0,
+  const transactionSummary = transactionPages?.pages[0]?.summary ?? {
+    count: 0,
     totalSpent: 0,
-    totalRemaining: 0,
-    budgetCount: 0,
   };
-
-  const utilization =
-    dashboardSummary.totalBudget > 0
-      ? Math.min(dashboardSummary.totalSpent / dashboardSummary.totalBudget, 1)
-      : 0;
 
   useEffect(() => {
     if (!weeklyGroups.length) {
@@ -456,40 +514,29 @@ const BudgetWeeklyBudgetsClient = ({
     });
   }, [weekStartDate, weeklyGroups]);
 
-  const renderBudgetCard = (budget: BudgetListItem) => {
-    const spentRate = budget.amount > 0 ? budget.spent / budget.amount : 0;
-    const percentSpent = Math.max(Math.round(spentRate * 100), 0);
-    const progress = Math.min(Math.max(spentRate, 0), 1);
-    const isOver = budget.amount > 0 && budget.spent > budget.amount;
-    const isNearLimit = !isOver && percentSpent >= 80;
-    const statusLabel = isOver
-      ? "Over budget"
-      : isNearLimit
-        ? "Near limit"
-        : "On track";
+  const renderBudgetItem = (budget: BudgetListItem) => {
+    const status = getBudgetStatus(budget);
 
     return (
       <button
         key={budget.id}
         type="button"
-        onClick={() => openEdit(budget)}
+        onClick={() => {
+          setDetailBudget(budget);
+          setDetailOpen(true);
+        }}
         className={cn(
-          "group bg-card/70 relative flex flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition active:scale-[0.99]",
+          "group bg-card/70 relative flex flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition active:scale-[0.99]",
           "focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
-          isOver
+          status.isOver
             ? "border-rose-400/40 hover:bg-rose-500/10"
             : "border-border/70 hover:bg-card"
         )}
       >
-        <div className="flex w-full items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-foreground line-clamp-1 text-sm font-semibold sm:text-base">
-              {budget.name}
-            </p>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              {formatPeriodLabel(budget)}
-            </p>
-          </div>
+        <div className="flex w-full items-center justify-between gap-3">
+          <p className="text-foreground line-clamp-1 text-sm font-semibold sm:text-base">
+            {budget.name}
+          </p>
           <p
             className={cn(
               "text-sm font-semibold",
@@ -499,41 +546,24 @@ const BudgetWeeklyBudgetsClient = ({
             {formatVndSigned(budget.remaining)}
           </p>
         </div>
-
         <div className="flex w-full items-center justify-between text-[11px]">
-          <span
-            className={cn(
-              "rounded-full border px-2 py-0.5 font-medium",
-              isOver
-                ? "border-rose-300/40 bg-rose-400/15 text-rose-200"
-                : isNearLimit
-                  ? "border-amber-300/40 bg-amber-400/15 text-amber-200"
-                  : "border-emerald-300/35 bg-emerald-400/10 text-emerald-200"
-            )}
-          >
-            {statusLabel}
+          <span className="text-muted-foreground">{status.statusLabel}</span>
+          <span className="text-muted-foreground">
+            {status.percentSpent}% used
           </span>
-          <span className="text-muted-foreground">{percentSpent}% used</span>
         </div>
-
-        <div className="w-full space-y-1.5">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className={cn(
-                "h-full rounded-full transition-[width]",
-                isOver
-                  ? "bg-rose-400"
-                  : isNearLimit
-                    ? "bg-amber-400"
-                    : "bg-emerald-400"
-              )}
-              style={{ width: `${progress * 100}%` }}
-            />
-          </div>
-          <div className="text-muted-foreground flex w-full items-center justify-between text-[11px]">
-            <span>Spent {formatVnd(budget.spent)}</span>
-            <span>Budget {formatVnd(budget.amount)}</span>
-          </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className={cn(
+              "h-full rounded-full transition-[width]",
+              status.isOver
+                ? "bg-rose-400"
+                : status.isNearLimit
+                  ? "bg-amber-400"
+                  : "bg-emerald-400"
+            )}
+            style={{ width: `${status.progress * 100}%` }}
+          />
         </div>
       </button>
     );
@@ -706,8 +736,15 @@ const BudgetWeeklyBudgetsClient = ({
         });
         toast.success("Budget created.");
       }
+
+      await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+      if (activeBudget) {
+        await queryClient.invalidateQueries({
+          queryKey: budgetTransactionsQueryKey(activeBudget.id),
+        });
+      }
+
       setSheetOpen(false);
-      router.refresh();
     } catch (submitError) {
       console.error(submitError);
       toast.error("Failed to save budget.");
@@ -725,9 +762,17 @@ const BudgetWeeklyBudgetsClient = ({
       setIsSaving(true);
       await deleteWeeklyBudgetEntry(activeBudget.id);
       toast.success("Budget deleted.");
+
+      await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+      await queryClient.removeQueries({
+        queryKey: budgetTransactionsQueryKey(activeBudget.id),
+      });
+
       setConfirmOpen(false);
       setSheetOpen(false);
-      router.refresh();
+      setDetailOpen(false);
+      setDetailBudget(null);
+      setActiveBudget(null);
     } catch (deleteError) {
       console.error(deleteError);
       toast.error("Failed to delete budget.");
@@ -759,7 +804,7 @@ const BudgetWeeklyBudgetsClient = ({
                 Budgets
               </h1>
               <p className="text-muted-foreground mt-1 text-xs">
-                Simple view for weekly and monthly limits
+                Compact view with detail drawer for each budget
               </p>
             </div>
           </div>
@@ -796,61 +841,6 @@ const BudgetWeeklyBudgetsClient = ({
       </div>
 
       <div className="space-y-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+40px)]">
-        {!showErrorFallback && overview ? (
-          <div className="border-border/70 bg-card/70 rounded-2xl border px-4 py-3">
-            <div className="flex items-center justify-between">
-              <p className="text-muted-foreground text-xs tracking-wide uppercase">
-                Total budget
-              </p>
-              <span className="text-muted-foreground text-xs">
-                {Math.round(utilization * 100)}% used
-              </span>
-            </div>
-            <p className="text-foreground mt-1.5 text-lg font-semibold">
-              {formatVnd(dashboardSummary.totalBudget)}
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                  Spent
-                </p>
-                <p className="text-foreground mt-0.5 font-semibold">
-                  {formatVnd(dashboardSummary.totalSpent)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                  Remaining
-                </p>
-                <p
-                  className={cn(
-                    "mt-0.5 font-semibold",
-                    dashboardSummary.totalRemaining < 0
-                      ? "text-rose-300"
-                      : "text-emerald-300"
-                  )}
-                >
-                  {formatVndSigned(dashboardSummary.totalRemaining)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                  Over budget
-                </p>
-                <p className="mt-0.5 font-semibold text-rose-300">
-                  {overBudgetCount} / {dashboardSummary.budgetCount}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-[width]"
-                style={{ width: `${utilization * 100}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
-
         {showErrorFallback ? (
           <div className="rounded-2xl border border-rose-400/50 bg-rose-500/10 px-4 py-4">
             <p className="text-sm font-semibold text-rose-100">
@@ -919,7 +909,7 @@ const BudgetWeeklyBudgetsClient = ({
 
                 {filteredMonthlyBudgets.length ? (
                   <div className="flex flex-col gap-2.5">
-                    {filteredMonthlyBudgets.map(renderBudgetCard)}
+                    {filteredMonthlyBudgets.map(renderBudgetItem)}
                   </div>
                 ) : (
                   renderEmptyState(
@@ -932,35 +922,6 @@ const BudgetWeeklyBudgetsClient = ({
 
             {activeTab === "week" ? (
               <div className="space-y-2.5">
-                {weeklyMonthOptions.length ? (
-                  <div
-                    ref={weekMonthFade.scrollContainerRef}
-                    className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1"
-                    style={{
-                      maskImage: weekMonthFade.maskImage,
-                      WebkitMaskImage: weekMonthFade.maskImage,
-                    }}
-                  >
-                    {weeklyMonthOptions.map((option) => (
-                      <Button
-                        key={option.id}
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setWeeklyMonthFilter(option.id)}
-                        className={cn(
-                          "h-8 snap-center rounded-xl px-3 text-xs font-medium",
-                          weeklyMonthFilter === option.id
-                            ? "bg-foreground text-background"
-                            : "text-muted-foreground bg-muted/40 hover:bg-muted/60"
-                        )}
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
-                  </div>
-                ) : null}
-
                 {weeklyGroups.length ? (
                   <>
                     <div
@@ -1000,7 +961,7 @@ const BudgetWeeklyBudgetsClient = ({
 
                     {activeWeekGroup?.budgets.length ? (
                       <div className="flex flex-col gap-2.5">
-                        {activeWeekGroup.budgets.map(renderBudgetCard)}
+                        {activeWeekGroup.budgets.map(renderBudgetItem)}
                       </div>
                     ) : (
                       renderEmptyState(
@@ -1011,7 +972,7 @@ const BudgetWeeklyBudgetsClient = ({
                   </>
                 ) : (
                   renderEmptyState(
-                    "No weekly budgets for this month",
+                    "No weekly budgets yet",
                     "Add a weekly budget to start tracking by week."
                   )
                 )}
@@ -1027,7 +988,7 @@ const BudgetWeeklyBudgetsClient = ({
                 )}
                 {sortedCustomBudgets.length ? (
                   <div className="flex flex-col gap-2.5">
-                    {sortedCustomBudgets.map(renderBudgetCard)}
+                    {sortedCustomBudgets.map(renderBudgetItem)}
                   </div>
                 ) : (
                   renderEmptyState(
@@ -1052,6 +1013,210 @@ const BudgetWeeklyBudgetsClient = ({
           </Button>
         </div>
       </div>
+
+      <Drawer
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) {
+            setDetailBudget(null);
+          }
+        }}
+      >
+        <DrawerContent className="rounded-t-3xl! border-t-0!">
+          <DrawerHeader>
+            <DrawerTitle>{detailBudget?.name ?? "Budget detail"}</DrawerTitle>
+            <DrawerDescription>
+              {detailBudget
+                ? formatBudgetPeriodRange(detailBudget)
+                : "View budget and assigned transactions."}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="no-scrollbar max-h-[62svh] space-y-4 overflow-y-auto px-4 pb-4">
+            {detailBudget ? (
+              <div className="border-border/70 bg-card/70 rounded-2xl border px-4 py-3">
+                <div className="mb-3 flex w-full items-center justify-between">
+                  <span
+                    className={cn(
+                      "rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                      getBudgetStatus(detailBudget).isOver
+                        ? "border-rose-300/40 bg-rose-400/15 text-rose-200"
+                        : getBudgetStatus(detailBudget).isNearLimit
+                          ? "border-amber-300/40 bg-amber-400/15 text-amber-200"
+                          : "border-emerald-300/35 bg-emerald-400/10 text-emerald-200"
+                    )}
+                  >
+                    {getBudgetStatus(detailBudget).statusLabel}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {getBudgetStatus(detailBudget).percentSpent}% used
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground text-[10px] uppercase">
+                      Budgeted
+                    </p>
+                    <p className="text-foreground mt-1 font-semibold">
+                      {formatVnd(detailBudget.amount)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-[10px] uppercase">
+                      Spent
+                    </p>
+                    <p className="text-foreground mt-1 font-semibold">
+                      {formatVnd(detailBudget.spent)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-[10px] uppercase">
+                      Remaining
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 font-semibold",
+                        detailBudget.remaining < 0
+                          ? "text-rose-300"
+                          : "text-emerald-300"
+                      )}
+                    >
+                      {formatVndSigned(detailBudget.remaining)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-foreground text-sm font-semibold">
+                  Assigned transactions
+                </h3>
+                <span className="text-muted-foreground text-xs">
+                  {transactionSummary.count} items
+                </span>
+              </div>
+
+              {transactionsPending ? (
+                <div className="space-y-2">
+                  <div className="bg-card/80 h-14 animate-pulse rounded-xl" />
+                  <div className="bg-card/80 h-14 animate-pulse rounded-xl" />
+                  <div className="bg-card/80 h-14 animate-pulse rounded-xl" />
+                </div>
+              ) : transactionError ? (
+                <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-3 text-xs text-rose-100">
+                  Failed to load assigned transactions.
+                </div>
+              ) : transactionItems.length ? (
+                <div className="space-y-2">
+                  {transactionItems.map((transaction) => {
+                    const resolvedCategory = resolveCategory(
+                      transaction.category
+                    );
+                    return (
+                      <div
+                        key={transaction.id}
+                        className="border-border/70 bg-card/60 rounded-xl border px-3 py-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-foreground line-clamp-1 text-sm font-medium">
+                              {transaction.note?.trim() || "No note"}
+                            </p>
+                            <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px]">
+                              <span>
+                                {dayjs(transaction.date).format("DD/MM/YYYY")}
+                              </span>
+                              <span aria-hidden>·</span>
+                              <ExpenseItemIcon
+                                category={resolvedCategory}
+                                size="sm"
+                                className="size-4 bg-transparent"
+                              />
+                              <span className="sr-only">
+                                {transaction.category} category
+                              </span>
+                              <span aria-hidden>·</span>
+                              <span>{transaction.paidBy}</span>
+                            </div>
+                          </div>
+                          <p className="text-foreground shrink-0 text-sm font-semibold">
+                            -{formatVnd(transaction.amount)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {hasNextPage ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => fetchNextPage()}
+                      disabled={isFetchingNextPage}
+                      className="h-9 w-full rounded-xl"
+                    >
+                      {isFetchingNextPage ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Show more"
+                      )}
+                    </Button>
+                  ) : null}
+
+                  {transactionsFetching && !isFetchingNextPage ? (
+                    <p className="text-muted-foreground text-center text-[11px]">
+                      Updating...
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="border-border/80 bg-card/40 rounded-xl border border-dashed px-3 py-4 text-center">
+                  <p className="text-foreground text-sm font-medium">
+                    No assigned transactions in this budget period.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DrawerFooter className="border-border/70 gap-2 border-t">
+            <Button
+              type="button"
+              onClick={() => {
+                if (!detailBudget) {
+                  return;
+                }
+                setDetailOpen(false);
+                openEdit(detailBudget);
+              }}
+              className="h-11 rounded-2xl"
+            >
+              <SaveIcon />
+              Edit budget
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive bg-destructive/12 h-11 rounded-2xl"
+              onClick={() => {
+                if (!detailBudget) {
+                  return;
+                }
+                setActiveBudget(detailBudget);
+                setConfirmOpen(true);
+              }}
+              disabled={isSaving}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete budget
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       <Drawer
         open={sheetOpen}
@@ -1179,18 +1344,6 @@ const BudgetWeeklyBudgetsClient = ({
               <SaveIcon />
               {submitLabel}
             </Button>
-            {activeBudget ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setConfirmOpen(true)}
-                disabled={isSaving}
-                className="text-destructive bg-destructive/12 h-11 rounded-2xl"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            ) : null}
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
