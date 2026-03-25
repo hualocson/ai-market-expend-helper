@@ -69,6 +69,33 @@ export type ExpenseBudgetInput = {
   budgetId: number | null;
 };
 
+export type BudgetAssignedTransaction = {
+  id: number;
+  date: string;
+  note: string;
+  amount: number;
+  category: string;
+  paidBy: string;
+};
+
+export type BudgetTransactionsSummary = {
+  count: number;
+  totalSpent: number;
+};
+
+export type BudgetTransactionsPagination = {
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
+export type BudgetTransactionsResponse = {
+  budgetId: number;
+  summary: BudgetTransactionsSummary;
+  items: BudgetAssignedTransaction[];
+  pagination: BudgetTransactionsPagination;
+};
+
 // Legacy aliases for existing imports.
 export type WeeklyBudgetSummary = BudgetSummary;
 export type WeeklyBudgetListItem = BudgetListItem;
