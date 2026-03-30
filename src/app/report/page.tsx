@@ -14,6 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
 import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
+import PageEnterAnimation, {
+  PageEnterSection,
+} from "@/components/PageEnterAnimation";
 
 interface ReportPageProps {
   searchParams: Promise<{
@@ -98,93 +101,105 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
   });
 
   return (
-    <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col items-stretch gap-3 px-4 pt-6 sm:px-6 overflow-y-auto ">
-      <div className="flex shrink-0 items-center gap-2">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="active:scale-[0.97]">
-            <ArrowLeftIcon />
-          </Button>
-        </Link>
-        <h1 className="text-foreground text-lg font-semibold sm:text-xl">
-          Report
-        </h1>
+    <PageEnterAnimation className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col items-stretch gap-3 overflow-y-auto px-4 pt-6 sm:px-6">
+      <PageEnterSection>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="active:scale-[0.97]">
+              <ArrowLeftIcon />
+            </Button>
+          </Link>
+          <h1 className="text-foreground text-lg font-semibold sm:text-xl">
+            Report
+          </h1>
           <span className="text-muted-foreground text-sm">
             {activeMonth.format("MMM YYYY")}
           </span>
-      </div>
-      <div className="shrink-0">
+        </div>
+      </PageEnterSection>
+
+      <PageEnterSection className="shrink-0">
         <ExpenseMonthTabs items={monthItems} />
-      </div>
-      <div className="grow flex flex-col gap-4 overflow-y-auto no-scrollbar">
-      <CategorySpendPieChart
-        totals={categoryTotals}
-        monthLabel={`${activeMonth.format("MMM YYYY")} - All`}
-      />
-      {paidByCategoryTotals.length ? (
-        Array.from(
-          paidByCategoryTotals.reduce(
-            (acc, item) => {
-              const current = acc.get(item.paidBy) ?? [];
-              current.push({ category: item.category, total: item.total });
-              acc.set(item.paidBy, current);
-              return acc;
-            },
-            new Map<string, Array<{ category: string; total: number }>>()
+      </PageEnterSection>
+
+      <div className="no-scrollbar grow flex flex-col gap-4 overflow-y-auto">
+        <PageEnterSection>
+          <CategorySpendPieChart
+            totals={categoryTotals}
+            monthLabel={`${activeMonth.format("MMM YYYY")} - All`}
+          />
+        </PageEnterSection>
+
+        {paidByCategoryTotals.length ? (
+          Array.from(
+            paidByCategoryTotals.reduce(
+              (acc, item) => {
+                const current = acc.get(item.paidBy) ?? [];
+                current.push({ category: item.category, total: item.total });
+                acc.set(item.paidBy, current);
+                return acc;
+              },
+              new Map<string, Array<{ category: string; total: number }>>()
+            )
           )
-        )
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([paidBy, totals]) => (
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([paidBy, totals]) => (
+              <PageEnterSection key={paidBy}>
+                <CategorySpendPieChart
+                  totals={totals}
+                  monthLabel={`${activeMonth.format("MMM YYYY")} - ${paidBy}`}
+                />
+              </PageEnterSection>
+            ))
+        ) : (
+          <PageEnterSection>
             <CategorySpendPieChart
-              key={paidBy}
-              totals={totals}
-              monthLabel={`${activeMonth.format("MMM YYYY")} - ${paidBy}`}
+              totals={[]}
+              monthLabel={activeMonth.format("MMM YYYY")}
             />
-          ))
-      ) : (
-        <CategorySpendPieChart
-          totals={[]}
-          monthLabel={activeMonth.format("MMM YYYY")}
-        />
-      )}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Spending by payer</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {paidByTotals.length ? (
-            <div className="flex flex-col gap-3">
-              {paidByTotals.map((item) => (
-                <div
-                  key={item.paidBy}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <PaidByIcon paidBy={item.paidBy} size="sm" />
-                    <span className="text-muted-foreground">
-                      {item.paidBy}
+          </PageEnterSection>
+        )}
+
+        <PageEnterSection>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Spending by payer</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paidByTotals.length ? (
+                <div className="flex flex-col gap-3">
+                  {paidByTotals.map((item) => (
+                    <div
+                      key={item.paidBy}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <PaidByIcon paidBy={item.paidBy} size="sm" />
+                        <span className="text-muted-foreground">
+                          {item.paidBy}
+                        </span>
+                      </div>
+                      <span className="text-foreground font-semibold">
+                        {formatVnd(item.total)} VND
+                      </span>
+                    </div>
+                  ))}
+                  <div className="border-border flex items-center justify-between border-t pt-2 text-xs">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="text-foreground font-semibold">
+                      {formatVnd(paidByTotalSpent)} VND
                     </span>
                   </div>
-                  <span className="text-foreground font-semibold">
-                    {formatVnd(item.total)} VND
-                  </span>
                 </div>
-              ))}
-              <div className="border-border flex items-center justify-between border-t pt-2 text-xs">
-                <span className="text-muted-foreground">Total</span>
-                <span className="text-foreground font-semibold">
-                  {formatVnd(paidByTotalSpent)} VND
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-muted-foreground text-sm">
-              Add expenses to see payer totals.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <div className="text-muted-foreground text-sm">
+                  Add expenses to see payer totals.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </PageEnterSection>
       </div>
-
-    </div>
+    </PageEnterAnimation>
   );
 }

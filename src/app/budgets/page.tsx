@@ -6,6 +6,9 @@ import { getWeekRange } from "@/lib/week";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 import BudgetWeeklyBudgetsClient from "@/components/BudgetWeeklyBudgetsClient";
+import PageEnterAnimation, {
+  PageEnterSection,
+} from "@/components/PageEnterAnimation";
 
 export default async function BudgetsPage() {
   const currentWeekStart =
@@ -18,10 +21,12 @@ export default async function BudgetsPage() {
   });
 
   return (
-    <div className="relative mx-auto flex max-w-md flex-col px-4 sm:px-6">
-      <HydrationBoundary state={dehydrate(queryClient)}>
-        <BudgetWeeklyBudgetsClient weekStartDate={currentWeekStart} />
-      </HydrationBoundary>
-    </div>
+    <PageEnterAnimation className="relative mx-auto flex max-w-md flex-col px-4 sm:px-6">
+      <PageEnterSection>
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <BudgetWeeklyBudgetsClient weekStartDate={currentWeekStart} />
+        </HydrationBoundary>
+      </PageEnterSection>
+    </PageEnterAnimation>
   );
 }
