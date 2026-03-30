@@ -96,6 +96,7 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
                   amount: item.amount,
                   note: noteValue,
                   category: item.category,
+                  source: "home_prefill",
                 })
               }
               className={cn(

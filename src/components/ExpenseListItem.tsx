@@ -63,6 +63,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   const [editFormState, setEditFormState] = useState({
     canSubmit: false,
     loading: false,
+    mode: "advanced",
   });
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -203,6 +204,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
       amount: expense.amount,
       note: expense.note ?? "",
       category: expense.category,
+      source: "repeat_entry",
     });
     setIsOpen(false);
   };

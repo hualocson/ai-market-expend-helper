@@ -14,6 +14,7 @@ import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
+import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
@@ -77,6 +78,7 @@ export type ManualExpenseFormHandle = {
 export type ManualExpenseFormState = {
   canSubmit: boolean;
   loading: boolean;
+  mode: QuickAddMode;
 };
 
 type ManualExpenseFormProps = {
@@ -98,6 +100,7 @@ type ManualExpenseFormProps = {
   onStateChange?: (state: ManualExpenseFormState) => void;
   prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
   showBudgetSelect?: boolean;
+  initialMode?: QuickAddMode;
 };
 
 const buildExpense = (initialExpense?: TExpense | null) => {
@@ -128,10 +131,12 @@ const ManualExpenseForm = forwardRef<
       onStateChange,
       prefillExpense = null,
       showBudgetSelect = false,
+      initialMode,
     },
     ref
   ) => {
     const settingsPaidBy = useSettingsStore((state) => state.paidBy);
+    const [mode, setMode] = useState<QuickAddMode>(initialMode ?? "advanced");
     const [expense, setExpense] = useState<TExpense>(() =>
       buildExpense(initialExpense)
     );
@@ -190,6 +195,10 @@ const ManualExpenseForm = forwardRef<
       hasManualPaidBy.current = false;
     }, [initialExpense, normalizePaidBy, showBudgetSelect]);
 
+    useEffect(() => {
+      setMode(initialMode ?? "advanced");
+    }, [initialMode, prefillExpense]);
+
     const canSubmit = useMemo(() => {
       return Boolean(expense.amount > 0);
     }, [expense.amount]);
@@ -241,8 +250,8 @@ const ManualExpenseForm = forwardRef<
     );
 
     useEffect(() => {
-      onStateChange?.({ canSubmit, loading });
-    }, [canSubmit, loading, onStateChange]);
+      onStateChange?.({ canSubmit, loading, mode });
+    }, [canSubmit, loading, mode, onStateChange]);
 
     useEffect(() => {
       if (!prefillExpense) {
@@ -384,6 +393,7 @@ const ManualExpenseForm = forwardRef<
       return getSuggestionsList(Number(expense.amount));
     }, [expense.amount]);
     const keyboardOffset = useKeyboardOffset();
+    const isQuickMode = mode === "quick";
 
     return (
       <>
@@ -514,7 +524,7 @@ const ManualExpenseForm = forwardRef<
             </div>
           </div>
 
-          {showBudgetSelect && (
+          {!isQuickMode && showBudgetSelect && (
             <Root open={budgetDrawerOpen} onOpenChange={setBudgetDrawerOpen}>
               <Trigger asChild>
                 <Button
@@ -634,127 +644,138 @@ const ManualExpenseForm = forwardRef<
             </Root>
           )}
 
-          <div className="grid w-full grid-cols-2 gap-2">
-            <Root open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
-              <Trigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 w-full justify-between rounded-xl"
+          {isQuickMode ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 w-full rounded-xl"
+              onClick={() => setMode("advanced")}
+            >
+              More options
+            </Button>
+          ) : (
+            <div className="grid w-full grid-cols-2 gap-2">
+              <Root open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
+                <Trigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-12 w-full justify-between rounded-xl"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <Calendar className="text-muted-foreground h-4 w-4" />
+                      Date
+                    </span>
+                    <span className="text-muted-foreground text-xs font-medium">
+                      {expense.date || defaultExpense.date}
+                    </span>
+                  </Button>
+                </Trigger>
+                <Content
+                  side="bottom"
+                  showCloseButton={false}
+                  className="rounded-t-3xl"
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <Calendar className="text-muted-foreground h-4 w-4" />
-                    Date
-                  </span>
-                  <span className="text-muted-foreground text-xs font-medium">
-                    {expense.date || defaultExpense.date}
-                  </span>
-                </Button>
-              </Trigger>
-              <Content
-                side="bottom"
-                showCloseButton={false}
-                className="rounded-t-3xl"
-              >
-                <Header className="text-left">
-                  <Title>Date</Title>
-                  <Description>Pick the expense date.</Description>
-                </Header>
-                <div
-                  className="no-scrollbar flex-1 space-y-3 overflow-y-auto px-4 pb-6 sm:px-6"
-                  tabIndex={0}
-                >
-                  <div className="flex items-center justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      tabIndex={-1}
-                      onClick={() =>
+                  <Header className="text-left">
+                    <Title>Date</Title>
+                    <Description>Pick the expense date.</Description>
+                  </Header>
+                  <div
+                    className="no-scrollbar flex-1 space-y-3 overflow-y-auto px-4 pb-6 sm:px-6"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-center justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        tabIndex={-1}
+                        onClick={() =>
+                          handleExpenseChange(
+                            "date",
+                            dayjs().format("DD/MM/YYYY")
+                          )
+                        }
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Today
+                      </Button>
+                    </div>
+                    <DatePicker
+                      value={dayjs(
+                        expense.date || defaultExpense.date,
+                        "DD/MM/YYYY"
+                      ).toDate()}
+                      onChange={(date) =>
                         handleExpenseChange(
                           "date",
-                          dayjs().format("DD/MM/YYYY")
+                          date
+                            ? dayjs(date).format("DD/MM/YYYY")
+                            : defaultExpense.date
                         )
                       }
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Today
-                    </Button>
-                  </div>
-                  <DatePicker
-                    value={dayjs(
-                      expense.date || defaultExpense.date,
-                      "DD/MM/YYYY"
-                    ).toDate()}
-                    onChange={(date) =>
-                      handleExpenseChange(
-                        "date",
-                        date
-                          ? dayjs(date).format("DD/MM/YYYY")
-                          : defaultExpense.date
-                      )
-                    }
-                  />
-                </div>
-                <Footer className="border-t">
-                  <Close asChild>
-                    <Button className="h-10 w-full rounded-xl text-base font-medium">
-                      Done
-                    </Button>
-                  </Close>
-                </Footer>
-              </Content>
-            </Root>
-
-            <Root open={paidByDrawerOpen} onOpenChange={setPaidByDrawerOpen}>
-              <Trigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 w-full justify-between rounded-xl"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <UserRound className="text-muted-foreground h-4 w-4" />
-                    Paid by
-                  </span>
-                  <span className="text-muted-foreground text-xs font-medium">
-                    {paidBy}
-                  </span>
-                </Button>
-              </Trigger>
-              <Content
-                side="bottom"
-                showCloseButton={false}
-                className="rounded-t-3xl"
-              >
-                <Header className="text-left">
-                  <Title>Paid by</Title>
-                  <Description>Choose who paid for this expense.</Description>
-                </Header>
-                <div
-                  className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6"
-                  tabIndex={0}
-                >
-                  <WheelPickerWrapper className="w-full">
-                    <WheelPicker
-                      value={paidBy}
-                      onValueChange={handlePaidByChange}
-                      options={paidByWheelOptions}
-                      infinite
-                      visibleCount={3 * 4}
-                      dragSensitivity={5}
                     />
-                  </WheelPickerWrapper>
-                </div>
-                <Footer className="border-t">
-                  <Close asChild>
-                    <Button className="h-10 w-full rounded-xl text-base font-medium">
-                      Done
-                    </Button>
-                  </Close>
-                </Footer>
-              </Content>
-            </Root>
-          </div>
+                  </div>
+                  <Footer className="border-t">
+                    <Close asChild>
+                      <Button className="h-10 w-full rounded-xl text-base font-medium">
+                        Done
+                      </Button>
+                    </Close>
+                  </Footer>
+                </Content>
+              </Root>
+
+              <Root open={paidByDrawerOpen} onOpenChange={setPaidByDrawerOpen}>
+                <Trigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-12 w-full justify-between rounded-xl"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <UserRound className="text-muted-foreground h-4 w-4" />
+                      Paid by
+                    </span>
+                    <span className="text-muted-foreground text-xs font-medium">
+                      {paidBy}
+                    </span>
+                  </Button>
+                </Trigger>
+                <Content
+                  side="bottom"
+                  showCloseButton={false}
+                  className="rounded-t-3xl"
+                >
+                  <Header className="text-left">
+                    <Title>Paid by</Title>
+                    <Description>Choose who paid for this expense.</Description>
+                  </Header>
+                  <div
+                    className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6"
+                    tabIndex={0}
+                  >
+                    <WheelPickerWrapper className="w-full">
+                      <WheelPicker
+                        value={paidBy}
+                        onValueChange={handlePaidByChange}
+                        options={paidByWheelOptions}
+                        infinite
+                        visibleCount={3 * 4}
+                        dragSensitivity={5}
+                      />
+                    </WheelPickerWrapper>
+                  </div>
+                  <Footer className="border-t">
+                    <Close asChild>
+                      <Button className="h-10 w-full rounded-xl text-base font-medium">
+                        Done
+                      </Button>
+                    </Close>
+                  </Footer>
+                </Content>
+              </Root>
+            </div>
+          )}
 
           {showSubmitButton ? (
             <Button

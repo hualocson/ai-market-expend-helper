@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import dayjs from "@/configs/date";
 import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
+import {
+  normalizePrefillSource,
+  resolveQuickAddMode,
+  type QuickAddSource,
+} from "@/lib/quick-add-mode";
 import { cn } from "@/lib/utils";
 import { Loader2, Plus } from "lucide-react";
 
@@ -22,6 +28,7 @@ import {
 
 import ManualExpenseForm, {
   type ManualExpenseFormHandle,
+  type ManualExpenseFormState,
 } from "@/components/ManualExpenseForm";
 
 type ExpenseEntryDrawerProps = {
@@ -34,13 +41,47 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
     TExpense,
     "amount" | "note" | "category"
   > | null>(null);
-  const [formState, setFormState] = useState({
+  const [prefillVersion, setPrefillVersion] = useState(0);
+  const [prefillSource, setPrefillSource] =
+    useState<QuickAddSource>("manual");
+  const resolvedMode = resolveQuickAddMode({
+    source: prefillSource,
+    hasPrefill: Boolean(prefillExpense),
+  });
+  const [formState, setFormState] = useState<ManualExpenseFormState>(() => ({
     canSubmit: false,
     loading: false,
-  });
+    mode: resolvedMode,
+  }));
   const formRef = useRef<ManualExpenseFormHandle>(null);
-  const submitLabel = "Add Expense";
-  const loadingLabel = "Adding...";
+  const submitLabel = formState.mode === "quick" ? "Save" : "Add Expense";
+  const loadingLabel = formState.mode === "quick" ? "Saving..." : "Adding...";
+  const prefillInitialExpense = useMemo(() => {
+    if (!prefillExpense) {
+      return undefined;
+    }
+
+    return {
+      date: dayjs().format("DD/MM/YYYY"),
+      amount: prefillExpense.amount,
+      note: prefillExpense.note,
+      category: prefillExpense.category,
+    };
+  }, [prefillExpense]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (!nextOpen) {
+      setPrefillSource("manual");
+      setPrefillExpense(null);
+      setFormState({
+        canSubmit: false,
+        loading: false,
+        mode: "advanced",
+      });
+    }
+  };
 
   useEffect(() => {
     const handlePrefill = (event: Event) => {
@@ -48,11 +89,23 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
       if (!detail) {
         return;
       }
+      const nextSource = normalizePrefillSource(detail.source);
+      const nextMode = resolveQuickAddMode({
+        source: nextSource,
+        hasPrefill: true,
+      });
 
       setPrefillExpense({
         amount: detail.amount,
         note: detail.note,
         category: detail.category,
+      });
+      setPrefillSource(nextSource);
+      setPrefillVersion((value) => value + 1);
+      setFormState({
+        canSubmit: detail.amount > 0,
+        loading: false,
+        mode: nextMode,
       });
       setOpen(true);
     };
@@ -62,14 +115,8 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
       window.removeEventListener(EXPENSE_PREFILL_EVENT, handlePrefill);
   }, []);
 
-  useEffect(() => {
-    if (!open) {
-      setPrefillExpense(null);
-    }
-  }, [open]);
-
   return (
-    <Sheet open={open} onOpenChange={setOpen} modal>
+    <Sheet open={open} onOpenChange={handleOpenChange} modal>
       <SheetTrigger asChild>
         <Button
           size={compact ? "icon-lg" : "default"}
@@ -83,7 +130,10 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
           {compact ? null : "Add expense"}
         </Button>
       </SheetTrigger>
-      <SheetContent className="h-full w-[90svw] gap-0">
+      <SheetContent
+        className="h-full w-[90svw] gap-0"
+        data-quick-add-mode={formState.mode}
+      >
         <SheetHeader className="text-left">
           <SheetTitle>Add a new expense</SheetTitle>
           <SheetDescription>
@@ -92,11 +142,15 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
         </SheetHeader>
         <div className="no-scrollbar overflow-y-auto px-2 pb-4">
           <ManualExpenseForm
+            key={`expense-form-${prefillVersion}`}
             ref={formRef}
+            initialExpense={prefillInitialExpense}
             showSubmitButton={false}
             onStateChange={setFormState}
             prefillExpense={prefillExpense}
-            showBudgetSelect
+            showBudgetSelect={formState.mode === "advanced"}
+            initialMode={resolvedMode}
+            onSuccess={() => handleOpenChange(false)}
           />
         </div>
         <SheetFooter className={cn("standalone:pb-safe border-t")}>
