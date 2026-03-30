@@ -59,6 +59,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
+import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
 
 type BudgetWeeklyBudgetsClientProps = {
   weekStartDate: string;
@@ -1132,6 +1133,7 @@ const BudgetWeeklyBudgetsClient = ({
                     const resolvedCategory = resolveCategory(
                       transaction.category
                     );
+                    const paidByPalette = getPaidByPalette(transaction.paidBy);
                     return (
                       <div
                         key={transaction.id}
@@ -1142,7 +1144,7 @@ const BudgetWeeklyBudgetsClient = ({
                             <p className="text-foreground line-clamp-1 text-sm font-medium">
                               {transaction.note?.trim() || "No note"}
                             </p>
-                            <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px]">
+                            <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
                               <span>
                                 {dayjs(transaction.date).format("DD/MM/YYYY")}
                               </span>
@@ -1155,8 +1157,16 @@ const BudgetWeeklyBudgetsClient = ({
                               <span className="sr-only">
                                 {transaction.category} category
                               </span>
-                              <span aria-hidden>·</span>
-                              <span>{transaction.paidBy}</span>
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-medium",
+                                  paidByPalette.badge
+                                )}
+                                aria-label={`Paid by ${transaction.paidBy}`}
+                              >
+                                <PaidByIcon paidBy={transaction.paidBy} size="sm" />
+                                <span className="pr-1">{transaction.paidBy}</span>
+                              </span>
                             </div>
                           </div>
                           <p className="text-foreground shrink-0 text-sm font-semibold">
