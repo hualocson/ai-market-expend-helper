@@ -342,6 +342,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
               showSubmitButton={false}
               onStateChange={setEditFormState}
               showBudgetSelect
+              isSheetOpen={editOpen}
             />
           </div>
           <SheetFooter className="border-t">

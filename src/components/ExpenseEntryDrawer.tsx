@@ -149,6 +149,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
             onStateChange={setFormState}
             prefillExpense={prefillExpense}
             showBudgetSelect={formState.mode === "advanced"}
+            isSheetOpen={open}
             initialMode={resolvedMode}
             onSuccess={() => handleOpenChange(false)}
           />

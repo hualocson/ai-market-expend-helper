@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/budget-weekly-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import { invalidateBudgetWeeklyOptionsCache } from "@/lib/queries/budget-weekly";
 import {
   budgetOverviewQueryKey,
   budgetTransactionsQueryKey,
@@ -755,6 +756,7 @@ const BudgetWeeklyBudgetsClient = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+      await invalidateBudgetWeeklyOptionsCache(queryClient);
       if (activeBudget) {
         await queryClient.invalidateQueries({
           queryKey: budgetTransactionsQueryKey(activeBudget.id),
@@ -781,6 +783,7 @@ const BudgetWeeklyBudgetsClient = ({
       toast.success("Budget deleted.");
 
       await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+      await invalidateBudgetWeeklyOptionsCache(queryClient);
       await queryClient.removeQueries({
         queryKey: budgetTransactionsQueryKey(activeBudget.id),
       });

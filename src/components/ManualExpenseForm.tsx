@@ -9,11 +9,16 @@ import {
   useRef,
   useState,
 } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
+import {
+  budgetWeeklyOptionsQueryKey,
+  fetchWeeklyBudgetOptions,
+} from "@/lib/queries/budget-weekly";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -100,6 +105,7 @@ type ManualExpenseFormProps = {
   onStateChange?: (state: ManualExpenseFormState) => void;
   prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
   showBudgetSelect?: boolean;
+  isSheetOpen?: boolean;
   initialMode?: QuickAddMode;
 };
 
@@ -131,6 +137,7 @@ const ManualExpenseForm = forwardRef<
       onStateChange,
       prefillExpense = null,
       showBudgetSelect = false,
+      isSheetOpen = true,
       initialMode,
     },
     ref
@@ -159,9 +166,6 @@ const ManualExpenseForm = forwardRef<
     const [budgetId, setBudgetId] = useState<number | null>(
       initialExpense?.budgetId ?? null
     );
-    const [budgetOptions, setBudgetOptions] = useState<BudgetOption[]>([]);
-    const [budgetLoading, setBudgetLoading] = useState(false);
-    const [budgetLoaded, setBudgetLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
     const [paidByDrawerOpen, setPaidByDrawerOpen] = useState(false);
@@ -291,58 +295,17 @@ const ManualExpenseForm = forwardRef<
       return getWeekRange(resolvedDate).weekStartDate.format("YYYY-MM-DD");
     }, [expense.date, showBudgetSelect]);
 
-    useEffect(() => {
-      if (!showBudgetSelect || !budgetWeekStart) {
-        return;
-      }
-
-      let isActive = true;
-      const controller = new AbortController();
-      const loadBudgets = async () => {
-        try {
-          setBudgetLoaded(false);
-          setBudgetLoading(true);
-          const response = await fetch(
-            `/api/budget-weekly?weekStart=${budgetWeekStart}`,
-            { signal: controller.signal }
-          );
-          if (!response.ok) {
-            throw new Error("Failed to load budgets");
-          }
-          const data = (await response.json()) as {
-            budgets?: Array<{ id: number; name: string }>;
-          };
-          if (!isActive) {
-            return;
-          }
-          setBudgetOptions(
-            Array.isArray(data?.budgets)
-              ? data.budgets.map((budget) => ({
-                  id: Number(budget.id),
-                  name: String(budget.name),
-                }))
-              : []
-          );
-        } catch (error) {
-          if (!isActive) {
-            return;
-          }
-          console.error(error);
-          setBudgetOptions([]);
-        } finally {
-          if (isActive) {
-            setBudgetLoading(false);
-            setBudgetLoaded(true);
-          }
-        }
-      };
-
-      loadBudgets();
-      return () => {
-        isActive = false;
-        controller.abort();
-      };
-    }, [budgetWeekStart, showBudgetSelect]);
+    const budgetOptionsQuery = useQuery<BudgetOption[]>({
+      queryKey: budgetWeeklyOptionsQueryKey(budgetWeekStart ?? ""),
+      queryFn: () => fetchWeeklyBudgetOptions(budgetWeekStart ?? ""),
+      enabled: showBudgetSelect && isSheetOpen && Boolean(budgetWeekStart),
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      retry: false,
+    });
+    const budgetOptions = budgetOptionsQuery.data ?? [];
+    const budgetLoading = budgetOptionsQuery.isPending;
+    const budgetLoaded = budgetOptionsQuery.isFetched;
 
     useEffect(() => {
       if (!showBudgetSelect) {
@@ -797,7 +760,7 @@ const ManualExpenseForm = forwardRef<
         {suggestionsList.length > 0 && (
           <div
             className={cn(
-              "fixed inset-x-0 bottom-[73px] z-99 ml-auto flex w-[90svw] items-center justify-start gap-2 border-l p-2 backdrop-blur-md",
+              "fixed inset-x-0 bottom-[73px] z-99 ml-auto flex w-[90svw] items-center justify-start gap-2 p-2 backdrop-blur-md",
               keyboardOffset <= 0 && "hidden"
             )}
             style={{

@@ -1,6 +1,7 @@
 import React from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
@@ -28,24 +29,39 @@ const createFetchResponse = () =>
   ({
     ok: true,
     json: vi.fn().mockResolvedValue({ budgets: [] }),
-  }) as Response;
+  }) as unknown as Response;
 
 const renderManualExpenseFormTree = ({
   initialMode,
   showBudgetSelect = false,
+  isSheetOpen = true,
   prefillExpense = null,
 }: {
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
+  isSheetOpen?: boolean;
   prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
 }) => (
-  <SettingsStoreProvider>
-    <ManualExpenseForm
-      {...(typeof initialMode !== "undefined" ? { initialMode } : {})}
-      prefillExpense={prefillExpense}
-      showBudgetSelect={showBudgetSelect}
-    />
-  </SettingsStoreProvider>
+  <QueryClientProvider
+    client={
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      })
+    }
+  >
+    <SettingsStoreProvider>
+      <ManualExpenseForm
+        {...(typeof initialMode !== "undefined" ? { initialMode } : {})}
+        prefillExpense={prefillExpense}
+        showBudgetSelect={showBudgetSelect}
+        isSheetOpen={isSheetOpen}
+      />
+    </SettingsStoreProvider>
+  </QueryClientProvider>
 );
 
 afterEach(() => {
@@ -56,10 +72,12 @@ afterEach(() => {
 const renderManualExpenseForm = async ({
   initialMode,
   showBudgetSelect = false,
+  isSheetOpen = true,
   prefillExpense = null,
 }: {
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
+  isSheetOpen?: boolean;
   prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
 } = {}) => {
   ensureReactGlobal();
@@ -74,12 +92,13 @@ const renderManualExpenseForm = async ({
       renderManualExpenseFormTree({
         initialMode,
         showBudgetSelect,
+        isSheetOpen,
         prefillExpense,
       })
     );
   });
 
-  if (showBudgetSelect) {
+  if (showBudgetSelect && isSheetOpen) {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   }
 
@@ -247,5 +266,78 @@ describe("ManualExpenseForm quick mode", () => {
     expect(
       screen.queryByRole("button", { name: /budget/i })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ManualExpenseForm budget query gating", () => {
+  it("does not fetch budgets while the sheet is closed", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(createFetchResponse());
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      isSheetOpen: false,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses cached budgets when reopening the same week", async () => {
+    ensureReactGlobal();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(createFetchResponse());
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <SettingsStoreProvider>
+          <ManualExpenseForm showBudgetSelect isSheetOpen={false} />
+        </SettingsStoreProvider>
+      </QueryClientProvider>
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+
+    await act(async () => {
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SettingsStoreProvider>
+            <ManualExpenseForm showBudgetSelect isSheetOpen />
+          </SettingsStoreProvider>
+        </QueryClientProvider>
+      );
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SettingsStoreProvider>
+            <ManualExpenseForm showBudgetSelect isSheetOpen={false} />
+          </SettingsStoreProvider>
+        </QueryClientProvider>
+      );
+    });
+
+    await act(async () => {
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SettingsStoreProvider>
+            <ManualExpenseForm showBudgetSelect isSheetOpen />
+          </SettingsStoreProvider>
+        </QueryClientProvider>
+      );
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   });
 });
