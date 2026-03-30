@@ -803,7 +803,7 @@ const BudgetWeeklyBudgetsClient = ({
 
   return (
     <section className="relative flex flex-col pb-6">
-      <div className="bg-background/95 border-border/40 sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+      <div className="sticky top-0 z-20 -mx-4 bg-transparent px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Link href="/" aria-label="Back to home">
