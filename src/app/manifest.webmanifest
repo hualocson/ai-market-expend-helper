@@ -4,8 +4,8 @@
   "description": "Spendly is an AI expense tracker that helps you track your expenses and save money.",
   "start_url": "/?source=pwa",
   "display": "standalone",
-  "background_color": "#222326",
-  "theme_color": "#222326",
+  "background_color": "#090d10",
+  "theme_color": "#090d10",
   "display_override": ["window-controls-overlay", "fullscreen"],
   "orientation": "portrait",
   "icons": [

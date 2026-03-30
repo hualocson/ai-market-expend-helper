@@ -123,7 +123,7 @@ function Dock() {
                 <SiriOrb
                   size="24px"
                   colors={{
-                    bg: "oklch(22.64% 0 0)",
+                    bg: "var(--card)",
                   }}
                 />
               </motion.div>
@@ -213,7 +213,7 @@ function Feedback({
               ref={ref}
               placeholder="Ask me anything..."
               name="message"
-              className="h-full w-full resize-none scroll-py-2 rounded-md bg-white/10 p-4 outline-0"
+              className="bg-muted/70 h-full w-full resize-none scroll-py-2 rounded-md p-4 outline-0"
               required
               onKeyDown={onKeyDown}
               spellCheck={false}
@@ -233,7 +233,7 @@ function Feedback({
             <SiriOrb
               size="24px"
               colors={{
-                bg: "oklch(22.64% 0 0)",
+                bg: "var(--card)",
               }}
             />
           </motion.div>
@@ -253,7 +253,7 @@ function Kbd({
   return (
     <kbd
       className={cx(
-        "text-foreground flex h-6 w-fit items-center justify-center rounded-sm border bg-white/10 px-[6px] font-sans",
+        "bg-muted/70 text-foreground flex h-6 w-fit items-center justify-center rounded-sm border border-border px-[6px] font-sans",
         className
       )}
     >

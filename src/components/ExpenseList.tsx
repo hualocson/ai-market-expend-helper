@@ -147,6 +147,8 @@ const ExpenseList = async ({
     : isRecent
       ? "Recent entries from this month."
       : "Latest entries from your sheet.";
+  const listContainerClassName =
+    "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto";
 
   return (
     <section className="flex w-full grow flex-col gap-4 overflow-auto">
@@ -180,22 +182,19 @@ const ExpenseList = async ({
         </div>
       ) : null}
 
-      <div
-        id="expense-list"
-        className="bg-muted/30 no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto rounded-3xl px-4 py-4 sm:px-6"
-      >
+      <div id="expense-list" className={listContainerClassName}>
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
               <Link
                 href={`/report/day/${group.key}`}
-                className="group flex items-center justify-between rounded-2xl border border-transparent px-2 py-1 transition hover:border-white/10 hover:bg-white/5"
+                className="group hover:border-border hover:bg-card/80 flex items-center justify-between rounded-2xl border border-transparent px-2 py-1 transition"
               >
                 <div className="flex items-center gap-2">
-                  <p className="text-muted-foreground text-xs font-semibold tracking-wide transition group-hover:text-foreground">
+                  <p className="text-muted-foreground group-hover:text-foreground text-xs font-semibold tracking-wide transition">
                     {group.label}
                   </p>
-                  <ChevronRight className="text-muted-foreground h-3.5 w-3.5 transition group-hover:text-foreground" />
+                  <ChevronRight className="text-muted-foreground group-hover:text-foreground h-3.5 w-3.5 transition" />
                 </div>
                 {/* total amount of day */}
                 <div className="text-foreground text-right text-sm font-semibold">

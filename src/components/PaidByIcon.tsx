@@ -21,13 +21,13 @@ const PaidByIcon = ({ paidBy, size = "default" }: PaidByIconProps) => {
   const palette = (() => {
     switch (paidBy) {
       case "Cubi":
-        return "bg-sky-400/15 text-sky-400";
+        return "bg-primary/15 text-primary";
       case "Embe":
-        return "bg-pink-400/15 text-pink-400";
+        return "bg-accent/15 text-accent";
       case "Other":
-        return "bg-slate-400/15 text-slate-400";
+        return "bg-secondary/15 text-secondary";
       default:
-        return "bg-gray-400/15 text-gray-400";
+        return "bg-muted text-muted-foreground";
     }
   })();
 

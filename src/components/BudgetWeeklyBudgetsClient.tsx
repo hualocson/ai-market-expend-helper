@@ -29,10 +29,16 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowLeftIcon, Loader2, Plus, SaveIcon, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeftIcon,
+  Loader2,
+  Plus,
+  SaveIcon,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
-import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,6 +57,8 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+
+import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 
 type BudgetWeeklyBudgetsClientProps = {
   weekStartDate: string;
@@ -81,10 +89,14 @@ type BudgetStatus = {
   isNearLimit: boolean;
 };
 
-const PERIOD_OPTIONS: Array<{ value: BudgetPeriod; label: string }> = [
-  { value: "week", label: "Weekly" },
-  { value: "month", label: "Monthly" },
-  { value: "custom", label: "Custom" },
+const PERIOD_OPTIONS: Array<{
+  value: BudgetPeriod;
+  label: string;
+  hint: string;
+}> = [
+  { value: "week", label: "Weekly", hint: "Resets every week" },
+  { value: "month", label: "Monthly", hint: "Best for fixed bills" },
+  { value: "custom", label: "Custom", hint: "Flexible date range" },
 ];
 
 const DASHBOARD_TABS: Array<{ id: DashboardTab; label: string }> = [
@@ -280,6 +292,10 @@ const BudgetWeeklyBudgetsClient = ({
 
   const formTitle = activeBudget ? "Edit budget" : "New budget";
   const submitLabel = activeBudget ? "Save changes" : "Create budget";
+  const formDescription = activeBudget
+    ? "Adjust the limit and schedule for this budget."
+    : "Set a spending cap and period to track this category.";
+  const trimmedName = name.trim();
   const parsedStart = dayjs(periodStartDate, "YYYY-MM-DD", true);
   const parsedEnd = periodEndDate
     ? dayjs(periodEndDate, "YYYY-MM-DD", true)
@@ -288,7 +304,7 @@ const BudgetWeeklyBudgetsClient = ({
     parsedStart.isValid() &&
     (period !== "custom" ||
       (parsedEnd?.isValid() && !parsedEnd.isBefore(parsedStart, "day")));
-  const isValid = name.trim().length > 0 && amount > 0 && hasValidPeriod;
+  const isValid = trimmedName.length > 0 && amount > 0 && hasValidPeriod;
   const canSubmit = isValid && !isSaving;
 
   const {
@@ -339,7 +355,7 @@ const BudgetWeeklyBudgetsClient = ({
   }, [period, periodEndDate, periodStartDate]);
 
   const validationMessage = useMemo(() => {
-    if (!name.trim().length) {
+    if (!trimmedName.length) {
       return "Budget name is required.";
     }
     if (amount <= 0) {
@@ -349,7 +365,7 @@ const BudgetWeeklyBudgetsClient = ({
       return "End date must be on or after start date for custom budgets.";
     }
     return null;
-  }, [amount, hasValidPeriod, name]);
+  }, [amount, hasValidPeriod, trimmedName]);
 
   const monthKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -526,11 +542,11 @@ const BudgetWeeklyBudgetsClient = ({
           setDetailOpen(true);
         }}
         className={cn(
-          "group bg-card/70 relative flex flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition active:scale-[0.99]",
-          "focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
+          "group bg-card/80 relative flex flex-col gap-2 rounded-3xl px-4 py-4 text-left shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_42%,transparent)] transition-[transform,box-shadow,background-color] active:scale-[0.99]",
+          "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
           status.isOver
-            ? "border-rose-400/40 hover:bg-rose-500/10"
-            : "border-border/70 hover:bg-card"
+            ? "bg-destructive/5 hover:bg-destructive/10 shadow-[0_14px_30px_color-mix(in_srgb,var(--destructive)_16%,transparent)]"
+            : "hover:bg-card"
         )}
       >
         <div className="flex w-full items-center justify-between gap-3">
@@ -540,7 +556,7 @@ const BudgetWeeklyBudgetsClient = ({
           <p
             className={cn(
               "text-sm font-semibold",
-              budget.remaining < 0 ? "text-rose-300" : "text-emerald-300"
+              budget.remaining < 0 ? "text-destructive" : "text-success"
             )}
           >
             {formatVndSigned(budget.remaining)}
@@ -552,15 +568,15 @@ const BudgetWeeklyBudgetsClient = ({
             {status.percentSpent}% used
           </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
           <div
             className={cn(
               "h-full rounded-full transition-[width]",
               status.isOver
-                ? "bg-rose-400"
+                ? "bg-destructive"
                 : status.isNearLimit
-                  ? "bg-amber-400"
-                  : "bg-emerald-400"
+                  ? "bg-warning"
+                  : "bg-success"
             )}
             style={{ width: `${status.progress * 100}%` }}
           />
@@ -574,13 +590,13 @@ const BudgetWeeklyBudgetsClient = ({
     title: string,
     subtitle: string
   ) => (
-    <div className="border-border/70 bg-card/70 rounded-2xl border px-4 py-3">
+    <div className="border-border/45 bg-card/70 rounded-2xl border px-4 py-3">
       <div className="mb-2.5 flex items-center justify-between">
         <div>
           <h3 className="text-foreground text-sm font-semibold">{title}</h3>
           <p className="text-muted-foreground text-[11px]">{subtitle}</p>
         </div>
-        <span className="text-muted-foreground border-border/70 rounded-full border px-2 py-0.5 text-[11px]">
+        <span className="text-muted-foreground border-border/45 rounded-full border px-2 py-0.5 text-[11px]">
           {summary.count} budgets
         </span>
       </div>
@@ -608,7 +624,7 @@ const BudgetWeeklyBudgetsClient = ({
           <p
             className={cn(
               "mt-0.5 text-sm font-semibold",
-              summary.totalRemaining < 0 ? "text-rose-300" : "text-emerald-300"
+              summary.totalRemaining < 0 ? "text-destructive" : "text-success"
             )}
           >
             {formatVndSigned(summary.totalRemaining)}
@@ -619,14 +635,14 @@ const BudgetWeeklyBudgetsClient = ({
   );
 
   const renderEmptyState = (title: string, description: string) => (
-    <div className="border-border/80 bg-card/40 rounded-2xl border border-dashed px-4 py-5 text-center">
+    <div className="border-border/55 bg-card/40 rounded-2xl border border-dashed px-4 py-5 text-center">
       <p className="text-foreground text-sm font-semibold">{title}</p>
       <p className="text-muted-foreground mt-1 text-xs">{description}</p>
       <Button
         type="button"
         size="sm"
         onClick={openCreate}
-        className="mt-3 h-9 rounded-xl"
+        className="mt-3 h-11 rounded-xl"
       >
         <Plus className="h-4 w-4" />
         Add budget
@@ -787,14 +803,14 @@ const BudgetWeeklyBudgetsClient = ({
 
   return (
     <section className="relative flex flex-col pb-6">
-      <div className="bg-background/95 border-border/60 sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+      <div className="bg-background/95 border-border/40 sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Link href="/" aria-label="Back to home">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-xl active:scale-[0.97]"
+                className="h-11 w-11 rounded-xl active:scale-[0.97]"
               >
                 <ArrowLeftIcon />
               </Button>
@@ -811,14 +827,14 @@ const BudgetWeeklyBudgetsClient = ({
           <Button
             onClick={openCreate}
             size="sm"
-            className="hidden h-9 rounded-xl px-3 sm:flex"
+            className="hidden h-11 rounded-xl px-3 sm:flex"
           >
             <Plus className="h-4 w-4" />
             Add budget
           </Button>
         </div>
 
-        <div className="border-border/70 bg-muted/30 mt-3 rounded-xl border p-1">
+        <div className="border-border/45 bg-muted/30 mt-3 rounded-xl border p-1">
           <div className="grid grid-cols-3 gap-1">
             {DASHBOARD_TABS.map((tab) => (
               <button
@@ -826,7 +842,7 @@ const BudgetWeeklyBudgetsClient = ({
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "h-9 rounded-lg text-xs font-medium transition",
+                  "h-11 rounded-lg text-xs font-medium transition",
                   "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none",
                   activeTab === tab.id
                     ? "bg-card text-foreground shadow-xs"
@@ -842,17 +858,19 @@ const BudgetWeeklyBudgetsClient = ({
 
       <div className="space-y-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+40px)]">
         {showErrorFallback ? (
-          <div className="rounded-2xl border border-rose-400/50 bg-rose-500/10 px-4 py-4">
-            <p className="text-sm font-semibold text-rose-100">
+          <div className="border-destructive/35 bg-destructive/10 rounded-2xl border px-4 py-4">
+            <p className="text-destructive-foreground text-sm font-semibold">
               Failed to load budgets
             </p>
-            <p className="mt-1 text-xs text-rose-100/85">{errorMessage}</p>
+            <p className="text-destructive-foreground/85 mt-1 text-xs">
+              {errorMessage}
+            </p>
             <Button
               type="button"
               size="sm"
               variant="secondary"
               onClick={() => refetch()}
-              className="mt-3 h-9 rounded-xl px-4 text-xs font-semibold"
+              className="mt-3 h-11 rounded-xl px-4 text-xs font-semibold"
             >
               Retry
             </Button>
@@ -888,9 +906,9 @@ const BudgetWeeklyBudgetsClient = ({
                       variant="secondary"
                       onClick={() => setMonthFilter(option.id)}
                       className={cn(
-                        "h-8 snap-center rounded-xl px-3 text-xs font-medium",
+                        "h-11 snap-center rounded-xl px-3.5 text-xs font-medium",
                         monthFilter === option.id
-                          ? "bg-foreground text-background"
+                          ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground bg-muted/40 hover:bg-muted/60"
                       )}
                     >
@@ -940,9 +958,9 @@ const BudgetWeeklyBudgetsClient = ({
                           variant="secondary"
                           onClick={() => setActiveWeekKey(group.key)}
                           className={cn(
-                            "h-8 snap-center rounded-xl px-3 text-xs font-medium",
+                            "h-11 snap-center rounded-xl px-3.5 text-xs font-medium",
                             activeWeekKey === group.key
-                              ? "bg-foreground text-background"
+                              ? "bg-primary text-primary-foreground"
                               : "text-muted-foreground bg-muted/40 hover:bg-muted/60"
                           )}
                         >
@@ -1034,16 +1052,16 @@ const BudgetWeeklyBudgetsClient = ({
           </DrawerHeader>
           <div className="no-scrollbar max-h-[62svh] space-y-4 overflow-y-auto px-4 pb-4">
             {detailBudget ? (
-              <div className="border-border/70 bg-card/70 rounded-2xl border px-4 py-3">
+              <div className="border-border/45 bg-card/70 rounded-2xl border px-4 py-3">
                 <div className="mb-3 flex w-full items-center justify-between">
                   <span
                     className={cn(
                       "rounded-full border px-2 py-0.5 text-[11px] font-medium",
                       getBudgetStatus(detailBudget).isOver
-                        ? "border-rose-300/40 bg-rose-400/15 text-rose-200"
+                        ? "border-destructive/40 bg-destructive/15 text-destructive"
                         : getBudgetStatus(detailBudget).isNearLimit
-                          ? "border-amber-300/40 bg-amber-400/15 text-amber-200"
-                          : "border-emerald-300/35 bg-emerald-400/10 text-emerald-200"
+                          ? "border-warning/40 bg-warning/15 text-warning"
+                          : "border-success/35 bg-success/10 text-success"
                     )}
                   >
                     {getBudgetStatus(detailBudget).statusLabel}
@@ -1077,8 +1095,8 @@ const BudgetWeeklyBudgetsClient = ({
                       className={cn(
                         "mt-1 font-semibold",
                         detailBudget.remaining < 0
-                          ? "text-rose-300"
-                          : "text-emerald-300"
+                          ? "text-destructive"
+                          : "text-success"
                       )}
                     >
                       {formatVndSigned(detailBudget.remaining)}
@@ -1105,7 +1123,7 @@ const BudgetWeeklyBudgetsClient = ({
                   <div className="bg-card/80 h-14 animate-pulse rounded-xl" />
                 </div>
               ) : transactionError ? (
-                <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-3 text-xs text-rose-100">
+                <div className="border-destructive/35 bg-destructive/10 text-destructive-foreground rounded-xl border px-3 py-3 text-xs">
                   Failed to load assigned transactions.
                 </div>
               ) : transactionItems.length ? (
@@ -1117,7 +1135,7 @@ const BudgetWeeklyBudgetsClient = ({
                     return (
                       <div
                         key={transaction.id}
-                        className="border-border/70 bg-card/60 rounded-xl border px-3 py-2"
+                        className="border-border/45 bg-card/60 rounded-xl border px-3 py-2.5"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -1155,7 +1173,7 @@ const BudgetWeeklyBudgetsClient = ({
                       variant="secondary"
                       onClick={() => fetchNextPage()}
                       disabled={isFetchingNextPage}
-                      className="h-9 w-full rounded-xl"
+                      className="h-11 w-full rounded-xl"
                     >
                       {isFetchingNextPage ? (
                         <>
@@ -1175,7 +1193,7 @@ const BudgetWeeklyBudgetsClient = ({
                   ) : null}
                 </div>
               ) : (
-                <div className="border-border/80 bg-card/40 rounded-xl border border-dashed px-3 py-4 text-center">
+                <div className="border-border/55 bg-card/40 rounded-xl border border-dashed px-3 py-4 text-center">
                   <p className="text-foreground text-sm font-medium">
                     No assigned transactions in this budget period.
                   </p>
@@ -1183,7 +1201,7 @@ const BudgetWeeklyBudgetsClient = ({
               )}
             </div>
           </div>
-          <DrawerFooter className="border-border/70 gap-2 border-t">
+          <DrawerFooter className="border-border/45 gap-2 border-t">
             <Button
               type="button"
               onClick={() => {
@@ -1224,29 +1242,48 @@ const BudgetWeeklyBudgetsClient = ({
         repositionInputs={false}
       >
         <DrawerContent className="rounded-t-3xl! border-t-0!">
-          <DrawerHeader>
+          <DrawerHeader className="gap-1 pb-2">
             <DrawerTitle>{formTitle}</DrawerTitle>
+            <DrawerDescription>{formDescription}</DrawerDescription>
           </DrawerHeader>
-          <div className="no-scrollbar flex max-h-[65svh] flex-col gap-4 overflow-y-auto px-4 pb-4">
-            <div className="border-border/70 bg-card/60 rounded-2xl border p-3">
-              <label className="text-foreground text-sm font-medium">
-                Budget name
-              </label>
+          <div className="no-scrollbar flex max-h-[65svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label
+                  htmlFor="budget-name-input"
+                  className="text-foreground text-sm font-medium"
+                >
+                  Budget name
+                </label>
+                <span className="text-muted-foreground text-[11px]">
+                  {trimmedName.length}/36
+                </span>
+              </div>
               <Input
+                id="budget-name-input"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Groceries"
-                className="mt-2 h-11"
+                maxLength={36}
+                aria-invalid={trimmedName.length === 0}
+                className="h-11"
                 tabIndex={0}
               />
+              <p className="text-muted-foreground mt-2 text-[11px]">
+                Keep it short so it stays readable in budget cards.
+              </p>
             </div>
 
-            <div className="border-border/70 bg-card/60 rounded-2xl border p-3">
-              <label className="text-foreground text-sm font-medium">
+            <div>
+              <label
+                htmlFor="budget-amount-input"
+                className="text-foreground text-sm font-medium"
+              >
                 Amount
               </label>
               <div className="relative mt-2">
                 <Input
+                  id="budget-amount-input"
                   type="text"
                   inputMode="numeric"
                   value={amount ? formatVnd(amount) : ""}
@@ -1260,13 +1297,16 @@ const BudgetWeeklyBudgetsClient = ({
                   VND
                 </span>
               </div>
+              <p className="text-muted-foreground mt-2 text-[11px]">
+                Use the total amount you plan to spend in this period.
+              </p>
             </div>
 
-            <div className="border-border/70 bg-card/60 rounded-2xl border p-3">
+            <div>
               <label className="text-foreground text-sm font-medium">
                 Period
               </label>
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {PERIOD_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
@@ -1274,46 +1314,68 @@ const BudgetWeeklyBudgetsClient = ({
                     size="sm"
                     variant="secondary"
                     onClick={() => handlePeriodChange(option.value)}
+                    aria-pressed={period === option.value}
                     className={cn(
-                      "h-9 rounded-xl text-xs font-medium",
+                      "h-auto min-h-13 w-full rounded-xl px-2.5 py-2 text-left text-xs font-medium",
+                      option.value === "custom"
+                        ? "col-span-2 sm:col-span-1"
+                        : "",
                       period === option.value
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground bg-muted/40 hover:bg-muted/60"
+                        ? "bg-primary text-primary-foreground shadow-[0_8px_20px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
+                        : "text-muted-foreground bg-muted/35 hover:bg-muted/55"
                     )}
                   >
-                    {option.label}
+                    <span className="block leading-none">{option.label}</span>
+                    <span
+                      className={cn(
+                        "mt-1 hidden text-[10px] leading-tight sm:block",
+                        period === option.value
+                          ? "text-primary-foreground/85"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {option.hint}
+                    </span>
                   </Button>
                 ))}
               </div>
             </div>
 
-            <div className="border-border/70 bg-card/60 rounded-2xl border p-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-foreground text-sm font-medium">
+            <div>
+              <div className="grid w-full gap-3 sm:grid-cols-2">
+                <div className="flex w-full flex-col gap-2">
+                  <label
+                    htmlFor="budget-start-date-input"
+                    className="text-foreground text-sm font-medium"
+                  >
                     Start date
                   </label>
                   <Input
+                    id="budget-start-date-input"
                     type="date"
                     value={periodStartDate || ""}
                     onChange={(event) =>
                       handleStartDateChange(event.target.value)
                     }
-                    className="h-11"
+                    className="max-w-auto h-11 w-auto"
                   />
                 </div>
                 {period === "custom" ? (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-foreground text-sm font-medium">
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <label
+                      htmlFor="budget-end-date-input"
+                      className="text-foreground text-sm font-medium"
+                    >
                       End date
                     </label>
                     <Input
+                      id="budget-end-date-input"
                       type="date"
                       value={periodEndDate || ""}
                       onChange={(event) =>
                         handleEndDateChange(event.target.value)
                       }
-                      className="h-11"
+                      className="h-11 w-full max-w-full min-w-0"
                     />
                   </div>
                 ) : null}
@@ -1321,7 +1383,7 @@ const BudgetWeeklyBudgetsClient = ({
               <p
                 className={cn(
                   "mt-3 text-xs",
-                  hasValidPeriod ? "text-muted-foreground" : "text-rose-200"
+                  hasValidPeriod ? "text-muted-foreground" : "text-destructive"
                 )}
               >
                 {periodRangeLabel}
@@ -1329,20 +1391,25 @@ const BudgetWeeklyBudgetsClient = ({
             </div>
 
             {validationMessage ? (
-              <p className="text-xs font-medium text-rose-200">
-                {validationMessage}
-              </p>
+              <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs font-medium">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <p>{validationMessage}</p>
+              </div>
             ) : null}
           </div>
-          <DrawerFooter className="border-border/70 gap-2 border-t">
+          <DrawerFooter className="border-border/45 gap-2 border-t">
             <Button
               type="button"
               onClick={handleSubmit}
               disabled={!canSubmit}
               className="h-11 rounded-2xl"
             >
-              <SaveIcon />
-              {submitLabel}
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <SaveIcon />
+              )}
+              {isSaving ? "Saving..." : submitLabel}
             </Button>
           </DrawerFooter>
         </DrawerContent>

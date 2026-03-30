@@ -564,8 +564,8 @@ const ManualExpenseForm = forwardRef<
                       className={cn(
                         "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
                         budgetId === null
-                          ? "border-emerald-400/40 bg-emerald-400/10"
-                          : "border-white/10 bg-white/5 hover:bg-white/10"
+                          ? "border-success/40 bg-success/10"
+                          : "border-border bg-card/80 hover:bg-card"
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-2">
@@ -573,14 +573,14 @@ const ManualExpenseForm = forwardRef<
                           className={cn(
                             "size-2 shrink-0 rounded-full",
                             budgetId === null
-                              ? "bg-emerald-300"
-                              : "bg-amber-300/80"
+                              ? "bg-success"
+                              : "bg-warning/80"
                           )}
                         />
                         <span className="truncate">No budget</span>
                       </span>
                       {budgetId === null ? (
-                        <CheckIcon className="h-4 w-4 text-emerald-300" />
+                        <CheckIcon className="text-success h-4 w-4" />
                       ) : (
                         <span className="text-muted-foreground text-xs">
                           Clear
@@ -605,27 +605,27 @@ const ManualExpenseForm = forwardRef<
                             className={cn(
                               "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
                               isActive
-                                ? "border-emerald-400/40 bg-emerald-400/10"
-                                : "border-white/10 bg-white/5 hover:bg-white/10"
+                                ? "border-success/40 bg-success/10"
+                                : "border-border bg-card/80 hover:bg-card"
                             )}
                           >
                             <span className="flex min-w-0 items-center gap-2">
                               <span
                                 className={cn(
                                   "size-2 shrink-0 rounded-full",
-                                  isActive ? "bg-emerald-300" : "bg-white/40"
+                                  isActive ? "bg-success" : "bg-foreground/40"
                                 )}
                               />
                               <span className="truncate">{budget.name}</span>
                             </span>
                             {isActive ? (
-                              <CheckIcon className="h-4 w-4 text-emerald-300" />
+                              <CheckIcon className="text-success h-4 w-4" />
                             ) : null}
                           </button>
                         );
                       })
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-3 py-4">
+                      <div className="bg-card/70 border-border rounded-2xl border border-dashed px-3 py-4">
                         <p className="text-muted-foreground text-xs">
                           No budgets for this date yet.
                         </p>

@@ -180,8 +180,8 @@ const BudgetWeeklyTransactionsClient = ({
         type="button"
         onClick={() => openAssign(transaction)}
         className={cn(
-          "flex w-full items-start justify-between gap-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10 active:scale-[0.99]",
-          isUnassigned && "border-amber-400/30 bg-amber-400/5"
+          "bg-card/80 border-border hover:bg-card flex w-full items-start justify-between gap-4 rounded-3xl border px-4 py-4 text-left transition active:scale-[0.99]",
+          isUnassigned && "border-warning/30 bg-warning/5"
         )}
       >
         <div className="flex min-w-0 items-start gap-3">
@@ -200,8 +200,8 @@ const BudgetWeeklyTransactionsClient = ({
                 className={cn(
                   "max-w-[160px] rounded-full px-2 py-0.5 text-[11px] font-medium",
                   isUnassigned
-                    ? "bg-amber-400/20 text-amber-200"
-                    : "text-muted-foreground bg-white/10"
+                    ? "bg-warning/20 text-warning"
+                    : "bg-muted text-muted-foreground"
                 )}
               >
                 <span className="line-clamp-1">{budgetLabel}</span>
@@ -216,7 +216,7 @@ const BudgetWeeklyTransactionsClient = ({
           <span
             className={cn(
               "text-[11px] font-medium",
-              isUnassigned ? "text-amber-200" : "text-muted-foreground"
+              isUnassigned ? "text-warning" : "text-muted-foreground"
             )}
           >
             {isUnassigned ? "Assign budget" : "Change budget"}
@@ -251,10 +251,10 @@ const BudgetWeeklyTransactionsClient = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-muted-foreground rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+          <span className="bg-card/80 text-muted-foreground border-border rounded-full border px-2.5 py-1">
             {unassignedTransactions.length} unassigned
           </span>
-          <span className="text-muted-foreground rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+          <span className="bg-card/80 text-muted-foreground border-border rounded-full border px-2.5 py-1">
             {assignedTransactions.length} assigned
           </span>
         </div>
@@ -272,8 +272,8 @@ const BudgetWeeklyTransactionsClient = ({
               className={cn(
                 "h-8 rounded-full px-3 text-xs font-semibold",
                 filter === option
-                  ? "bg-foreground text-background hover:bg-foreground/90"
-                  : "text-muted-foreground bg-white/5 hover:bg-white/10"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-card/80 text-muted-foreground hover:bg-card"
               )}
             >
               {option === "all"
@@ -302,7 +302,7 @@ const BudgetWeeklyTransactionsClient = ({
                   {visibleUnassigned.map(renderTransactionRow)}
                 </div>
               ) : (
-                <div className="text-muted-foreground rounded-3xl bg-white/5 px-4 py-3 text-sm">
+                <div className="bg-card/70 text-muted-foreground rounded-3xl px-4 py-3 text-sm">
                   All transactions are assigned.
                 </div>
               )}
@@ -342,7 +342,7 @@ const BudgetWeeklyTransactionsClient = ({
                   {visibleAssigned.map(renderTransactionRow)}
                 </div>
               ) : (
-                <div className="text-muted-foreground rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                <div className="bg-card/70 text-muted-foreground border-border rounded-3xl border px-4 py-3 text-sm">
                   No assigned transactions yet.
                 </div>
               )}
@@ -364,7 +364,7 @@ const BudgetWeeklyTransactionsClient = ({
           ) : null}
         </div>
       ) : (
-        <div className="text-muted-foreground rounded-3xl border border-white/10 bg-white/5 px-4 py-6 text-sm">
+        <div className="bg-card/70 text-muted-foreground border-border rounded-3xl border px-4 py-6 text-sm">
           No transactions found in this week.
         </div>
       )}
@@ -375,7 +375,7 @@ const BudgetWeeklyTransactionsClient = ({
             <DrawerTitle>Assign budget</DrawerTitle>
             <DrawerDescription asChild>
               {activeTransaction ? (
-                <div className="flex w-full items-center gap-3 rounded-3xl border border-white/10 p-4 text-left">
+                <div className="border-border flex w-full items-center gap-3 rounded-3xl border p-4 text-left">
                   <div className="shrink-0">
                     <ExpenseItemIcon
                       category={resolveCategory(activeTransaction.category)}
@@ -456,21 +456,21 @@ const BudgetWeeklyTransactionsClient = ({
                 );
               })
             ) : budgets.length ? (
-              <div className="text-muted-foreground rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+              <div className="bg-card/70 text-muted-foreground border-border rounded-2xl border px-4 py-3 text-sm">
                 No budgets match your search.
               </div>
             ) : (
-              <div className="text-muted-foreground rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+              <div className="bg-card/70 text-muted-foreground border-border rounded-2xl border px-4 py-3 text-sm">
                 Create a budget first to assign transactions.
               </div>
             )}
           </div>
           {activeTransaction?.budgetId ? (
-            <DrawerFooter className="border-t border-white/10">
+            <DrawerFooter className="border-border border-t">
               <Button
                 type="button"
                 variant="destructive"
-                className="w-full text-rose-300"
+                className="w-full"
                 onClick={() => handleAssign(null)}
                 disabled={isAssigning}
               >

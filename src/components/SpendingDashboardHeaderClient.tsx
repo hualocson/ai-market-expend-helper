@@ -41,20 +41,25 @@ const SpendingDashboardHeaderClient = ({
 
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <SiriOrb size="40px" className="shrink-0" />
-          <p className="text-[32px] font-semibold tracking-tight text-white">
-            {formatVnd(activeTotals?.total ?? 0)} VND
-          </p>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-slate-400">{subtitle}</p>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="bg-surface-3 border-border/70 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <SiriOrb size="40px" className="shrink-0" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
+                Main account
+              </p>
+              <p className="text-foreground/75 truncate text-sm">{subtitle}</p>
+            </div>
+          </div>
+
           <Select value={activePayer} onValueChange={setActivePayer}>
-            <SelectTrigger className="h-10 w-32 focus-visible:border-0 focus-visible:border-transparent focus-visible:ring-0">
+            <SelectTrigger className="bg-surface-3 border-border/70 hover:bg-secondary focus-visible:border-ring/40 focus-visible:ring-ring/30 h-11 min-w-30 rounded-full px-4 text-sm font-medium shadow-none transition">
               <SelectValue placeholder="Select payer" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
               {payerOptions.map((payer) => (
                 <SelectItem key={payer} value={payer}>
                   {payer}
@@ -63,18 +68,33 @@ const SpendingDashboardHeaderClient = ({
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      <div className="relative overflow-hidden rounded-[28px] bg-white/5 p-4 shadow-[0_25px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(78,241,255,0.22),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(58,242,162,0.12),transparent_50%)]" />
-        <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(58,242,162,0.25),transparent_60%)] blur-2xl" />
+        <div className="ds-glass relative flex items-end justify-between gap-4 overflow-hidden rounded-[28px] border px-4 py-4">
+          <span
+            aria-hidden="true"
+            className="bg-primary/18 pointer-events-none absolute -top-6 -right-8 h-24 w-24 rounded-full blur-2xl"
+          />
+          <div className="relative z-10 min-w-0">
+            <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
+              Total spent
+            </p>
+            <p className="text-foreground font-mono text-[32px] font-semibold tracking-tight tabular-nums">
+              {formatVnd(activeTotals?.total ?? 0)} VND
+            </p>
+          </div>
+          <span className="relative z-10 rounded-full border border-[color-mix(in_srgb,var(--accent)_42%,transparent)] bg-[color-mix(in_srgb,var(--accent)_26%,transparent)] px-3 py-1 text-[11px] font-semibold tracking-[0.22em] text-[color-mix(in_srgb,var(--accent)_90%,white)] uppercase">
+            Live
+          </span>
+        </div>
 
-        <div className="relative">
+        <div className="ds-glass rounded-[28px] border p-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-slate-300">
+            <p className="text-foreground/80 text-xs font-semibold">
               Spending trend
             </p>
-            <span className="text-xs text-slate-500">This month</span>
+            <span className="text-muted-foreground bg-surface-3 border-border/70 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.2em] uppercase">
+              This month
+            </span>
           </div>
 
           <div className="mt-4">

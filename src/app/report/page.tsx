@@ -169,7 +169,7 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
                   </span>
                 </div>
               ))}
-              <div className="flex items-center justify-between border-t border-white/10 pt-2 text-xs">
+              <div className="border-border flex items-center justify-between border-t pt-2 text-xs">
                 <span className="text-muted-foreground">Total</span>
                 <span className="text-foreground font-semibold">
                   {formatVnd(paidByTotalSpent)} VND

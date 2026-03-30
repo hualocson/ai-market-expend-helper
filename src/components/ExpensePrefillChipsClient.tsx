@@ -72,13 +72,13 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm font-medium tracking-wide">
+        <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
           Quick add
         </p>
       </div>
       <div
         ref={scrollContainerRef}
-        className="no-scrollbar flex gap-2 overflow-x-auto pb-2"
+        className="no-scrollbar flex gap-3 overflow-x-auto pb-2"
         style={{
           maskImage,
           WebkitMaskImage: maskImage,
@@ -100,13 +100,15 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
                 })
               }
               className={cn(
-                "flex min-w-[140px] items-center gap-2 rounded-3xl border border-transparent bg-white/10 px-2 py-1 text-left transition select-none hover:bg-white/20 active:scale-[0.96] active:bg-white/15"
+                "bg-surface-2 group flex min-h-14 min-w-[168px] items-center gap-3 rounded-[24px] border border-border/45 px-3 py-3 text-left shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_38%,transparent)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out select-none hover:-translate-y-0.5 hover:border-ring/20 hover:bg-surface-3 focus-visible:border-ring/40 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none active:scale-[0.98] active:bg-secondary"
               )}
             >
-              <ExpenseItemIcon category={item.category} size="sm" />
+              <ExpenseItemIcon category={item.category} className="shrink-0" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{noteLabel}</p>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-foreground truncate text-sm font-medium">
+                  {noteLabel}
+                </p>
+                <p className="text-muted-foreground text-xs font-medium">
                   {formatVnd(item.amount)} VND
                 </p>
               </div>

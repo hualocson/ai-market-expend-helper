@@ -16,35 +16,37 @@ export default async function Home({ searchParams }: HomeProps) {
   const selectedMonth = typeof month === "string" ? month : undefined;
 
   return (
-    <div className="relative mx-auto flex min-h-svh max-w-lg flex-col items-stretch gap-6 px-4 pt-6 pb-16 sm:px-6">
-      <Suspense
-        fallback={
-          <div className="bg-muted/30 h-24 w-full animate-pulse rounded-3xl" />
-        }
-      >
-        <SpendingDashboardHeader selectedMonth={selectedMonth} />
-      </Suspense>
+    <div className="mx-auto flex min-h-svh max-w-md flex-col items-stretch px-4 pt-6 pb-28 sm:px-6 sm:pt-8">
+      <div className="flex flex-col items-stretch gap-6">
+        <Suspense
+          fallback={
+            <div className="bg-surface-2/70 h-24 w-full animate-pulse rounded-[32px]" />
+          }
+        >
+          <SpendingDashboardHeader selectedMonth={selectedMonth} />
+        </Suspense>
 
-      <Suspense
-        fallback={
-          <div className="bg-muted/30 h-16 w-full animate-pulse rounded-3xl" />
-        }
-      >
-        <ExpensePrefillChips />
-      </Suspense>
+        <Suspense
+          fallback={
+            <div className="bg-surface-2/70 h-16 w-full animate-pulse rounded-[28px]" />
+          }
+        >
+          <ExpensePrefillChips />
+        </Suspense>
 
-      <Suspense
-        fallback={
-          <div className="bg-muted/30 h-24 w-full animate-pulse rounded-3xl" />
-        }
-      >
-        <ExpenseList
-          selectedMonth={selectedMonth}
-          mode="recent"
-          recentDays={3}
-          showViewFull
-        />
-      </Suspense>
+        <Suspense
+          fallback={
+            <div className="bg-surface-2/70 h-24 w-full animate-pulse rounded-[28px]" />
+          }
+        >
+          <ExpenseList
+            selectedMonth={selectedMonth}
+            mode="recent"
+            recentDays={3}
+            showViewFull
+          />
+        </Suspense>
+      </div>
 
       <JumpToTopButton />
     </div>

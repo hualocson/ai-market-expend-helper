@@ -18,7 +18,7 @@ export default async function BudgetsPage() {
   });
 
   return (
-    <div className="relative mx-auto flex max-w-lg flex-col px-4 pt-2 sm:px-6">
+    <div className="relative mx-auto flex max-w-md flex-col px-4 pt-3 sm:px-6">
       <HydrationBoundary state={dehydrate(queryClient)}>
         <BudgetWeeklyBudgetsClient weekStartDate={currentWeekStart} />
       </HydrationBoundary>

@@ -122,7 +122,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
           size={compact ? "icon-lg" : "default"}
           aria-label={compact ? "Add expense" : undefined}
           className={cn(
-            "rounded-full shadow-[0_25px_60px_rgba(0,0,0,0.45)] active:scale-[0.97]",
+            "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
             compact && "size-12"
           )}
         >

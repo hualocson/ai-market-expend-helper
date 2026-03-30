@@ -109,9 +109,9 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
         : "Over pace";
   const paceTone =
     paceStatus === "Over pace"
-      ? "text-rose-200"
+      ? "text-destructive"
       : paceStatus === "On pace"
-        ? "text-emerald-200"
+        ? "text-success"
         : "text-muted-foreground";
   const paceProgress =
     weeklyBudgetTotal > 0
@@ -120,8 +120,8 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
 
   return (
     <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col gap-4 px-4 pt-6 pb-6 sm:px-6">
-      <div className="pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-emerald-400/15 blur-3xl" />
-      <div className="pointer-events-none absolute top-24 right-6 h-24 w-24 rounded-full bg-fuchsia-400/20 blur-2xl" />
+      <div className="bg-success/15 pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full blur-3xl" />
+      <div className="bg-accent/20 pointer-events-none absolute top-24 right-6 h-24 w-24 rounded-full blur-2xl" />
 
       <div className="relative z-10 flex shrink-0 items-center gap-2">
         <Link href={`/transactions?month=${monthKey}`}>
@@ -140,7 +140,7 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
       </div>
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_16px_40px_-24px_rgba(0,0,0,0.55)] sm:p-5">
+        <div className="bg-card/80 rounded-3xl border border-border/70 p-4 shadow-[0_16px_40px_-24px_color-mix(in_srgb,var(--background)_72%,transparent)] sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.26em]">
@@ -151,13 +151,13 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
               </p>
               <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-xs">
                 <span>{dailyExpenses.length} transactions</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-semibold">
+                <span className="bg-muted/70 rounded-full border border-border/70 px-2 py-0.5 text-[11px] font-semibold">
                   Day {dayIndex} of 7
                 </span>
               </div>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+          <div className="bg-muted/60 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 px-3 py-3">
             <div>
               <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.24em]">
                 Week range
@@ -170,17 +170,17 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
               className={cn(
                 "rounded-full border px-3 py-1 text-[11px] font-semibold",
                 paceStatus === "Over pace"
-                  ? "border-rose-500/40 bg-rose-500/15 text-rose-100"
+                  ? "border-destructive/40 bg-destructive/15 text-destructive-foreground"
                   : paceStatus === "On pace"
-                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-100"
-                    : "border-white/10 bg-white/5 text-muted-foreground"
+                    ? "border-success/40 bg-success/15 text-success-foreground"
+                    : "border-border/70 bg-muted/60 text-muted-foreground"
               )}
             >
               {paceStatus}
             </span>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+            <div className="bg-muted/60 rounded-2xl border border-border/70 px-3 py-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
                 Daily target
@@ -191,7 +191,7 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
                   : "Set weekly budget"}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+            <div className="bg-muted/60 rounded-2xl border border-border/70 px-3 py-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ChartNoAxesCombined className="h-3.5 w-3.5" />
                 Week so far
@@ -200,7 +200,7 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
                 {formatVnd(weekSpentToDate)} VND
               </p>
             </div>
-            <div className="col-span-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 sm:col-span-1">
+            <div className="bg-muted/60 col-span-2 rounded-2xl border border-border/70 px-3 py-3 sm:col-span-1">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ClipboardList className="h-3.5 w-3.5" />
                 Today remaining
@@ -208,7 +208,7 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
               <p
                 className={cn(
                   "mt-2 text-sm font-semibold",
-                  dailyRemaining < 0 ? "text-rose-200" : "text-emerald-200"
+                  dailyRemaining < 0 ? "text-destructive" : "text-success"
                 )}
               >
                 {hasWeeklyBudget
@@ -224,13 +224,11 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
                 {paceStatus}
               </span>
             </div>
-            <div className="h-2 w-full rounded-full bg-white/10">
+            <div className="bg-muted/70 h-2 w-full rounded-full">
               <div
                 className={cn(
                   "h-full rounded-full transition-[width]",
-                  paceStatus === "Over pace"
-                    ? "bg-rose-500"
-                    : "bg-emerald-400"
+                  paceStatus === "Over pace" ? "bg-destructive" : "bg-success"
                 )}
                 style={{ width: `${paceProgress * 100}%` }}
               />
@@ -255,7 +253,7 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
           monthLabel={`${activeDate.format("DD MMM YYYY")}`}
         />
 
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
+        <div className="bg-card/80 rounded-3xl border border-border/70 px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-foreground text-base font-semibold">

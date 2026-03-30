@@ -36,7 +36,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-teal-400/15 text-teal-400",
+            "bg-food/15 text-food flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -48,7 +48,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-purple-400/15 text-purple-400",
+            "bg-shopping/15 text-shopping flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -60,7 +60,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-sky-400/15 text-sky-400",
+            "bg-housing/15 text-housing flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -72,7 +72,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-blue-400/15 text-blue-400",
+            "bg-other/15 text-other flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -84,7 +84,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-pink-300/15 text-pink-300",
+            "bg-transport/15 text-transport flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -96,7 +96,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400",
+            "bg-badminton/15 text-badminton flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -108,7 +108,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-indigo-400/15 text-indigo-400",
+            "bg-entertainment/15 text-entertainment flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -120,7 +120,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-rose-400/15 text-rose-400",
+            "bg-giving/15 text-giving flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}
@@ -132,7 +132,7 @@ const ExpenseItemIcon = ({
       return (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-gray-400/15 text-gray-400",
+            "bg-muted text-muted-foreground flex items-center justify-center rounded-full",
             sizeClass.wrapper,
             className
           )}

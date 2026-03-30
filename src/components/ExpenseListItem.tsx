@@ -212,7 +212,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   return (
     <>
       <div
-        className="relative isolate overflow-hidden"
+        className="bg-surface-2/85 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
         ref={containerRef}
         data-expense-list-item
       >
@@ -287,28 +287,28 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
               category={expense.category as Category}
               className={cn(
                 "shrink-0",
-                !expense.note && "bg-amber-400/10 text-amber-300"
+                !expense.note && "bg-warning/15 text-warning"
               )}
             />
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-muted-foreground truncate font-semibold">
+              <p className="text-foreground/90 truncate font-semibold">
                 {expense.note || "<No note>"}
               </p>
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <p className="max-w-[140px] truncate rounded-2xl bg-gray-500/30 px-3 text-sm text-gray-500">
+                <p className="bg-muted text-muted-foreground max-w-[140px] truncate rounded-2xl px-3 text-sm">
                   {expense.category}
                 </p>
                 {expense.budgetId ? (
-                  <p className="max-w-[160px] truncate rounded-2xl bg-emerald-400/10 px-3 text-sm text-emerald-300">
+                  <p className="bg-success/10 text-success max-w-[160px] truncate rounded-2xl px-3 text-sm">
                     {budgetBadgeLabel}
                   </p>
                 ) : (
-                  <span className="size-2 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.55)]" />
+                  <span className="bg-warning size-2 rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--warning)_55%,transparent)]" />
                 )}
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-right text-sm font-semibold text-rose-400">
+              <p className="text-destructive text-right text-sm font-semibold">
                 -{formattedAmount} VND
               </p>
               {expense.paidBy ? (
@@ -376,7 +376,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
               </DialogDescription>
             </DialogHeader>
           </div>
-          <div className="mx-2 space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm">
+          <div className="bg-card/80 border-border mx-2 space-y-4 rounded-xl border p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <p className="text-muted-foreground text-sm">{formattedDate}</p>

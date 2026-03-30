@@ -122,7 +122,7 @@ const CategorySpendPieChart = ({
                 </div>
               ))}
             </div>
-            <div className="flex w-full items-center justify-between border-t border-white/10 pt-2 text-xs">
+            <div className="flex w-full items-center justify-between border-t border-border/70 pt-2 text-xs">
               <span className="text-muted-foreground">Total</span>
               <span className="text-foreground font-semibold">
                 {formatVnd(totalSpent)} VND
