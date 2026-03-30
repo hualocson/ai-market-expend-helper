@@ -49,3 +49,6 @@ public/swe-worker*
 
 # Codex
 .codex/
+
+tmp/*
+tmp-*
