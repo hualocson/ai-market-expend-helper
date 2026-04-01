@@ -25,10 +25,10 @@ const restoreReactGlobal = () => {
   globalThis.React = originalGlobalReact;
 };
 
-const createFetchResponse = () =>
+const createFetchResponse = (payload: unknown = { budgets: [] }) =>
   ({
     ok: true,
-    json: vi.fn().mockResolvedValue({ budgets: [] }),
+    json: vi.fn().mockResolvedValue(payload),
   }) as unknown as Response;
 
 const renderManualExpenseFormTree = ({
@@ -74,17 +74,19 @@ const renderManualExpenseForm = async ({
   showBudgetSelect = false,
   isSheetOpen = true,
   prefillExpense = null,
+  budgetPayload = { budgets: [] },
 }: {
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
   prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
+  budgetPayload?: unknown;
 } = {}) => {
   ensureReactGlobal();
 
   const fetchMock = vi
     .spyOn(globalThis, "fetch")
-    .mockResolvedValue(createFetchResponse());
+    .mockResolvedValue(createFetchResponse(budgetPayload));
   let renderResult!: ReturnType<typeof render>;
 
   await act(async () => {
@@ -266,6 +268,53 @@ describe("ManualExpenseForm quick mode", () => {
     expect(
       screen.queryByRole("button", { name: /budget/i })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ManualExpenseForm budget drawer", () => {
+  it("groups budget options by weekly and monthly periods", async () => {
+    const user = userEvent.setup();
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      budgetPayload: {
+        budgets: [
+          {
+            id: 11,
+            name: "Week groceries",
+            period: "week",
+            periodStartDate: "2026-03-30",
+            periodEndDate: "2026-04-05",
+          },
+          {
+            id: 12,
+            name: "Week transport",
+            period: "week",
+            periodStartDate: "2026-03-30",
+            periodEndDate: "2026-04-05",
+          },
+          {
+            id: 21,
+            name: "April essentials",
+            period: "month",
+            periodStartDate: "2026-04-01",
+            periodEndDate: "2026-04-30",
+          },
+        ],
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: /budget/i }));
+
+    expect(await screen.findByText(/weekly budgets/i)).toBeInTheDocument();
+    expect(screen.getByText(/monthly budgets/i)).toBeInTheDocument();
+    expect(screen.queryByText(/other budgets/i)).not.toBeInTheDocument();
+
+    expect(screen.getByText("Week groceries")).toBeInTheDocument();
+    expect(screen.getByText("Week transport")).toBeInTheDocument();
+    expect(screen.getByText("April essentials")).toBeInTheDocument();
+    expect(screen.getAllByText("30 Mar - 05 Apr 2026")).toHaveLength(2);
+    expect(screen.getByText("01 Apr - 30 Apr 2026")).toBeInTheDocument();
   });
 });
 

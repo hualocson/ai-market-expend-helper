@@ -18,6 +18,7 @@ import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
   budgetWeeklyOptionsQueryKey,
   fetchWeeklyBudgetOptions,
+  type BudgetWeeklyOption,
 } from "@/lib/queries/budget-weekly";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
@@ -74,7 +75,72 @@ const paidByWheelOptions = paidByOptions.map((option) => ({
   label: option,
 }));
 const categoryOptions = Object.values(Category);
-type BudgetOption = { id: number; name: string };
+type BudgetOption = BudgetWeeklyOption;
+type BudgetOptionGroupKey = "week" | "month" | "custom";
+
+const budgetGroupLabels: Record<BudgetOptionGroupKey, string> = {
+  week: "Weekly budgets",
+  month: "Monthly budgets",
+  custom: "Other budgets",
+};
+
+const budgetGroupEmptyLabel: Record<BudgetOptionGroupKey, string> = {
+  week: "No weekly budgets for this date.",
+  month: "No monthly budgets for this date.",
+  custom: "No additional budgets for this date.",
+};
+
+const fallbackBudgetPeriodLabel: Record<BudgetOptionGroupKey, string> = {
+  week: "Week budget",
+  month: "Month budget",
+  custom: "Custom budget",
+};
+
+const parseBudgetDate = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+  const parsed = dayjs(value, "YYYY-MM-DD", true);
+  return parsed.isValid() ? parsed : null;
+};
+
+const formatBudgetRange = (budget: BudgetOption) => {
+  const start = parseBudgetDate(budget.periodStartDate);
+  if (!start) {
+    return fallbackBudgetPeriodLabel[budget.period];
+  }
+
+  const end = parseBudgetDate(budget.periodEndDate) ?? start;
+  if (start.isSame(end, "day")) {
+    return start.format("DD MMM YYYY");
+  }
+  if (start.isSame(end, "year")) {
+    return `${start.format("DD MMM")} - ${end.format("DD MMM YYYY")}`;
+  }
+  return `${start.format("DD MMM YYYY")} - ${end.format("DD MMM YYYY")}`;
+};
+
+const sortBudgetOptions = (items: BudgetOption[]) => {
+  return [...items].sort((left, right) => {
+    const leftDate = parseBudgetDate(left.periodStartDate);
+    const rightDate = parseBudgetDate(right.periodStartDate);
+
+    if (leftDate && rightDate && !leftDate.isSame(rightDate, "day")) {
+      return rightDate.valueOf() - leftDate.valueOf();
+    }
+
+    if (leftDate && !rightDate) {
+      return -1;
+    }
+    if (!leftDate && rightDate) {
+      return 1;
+    }
+
+    return left.name.localeCompare(right.name, undefined, {
+      sensitivity: "base",
+    });
+  });
+};
 
 export type ManualExpenseFormHandle = {
   submit: () => void;
@@ -318,6 +384,34 @@ const ManualExpenseForm = forwardRef<
     const budgetOptions = budgetOptionsQuery.data ?? [];
     const budgetLoading = budgetOptionsQuery.isPending;
     const budgetLoaded = budgetOptionsQuery.isFetched;
+    const budgetGroups = useMemo(() => {
+      const groups: Record<BudgetOptionGroupKey, BudgetOption[]> = {
+        week: [],
+        month: [],
+        custom: [],
+      };
+
+      budgetOptions.forEach((budget) => {
+        if (budget.period === "week" || budget.period === "month") {
+          groups[budget.period].push(budget);
+          return;
+        }
+        groups.custom.push(budget);
+      });
+
+      return {
+        week: sortBudgetOptions(groups.week),
+        month: sortBudgetOptions(groups.month),
+        custom: sortBudgetOptions(groups.custom),
+      };
+    }, [budgetOptions]);
+    const hasBudgetOptions = useMemo(
+      () =>
+        budgetGroups.week.length > 0 ||
+        budgetGroups.month.length > 0 ||
+        budgetGroups.custom.length > 0,
+      [budgetGroups]
+    );
 
     useEffect(() => {
       if (!showBudgetSelect) {
@@ -524,7 +618,7 @@ const ManualExpenseForm = forwardRef<
                 <Header className="text-left">
                   <Title>Budget</Title>
                   <Description>
-                    Assign this expense to a budget.
+                    Choose a weekly or monthly budget for this expense.
                   </Description>
                 </Header>
                 <div
@@ -568,37 +662,81 @@ const ManualExpenseForm = forwardRef<
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading budgets...
                       </div>
-                    ) : budgetOptions.length ? (
-                      budgetOptions.map((budget) => {
-                        const isActive = budget.id === budgetId;
-                        return (
-                          <button
-                            key={budget.id}
-                            type="button"
-                            onClick={() => handleBudgetChange(budget.id)}
-                            aria-pressed={isActive}
-                            className={cn(
-                              "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
-                              isActive
-                                ? "border-success/40 bg-success/10"
-                                : "border-border bg-card/80 hover:bg-card"
-                            )}
-                          >
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span
-                                className={cn(
-                                  "size-2 shrink-0 rounded-full",
-                                  isActive ? "bg-success" : "bg-foreground/40"
+                    ) : hasBudgetOptions ? (
+                      <div className="space-y-3">
+                        {(["week", "month", "custom"] as const).map(
+                          (groupKey) => {
+                            const groupItems = budgetGroups[groupKey];
+                            if (groupKey === "custom" && !groupItems.length) {
+                              return null;
+                            }
+
+                            return (
+                              <section key={groupKey} className="space-y-2">
+                                <div className="flex items-center justify-between px-1">
+                                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.08em]">
+                                    {budgetGroupLabels[groupKey]}
+                                  </p>
+                                  <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px] font-medium">
+                                    {groupItems.length}
+                                  </span>
+                                </div>
+                                {groupItems.length ? (
+                                  <div className="bg-muted/30 border-border/60 space-y-1 rounded-2xl border p-1">
+                                    {groupItems.map((budget) => {
+                                      const isActive = budget.id === budgetId;
+                                      return (
+                                        <button
+                                          key={budget.id}
+                                          type="button"
+                                          onClick={() =>
+                                            handleBudgetChange(budget.id)
+                                          }
+                                          aria-pressed={isActive}
+                                          className={cn(
+                                            "group flex min-h-11 w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition",
+                                            isActive
+                                              ? "border-success/40 bg-success/10"
+                                              : "border-transparent bg-card/80 hover:bg-card"
+                                          )}
+                                        >
+                                          <span className="flex min-w-0 items-center gap-2">
+                                            <span
+                                              className={cn(
+                                                "size-2 shrink-0 rounded-full",
+                                                isActive
+                                                  ? "bg-success"
+                                                  : "bg-foreground/40"
+                                              )}
+                                            />
+                                            <span className="flex min-w-0 flex-col">
+                                              <span className="truncate text-sm font-medium">
+                                                {budget.name}
+                                              </span>
+                                              <span className="text-muted-foreground text-xs">
+                                                {formatBudgetRange(budget)}
+                                              </span>
+                                            </span>
+                                          </span>
+                                          {isActive ? (
+                                            <CheckIcon className="text-success h-4 w-4 shrink-0" />
+                                          ) : null}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="bg-card/70 border-border rounded-2xl border border-dashed px-3 py-4">
+                                    <p className="text-muted-foreground text-xs">
+                                      {budgetGroupEmptyLabel[groupKey]}
+                                    </p>
+                                  </div>
                                 )}
-                              />
-                              <span className="truncate">{budget.name}</span>
-                            </span>
-                            {isActive ? (
-                              <CheckIcon className="text-success h-4 w-4" />
-                            ) : null}
-                          </button>
-                        );
-                      })
+                              </section>
+                            );
+                          }
+                        )}
+                      </div>
                     ) : (
                       <div className="bg-card/70 border-border rounded-2xl border border-dashed px-3 py-4">
                         <p className="text-muted-foreground text-xs">

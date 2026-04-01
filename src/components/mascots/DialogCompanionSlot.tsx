@@ -16,7 +16,7 @@ const DialogCompanionSlot = ({
   <div
     data-testid="dialog-companion-slot"
     className={cn(
-      "mx-auto mb-1 flex h-20 w-20 items-center justify-center",
+      "relative mx-auto flex h-20 w-20 items-center justify-center",
       className
     )}
   >
@@ -24,7 +24,7 @@ const DialogCompanionSlot = ({
       data-testid="idle-mascot"
       aria-hidden="true"
       focusable="false"
-      className={cn("h-full w-full", mascotClassName)}
+      className={cn("absolute inset-0 h-full w-full", mascotClassName)}
     />
   </div>
 );

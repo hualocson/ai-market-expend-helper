@@ -9,9 +9,9 @@ import {
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
 import {
+  type QuickAddSource,
   normalizePrefillSource,
   resolveQuickAddMode,
-  type QuickAddSource,
 } from "@/lib/quick-add-mode";
 import { cn } from "@/lib/utils";
 import { Loader2, Plus } from "lucide-react";
@@ -44,8 +44,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
     "amount" | "note" | "category"
   > | null>(null);
   const [prefillVersion, setPrefillVersion] = useState(0);
-  const [prefillSource, setPrefillSource] =
-    useState<QuickAddSource>("manual");
+  const [prefillSource, setPrefillSource] = useState<QuickAddSource>("manual");
   const resolvedMode = resolveQuickAddMode({
     source: prefillSource,
     hasPrefill: Boolean(prefillExpense),
@@ -136,13 +135,15 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
         className="h-full w-[90svw] gap-0"
         data-quick-add-mode={formState.mode}
       >
-        <SheetHeader className="text-left">
+        <div className="flex items-center">
           <DialogCompanionSlot />
-          <SheetTitle>Add a new expense</SheetTitle>
-          <SheetDescription>
-            Use AI or the quick form to add a new entry.
-          </SheetDescription>
-        </SheetHeader>
+          <SheetHeader className="pl-0 text-left">
+            <SheetTitle>Add a new expense</SheetTitle>
+            <SheetDescription>
+              Use AI or the quick form to add a new entry.
+            </SheetDescription>
+          </SheetHeader>
+        </div>
         <div className="no-scrollbar overflow-y-auto px-2 pb-4">
           <ManualExpenseForm
             key={`expense-form-${prefillVersion}`}

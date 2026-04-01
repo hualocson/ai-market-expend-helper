@@ -1,7 +1,8 @@
 import React from "react";
-import userEvent from "@testing-library/user-event";
-import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import ExpenseListItem from "./ExpenseListItem";
@@ -17,7 +18,11 @@ vi.mock("@/app/actions/expense-actions", () => ({
 
 vi.mock("motion/react", () => ({
   motion: {
-    div: ({ children, initial: _initial, ...props }: React.HTMLAttributes<HTMLDivElement> & { initial?: unknown }) => (
+    div: ({
+      children,
+      initial: _initial,
+      ...props
+    }: React.HTMLAttributes<HTMLDivElement> & { initial?: unknown }) => (
       <div {...props}>{children}</div>
     ),
   },
@@ -78,8 +83,12 @@ vi.mock("@/components/ui/sheet", () => {
     SheetDescription: ({ children }: { children: ReactNode }) => (
       <p>{children}</p>
     ),
-    SheetFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    SheetFooter: ({ children }: { children: ReactNode }) => (
+      <div>{children}</div>
+    ),
+    SheetHeader: ({ children }: { children: ReactNode }) => (
+      <div>{children}</div>
+    ),
     SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   };
 });

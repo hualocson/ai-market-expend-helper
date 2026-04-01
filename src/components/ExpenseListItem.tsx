@@ -325,13 +325,15 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
 
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
         <SheetContent className="h-svh w-[90svw] backdrop-blur">
-          <SheetHeader className="text-left">
+          <div className="flex items-center">
             <DialogCompanionSlot />
-            <SheetTitle>Edit expense</SheetTitle>
-            <SheetDescription>
-              Update the details for this entry.
-            </SheetDescription>
-          </SheetHeader>
+            <SheetHeader className="pl-0 text-left">
+              <SheetTitle>Edit expense</SheetTitle>
+              <SheetDescription>
+                Update the details for this entry.
+              </SheetDescription>
+            </SheetHeader>
+          </div>
           <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
             <ManualExpenseForm
               ref={editFormRef}

@@ -273,6 +273,10 @@ const BudgetWeeklyBudgetsClient = ({
 
   const budgets = overview?.budgets ?? [];
   const [activeTab, setActiveTab] = useState<DashboardTab>("week");
+  const activeTabIndex = Math.max(
+    DASHBOARD_TABS.findIndex((tab) => tab.id === activeTab),
+    0
+  );
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -840,19 +844,33 @@ const BudgetWeeklyBudgetsClient = ({
           </Button>
         </div>
 
-        <div className="border-border/45 bg-muted/30 mt-3 rounded-xl border p-1">
-          <div className="grid grid-cols-3 gap-1">
+        <div className="border-border/45 bg-muted/30 mt-3 rounded-xl border p-1.5">
+          <div
+            className="relative grid grid-cols-3 rounded-lg"
+            role="tablist"
+            aria-label="Budget dashboard view"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "bg-card pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 rounded-lg shadow-xs ring-1 ring-border/70",
+                "transition-transform duration-300 ease-out motion-reduce:transition-none"
+              )}
+              style={{ transform: `translateX(${activeTabIndex * 100}%)` }}
+            />
             {DASHBOARD_TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 className={cn(
-                  "h-11 rounded-lg text-xs font-medium transition",
+                  "relative z-10 h-11 rounded-lg text-xs font-semibold tracking-[0.01em] transition-colors duration-200 active:scale-[0.985]",
                   "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none",
                   activeTab === tab.id
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:bg-muted/40"
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground/80"
                 )}
               >
                 {tab.label}

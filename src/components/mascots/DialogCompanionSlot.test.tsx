@@ -33,11 +33,14 @@ describe("DialogCompanionSlot", () => {
       "flex",
       "h-20",
       "w-20",
+      "absolute",
       "items-center",
       "justify-center",
       "slot-class"
     );
     expect(screen.getByTestId("idle-mascot")).toHaveClass(
+      "absolute",
+      "inset-0",
       "h-full",
       "w-full",
       "mascot-class"
