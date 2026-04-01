@@ -111,8 +111,13 @@ vi.mock("@/components/ui/dialog", () => {
     return <div role="dialog">{children}</div>;
   };
 
-  const wrap = (Tag: keyof JSX.IntrinsicElements) =>
-    ({ children }: { children: ReactNode }) => <Tag>{children}</Tag>;
+  const wrap = (Tag: keyof JSX.IntrinsicElements) => {
+    function WrappedComponent({ children }: { children: ReactNode }) {
+      return <Tag>{children}</Tag>;
+    }
+
+    return WrappedComponent;
+  };
 
   return {
     Dialog,
@@ -154,8 +159,13 @@ vi.mock("@/components/ui/drawer", () => {
     return <div role="dialog">{children}</div>;
   };
 
-  const wrap = (Tag: keyof JSX.IntrinsicElements) =>
-    ({ children }: { children: ReactNode }) => <Tag>{children}</Tag>;
+  const wrap = (Tag: keyof JSX.IntrinsicElements) => {
+    function WrappedComponent({ children }: { children: ReactNode }) {
+      return <Tag>{children}</Tag>;
+    }
+
+    return WrappedComponent;
+  };
 
   return {
     Drawer,
