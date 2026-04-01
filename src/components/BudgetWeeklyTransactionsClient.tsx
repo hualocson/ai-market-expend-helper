@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useRouter } from "next/navigation";
@@ -30,6 +31,7 @@ import {
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import TransactionsSearch from "@/components/TransactionsSearch";
+import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
 
 import { Input } from "./ui/input";
 
@@ -372,6 +374,7 @@ const BudgetWeeklyTransactionsClient = ({
       <Drawer open={assignOpen} onOpenChange={handleOpenChange}>
         <DrawerContent className="rounded-t-3xl! border-t-0!">
           <DrawerHeader className="gap-2">
+            <DialogCompanionSlot />
             <DrawerTitle>Assign budget</DrawerTitle>
             <DrawerDescription asChild>
               {activeTransaction ? (

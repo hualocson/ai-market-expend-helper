@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
@@ -61,6 +62,7 @@ import { Input } from "@/components/ui/input";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
+import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
 
 type BudgetWeeklyBudgetsClientProps = {
   weekStartDate: string;
@@ -1256,6 +1258,7 @@ const BudgetWeeklyBudgetsClient = ({
       >
         <DrawerContent className="rounded-t-3xl! border-t-0!">
           <DrawerHeader className="gap-1 pb-2">
+            <DialogCompanionSlot />
             <DrawerTitle>{formTitle}</DrawerTitle>
             <DrawerDescription>{formDescription}</DrawerDescription>
           </DrawerHeader>
