@@ -282,7 +282,7 @@ const ManualExpenseForm = forwardRef<
       });
     }, [prefillExpense]);
 
-    const budgetWeekStart = useMemo(() => {
+    const budgetTargetDate = useMemo(() => {
       if (!showBudgetSelect) {
         return null;
       }
@@ -292,12 +292,24 @@ const ManualExpenseForm = forwardRef<
         true
       );
       const resolvedDate = parsedDate.isValid() ? parsedDate : dayjs();
-      return getWeekRange(resolvedDate).weekStartDate.format("YYYY-MM-DD");
+      return resolvedDate.format("YYYY-MM-DD");
     }, [expense.date, showBudgetSelect]);
+
+    const budgetWeekStart = useMemo(() => {
+      if (!budgetTargetDate) {
+        return null;
+      }
+      const resolvedDate = dayjs(budgetTargetDate, "YYYY-MM-DD", true);
+      return getWeekRange(resolvedDate).weekStartDate.format("YYYY-MM-DD");
+    }, [budgetTargetDate]);
 
     const budgetOptionsQuery = useQuery<BudgetOption[]>({
       queryKey: budgetWeeklyOptionsQueryKey(budgetWeekStart ?? ""),
-      queryFn: () => fetchWeeklyBudgetOptions(budgetWeekStart ?? ""),
+      queryFn: () =>
+        fetchWeeklyBudgetOptions(
+          budgetWeekStart ?? "",
+          budgetTargetDate ?? undefined
+        ),
       enabled: showBudgetSelect && isSheetOpen && Boolean(budgetWeekStart),
       staleTime: 5 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
