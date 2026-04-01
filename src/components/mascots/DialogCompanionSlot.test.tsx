@@ -5,7 +5,21 @@ import { describe, expect, it } from "vitest";
 import DialogCompanionSlot from "./DialogCompanionSlot";
 
 describe("DialogCompanionSlot", () => {
-  it("renders a decorative idle mascot with passthrough classes", () => {
+  it("renders a default decorative idle mascot", () => {
+    render(<DialogCompanionSlot />);
+
+    expect(screen.getByTestId("dialog-companion-slot")).toBeInTheDocument();
+    expect(screen.getByTestId("idle-mascot")).toHaveAttribute(
+      "aria-hidden",
+      "true"
+    );
+    expect(screen.getByTestId("idle-mascot")).toHaveAttribute(
+      "focusable",
+      "false"
+    );
+  });
+
+  it("merges wrapper and mascot class overrides with the required base classes", () => {
     render(
       <DialogCompanionSlot
         className="slot-class"
@@ -13,12 +27,20 @@ describe("DialogCompanionSlot", () => {
       />
     );
 
-    const slot = screen.getByTestId("dialog-companion-slot");
-    const mascot = screen.getByTestId("idle-mascot");
-
-    expect(slot).toHaveClass("slot-class");
-    expect(mascot).toHaveClass("mascot-class");
-    expect(mascot).toHaveAttribute("aria-hidden", "true");
-    expect(mascot).toHaveAttribute("focusable", "false");
+    expect(screen.getByTestId("dialog-companion-slot")).toHaveClass(
+      "mx-auto",
+      "mb-1",
+      "flex",
+      "h-20",
+      "w-20",
+      "items-center",
+      "justify-center",
+      "slot-class"
+    );
+    expect(screen.getByTestId("idle-mascot")).toHaveClass(
+      "h-full",
+      "w-full",
+      "mascot-class"
+    );
   });
 });
