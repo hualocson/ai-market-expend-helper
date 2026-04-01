@@ -1,216 +1,143 @@
-# Penguin Dialog Companion Design
+# Penguin Dialog Companion Design (Current State)
 
 - Date: 2026-04-01
 - Product: Spendly
-- Status: Approved for planning
+- Status: Updated to match current implementation
 
 ## 1. Objective
 
-Introduce a contextual penguin companion in Sheet/Drawer workflows so users see:
+Document the current mascot behavior in dialog surfaces.
 
-1. `idle` pose while dialog is open
-2. `success` pose immediately after a successful save
-3. automatic return to `idle` after 1.5 seconds
+Current behavior:
 
-The companion is supportive UI feedback and must not replace existing save confirmations.
+1. Show a penguin companion in `idle` state only.
+2. Use existing `IdleMascot` component for rendering.
+3. Keep mascot decorative and consistent across Sheet/Drawer layouts.
 
-## 2. Context and Existing Signals
+## 2. Source of Truth
 
-Spendly is a mobile-first AI expense tracker with strong budget pacing language and stateful guidance.
+The mascot display component is:
 
-- Product metadata: AI expense tracker
-- Budget states: `On track`, `Near limit`, `Over budget`
-- Daily pacing states: `On pace`, `Over pace`
-- Current visual language: dark surfaces, lime accents, rounded cards, subtle motion
+- `src/components/mascots/IdleMascot.tsx`
 
-This design keeps that tone and replaces orb-style companion visuals with a penguin character.
+This spec treats `IdleMascot` as the only approved mascot renderer for now.
 
 ## 3. Scope
 
-### In scope (v1)
+### In scope (current)
 
-- Reusable dialog companion system for `Sheet` and `Drawer`
-- Two poses only: `idle` and `success`
-- Trigger success pose only on successful save actions
-- Success pose hold duration: 1500ms
-- Integrate with save-capable dialog surfaces in the current codebase
+- Display `IdleMascot` in dialog contexts (`Sheet`/`Drawer`) where companion is shown.
+- Keep one static pose (`idle`).
+- Ensure layout remains stable and mobile-friendly.
+- Preserve existing save flow behavior (no delay added for mascot transitions).
 
-### Out of scope (v1)
+### Out of scope (future phase)
 
-- Global always-visible mascot
-- Extra states (`warning`, `error`, `offline`, `processing`)
-- Full character animation system beyond minimal pose transitions
-- Replacing toasts or existing textual feedback
+- Success pose/state switching.
+- Timed pose transitions (for example 1.5s success hold).
+- Additional states (`warning`, `error`, `offline`, `processing`).
+- Replacing toasts or other textual feedback.
 
-## 4. UX Behavior Contract
+## 4. UX Behavior Contract (Current)
 
-1. Opening a Sheet/Drawer renders penguin in `idle` pose.
-2. Submitting data keeps penguin in `idle` for v1.
-3. When a save action succeeds, pose switches to `success`.
-4. `success` pose is visible for exactly 1500ms.
-5. After 1500ms, pose returns to `idle`.
-6. If dialog closes before timer ends, timer is cleared and state resets.
-7. If multiple successful saves happen quickly, the latest success restarts the 1500ms timer.
+1. When companion is visible in a dialog, it is always `idle`.
+2. Save success does not change mascot pose in current phase.
+3. Closing/reopening dialog shows the same `idle` mascot.
+4. Mascot remains supplementary visual feedback, not semantic status.
 
-## 5. Component and State Architecture
+## 5. Component Architecture
 
-### 5.1 New UI primitives
+### 5.1 Mascot component
 
-1. `PenguinCompanion`
-- Presentational component that renders `idle` or `success` pose
-- Receives `pose` prop (`idle | success`)
-- Decorative by default (`aria-hidden="true"`)
+`IdleMascot`
 
-2. `DialogCompanionSlot`
-- Layout wrapper for stable placement inside dialog headers
-- Fixed footprint to prevent layout shift on pose change
-- Shared styling for both Sheet and Drawer surfaces
+- Path: `src/components/mascots/IdleMascot.tsx`
+- Type: SVG React component (`SVGProps<SVGSVGElement>`)
+- Responsibility: render the static penguin visual
 
-### 5.2 New state hook
+### 5.2 Companion slot wrapper (recommended)
 
-`useDialogCompanionState`
+`DialogCompanionSlot` (optional wrapper, if not already added)
 
-- Exposes:
-  - `pose`
-  - `showSuccess()`
-  - `reset()`
-- Internal timer:
-  - starts at `showSuccess()`
-  - auto-reset to `idle` after 1500ms
-  - clears on unmount/reset
-
-### 5.3 State machine
-
-- Initial: `idle`
-- Event `SAVE_SUCCESS` -> `success`
-- After 1500ms -> `idle`
-- Event `DIALOG_CLOSE` -> `idle` + clear timer
+- Provides consistent size, alignment, and spacing in headers
+- Prevents content shift
+- Keeps companion usage uniform across Sheet/Drawer surfaces
 
 ## 6. Integration Map (Current Codebase)
 
-### Primary save-capable dialog surfaces
+Primary dialog surfaces where idle companion may be shown:
 
-1. `ExpenseEntryDrawer` sheet
-- File: `src/components/ExpenseEntryDrawer.tsx`
-- Current behavior: closes immediately via `onSuccess={() => handleOpenChange(false)}`
-- Change: trigger `success` pose first, then close after 1500ms
+1. `src/components/ExpenseEntryDrawer.tsx`
+2. `src/components/ExpenseListItem.tsx` (edit sheet)
+3. `src/components/BudgetWeeklyBudgetsClient.tsx` (create/edit drawer)
+4. `src/components/BudgetWeeklyTransactionsClient.tsx` (assign drawer)
 
-2. `ExpenseListItem` edit sheet
-- File: `src/components/ExpenseListItem.tsx`
-- Current behavior: closes immediately via `onSuccess={() => setEditOpen(false)}`
-- Change: trigger `success`, delay close by 1500ms
+All in-scope integrations should use `IdleMascot` directly or through a shared companion slot wrapper.
 
-3. `BudgetWeeklyBudgetsClient` create/edit drawer
-- File: `src/components/BudgetWeeklyBudgetsClient.tsx`
-- Current behavior: after save mutation and cache invalidation, closes via `setSheetOpen(false)`
-- Change: trigger `success`, then close after 1500ms
-
-4. `BudgetWeeklyTransactionsClient` assign drawer
-- File: `src/components/BudgetWeeklyTransactionsClient.tsx`
-- Current behavior: after assign/unassign success, closes via `setAssignOpen(false)`
-- Change: trigger `success`, then close after 1500ms
-
-### Excluded dialog for v1
-
-- Destructive confirmation dialogs (delete confirms) remain unchanged for this phase.
-
-## 7. Visual and Motion Spec
+## 7. Visual and Motion Spec (Current)
 
 ### 7.1 Visual direction
 
 - Mascot: penguin only (no orb)
-- Style: minimal, rounded, compact, UI-native
-- Tone: calm in `idle`, affirmative in `success`
+- Component: `IdleMascot`
+- Style: minimal, rounded, UI-native, aligned with Spendly dark/lime surfaces
 
 ### 7.2 Motion
 
-- Idle: very subtle breathing movement allowed
-- Success: quick pop + settle transition (220-300ms), then hold until timer completes
-- Must respect `prefers-reduced-motion`: instant pose switch, no movement animations
+- No state-driven animation required in this phase.
+- If any ambient animation is applied externally, it must remain subtle and respect `prefers-reduced-motion`.
 
 ### 7.3 Placement
 
-- Place companion in header zone of Sheet/Drawer content
-- Keep a consistent position across all integrated dialogs
-- Use fixed size container to avoid content jump
+- Place mascot in a consistent header companion area inside Sheet/Drawer content.
+- Use fixed frame size to avoid layout shift.
 
 ## 8. Accessibility and Feedback
 
-1. Companion remains decorative (`aria-hidden="true"`).
-2. Existing success toasts/messages remain the primary semantic feedback.
-3. Success meaning is not conveyed by color alone.
-4. Keyboard/focus flow in dialogs must remain unchanged.
+1. Mascot is decorative (`aria-hidden="true"`).
+2. Existing success/error toasts remain primary semantic feedback.
+3. Do not rely on mascot for critical state communication.
 
-## 9. Error Handling
+## 9. Testing Strategy (Current)
 
-1. Failed saves do not trigger `success` pose.
-2. On failed save, companion remains `idle`.
-3. Timer cleanup is guaranteed on dialog close and component unmount.
-4. Rapid successive success events restart the success timer deterministically.
+### Component checks
 
-## 10. Testing Strategy
+1. `IdleMascot` renders without runtime errors.
+2. Sizing via props works in dialog container constraints.
 
-### Unit tests
+### Integration checks
 
-1. Hook tests for `useDialogCompanionState`
-- initial `idle`
-- `showSuccess()` transitions to `success`
-- auto-return after 1500ms
-- timer restart behavior
-- cleanup on reset/unmount
-
-2. Component tests for `PenguinCompanion`
-- pose rendering for `idle` and `success`
-- reduced-motion behavior (if implemented at component level)
-
-### Integration tests (targeted)
-
-1. `ExpenseEntryDrawer`
-- open dialog -> idle visible
-- submit success -> success visible
-- after 1500ms -> dialog closes / idle reset next open
-
-2. `ExpenseListItem` edit sheet
-- same flow as above
-
-3. `BudgetWeeklyBudgetsClient` drawer save
-- success pose appears before close
-
-4. `BudgetWeeklyTransactionsClient` assign drawer
-- success pose appears before close
+1. Companion appears in intended Sheet/Drawer surfaces.
+2. Save actions do not break or delay due to mascot rendering.
+3. Dialog open/close cycles keep mascot stable.
 
 ### Manual checks
 
-1. Mobile viewport and desktop viewport parity
-2. No layout shift in headers
-3. `prefers-reduced-motion` verification
-4. No regression to submit/close logic
+1. Mobile viewport layout remains clean.
+2. No overlap with dialog controls/title/actions.
+3. No orb visuals appear in companion placements.
 
-## 11. Risks and Mitigations
+## 10. Risks and Mitigations
 
-1. Risk: delayed close could feel slow for power users
-- Mitigation: keep delay fixed at 1.5s only for success, not for errors
+1. Risk: inconsistent mascot placement across dialogs
+- Mitigation: use a shared slot wrapper and shared size tokens
 
-2. Risk: inconsistent placement between dialogs
-- Mitigation: centralize through `DialogCompanionSlot`
+2. Risk: future success-state rollout conflicting with static baseline
+- Mitigation: keep this spec as baseline and create a separate phase-2 extension spec
 
-3. Risk: timer leaks on unmount
-- Mitigation: hook-level cleanup and test coverage
+## 11. Acceptance Criteria (Current)
 
-## 12. Acceptance Criteria
+1. Companion rendering uses `IdleMascot` component.
+2. Only idle pose is displayed.
+3. No success-pose switching behavior exists in this phase.
+4. Save flows and toast behavior remain unchanged.
+5. No orb visuals are used where mascot companion is rendered.
 
-1. Every in-scope Sheet/Drawer displays penguin `idle` while open.
-2. Successful save always triggers visible `success` pose.
-3. `success` pose lasts 1.5 seconds then resets.
-4. No orb visuals are used.
-5. Existing save feedback (toast/text) remains intact.
-6. Reduced-motion users receive non-animated pose changes.
+## 12. Next Phase Note
 
-## 13. Planning Handoff
+When you are ready for action-reactive mascot behavior, create phase 2 on top of this baseline:
 
-This spec is ready for implementation planning.
-The next step is a task-level execution plan covering:
-
-1. component/hook creation
-2. phased integration by dialog
-3. targeted tests and verification commands
+1. add `success` pose asset/component
+2. define transition timing
+3. wire save-success state changes
+4. add targeted interaction tests
