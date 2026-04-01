@@ -1,7 +1,13 @@
 import { QueryClient } from "@tanstack/react-query";
+import dayjs from "@/configs/date";
 
 type BudgetWeeklyOptionsResponse = {
-  budgets?: Array<{ id: number; name: string }>;
+  budgets?: Array<{
+    id: number;
+    name: string;
+    periodStartDate?: string;
+    periodEndDate?: string | null;
+  }>;
 };
 
 export const budgetWeeklyOptionsRootQueryKey = [
@@ -14,7 +20,8 @@ export const invalidateBudgetWeeklyOptionsCache = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: budgetWeeklyOptionsRootQueryKey });
 
 export const fetchWeeklyBudgetOptions = async (
-  weekStart: string
+  weekStart: string,
+  targetDate?: string
 ): Promise<Array<{ id: number; name: string }>> => {
   const response = await fetch(`/api/budget-weekly?weekStart=${weekStart}`, {
     method: "GET",
@@ -30,8 +37,40 @@ export const fetchWeeklyBudgetOptions = async (
     return [];
   }
 
-  return data.budgets.map((budget) => ({
-    id: Number(budget.id),
-    name: String(budget.name),
-  }));
+  const parsedTargetDate =
+    typeof targetDate === "string" && targetDate.length
+      ? dayjs(targetDate, "YYYY-MM-DD", true)
+      : null;
+  const shouldFilterByDate = Boolean(parsedTargetDate?.isValid());
+
+  return data.budgets
+    .filter((budget) => {
+      const target = parsedTargetDate;
+      if (!shouldFilterByDate || !target) {
+        return true;
+      }
+
+      const start = budget.periodStartDate
+        ? dayjs(budget.periodStartDate, "YYYY-MM-DD", true)
+        : null;
+      if (!start?.isValid()) {
+        return true;
+      }
+
+      const end = budget.periodEndDate
+        ? dayjs(budget.periodEndDate, "YYYY-MM-DD", true)
+        : start;
+      if (!end.isValid()) {
+        return true;
+      }
+
+      return (
+        !target.isBefore(start, "day") &&
+        !target.isAfter(end, "day")
+      );
+    })
+    .map((budget) => ({
+      id: Number(budget.id),
+      name: String(budget.name),
+    }));
 };
