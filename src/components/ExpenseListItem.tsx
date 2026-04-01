@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
@@ -39,6 +40,7 @@ import ManualExpenseForm, {
   type ManualExpenseFormHandle,
 } from "@/components/ManualExpenseForm";
 import PaidByIcon from "@/components/PaidByIcon";
+import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
 
 type ExpenseListItemData = {
   id: number;
@@ -324,6 +326,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
       <Sheet open={editOpen} onOpenChange={setEditOpen}>
         <SheetContent className="h-svh w-[90svw] backdrop-blur">
           <SheetHeader className="text-left">
+            <DialogCompanionSlot />
             <SheetTitle>Edit expense</SheetTitle>
             <SheetDescription>
               Update the details for this entry.
