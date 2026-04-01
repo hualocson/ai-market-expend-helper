@@ -1,13 +1,23 @@
 import { QueryClient } from "@tanstack/react-query";
 import dayjs from "@/configs/date";
+import type { BudgetPeriod } from "@/types/budget-weekly";
 
 type BudgetWeeklyOptionsResponse = {
   budgets?: Array<{
     id: number;
     name: string;
+    period?: BudgetPeriod;
     periodStartDate?: string;
     periodEndDate?: string | null;
   }>;
+};
+
+export type BudgetWeeklyOption = {
+  id: number;
+  name: string;
+  period: BudgetPeriod;
+  periodStartDate: string | null;
+  periodEndDate: string | null;
 };
 
 export const budgetWeeklyOptionsRootQueryKey = [
@@ -22,7 +32,7 @@ export const invalidateBudgetWeeklyOptionsCache = (queryClient: QueryClient) =>
 export const fetchWeeklyBudgetOptions = async (
   weekStart: string,
   targetDate?: string
-): Promise<Array<{ id: number; name: string }>> => {
+): Promise<BudgetWeeklyOption[]> => {
   const response = await fetch(`/api/budget-weekly?weekStart=${weekStart}`, {
     method: "GET",
     cache: "no-store",
@@ -72,5 +82,15 @@ export const fetchWeeklyBudgetOptions = async (
     .map((budget) => ({
       id: Number(budget.id),
       name: String(budget.name),
+      period:
+        budget.period === "week" ||
+        budget.period === "month" ||
+        budget.period === "custom"
+          ? budget.period
+          : "custom",
+      periodStartDate: budget.periodStartDate
+        ? String(budget.periodStartDate)
+        : null,
+      periodEndDate: budget.periodEndDate ? String(budget.periodEndDate) : null,
     }));
 };

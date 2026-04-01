@@ -43,18 +43,21 @@ describe("budget weekly query helpers", () => {
           {
             id: 1,
             name: "Monthly March",
+            period: "month",
             periodStartDate: "2026-03-01",
             periodEndDate: "2026-03-31",
           },
           {
             id: 2,
             name: "Monthly April",
+            period: "month",
             periodStartDate: "2026-04-01",
             periodEndDate: "2026-04-30",
           },
           {
             id: 3,
             name: "Week 30/03-05/04",
+            period: "week",
             periodStartDate: "2026-03-30",
             periodEndDate: "2026-04-05",
           },
@@ -65,8 +68,20 @@ describe("budget weekly query helpers", () => {
     const options = await fetchWeeklyBudgetOptions("2026-03-30", "2026-04-01");
 
     expect(options).toEqual([
-      { id: 2, name: "Monthly April" },
-      { id: 3, name: "Week 30/03-05/04" },
+      {
+        id: 2,
+        name: "Monthly April",
+        period: "month",
+        periodStartDate: "2026-04-01",
+        periodEndDate: "2026-04-30",
+      },
+      {
+        id: 3,
+        name: "Week 30/03-05/04",
+        period: "week",
+        periodStartDate: "2026-03-30",
+        periodEndDate: "2026-04-05",
+      },
     ]);
   });
 
@@ -78,12 +93,14 @@ describe("budget weekly query helpers", () => {
           {
             id: 1,
             name: "Monthly March",
+            period: "month",
             periodStartDate: "2026-03-01",
             periodEndDate: "2026-03-31",
           },
           {
             id: 2,
             name: "Monthly April",
+            period: "month",
             periodStartDate: "2026-04-01",
             periodEndDate: "2026-04-30",
           },
@@ -94,8 +111,20 @@ describe("budget weekly query helpers", () => {
     const options = await fetchWeeklyBudgetOptions("2026-03-30");
 
     expect(options).toEqual([
-      { id: 1, name: "Monthly March" },
-      { id: 2, name: "Monthly April" },
+      {
+        id: 1,
+        name: "Monthly March",
+        period: "month",
+        periodStartDate: "2026-03-01",
+        periodEndDate: "2026-03-31",
+      },
+      {
+        id: 2,
+        name: "Monthly April",
+        period: "month",
+        periodStartDate: "2026-04-01",
+        periodEndDate: "2026-04-30",
+      },
     ]);
   });
 });
