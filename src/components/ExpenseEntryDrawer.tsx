@@ -30,6 +30,7 @@ import ManualExpenseForm, {
   type ManualExpenseFormHandle,
   type ManualExpenseFormState,
 } from "@/components/ManualExpenseForm";
+import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
 
 type ExpenseEntryDrawerProps = {
   compact?: boolean;
@@ -135,6 +136,7 @@ const ExpenseEntryDrawer = ({ compact = false }: ExpenseEntryDrawerProps) => {
         data-quick-add-mode={formState.mode}
       >
         <SheetHeader className="text-left">
+          <DialogCompanionSlot />
           <SheetTitle>Add a new expense</SheetTitle>
           <SheetDescription>
             Use AI or the quick form to add a new entry.
