@@ -72,7 +72,7 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
+        <p className="text-muted-foreground font-mono text-sm font-semibold tracking-tight uppercase">
           Quick add
         </p>
       </div>
@@ -100,7 +100,7 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
                 })
               }
               className={cn(
-                "bg-surface-2 group flex min-h-14 min-w-[168px] items-center gap-3 rounded-[24px] border border-border/45 px-3 py-3 text-left shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_38%,transparent)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out select-none hover:-translate-y-0.5 hover:border-ring/20 hover:bg-surface-3 focus-visible:border-ring/40 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none active:scale-[0.98] active:bg-secondary"
+                "bg-surface-2 group border-border/45 hover:border-ring/20 hover:bg-surface-3 focus-visible:border-ring/40 focus-visible:ring-ring/30 active:bg-secondary flex min-h-14 min-w-[168px] items-center gap-3 rounded-[24px] border px-3 py-3 text-left shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_38%,transparent)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out select-none hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98]"
               )}
             >
               <ExpenseItemIcon category={item.category} className="shrink-0" />
