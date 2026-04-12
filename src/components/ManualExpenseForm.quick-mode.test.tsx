@@ -40,7 +40,7 @@ const renderManualExpenseFormTree = ({
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
-  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
+  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
 }) => (
   <QueryClientProvider
     client={
@@ -79,7 +79,7 @@ const renderManualExpenseForm = async ({
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
-  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
+  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
   budgetPayload?: unknown;
 } = {}) => {
   ensureReactGlobal();
@@ -269,6 +269,47 @@ describe("ManualExpenseForm quick mode", () => {
       screen.queryByRole("button", { name: /budget/i })
     ).not.toBeInTheDocument();
   });
+
+  it("accepts fallback prefill without category", async () => {
+    const { rerender } = await renderManualExpenseForm({
+      initialMode: "quick",
+      prefillExpense: {
+        amount: 12000,
+        note: "Coffee",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: /food/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText(/optional note about this expense/i)
+      ).toHaveValue("Coffee");
+    });
+
+    await act(async () => {
+      rerender(
+        renderManualExpenseFormTree({
+          initialMode: "quick",
+          prefillExpense: {
+            amount: 45000,
+          },
+        })
+      );
+    });
+
+    expect(screen.getByRole("button", { name: /food/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText(/optional note about this expense/i)
+      ).toHaveValue("Coffee");
+    });
+  });
 });
 
 describe("ManualExpenseForm budget drawer", () => {
@@ -283,15 +324,15 @@ describe("ManualExpenseForm budget drawer", () => {
             id: 11,
             name: "Week groceries",
             period: "week",
-            periodStartDate: "2026-03-30",
-            periodEndDate: "2026-04-05",
+            periodStartDate: "2026-04-06",
+            periodEndDate: "2026-04-12",
           },
           {
             id: 12,
             name: "Week transport",
             period: "week",
-            periodStartDate: "2026-03-30",
-            periodEndDate: "2026-04-05",
+            periodStartDate: "2026-04-06",
+            periodEndDate: "2026-04-12",
           },
           {
             id: 21,
@@ -306,14 +347,20 @@ describe("ManualExpenseForm budget drawer", () => {
 
     await user.click(screen.getByRole("button", { name: /budget/i }));
 
-    expect(await screen.findByText(/weekly budgets/i)).toBeInTheDocument();
-    expect(screen.getByText(/monthly budgets/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^weekly budgets$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^monthly budgets$/i)).toBeInTheDocument();
     expect(screen.queryByText(/other budgets/i)).not.toBeInTheDocument();
 
-    expect(screen.getByText("Week groceries")).toBeInTheDocument();
-    expect(screen.getByText("Week transport")).toBeInTheDocument();
-    expect(screen.getByText("April essentials")).toBeInTheDocument();
-    expect(screen.getAllByText("30 Mar - 05 Apr 2026")).toHaveLength(2);
+    expect(
+      await screen.findByRole("button", { name: /week groceries/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /week transport/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /april essentials/i })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("06 Apr - 12 Apr 2026")).toHaveLength(2);
     expect(screen.getByText("01 Apr - 30 Apr 2026")).toBeInTheDocument();
   });
 });

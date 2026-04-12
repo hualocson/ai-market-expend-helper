@@ -169,7 +169,7 @@ type ManualExpenseFormProps = {
   onSuccess?: () => void;
   showSubmitButton?: boolean;
   onStateChange?: (state: ManualExpenseFormState) => void;
-  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
+  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
   initialMode?: QuickAddMode;
@@ -337,8 +337,10 @@ const ManualExpenseForm = forwardRef<
 
       setExpense((prev) => ({
         ...prev,
-        amount: Number.isFinite(nextAmount) ? nextAmount : 0,
-        note: prefillExpense.note ?? "",
+        amount: Number.isFinite(nextAmount) ? nextAmount : prev.amount,
+        ...(typeof prefillExpense.note !== "undefined"
+          ? { note: prefillExpense.note }
+          : {}),
         category: nextCategory,
       }));
 
