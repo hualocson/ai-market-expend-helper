@@ -216,7 +216,9 @@ describe("AIInput", () => {
     await user.click(screen.getByRole("button", { name: /parse expense/i }));
 
     expect(
-      await screen.findByText(/could not parse expense right now/i)
+      await screen.findByText(
+        /could not parse expense right now[\s\S]*try again/i
+      )
     ).toBeVisible();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
     expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
