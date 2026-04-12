@@ -60,6 +60,20 @@ const createDeferred = <T,>() => {
   return { promise, resolve, reject };
 };
 
+const expectParseExpenseRequest = (input: string) => {
+  expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+  const [endpoint, init] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
+
+  expect(endpoint).toBe("/api/ai/parse-expense");
+  expect(init).toMatchObject({
+    method: "POST",
+  });
+  expect(JSON.parse(String(init?.body))).toMatchObject({
+    input,
+  });
+};
+
 const originalGlobalReact = globalThis.React;
 
 beforeEach(() => {
@@ -91,7 +105,7 @@ describe("AIInput", () => {
     );
     await user.click(screen.getByRole("button", { name: /parse expense/i }));
 
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expectParseExpenseRequest("Lunch with team 120k today");
     expect(screen.getByTestId("ai-input-loading")).toBeVisible();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
   });
@@ -119,6 +133,8 @@ describe("AIInput", () => {
       "Lunch with team 120k today"
     );
     await user.click(screen.getByRole("button", { name: /parse expense/i }));
+
+    expectParseExpenseRequest("Lunch with team 120k today");
 
     expect(
       await screen.findByText(/review ai suggestion/i)
@@ -163,13 +179,16 @@ describe("AIInput", () => {
     await user.type(screen.getByLabelText(/expense input/i), "Taxi 45k home");
     await user.click(screen.getByRole("button", { name: /parse expense/i }));
 
+    expectParseExpenseRequest("Taxi 45k home");
+
     const form = await screen.findByTestId("manual-expense-form");
     expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
 
+    expect(form.getAttribute("data-prefill-expense")).not.toBeNull();
+    expect(form.getAttribute("data-initial-expense")).toBeNull();
+
     const prefillExpense = JSON.parse(
-      form.getAttribute("data-prefill-expense") ??
-        form.getAttribute("data-initial-expense") ??
-        "null"
+      form.getAttribute("data-prefill-expense") ?? "null"
     ) as Record<string, unknown>;
 
     expect(prefillExpense).toMatchObject({
@@ -197,9 +216,7 @@ describe("AIInput", () => {
     await user.click(screen.getByRole("button", { name: /parse expense/i }));
 
     expect(
-      await screen.findByText(
-        /could not parse expense right now\. please try again\./i
-      )
+      await screen.findByText(/could not parse expense right now/i)
     ).toBeVisible();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
     expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
