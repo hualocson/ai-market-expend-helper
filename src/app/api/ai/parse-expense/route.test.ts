@@ -63,7 +63,7 @@ describe("POST /api/ai/parse-expense", () => {
 
   it("returns parser fallback payload unchanged", async () => {
     process.env.OPENROUTER_API_KEY = "test-key";
-    parseExpenseWithOpenRouter.mockResolvedValue({
+    const fallbackPayload = {
       status: "fallback",
       originalInput: "Taxi 85k",
       prefill: {
@@ -71,7 +71,9 @@ describe("POST /api/ai/parse-expense", () => {
         amount: 85000,
       },
       reason: "schema_mismatch",
-    });
+    } as const;
+
+    parseExpenseWithOpenRouter.mockResolvedValue(fallbackPayload);
 
     const response = await POST(
       new Request("http://localhost/api/ai/parse-expense", {
@@ -81,8 +83,13 @@ describe("POST /api/ai/parse-expense", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    await expect(response.json()).resolves.toEqual({
       status: "fallback",
+      originalInput: "Taxi 85k",
+      prefill: {
+        note: "Taxi 85k",
+        amount: 85000,
+      },
       reason: "schema_mismatch",
     });
   });
