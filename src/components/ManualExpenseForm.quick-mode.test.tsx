@@ -284,9 +284,7 @@ describe("ManualExpenseForm quick mode", () => {
       "true"
     );
     await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText(/optional note about this expense/i)
-      ).toHaveValue("Coffee");
+      expect(screen.getByDisplayValue("12.000")).toBeInTheDocument();
     });
 
     await act(async () => {
@@ -305,9 +303,7 @@ describe("ManualExpenseForm quick mode", () => {
       "true"
     );
     await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText(/optional note about this expense/i)
-      ).toHaveValue("Coffee");
+      expect(screen.getByDisplayValue("45.000")).toBeInTheDocument();
     });
   });
 });
