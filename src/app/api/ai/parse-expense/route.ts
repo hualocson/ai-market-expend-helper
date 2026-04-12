@@ -3,13 +3,37 @@ import { NextResponse } from "next/server";
 import type { ParseExpenseRequest } from "@/lib/ai/parse-expense-contract";
 import { parseExpenseWithOpenRouter } from "@/lib/ai/parse-expense";
 
+const invalidPayloadResponse = () =>
+  NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+
+const readTrimmedInput = (payload: unknown) => {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const input = (payload as Partial<ParseExpenseRequest>).input;
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const trimmed = input.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 export const POST = async (request: Request) => {
   try {
-    const payload = (await request.json()) as Partial<ParseExpenseRequest>;
-    const input = payload.input?.trim();
+    let payload: unknown;
+
+    try {
+      payload = await request.json();
+    } catch {
+      return invalidPayloadResponse();
+    }
+
+    const input = readTrimmedInput(payload);
 
     if (!input) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return invalidPayloadResponse();
     }
 
     const apiKey = process.env.OPENROUTER_API_KEY;

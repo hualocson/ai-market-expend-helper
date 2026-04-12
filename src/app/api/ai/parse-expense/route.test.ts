@@ -31,6 +31,34 @@ describe("POST /api/ai/parse-expense", () => {
     });
   });
 
+  it("returns 400 for a non-string input", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/ai/parse-expense", {
+        method: "POST",
+        body: JSON.stringify({ input: 123 }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid payload",
+    });
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/ai/parse-expense", {
+        method: "POST",
+        body: "{",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid payload",
+    });
+  });
+
   it("returns parser success payload for valid input", async () => {
     process.env.OPENROUTER_API_KEY = "test-key";
     parseExpenseWithOpenRouter.mockResolvedValue({
