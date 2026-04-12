@@ -92,11 +92,15 @@ describe("parseExpenseWithOpenRouter", () => {
       status: "fallback",
       originalInput: "Taxi 45k",
       reason: "schema_mismatch",
+      prefill: {
+        note: "Taxi",
+        amount: 45000,
+      },
     });
   });
 
   it("returns fallback when the upstream request fails", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(createOpenRouterResponse("", false));
+    const fetchFn = vi.fn().mockRejectedValue(new Error("network down"));
 
     await expect(
       parseExpenseWithOpenRouter({
@@ -108,6 +112,10 @@ describe("parseExpenseWithOpenRouter", () => {
       status: "fallback",
       originalInput: "Milk 25k",
       reason: "request_failed",
+      prefill: {
+        note: "Milk",
+        amount: 25000,
+      },
     });
   });
 
@@ -124,6 +132,10 @@ describe("parseExpenseWithOpenRouter", () => {
       status: "fallback",
       originalInput: "Bread 20k",
       reason: "empty_response",
+      prefill: {
+        note: "Bread",
+        amount: 20000,
+      },
     });
   });
 });
