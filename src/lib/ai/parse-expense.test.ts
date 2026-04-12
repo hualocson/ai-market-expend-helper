@@ -93,7 +93,7 @@ describe("parseExpenseWithOpenRouter", () => {
       originalInput: "Taxi 45k",
       reason: "schema_mismatch",
       prefill: {
-        note: "Taxi",
+        note: "Taxi 45k",
         amount: 45000,
       },
     });
@@ -113,8 +113,30 @@ describe("parseExpenseWithOpenRouter", () => {
       originalInput: "Milk 25k",
       reason: "request_failed",
       prefill: {
-        note: "Milk",
+        note: "Milk 25k",
         amount: 25000,
+      },
+    });
+  });
+
+  it("returns fallback when the upstream response is not ok", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(createOpenRouterResponse("{}", false));
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "Tea 15k",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "fallback",
+      originalInput: "Tea 15k",
+      reason: "request_failed",
+      prefill: {
+        note: "Tea 15k",
+        amount: 15000,
       },
     });
   });
@@ -133,7 +155,7 @@ describe("parseExpenseWithOpenRouter", () => {
       originalInput: "Bread 20k",
       reason: "empty_response",
       prefill: {
-        note: "Bread",
+        note: "Bread 20k",
         amount: 20000,
       },
     });
