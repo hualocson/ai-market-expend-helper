@@ -4,7 +4,7 @@ import { Category } from "@/enums";
 
 import { parseExpenseWithOpenRouter } from "./parse-expense";
 
-const createOpenRouterResponse = (content: string, ok = true) =>
+const createOpenRouterResponse = (content: unknown, ok = true) =>
   ({
     ok,
     json: vi.fn().mockResolvedValue({
@@ -70,6 +70,30 @@ describe("parseExpenseWithOpenRouter", () => {
     });
   });
 
+  it("returns fallback when the model content is not a string", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createOpenRouterResponse({
+        date: "12/04/2026",
+      })
+    );
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "Coffee 45k",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "fallback",
+      originalInput: "Coffee 45k",
+      reason: "empty_response",
+      prefill: {
+        note: "Coffee 45k",
+        amount: 45000,
+      },
+    });
+  });
+
   it("returns fallback when category is not part of the exact enum", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       createOpenRouterResponse(
@@ -115,6 +139,25 @@ describe("parseExpenseWithOpenRouter", () => {
       prefill: {
         note: "Milk 25k",
         amount: 25000,
+      },
+    });
+  });
+
+  it("drops whitespace-only input from fallback note", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("network down"));
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "   ",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "fallback",
+      originalInput: "   ",
+      reason: "request_failed",
+      prefill: {
+        note: undefined,
       },
     });
   });

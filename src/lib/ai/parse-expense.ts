@@ -1,17 +1,16 @@
 import { Category } from "@/enums";
 
-import type { ParseExpenseResponse } from "./parse-expense-contract";
+import type {
+  ParseExpenseFallbackResponse,
+  ParseExpenseResponse,
+} from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "openai/gpt-oss-20b:free";
 const CATEGORY_VALUES = Object.values(Category);
 const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
-type FallbackReason =
-  | "invalid_json"
-  | "schema_mismatch"
-  | "empty_response"
-  | "request_failed";
+type FallbackReason = ParseExpenseFallbackResponse["reason"];
 
 const SYSTEM_PROMPT = `
 You extract a single expense draft from short natural-language text.
@@ -36,6 +35,14 @@ const extractJsonObject = (value: string) => {
   return value.slice(start, end + 1);
 };
 
+const readContent = (content: unknown) => {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  return null;
+};
+
 const normalizeCategory = (value: unknown) => {
   const normalized = String(value ?? "")
     .trim()
@@ -46,6 +53,11 @@ const normalizeCategory = (value: unknown) => {
       (category) => category.toLowerCase() === normalized
     ) ?? null
   );
+};
+
+const shapeFallbackNote = (originalInput: string) => {
+  const note = originalInput.trim();
+  return note.length > 0 ? note : undefined;
 };
 
 const extractAmountFromInput = (input: string) => {
@@ -80,7 +92,7 @@ const buildFallback = (
   originalInput,
   reason,
   prefill: {
-    note: originalInput || undefined,
+    note: shapeFallbackNote(originalInput),
     amount: extractAmountFromInput(originalInput),
   },
 });
@@ -122,7 +134,7 @@ export const parseExpenseWithOpenRouter = async ({
   }
 
   let payload: {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{ message?: { content?: unknown } }>;
   };
 
   try {
@@ -131,7 +143,7 @@ export const parseExpenseWithOpenRouter = async ({
     return buildFallback(input, "request_failed");
   }
 
-  const content = payload.choices?.[0]?.message?.content?.trim();
+  const content = readContent(payload.choices?.[0]?.message?.content);
   if (!content) {
     return buildFallback(input, "empty_response");
   }
