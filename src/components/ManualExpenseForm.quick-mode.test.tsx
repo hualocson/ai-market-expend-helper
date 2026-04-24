@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
+import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 
@@ -311,6 +312,17 @@ describe("ManualExpenseForm quick mode", () => {
 describe("ManualExpenseForm budget drawer", () => {
   it("groups budget options by weekly and monthly periods", async () => {
     const user = userEvent.setup();
+    const today = dayjs();
+    const weekStart = today.subtract(3, "day").format("YYYY-MM-DD");
+    const weekEnd = today.add(3, "day").format("YYYY-MM-DD");
+    const monthStart = today.startOf("month").format("YYYY-MM-DD");
+    const monthEnd = today.endOf("month").format("YYYY-MM-DD");
+    const expectedWeekRange = `${today
+      .subtract(3, "day")
+      .format("DD MMM")} - ${today.add(3, "day").format("DD MMM YYYY")}`;
+    const expectedMonthRange = `${today
+      .startOf("month")
+      .format("DD MMM")} - ${today.endOf("month").format("DD MMM YYYY")}`;
 
     await renderManualExpenseForm({
       showBudgetSelect: true,
@@ -320,22 +332,22 @@ describe("ManualExpenseForm budget drawer", () => {
             id: 11,
             name: "Week groceries",
             period: "week",
-            periodStartDate: "2026-04-06",
-            periodEndDate: "2026-04-12",
+            periodStartDate: weekStart,
+            periodEndDate: weekEnd,
           },
           {
             id: 12,
             name: "Week transport",
             period: "week",
-            periodStartDate: "2026-04-06",
-            periodEndDate: "2026-04-12",
+            periodStartDate: weekStart,
+            periodEndDate: weekEnd,
           },
           {
             id: 21,
-            name: "April essentials",
+            name: "Monthly essentials",
             period: "month",
-            periodStartDate: "2026-04-01",
-            periodEndDate: "2026-04-30",
+            periodStartDate: monthStart,
+            periodEndDate: monthEnd,
           },
         ],
       },
@@ -354,10 +366,10 @@ describe("ManualExpenseForm budget drawer", () => {
       screen.getByRole("button", { name: /week transport/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /april essentials/i })
+      screen.getByRole("button", { name: /monthly essentials/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByText("06 Apr - 12 Apr 2026")).toHaveLength(2);
-    expect(screen.getByText("01 Apr - 30 Apr 2026")).toBeInTheDocument();
+    expect(screen.getAllByText(expectedWeekRange)).toHaveLength(2);
+    expect(screen.getByText(expectedMonthRange)).toBeInTheDocument();
   });
 });
 
