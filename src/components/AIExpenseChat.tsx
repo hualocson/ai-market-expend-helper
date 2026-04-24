@@ -1,18 +1,31 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 
 import type {
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "@/lib/ai/parse-expense-contract";
-import { cn } from "@/lib/utils";
-import { Bot, Loader2, PenLine, Sparkles } from "lucide-react";
+import { cn, formatVnd } from "@/lib/utils";
+import {
+  ArrowUp,
+  Loader2,
+  PencilLine,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 
-import AIExpensePreviewCard from "./AIExpensePreviewCard";
+import ExpenseItemIcon from "./ExpenseItemIcon";
 import ManualExpenseForm from "./ManualExpenseForm";
 import { Button } from "./ui/button";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "./ui/drawer";
 import { Textarea } from "./ui/textarea";
 
 const examplePrompts = [
@@ -65,6 +78,23 @@ const AIExpenseChat = () => {
   ]);
   const [composer, setComposer] = useState("");
   const [loading, setLoading] = useState(false);
+  const logRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el || typeof el.scrollTo !== "function") return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const max = 128;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+    el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
+  }, [composer]);
 
   const replaceMessage = (id: string, next: ChatMessage) => {
     setMessages((current) =>
@@ -197,20 +227,21 @@ const AIExpenseChat = () => {
     switch (message.variant) {
       case "welcome":
         return (
-          <div className="space-y-2">
-            <p className="font-serif text-lg text-stone-950">
+          <div className="space-y-1.5">
+            <p className="text-foreground text-[15px] font-semibold tracking-tight">
               Tell me what you spent.
             </p>
-            <p className="text-sm leading-6 text-stone-600">
-              I will turn a quick sentence into an expense draft you can review.
+            <p className="text-muted-foreground text-sm leading-6">
+              I will turn a quick sentence into an expense draft you can review
+              before saving.
             </p>
           </div>
         );
       case "pending":
         return (
-          <span className="inline-flex items-center gap-2 text-sm text-stone-600">
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
-            Reading the receipt ink...
+          <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
+            <Loader2 className="text-primary size-4 animate-spin" />
+            Reading the expense...
           </span>
         );
       case "success":
@@ -222,13 +253,13 @@ const AIExpenseChat = () => {
         );
       case "fallback":
         return (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <p className="font-serif text-lg text-stone-950">
+              <p className="text-foreground text-[15px] font-semibold tracking-tight">
                 I need a little help with this one.
               </p>
-              <p className="mt-1 text-sm leading-6 text-stone-600">
-                I started a quick form with anything I could confidently read.
+              <p className="text-muted-foreground mt-1 text-sm leading-6">
+                I started a quick form with what I could confidently read.
               </p>
             </div>
             <ManualExpenseForm
@@ -240,22 +271,23 @@ const AIExpenseChat = () => {
       case "error":
         return (
           <div className="space-y-3">
-            <div className="space-y-2">
-              <p className="font-serif text-lg text-stone-950">
+            <div>
+              <p className="text-foreground text-[15px] font-semibold tracking-tight">
                 I could not parse that expense.
               </p>
-              <p className="text-sm leading-6 text-stone-600">
+              <p className="text-muted-foreground mt-1 text-sm leading-6">
                 Try the same message again or rephrase it below.
               </p>
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               disabled={loading}
-              className="rounded-full border-emerald-900/15 bg-[#fffdf6]/80 text-emerald-900 hover:bg-emerald-50"
+              className="gap-1.5 rounded-full"
               onClick={() => void retryMessage(message.retryInput, message.id)}
             >
+              <RefreshCw className="size-3.5" />
               Try again
             </Button>
           </div>
@@ -266,49 +298,35 @@ const AIExpenseChat = () => {
   return (
     <section
       aria-label="AI expense conversation"
-      className="relative isolate overflow-hidden rounded-[2rem] border border-amber-900/10 bg-[#f6eedf] p-3 text-stone-950 shadow-[0_24px_80px_rgba(82,62,31,0.16)] sm:p-5"
+      className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.9),transparent_30%),radial-gradient(circle_at_86%_18%,rgba(96,153,102,0.24),transparent_28%),linear-gradient(135deg,rgba(255,247,224,0.98),rgba(234,220,196,0.9))]" />
-      <div className="absolute inset-x-6 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-emerald-700/30 to-transparent" />
-
-      <div className="mb-4 flex items-center gap-3 px-1">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-800 text-[#fff8e7] shadow-lg shadow-emerald-900/20">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="font-serif text-xl font-semibold tracking-[-0.03em]">
-            Spendly AI
-          </p>
-          <p className="text-sm text-stone-600">Paper notes, tidy numbers.</p>
-        </div>
-      </div>
-
       <div
+        ref={logRef}
         role="log"
         aria-label="AI expense conversation"
         aria-live="polite"
         aria-relevant="additions text"
-        className="space-y-4"
+        className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1 pb-4"
       >
         {messages.map((message) => (
           <article
             key={message.id}
             className={cn(
-              "flex gap-3",
+              "flex gap-2.5",
               message.role === "user" ? "justify-end" : "justify-start"
             )}
           >
             {message.role === "assistant" ? (
-              <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-950 text-[#fff8e7]">
-                <Bot className="h-4 w-4" />
+              <div className="bg-primary/12 text-primary ring-primary/25 mt-1 grid size-8 shrink-0 place-items-center rounded-full ring-1">
+                <Sparkles className="size-4" />
               </div>
             ) : null}
             <div
               className={cn(
-                "max-w-[88%] rounded-[1.5rem] px-4 py-3 shadow-sm",
+                "max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-6",
                 message.role === "user"
-                  ? "bg-emerald-800 text-[#fffdf3]"
-                  : "border border-amber-900/10 bg-[#fffaf0]/90 text-stone-800"
+                  ? "bg-primary text-primary-foreground rounded-br-md font-medium shadow-[0_10px_26px_color-mix(in_srgb,var(--accent)_24%,transparent)]"
+                  : "border-border/70 bg-card text-foreground ds-glass rounded-bl-md border"
               )}
             >
               {message.role === "user"
@@ -319,17 +337,20 @@ const AIExpenseChat = () => {
         ))}
       </div>
 
-      <div className="mt-5 rounded-[1.5rem] border border-amber-950/10 bg-[#fffaf0]/70 p-3 shadow-inner shadow-amber-900/5">
+      <div className="sticky bottom-0 shrink-0 space-y-2.5 pt-3">
         {showExamples ? (
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
             {examplePrompts.map((prompt) => (
               <Button
                 key={prompt}
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                className="rounded-full border-emerald-900/15 bg-[#fffdf6]/80 text-stone-700 hover:bg-emerald-50 hover:text-emerald-900"
-                onClick={() => setComposer(prompt)}
+                className="border-border/70 bg-surface-2/80 text-muted-foreground hover:border-primary/40 hover:text-foreground h-8 shrink-0 rounded-full border px-3 text-xs"
+                onClick={() => {
+                  setComposer(prompt);
+                  textareaRef.current?.focus();
+                }}
               >
                 {prompt}
               </Button>
@@ -337,31 +358,36 @@ const AIExpenseChat = () => {
           </div>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <label
-            htmlFor={composerId}
-            className="flex items-center gap-2 text-sm font-medium text-stone-700"
-          >
-            <PenLine className="h-4 w-4 text-emerald-800" />
+        <form
+          onSubmit={handleSubmit}
+          className="ds-glass border-border/80 relative flex items-end gap-2 rounded-[28px] border p-1.5 pl-4"
+        >
+          <label htmlFor={composerId} className="sr-only">
             Message Spendly AI
           </label>
           <Textarea
             id={composerId}
+            ref={textareaRef}
             value={composer}
             onChange={(event) => setComposer(event.target.value)}
             onKeyDown={handleComposerKeyDown}
             placeholder="Dinner pho 90k tonight"
-            className="min-h-24 resize-none rounded-2xl border-amber-950/15 bg-[#fffdf6] text-stone-900 placeholder:text-stone-400 focus-visible:border-emerald-800 focus-visible:ring-emerald-800/20"
+            rows={1}
+            className="text-foreground placeholder:text-muted-foreground/70 max-h-32 min-h-9 resize-none border-0 !bg-transparent p-0 py-2 text-[15px] leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:!bg-transparent"
           />
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              disabled={loading || !trimmedComposer}
-              className="rounded-full bg-emerald-800 px-5 text-[#fffdf3] hover:bg-emerald-900"
-            >
-              {loading ? "Sending..." : "Send message"}
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            aria-label="Send message"
+            disabled={loading || !trimmedComposer}
+            className="size-10 shrink-0 rounded-full p-0"
+          >
+            {loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ArrowUp className="size-4" />
+            )}
+            <span className="sr-only">Send message</span>
+          </Button>
         </form>
       </div>
     </section>
@@ -375,27 +401,75 @@ const SuccessBubble = ({
   expense: TExpense;
   onDismiss: () => void;
 }) => {
-  const [showForm, setShowForm] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
-        <p className="font-serif text-lg text-stone-950">
+        <p className="text-foreground text-[15px] font-semibold tracking-tight">
           I found an expense draft.
         </p>
-        <p className="mt-1 text-sm leading-6 text-stone-600">
-          Review the fields before moving it into the form.
+        <p className="text-muted-foreground mt-1 text-sm leading-6">
+          Tap the card to review or edit before saving.
         </p>
       </div>
-      {showForm ? (
-        <ManualExpenseForm initialExpense={expense} />
-      ) : (
-        <AIExpensePreviewCard
-          expense={expense}
-          onDismiss={onDismiss}
-          onContinue={() => setShowForm(true)}
-        />
-      )}
+
+      <p className="sr-only">Review AI suggestion</p>
+
+      <button
+        type="button"
+        aria-label="Continue to form"
+        onClick={() => setEditOpen(true)}
+        className="ds-surface-2 border-border/70 hover:border-primary/50 hover:bg-surface-3 focus-visible:ring-ring/40 group relative w-full rounded-2xl border px-3 py-3 text-left transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out focus-visible:ring-[3px] focus-visible:outline-none active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3">
+          <ExpenseItemIcon category={expense.category} />
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground truncate text-sm font-medium">
+              {expense.note}
+            </p>
+            <p className="text-muted-foreground mt-0.5 truncate text-[11px] tracking-wide uppercase">
+              {expense.category} · {expense.date}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <p className="text-foreground font-mono text-sm font-semibold tabular-nums">
+              {formatVnd(expense.amount)}
+              <span className="text-muted-foreground ml-1 text-[10px] font-medium">
+                VND
+              </span>
+            </p>
+            <span className="text-muted-foreground/80 group-hover:text-primary inline-flex items-center gap-1 text-[10px] font-medium tracking-wide uppercase transition">
+              <PencilLine className="size-3" />
+              Tap to edit
+            </span>
+          </div>
+        </div>
+      </button>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-muted-foreground hover:text-foreground text-xs font-medium transition"
+        >
+          Dismiss
+        </button>
+      </div>
+
+      <Drawer open={editOpen} onOpenChange={setEditOpen}>
+        <DrawerContent className="h-full w-[92svw]">
+          <DrawerHeader className="px-5 pt-2 pb-1 text-left">
+            <DrawerTitle>Edit expense</DrawerTitle>
+            <DrawerDescription>
+              Adjust the details before saving.
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="no-scrollbar flex-1 overflow-y-auto px-3 pb-6">
+            <ManualExpenseForm initialExpense={expense} />
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
