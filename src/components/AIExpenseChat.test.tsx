@@ -93,9 +93,13 @@ describe("AIExpenseChat", () => {
   it("renders the welcome message and example prompts", () => {
     render(<AIExpenseChat />);
 
-    expect(
-      screen.getByRole("region", { name: /ai expense conversation/i })
-    ).toBeInTheDocument();
+    const timeline = screen.getByRole("log", {
+      name: /ai expense conversation/i,
+    });
+
+    expect(timeline).toBeInTheDocument();
+    expect(timeline).toHaveAttribute("aria-live", "polite");
+    expect(timeline).toHaveAttribute("aria-relevant", "additions text");
     expect(
       screen.getByText(/tell me what you spent/i)
     ).toBeInTheDocument();
@@ -148,6 +152,81 @@ describe("AIExpenseChat", () => {
       note: "Lunch with team",
       category: Category.FOOD,
     });
+  });
+
+  it("sends a trimmed message with Enter", async () => {
+    const user = userEvent.setup();
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createJsonResponse({
+        status: "fallback",
+        originalInput: "Coffee 45k",
+        reason: "schema_mismatch",
+        prefill: {
+          note: "Coffee 45k",
+          amount: 45000,
+        },
+      })
+    );
+
+    render(<AIExpenseChat />);
+
+    await user.type(
+      screen.getByLabelText(/message spendly ai/i),
+      "  Coffee 45k  {Enter}"
+    );
+
+    expectParseExpenseRequest("Coffee 45k");
+    expect(await screen.findByTestId("manual-expense-form")).toBeInTheDocument();
+    expect(screen.getByText("Coffee 45k")).toBeInTheDocument();
+  });
+
+  it("keeps Shift+Enter as a newline without submitting", async () => {
+    const user = userEvent.setup();
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createJsonResponse({
+        status: "fallback",
+        originalInput: "Coffee 45k",
+        reason: "schema_mismatch",
+        prefill: {
+          note: "Coffee 45k",
+        },
+      })
+    );
+
+    render(<AIExpenseChat />);
+
+    const composer = screen.getByLabelText(/message spendly ai/i);
+
+    await user.type(composer, "Coffee 45k");
+    await user.keyboard("{Shift>}{Enter}{/Shift}");
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(composer).toHaveValue("Coffee 45k\n");
+  });
+
+  it("does not submit whitespace-only input", async () => {
+    const user = userEvent.setup();
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createJsonResponse({
+        status: "fallback",
+        originalInput: "",
+        reason: "schema_mismatch",
+        prefill: {},
+      })
+    );
+
+    render(<AIExpenseChat />);
+
+    const composer = screen.getByLabelText(/message spendly ai/i);
+
+    await user.type(composer, "   ");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it("renders the manual form inline for fallback responses", async () => {

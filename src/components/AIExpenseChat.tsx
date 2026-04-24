@@ -283,7 +283,13 @@ const AIExpenseChat = () => {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div
+        role="log"
+        aria-label="AI expense conversation"
+        aria-live="polite"
+        aria-relevant="additions text"
+        className="space-y-4"
+      >
         {messages.map((message) => (
           <article
             key={message.id}
