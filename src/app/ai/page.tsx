@@ -2,9 +2,9 @@ import AIExpenseChat from "@/components/AIExpenseChat";
 
 const AIChatPage = () => {
   return (
-    <main className="relative mx-auto flex min-h-svh max-w-md flex-col px-4 pt-6 pb-28 sm:px-6 sm:pt-8">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(145deg,#fbf5e8_0%,#eef6ec_48%,#f7ead7_100%)]" />
-      <div className="mb-5 space-y-2">
+    <section className="relative isolate mx-auto flex min-h-svh max-w-md flex-col overflow-hidden px-4 pt-6 pb-28 sm:px-6 sm:pt-8">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(145deg,#fbf5e8_0%,#eef6ec_48%,#f7ead7_100%)]" />
+      <div className="relative mb-5 space-y-2">
         <p className="text-xs font-semibold tracking-[0.28em] text-emerald-900/60 uppercase">
           Spendly AI
         </p>
@@ -18,7 +18,7 @@ const AIChatPage = () => {
       </div>
 
       <AIExpenseChat />
-    </main>
+    </section>
   );
 };
 
