@@ -60,6 +60,19 @@ const expectParseExpenseRequest = (input: string) => {
   });
 };
 
+const expectParseExpenseRequestAtCall = (callIndex: number, input: string) => {
+  const [endpoint, init] =
+    vi.mocked(globalThis.fetch).mock.calls[callIndex] ?? [];
+
+  expect(endpoint).toBe("/api/ai/parse-expense");
+  expect(init).toMatchObject({
+    method: "POST",
+  });
+  expect(JSON.parse(String(init?.body))).toMatchObject({
+    input,
+  });
+};
+
 const originalGlobalReact = globalThis.React;
 
 beforeEach(() => {
@@ -175,16 +188,25 @@ describe("AIExpenseChat", () => {
   it("renders a retryable assistant error for non-ok responses", async () => {
     const user = userEvent.setup();
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse(
-        { error: "Missing OPENROUTER_API_KEY" },
-        { status: 500 }
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          { error: "Missing OPENROUTER_API_KEY" },
+          { status: 500 }
+        )
       )
-    );
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          { error: "Missing OPENROUTER_API_KEY" },
+          { status: 500 }
+        )
+      );
 
     render(<AIExpenseChat />);
 
-    await user.type(screen.getByLabelText(/message spendly ai/i), "Dinner");
+    const composer = screen.getByLabelText(/message spendly ai/i);
+
+    await user.type(composer, "Dinner");
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     expectParseExpenseRequest("Dinner");
@@ -192,6 +214,13 @@ describe("AIExpenseChat", () => {
       await screen.findByText(/could not parse that expense/i)
     ).toBeInTheDocument();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
+
+    await user.clear(composer);
+    await user.type(composer, "Coffee 60k");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expectParseExpenseRequestAtCall(1, "Coffee 60k");
   });
 
   it("uses an example prompt as composer text", async () => {
