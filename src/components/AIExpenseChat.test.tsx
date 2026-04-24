@@ -185,7 +185,7 @@ describe("AIExpenseChat", () => {
     expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
   });
 
-  it("renders a retryable assistant error for non-ok responses", async () => {
+  it("retries the failed input from the assistant error action", async () => {
     const user = userEvent.setup();
 
     vi.spyOn(globalThis, "fetch")
@@ -215,12 +215,45 @@ describe("AIExpenseChat", () => {
     ).toBeInTheDocument();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
 
-    await user.clear(composer);
-    await user.type(composer, "Coffee 60k");
-    await user.click(screen.getByRole("button", { name: /send message/i }));
+    await user.click(screen.getByRole("button", { name: /try again/i }));
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    expectParseExpenseRequestAtCall(1, "Coffee 60k");
+    expectParseExpenseRequestAtCall(1, "Dinner");
+    expect(composer).toHaveValue("");
+  });
+
+  it("dismisses the assistant preview result", async () => {
+    const user = userEvent.setup();
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createJsonResponse({
+        status: "success",
+        originalInput: "Lunch with team 120k today",
+        expense: {
+          date: "24/04/2026",
+          amount: 120000,
+          note: "Lunch with team",
+          category: Category.FOOD,
+        },
+      })
+    );
+
+    render(<AIExpenseChat />);
+
+    await user.type(
+      screen.getByLabelText(/message spendly ai/i),
+      "Lunch with team 120k today"
+    );
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+
+    expect(
+      await screen.findByText(/review ai suggestion/i)
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /dismiss/i }));
+
+    expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
   });
 
   it("uses an example prompt as composer text", async () => {

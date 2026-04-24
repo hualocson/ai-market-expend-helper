@@ -1,9 +1,12 @@
 "use client";
 
 import { useId, useState } from "react";
-import type { FormEvent, KeyboardEvent, ReactNode } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 
-import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
+import type {
+  ParseExpenseFallbackResponse,
+  ParseExpenseResponse,
+} from "@/lib/ai/parse-expense-contract";
 import { cn } from "@/lib/utils";
 import { Bot, Loader2, PenLine, Sparkles } from "lucide-react";
 
@@ -20,9 +23,31 @@ const examplePrompts = [
 
 type ChatMessage = {
   id: string;
-  role: "assistant" | "user";
-  content: ReactNode;
-};
+} & (
+  | {
+      role: "user";
+      text: string;
+    }
+  | {
+      role: "assistant";
+      variant: "welcome" | "pending";
+    }
+  | {
+      role: "assistant";
+      variant: "success";
+      expense: TExpense;
+    }
+  | {
+      role: "assistant";
+      variant: "fallback";
+      prefill: ParseExpenseFallbackResponse["prefill"];
+    }
+  | {
+      role: "assistant";
+      variant: "error";
+      retryInput: string;
+    }
+);
 
 const createId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -35,16 +60,7 @@ const AIExpenseChat = () => {
     {
       id: "welcome",
       role: "assistant",
-      content: (
-        <div className="space-y-2">
-          <p className="font-serif text-lg text-stone-950">
-            Tell me what you spent.
-          </p>
-          <p className="text-sm leading-6 text-stone-600">
-            I will turn a quick sentence into an expense draft you can review.
-          </p>
-        </div>
-      ),
+      variant: "welcome",
     },
   ]);
   const [composer, setComposer] = useState("");
@@ -56,35 +72,48 @@ const AIExpenseChat = () => {
     );
   };
 
-  const submitMessage = async () => {
-    const input = composer.trim();
+  const dismissMessage = (id: string) => {
+    setMessages((current) => current.filter((message) => message.id !== id));
+  };
 
+  const sendInput = async ({
+    input,
+    assistantId,
+    appendUserMessage,
+  }: {
+    input: string;
+    assistantId: string;
+    appendUserMessage: boolean;
+  }) => {
     if (!input || loading) {
       return;
     }
 
-    const pendingId = createId();
-
     setLoading(true);
     setComposer("");
-    setMessages((current) => [
-      ...current,
-      {
-        id: createId(),
-        role: "user",
-        content: input,
-      },
-      {
-        id: pendingId,
+    setMessages((current) => {
+      const pendingMessage: ChatMessage = {
+        id: assistantId,
         role: "assistant",
-        content: (
-          <span className="inline-flex items-center gap-2 text-sm text-stone-600">
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
-            Reading the receipt ink...
-          </span>
-        ),
-      },
-    ]);
+        variant: "pending",
+      };
+
+      if (!appendUserMessage) {
+        return current.map((message) =>
+          message.id === assistantId ? pendingMessage : message
+        );
+      }
+
+      return [
+        ...current,
+        {
+          id: createId(),
+          role: "user",
+          text: input,
+        },
+        pendingMessage,
+      ];
+    });
 
     try {
       const response = await fetch("/api/ai/parse-expense", {
@@ -102,52 +131,49 @@ const AIExpenseChat = () => {
       const payload = (await response.json()) as ParseExpenseResponse;
 
       if (payload.status === "success") {
-        replaceMessage(pendingId, {
-          id: pendingId,
+        replaceMessage(assistantId, {
+          id: assistantId,
           role: "assistant",
-          content: <SuccessBubble expense={payload.expense} />,
+          variant: "success",
+          expense: payload.expense,
         });
         return;
       }
 
-      replaceMessage(pendingId, {
-        id: pendingId,
+      replaceMessage(assistantId, {
+        id: assistantId,
         role: "assistant",
-        content: (
-          <div className="space-y-4">
-            <div>
-              <p className="font-serif text-lg text-stone-950">
-                I need a little help with this one.
-              </p>
-              <p className="mt-1 text-sm leading-6 text-stone-600">
-                I started a quick form with anything I could confidently read.
-              </p>
-            </div>
-            <ManualExpenseForm
-              initialMode="quick"
-              prefillExpense={payload.prefill}
-            />
-          </div>
-        ),
+        variant: "fallback",
+        prefill: payload.prefill,
       });
     } catch {
-      replaceMessage(pendingId, {
-        id: pendingId,
+      replaceMessage(assistantId, {
+        id: assistantId,
         role: "assistant",
-        content: (
-          <div className="space-y-2">
-            <p className="font-serif text-lg text-stone-950">
-              I could not parse that expense.
-            </p>
-            <p className="text-sm leading-6 text-stone-600">
-              Try another phrasing, like "Coffee 45k this morning".
-            </p>
-          </div>
-        ),
+        variant: "error",
+        retryInput: input,
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const submitMessage = async () => {
+    const input = composer.trim();
+
+    await sendInput({
+      input,
+      assistantId: createId(),
+      appendUserMessage: true,
+    });
+  };
+
+  const retryMessage = async (input: string, assistantId: string) => {
+    await sendInput({
+      input,
+      assistantId,
+      appendUserMessage: false,
+    });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -164,6 +190,78 @@ const AIExpenseChat = () => {
 
   const trimmedComposer = composer.trim();
   const showExamples = messages.length === 1;
+
+  const renderAssistantContent = (
+    message: Extract<ChatMessage, { role: "assistant" }>
+  ) => {
+    switch (message.variant) {
+      case "welcome":
+        return (
+          <div className="space-y-2">
+            <p className="font-serif text-lg text-stone-950">
+              Tell me what you spent.
+            </p>
+            <p className="text-sm leading-6 text-stone-600">
+              I will turn a quick sentence into an expense draft you can review.
+            </p>
+          </div>
+        );
+      case "pending":
+        return (
+          <span className="inline-flex items-center gap-2 text-sm text-stone-600">
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
+            Reading the receipt ink...
+          </span>
+        );
+      case "success":
+        return (
+          <SuccessBubble
+            expense={message.expense}
+            onDismiss={() => dismissMessage(message.id)}
+          />
+        );
+      case "fallback":
+        return (
+          <div className="space-y-4">
+            <div>
+              <p className="font-serif text-lg text-stone-950">
+                I need a little help with this one.
+              </p>
+              <p className="mt-1 text-sm leading-6 text-stone-600">
+                I started a quick form with anything I could confidently read.
+              </p>
+            </div>
+            <ManualExpenseForm
+              initialMode="quick"
+              prefillExpense={message.prefill}
+            />
+          </div>
+        );
+      case "error":
+        return (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="font-serif text-lg text-stone-950">
+                I could not parse that expense.
+              </p>
+              <p className="text-sm leading-6 text-stone-600">
+                Try the same message again or rephrase it below.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              className="rounded-full border-emerald-900/15 bg-[#fffdf6]/80 text-emerald-900 hover:bg-emerald-50"
+              onClick={() => void retryMessage(message.retryInput, message.id)}
+            >
+              Try again
+            </Button>
+          </div>
+        );
+    }
+  };
 
   return (
     <section
@@ -207,7 +305,9 @@ const AIExpenseChat = () => {
                   : "border border-amber-900/10 bg-[#fffaf0]/90 text-stone-800"
               )}
             >
-              {message.content}
+              {message.role === "user"
+                ? message.text
+                : renderAssistantContent(message)}
             </div>
           </article>
         ))}
@@ -262,7 +362,13 @@ const AIExpenseChat = () => {
   );
 };
 
-const SuccessBubble = ({ expense }: { expense: TExpense }) => {
+const SuccessBubble = ({
+  expense,
+  onDismiss,
+}: {
+  expense: TExpense;
+  onDismiss: () => void;
+}) => {
   const [showForm, setShowForm] = useState(false);
 
   return (
@@ -280,7 +386,7 @@ const SuccessBubble = ({ expense }: { expense: TExpense }) => {
       ) : (
         <AIExpensePreviewCard
           expense={expense}
-          onDismiss={() => setShowForm(false)}
+          onDismiss={onDismiss}
           onContinue={() => setShowForm(true)}
         />
       )}
