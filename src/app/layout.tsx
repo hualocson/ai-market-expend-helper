@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { Toaster } from "@/components/ui/sonner";
 
+import AppMain from "@/components/AppMain";
 import BottomNav from "@/components/BottomNav";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -288,9 +289,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <SettingsStoreProvider>
-              <main className="pb-24">
+              <AppMain>
                 <PullToRefresh>{children}</PullToRefresh>
-              </main>
+              </AppMain>
               <ProgressiveBlur
                 className="fixed right-0 bottom-0 left-0"
                 position="bottom"

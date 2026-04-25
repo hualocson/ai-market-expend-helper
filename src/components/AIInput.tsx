@@ -2,17 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { processInput } from "@/app/actions/ai-actionts";
+import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
 import { Loader2, Plus, Send, X } from "lucide-react";
 
+import AIExpensePreviewCard from "./AIExpensePreviewCard";
 import ManualExpenseForm from "./ManualExpenseForm";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 
+const retryableErrorMessage =
+  "Could not parse expense right now. Please try again.";
+
 const AIInput = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TExpense | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [previewExpense, setPreviewExpense] = useState<TExpense | null>(null);
+  const [prefillExpense, setPrefillExpense] = useState<
+    Partial<Pick<TExpense, "amount" | "note" | "category">> | null
+  >(null);
+  const [showManualForm, setShowManualForm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const examples = [
     "Lunch with team 120k today",
@@ -20,7 +29,6 @@ const AIInput = () => {
     "Shoes 1.2tr on 12/08",
   ];
 
-  // Auto-resize effect
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -32,19 +40,48 @@ const AIInput = () => {
     }
   }, [input]);
 
+  const resetResultState = () => {
+    setPreviewExpense(null);
+    setPrefillExpense(null);
+    setShowManualForm(false);
+    setError(null);
+  };
+
   async function handleSubmit() {
-    if (!input.trim()) {
+    const trimmedInput = input.trim();
+    if (!trimmedInput) {
       return;
     }
 
+    resetResultState();
+    setLoading(true);
+
     try {
-      setResult(null);
-      setLoading(true);
-      const result = await processInput(input);
-      setResult(result ?? null);
-      setInput(""); // Clear input after successful processing
-    } catch (error) {
-      console.error(error);
+      const response = await fetch("/api/ai/parse-expense", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ input: trimmedInput }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Parse request failed with status ${response.status}`);
+      }
+
+      const data = (await response.json()) as ParseExpenseResponse;
+
+      if (data.status === "success") {
+        setPreviewExpense(data.expense);
+      } else {
+        setPrefillExpense(data.prefill);
+        setShowManualForm(true);
+      }
+
+      setInput("");
+    } catch (requestError) {
+      console.error(requestError);
+      setError(retryableErrorMessage);
     } finally {
       setLoading(false);
     }
@@ -53,8 +90,16 @@ const AIInput = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      void handleSubmit();
     }
+  };
+
+  const handleContinueToForm = () => {
+    if (!previewExpense) {
+      return;
+    }
+
+    setShowManualForm(true);
   };
 
   return (
@@ -76,7 +121,7 @@ const AIInput = () => {
           ))}
         </div>
       </div>
-      {/* Input Section */}
+
       <div className="border-border/60 bg-card/80 relative rounded-[28px] border shadow-xl shadow-black/5 backdrop-blur">
         <div className="px-5 pt-2">
           <Textarea
@@ -112,13 +157,16 @@ const AIInput = () => {
             ) : null}
             <Button
               type="submit"
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={loading || input.trim() === ""}
               size="icon"
+              aria-label="Parse expense"
               className="bg-primary text-primary-foreground hover:bg-primary/90 size-11 rounded-full shadow-lg transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <span data-testid="ai-input-loading" aria-hidden="true">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </span>
               ) : (
                 <Send className="h-5 w-5" />
               )}
@@ -127,12 +175,33 @@ const AIInput = () => {
         </div>
       </div>
 
-      {/* Result Section */}
-      {result && (
-        <div className="animate-in slide-in-from-bottom-4 duration-300">
-          <ManualExpenseForm initialExpense={result} />
+      {error ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/5 text-destructive rounded-2xl border px-4 py-3 text-sm"
+        >
+          {error}
         </div>
-      )}
+      ) : null}
+
+      {previewExpense && !showManualForm ? (
+        <div className="animate-in slide-in-from-bottom-4 duration-300">
+          <AIExpensePreviewCard
+            expense={previewExpense}
+            onContinue={handleContinueToForm}
+            onDismiss={resetResultState}
+          />
+        </div>
+      ) : null}
+
+      {showManualForm ? (
+        <div className="animate-in slide-in-from-bottom-4 duration-300">
+          <ManualExpenseForm
+            {...(previewExpense ? { initialExpense: previewExpense } : {})}
+            {...(prefillExpense ? { prefillExpense } : {})}
+          />
+        </div>
+      ) : null}
     </div>
   );
 };

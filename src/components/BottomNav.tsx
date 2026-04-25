@@ -35,8 +35,15 @@ const navItems = [
   },
 ];
 
+const HIDDEN_PATHS = ["/ai"];
+
 const BottomNav = () => {
   const pathname = usePathname();
+
+  if (HIDDEN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+    return null;
+  }
+
   return (
     <nav
       aria-label="Primary"

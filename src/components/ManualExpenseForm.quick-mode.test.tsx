@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
+import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 
@@ -40,7 +41,7 @@ const renderManualExpenseFormTree = ({
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
-  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
+  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
 }) => (
   <QueryClientProvider
     client={
@@ -79,7 +80,7 @@ const renderManualExpenseForm = async ({
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
-  prefillExpense?: Pick<TExpense, "amount" | "note" | "category"> | null;
+  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
   budgetPayload?: unknown;
 } = {}) => {
   ensureReactGlobal();
@@ -269,11 +270,59 @@ describe("ManualExpenseForm quick mode", () => {
       screen.queryByRole("button", { name: /budget/i })
     ).not.toBeInTheDocument();
   });
+
+  it("accepts fallback prefill without category", async () => {
+    const { rerender } = await renderManualExpenseForm({
+      initialMode: "quick",
+      prefillExpense: {
+        amount: 12000,
+        note: "Coffee",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: /food/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("12.000")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      rerender(
+        renderManualExpenseFormTree({
+          initialMode: "quick",
+          prefillExpense: {
+            amount: 45000,
+          },
+        })
+      );
+    });
+
+    expect(screen.getByRole("button", { name: /food/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("45.000")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("ManualExpenseForm budget drawer", () => {
   it("groups budget options by weekly and monthly periods", async () => {
     const user = userEvent.setup();
+    const today = dayjs();
+    const weekStart = today.subtract(3, "day").format("YYYY-MM-DD");
+    const weekEnd = today.add(3, "day").format("YYYY-MM-DD");
+    const monthStart = today.startOf("month").format("YYYY-MM-DD");
+    const monthEnd = today.endOf("month").format("YYYY-MM-DD");
+    const expectedWeekRange = `${today
+      .subtract(3, "day")
+      .format("DD MMM")} - ${today.add(3, "day").format("DD MMM YYYY")}`;
+    const expectedMonthRange = `${today
+      .startOf("month")
+      .format("DD MMM")} - ${today.endOf("month").format("DD MMM YYYY")}`;
 
     await renderManualExpenseForm({
       showBudgetSelect: true,
@@ -283,22 +332,22 @@ describe("ManualExpenseForm budget drawer", () => {
             id: 11,
             name: "Week groceries",
             period: "week",
-            periodStartDate: "2026-03-30",
-            periodEndDate: "2026-04-05",
+            periodStartDate: weekStart,
+            periodEndDate: weekEnd,
           },
           {
             id: 12,
             name: "Week transport",
             period: "week",
-            periodStartDate: "2026-03-30",
-            periodEndDate: "2026-04-05",
+            periodStartDate: weekStart,
+            periodEndDate: weekEnd,
           },
           {
             id: 21,
-            name: "April essentials",
+            name: "Monthly essentials",
             period: "month",
-            periodStartDate: "2026-04-01",
-            periodEndDate: "2026-04-30",
+            periodStartDate: monthStart,
+            periodEndDate: monthEnd,
           },
         ],
       },
@@ -306,15 +355,21 @@ describe("ManualExpenseForm budget drawer", () => {
 
     await user.click(screen.getByRole("button", { name: /budget/i }));
 
-    expect(await screen.findByText(/weekly budgets/i)).toBeInTheDocument();
-    expect(screen.getByText(/monthly budgets/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^weekly budgets$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^monthly budgets$/i)).toBeInTheDocument();
     expect(screen.queryByText(/other budgets/i)).not.toBeInTheDocument();
 
-    expect(screen.getByText("Week groceries")).toBeInTheDocument();
-    expect(screen.getByText("Week transport")).toBeInTheDocument();
-    expect(screen.getByText("April essentials")).toBeInTheDocument();
-    expect(screen.getAllByText("30 Mar - 05 Apr 2026")).toHaveLength(2);
-    expect(screen.getByText("01 Apr - 30 Apr 2026")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /week groceries/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /week transport/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /monthly essentials/i })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(expectedWeekRange)).toHaveLength(2);
+    expect(screen.getByText(expectedMonthRange)).toBeInTheDocument();
   });
 });
 
