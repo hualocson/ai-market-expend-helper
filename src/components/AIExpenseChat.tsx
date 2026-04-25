@@ -350,7 +350,7 @@ const AIExpenseChat = () => {
             onKeyDown={handleComposerKeyDown}
             placeholder="Dinner pho 90k tonight"
             rows={1}
-            className="text-foreground placeholder:text-muted-foreground/70 max-h-32 min-h-9 resize-none border-0 !bg-transparent p-0 py-2 text-[15px] leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:!bg-transparent"
+            className="text-foreground placeholder:text-muted-foreground/70 max-h-32 min-h-9 resize-none border-0 !bg-transparent p-0 py-2 text-base leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-[15px] dark:!bg-transparent"
           />
           <Button
             type="submit"
