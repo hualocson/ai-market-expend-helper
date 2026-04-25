@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 
+import { Category } from "@/enums";
 import type {
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
@@ -72,13 +73,17 @@ const AIExpenseChat = () => {
 
   useEffect(() => {
     const el = logRef.current;
-    if (!el || typeof el.scrollTo !== "function") return;
+    if (!el || typeof el.scrollTo !== "function") {
+      return;
+    }
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
     const el = textareaRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const max = 128;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, max)}px`;
@@ -395,7 +400,7 @@ const SuccessBubble = ({
         className="ds-surface-2 border-border/70 hover:border-primary/50 hover:bg-surface-3 focus-visible:ring-ring/40 group relative w-full rounded-2xl border px-3 py-3 text-left transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out focus-visible:ring-[3px] focus-visible:outline-none active:scale-[0.99]"
       >
         <div className="flex items-center gap-3">
-          <ExpenseItemIcon category={expense.category} />
+          <ExpenseItemIcon category={expense.category as Category} />
           <div className="min-w-0 flex-1">
             <p className="text-foreground truncate text-sm font-medium">
               {expense.note}
