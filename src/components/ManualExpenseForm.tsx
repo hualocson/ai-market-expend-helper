@@ -96,6 +96,12 @@ const fallbackBudgetPeriodLabel: Record<BudgetOptionGroupKey, string> = {
   custom: "Custom budget",
 };
 
+const pickDefaultBudget = (groups: {
+  week: BudgetOption[];
+  month: BudgetOption[];
+  custom: BudgetOption[];
+}) => groups.week[0] ?? groups.month[0] ?? groups.custom[0] ?? null;
+
 const parseBudgetDate = (value?: string | null) => {
   if (!value) {
     return null;
@@ -173,6 +179,7 @@ type ManualExpenseFormProps = {
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
   initialMode?: QuickAddMode;
+  autoSelectDefaultBudget?: boolean;
 };
 
 const buildExpense = (initialExpense?: TExpense | null) => {
@@ -205,6 +212,7 @@ const ManualExpenseForm = forwardRef<
       showBudgetSelect = false,
       isSheetOpen = true,
       initialMode,
+      autoSelectDefaultBudget = false,
     },
     ref
   ) => {
@@ -426,6 +434,25 @@ const ManualExpenseForm = forwardRef<
         setBudgetId(null);
       }
     }, [budgetId, budgetLoaded, budgetOptions, showBudgetSelect]);
+
+    useEffect(() => {
+      if (!autoSelectDefaultBudget || !showBudgetSelect || !budgetLoaded) {
+        return;
+      }
+      if (budgetId !== null) {
+        return;
+      }
+      const next = pickDefaultBudget(budgetGroups);
+      if (next) {
+        setBudgetId(next.id);
+      }
+    }, [
+      autoSelectDefaultBudget,
+      budgetGroups,
+      budgetId,
+      budgetLoaded,
+      showBudgetSelect,
+    ]);
 
     const budgetLabel = useMemo(() => {
       if (!showBudgetSelect) {

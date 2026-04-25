@@ -446,6 +446,9 @@ const SuccessBubble = ({
             <ManualExpenseForm
               initialExpense={expense}
               onSuccess={() => setEditOpen(false)}
+              showBudgetSelect
+              isSheetOpen={editOpen}
+              autoSelectDefaultBudget
             />
           </div>
         </SheetContent>

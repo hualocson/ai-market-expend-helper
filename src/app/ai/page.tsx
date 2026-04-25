@@ -6,7 +6,7 @@ import AIExpenseChat from "@/components/AIExpenseChat";
 
 const AIChatPage = () => {
   return (
-    <section className="relative mx-auto flex h-svh max-w-md flex-col px-4 pt-[calc(env(safe-area-inset-top)+20px)] pb-[calc(env(safe-area-inset-bottom)+16px)] sm:px-6">
+    <section className="relative mx-auto flex h-svh max-w-md flex-col overflow-x-hidden px-4 pt-[calc(env(safe-area-inset-top)+20px)] pb-[calc(env(safe-area-inset-bottom)+16px)] sm:px-6">
       <header className="flex shrink-0 items-center gap-2 pb-4">
         <Link
           href="/"
