@@ -1,19 +1,23 @@
+import Link from "next/link";
+
+import { ArrowLeft } from "lucide-react";
+
 import AIExpenseChat from "@/components/AIExpenseChat";
 
 const AIChatPage = () => {
   return (
-    <section className="relative mx-auto flex h-[calc(100svh-96px)] max-w-md flex-col px-4 pt-6 pb-[calc(env(safe-area-inset-bottom)+48px)] sm:px-6 sm:pt-8">
-      <header className="shrink-0 pb-4">
-        <p className="text-primary/70 text-[11px] font-semibold tracking-[0.32em] uppercase">
+    <section className="relative mx-auto flex h-svh max-w-md flex-col px-4 pt-[calc(env(safe-area-inset-top)+20px)] pb-[calc(env(safe-area-inset-bottom)+16px)] sm:px-6">
+      <header className="flex shrink-0 items-center gap-2 pb-4">
+        <Link
+          href="/"
+          aria-label="Back to home"
+          className="text-muted-foreground hover:text-foreground hover:bg-surface-2 focus-visible:ring-ring/40 -ml-1.5 inline-flex size-9 items-center justify-center rounded-full transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+        >
+          <ArrowLeft className="size-5" />
+        </Link>
+        <h1 className="text-foreground text-[15px] font-semibold tracking-tight">
           Spendly AI
-        </p>
-        <h1 className="text-foreground mt-1.5 text-[26px] leading-tight font-semibold tracking-tight">
-          AI expense chat
         </h1>
-        <p className="text-muted-foreground mt-1.5 text-sm leading-6">
-          Chat your spending into shape. Send one expense at a time, review the
-          draft, then finish it in the regular form.
-        </p>
       </header>
 
       <AIExpenseChat />

@@ -1,3 +1,4 @@
+import AIEntryCard from "@/components/AIEntryCard";
 import ExpenseList from "@/components/ExpenseList";
 import ExpensePrefillChips from "@/components/ExpensePrefillChips";
 import JumpToTopButton from "@/components/JumpToTopButton";
@@ -8,6 +9,8 @@ export default function Home() {
     <div className="mx-auto flex min-h-svh max-w-md flex-col items-stretch px-4 pt-6 pb-28 sm:px-6 sm:pt-8">
       <div className="flex flex-col items-stretch gap-6">
         <SpendingDashboardHeader />
+
+        <AIEntryCard />
 
         <ExpensePrefillChips />
 

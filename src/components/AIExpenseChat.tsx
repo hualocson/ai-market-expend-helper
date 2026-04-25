@@ -7,25 +7,20 @@ import type {
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "@/lib/ai/parse-expense-contract";
-import { cn, formatVnd } from "@/lib/utils";
-import {
-  ArrowUp,
-  Loader2,
-  PencilLine,
-  RefreshCw,
-  Sparkles,
-} from "lucide-react";
+import { formatVnd } from "@/lib/utils";
+import { ArrowUp, Loader2, PencilLine, RefreshCw } from "lucide-react";
 
 import ExpenseItemIcon from "./ExpenseItemIcon";
 import ManualExpenseForm from "./ManualExpenseForm";
 import { Button } from "./ui/button";
+import PixelLoader from "./ui/pixel-loader/PixelLoader";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "./ui/drawer";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "./ui/sheet";
 import { Textarea } from "./ui/textarea";
 
 const examplePrompts = [
@@ -43,7 +38,7 @@ type ChatMessage = {
     }
   | {
       role: "assistant";
-      variant: "welcome" | "pending";
+      variant: "pending";
     }
   | {
       role: "assistant";
@@ -69,13 +64,7 @@ const createId = () =>
 
 const AIExpenseChat = () => {
   const composerId = useId();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      variant: "welcome",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [composer, setComposer] = useState("");
   const [loading, setLoading] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -219,28 +208,16 @@ const AIExpenseChat = () => {
   };
 
   const trimmedComposer = composer.trim();
-  const showExamples = messages.length === 1;
+  const showExamples = messages.length === 0;
 
   const renderAssistantContent = (
     message: Extract<ChatMessage, { role: "assistant" }>
   ) => {
     switch (message.variant) {
-      case "welcome":
-        return (
-          <div className="space-y-1.5">
-            <p className="text-foreground text-[15px] font-semibold tracking-tight">
-              Tell me what you spent.
-            </p>
-            <p className="text-muted-foreground text-sm leading-6">
-              I will turn a quick sentence into an expense draft you can review
-              before saving.
-            </p>
-          </div>
-        );
       case "pending":
         return (
-          <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
-            <Loader2 className="text-primary size-4 animate-spin" />
+          <span className="text-muted-foreground inline-flex items-center gap-2.5 text-sm">
+            <PixelLoader size="sm" pattern="wave" label="Reading the expense" />
             Reading the expense...
           </span>
         );
@@ -255,10 +232,10 @@ const AIExpenseChat = () => {
         return (
           <div className="space-y-3">
             <div>
-              <p className="text-foreground text-[15px] font-semibold tracking-tight">
+              <p className="text-foreground text-[15px] font-medium tracking-tight">
                 I need a little help with this one.
               </p>
-              <p className="text-muted-foreground mt-1 text-sm leading-6">
+              <p className="text-muted-foreground text-sm leading-6">
                 I started a quick form with what I could confidently read.
               </p>
             </div>
@@ -270,15 +247,13 @@ const AIExpenseChat = () => {
         );
       case "error":
         return (
-          <div className="space-y-3">
-            <div>
-              <p className="text-foreground text-[15px] font-semibold tracking-tight">
-                I could not parse that expense.
-              </p>
-              <p className="text-muted-foreground mt-1 text-sm leading-6">
-                Try the same message again or rephrase it below.
-              </p>
-            </div>
+          <div className="space-y-2">
+            <p className="text-foreground text-[15px] font-medium tracking-tight">
+              I could not parse that expense.
+            </p>
+            <p className="text-muted-foreground text-sm leading-6">
+              Try the same message again or rephrase it below.
+            </p>
             <Button
               type="button"
               variant="secondary"
@@ -306,38 +281,35 @@ const AIExpenseChat = () => {
         aria-label="AI expense conversation"
         aria-live="polite"
         aria-relevant="additions text"
-        className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1 pb-4"
+        className="no-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4"
       >
-        {messages.map((message) => (
-          <article
-            key={message.id}
-            className={cn(
-              "flex gap-2.5",
-              message.role === "user" ? "justify-end" : "justify-start"
-            )}
-          >
-            {message.role === "assistant" ? (
-              <div className="bg-primary/12 text-primary ring-primary/25 mt-1 grid size-8 shrink-0 place-items-center rounded-full ring-1">
-                <Sparkles className="size-4" />
+        {messages.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-muted-foreground text-center text-sm leading-6">
+              Tell me what you spent.
+            </p>
+          </div>
+        ) : null}
+
+        {messages.map((message) =>
+          message.role === "user" ? (
+            <article key={message.id} className="flex justify-end">
+              <div className="bg-primary text-primary-foreground max-w-[82%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-6 font-medium">
+                {message.text}
               </div>
-            ) : null}
-            <div
-              className={cn(
-                "max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-6",
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-md font-medium shadow-[0_10px_26px_color-mix(in_srgb,var(--accent)_24%,transparent)]"
-                  : "border-border/70 bg-card text-foreground ds-glass rounded-bl-md border"
-              )}
+            </article>
+          ) : (
+            <article
+              key={message.id}
+              className="text-foreground max-w-full text-sm leading-6"
             >
-              {message.role === "user"
-                ? message.text
-                : renderAssistantContent(message)}
-            </div>
-          </article>
-        ))}
+              {renderAssistantContent(message)}
+            </article>
+          )
+        )}
       </div>
 
-      <div className="sticky bottom-0 shrink-0 space-y-2.5 pt-3">
+      <div className="sticky bottom-0 z-50 shrink-0 space-y-2.5 pt-3">
         {showExamples ? (
           <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
             {examplePrompts.map((prompt) => (
@@ -457,19 +429,22 @@ const SuccessBubble = ({
         </button>
       </div>
 
-      <Drawer open={editOpen} onOpenChange={setEditOpen}>
-        <DrawerContent className="h-full w-[92svw]">
-          <DrawerHeader className="px-5 pt-2 pb-1 text-left">
-            <DrawerTitle>Edit expense</DrawerTitle>
-            <DrawerDescription>
-              Adjust the details before saving.
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="no-scrollbar flex-1 overflow-y-auto px-3 pb-6">
-            <ManualExpenseForm initialExpense={expense} />
+      <Sheet open={editOpen} onOpenChange={setEditOpen} modal>
+        <SheetContent className="h-full w-[90svw] gap-0">
+          <SheetHeader className="text-left">
+            <SheetTitle>Edit expense</SheetTitle>
+            <SheetDescription>
+              Adjust the AI draft before saving it.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="no-scrollbar overflow-y-auto px-2 pb-4">
+            <ManualExpenseForm
+              initialExpense={expense}
+              onSuccess={() => setEditOpen(false)}
+            />
           </div>
-        </DrawerContent>
-      </Drawer>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

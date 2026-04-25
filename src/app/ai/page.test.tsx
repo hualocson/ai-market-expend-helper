@@ -27,9 +27,11 @@ describe("/ai page", () => {
     render(<AIChatPage />);
 
     expect(
-      screen.getByRole("heading", { name: /ai expense chat/i })
+      screen.getByRole("heading", { name: /spendly ai/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/chat your spending into shape/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /back to home/i })
+    ).toHaveAttribute("href", "/");
     expect(screen.getByTestId("ai-expense-chat")).toBeInTheDocument();
   });
 });
