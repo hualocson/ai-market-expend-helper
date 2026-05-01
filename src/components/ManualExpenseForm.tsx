@@ -747,19 +747,21 @@ const ManualExpenseForm = forwardRef<
                                               </span>
                                             </span>
                                           </span>
-                                          <span
-                                            className={cn(
-                                              "ml-2 shrink-0 text-xs font-semibold tabular-nums",
-                                              budget.remaining < 0
-                                                ? "text-destructive"
-                                                : "text-success"
-                                            )}
-                                          >
-                                            {formatVndSigned(budget.remaining)}
+                                          <span className="ml-2 flex shrink-0 items-center gap-2">
+                                            <span
+                                              className={cn(
+                                                "text-xs font-semibold tabular-nums",
+                                                budget.remaining < 0
+                                                  ? "text-destructive"
+                                                  : "text-success"
+                                              )}
+                                            >
+                                              {formatVndSigned(budget.remaining)}
+                                            </span>
+                                            {isActive ? (
+                                              <CheckIcon className="text-success h-4 w-4 shrink-0" />
+                                            ) : null}
                                           </span>
-                                          {isActive ? (
-                                            <CheckIcon className="text-success ml-2 h-4 w-4 shrink-0" />
-                                          ) : null}
                                         </button>
                                       );
                                     })}
