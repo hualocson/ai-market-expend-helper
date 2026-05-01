@@ -1516,12 +1516,7 @@ const BudgetWeeklyBudgetsClient = ({
       {transferDestination ? (
         <BudgetTransferDrawer
           open={transferOpen}
-          onOpenChange={(open) => {
-            setTransferOpen(open);
-            if (!open) {
-              setTransferDestination(null);
-            }
-          }}
+          onOpenChange={setTransferOpen}
           destination={transferDestination}
           budgets={budgets}
         />
