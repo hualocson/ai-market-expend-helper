@@ -1,0 +1,166 @@
+import React from "react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import BudgetTransferDrawer from "./BudgetTransferDrawer";
+import type { BudgetListItem } from "@/types/budget-weekly";
+
+const transferMock = vi.fn();
+
+vi.mock("@/app/actions/budget-weekly-actions", () => ({
+  transferBudgetAmount: (...args: unknown[]) => transferMock(...args),
+}));
+
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+  }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+const makeBudget = (overrides: Partial<BudgetListItem> = {}): BudgetListItem => ({
+  id: 1,
+  name: "Groceries",
+  amount: 100_000,
+  spent: 0,
+  remaining: 100_000,
+  period: "week",
+  periodStartDate: "2026-04-27",
+  periodEndDate: null,
+  ...overrides,
+});
+
+beforeEach(() => {
+  transferMock.mockReset();
+});
+
+describe("BudgetTransferDrawer", () => {
+  it("disables submit until a source is picked and amount is valid", async () => {
+    const user = userEvent.setup();
+    const destination = makeBudget({ id: 1, name: "Groceries", amount: 100_000 });
+    const source = makeBudget({ id: 2, name: "Dining", amount: 200_000 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    const submit = screen.getByRole("button", { name: /move funds/i });
+    expect(submit).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.click(screen.getByRole("button", { name: /Dining/i }));
+
+    expect(submit).toBeDisabled();
+
+    const input = screen.getByLabelText(/amount/i);
+    await user.type(input, "30000");
+
+    expect(submit).not.toBeDisabled();
+  });
+
+  it("excludes the destination from the source picker", async () => {
+    const user = userEvent.setup();
+    const destination = makeBudget({ id: 1, name: "Groceries" });
+    const source = makeBudget({ id: 2, name: "Dining" });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+
+    const list = screen.getByRole("list", { name: /source budgets/i });
+    expect(within(list).queryByText(/Groceries/i)).toBeNull();
+    expect(within(list).getByText(/Dining/i)).toBeInTheDocument();
+  });
+
+  it("renders zero-cap source as disabled", async () => {
+    const user = userEvent.setup();
+    const destination = makeBudget({ id: 1 });
+    const empty = makeBudget({ id: 2, name: "Empty", amount: 0, remaining: 0 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+        budgets={[destination, empty]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    expect(screen.getByRole("button", { name: /Empty/i })).toBeDisabled();
+  });
+
+  it("shows warning banner and flips submit label when source goes below spent", async () => {
+    const user = userEvent.setup();
+    const destination = makeBudget({ id: 1 });
+    const source = makeBudget({ id: 2, name: "Travel", amount: 100_000, spent: 80_000, remaining: 20_000 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.click(screen.getByRole("button", { name: /Travel/i }));
+    await user.type(screen.getByLabelText(/amount/i), "50000");
+
+    expect(screen.getByText(/will go .* over budget/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /move funds anyway/i })).toBeInTheDocument();
+  });
+
+  it("shows empty state when no other budgets exist", () => {
+    const destination = makeBudget({ id: 1 });
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+        budgets={[destination]}
+      />
+    );
+    expect(screen.getByText(/no other budgets to pull from/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /move funds/i })).toBeNull();
+  });
+
+  it("disables submit when amount exceeds source.amount", async () => {
+    const user = userEvent.setup();
+    const destination = makeBudget({ id: 1 });
+    const source = makeBudget({ id: 2, name: "Snacks", amount: 20_000 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.click(screen.getByRole("button", { name: /Snacks/i }));
+    await user.type(screen.getByLabelText(/amount/i), "30000");
+
+    expect(screen.getByRole("button", { name: /move funds/i })).toBeDisabled();
+    expect(screen.getByText(/cannot move more than/i)).toBeInTheDocument();
+  });
+});
