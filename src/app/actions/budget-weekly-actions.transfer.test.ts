@@ -1,7 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const updateMock = vi.fn(() => ({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) }));
-const selectMock = vi.fn();
 const transactionMock = vi.fn();
 
 vi.mock("@/db", () => ({
@@ -76,12 +74,12 @@ describe("transferBudgetAmount — transaction behavior", () => {
       await cb(tx);
     });
 
-    await transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 });
-
+    const result = await transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 });
+    expect(result).toEqual({ ok: true });
     expect(updates).toEqual([{ amount: 70_000 }, { amount: 80_000 }]);
   });
 
-  it("throws 'Source has insufficient cap' when amount exceeds source.amount", async () => {
+  it("returns code: 'INSUFFICIENT_CAP' when amount exceeds source.amount", async () => {
     transactionMock.mockImplementation(async (cb) => {
       const tx = {
         select: () => ({
@@ -102,10 +100,10 @@ describe("transferBudgetAmount — transaction behavior", () => {
 
     await expect(
       transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 })
-    ).rejects.toThrow("Source has insufficient cap");
+    ).resolves.toEqual({ ok: false, code: "INSUFFICIENT_CAP" });
   });
 
-  it("throws 'Budget not found' when one of the budgets is missing", async () => {
+  it("returns code: 'NOT_FOUND' when one of the budgets is missing", async () => {
     transactionMock.mockImplementation(async (cb) => {
       const tx = {
         select: () => ({
@@ -122,6 +120,6 @@ describe("transferBudgetAmount — transaction behavior", () => {
 
     await expect(
       transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 })
-    ).rejects.toThrow("Budget not found");
+    ).resolves.toEqual({ ok: false, code: "NOT_FOUND" });
   });
 });

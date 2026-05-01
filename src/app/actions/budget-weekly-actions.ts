@@ -78,7 +78,13 @@ const transferBudgetSchema = z
 
 export type TransferBudgetInput = z.infer<typeof transferBudgetSchema>;
 
-export async function transferBudgetAmount(input: TransferBudgetInput) {
+export type TransferBudgetResult =
+  | { ok: true }
+  | { ok: false; code: "INSUFFICIENT_CAP" | "NOT_FOUND" };
+
+export async function transferBudgetAmount(
+  input: TransferBudgetInput
+): Promise<TransferBudgetResult> {
   const parsed = transferBudgetSchema.parse(input);
 
   try {
@@ -108,17 +114,19 @@ export async function transferBudgetAmount(input: TransferBudgetInput) {
         .set({ amount: dest.amount + parsed.amount })
         .where(eq(budgets.id, parsed.toBudgetId));
     });
-
-    revalidatePath("/budgets");
   } catch (error) {
-    console.error("Error transferring budget amount:", error);
-    if (
-      error instanceof Error &&
-      (error.message === "Source has insufficient cap" ||
-        error.message === "Budget not found")
-    ) {
-      throw error;
+    if (error instanceof Error) {
+      if (error.message === "Source has insufficient cap") {
+        return { ok: false, code: "INSUFFICIENT_CAP" };
+      }
+      if (error.message === "Budget not found") {
+        return { ok: false, code: "NOT_FOUND" };
+      }
     }
+    console.error("Error transferring budget amount:", error);
     throw new Error("Failed to transfer budget amount");
   }
+
+  revalidatePath("/budgets");
+  return { ok: true };
 }
