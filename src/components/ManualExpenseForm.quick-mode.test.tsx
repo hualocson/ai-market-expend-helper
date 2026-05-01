@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -334,6 +334,9 @@ describe("ManualExpenseForm budget drawer", () => {
             period: "week",
             periodStartDate: weekStart,
             periodEndDate: weekEnd,
+            amount: 500000,
+            spent: 120000,
+            remaining: 380000,
           },
           {
             id: 12,
@@ -341,6 +344,9 @@ describe("ManualExpenseForm budget drawer", () => {
             period: "week",
             periodStartDate: weekStart,
             periodEndDate: weekEnd,
+            amount: 200000,
+            spent: 250000,
+            remaining: -50000,
           },
           {
             id: 21,
@@ -348,6 +354,9 @@ describe("ManualExpenseForm budget drawer", () => {
             period: "month",
             periodStartDate: monthStart,
             periodEndDate: monthEnd,
+            amount: 1000000,
+            spent: 0,
+            remaining: 1000000,
           },
         ],
       },
@@ -370,6 +379,18 @@ describe("ManualExpenseForm budget drawer", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(expectedWeekRange)).toHaveLength(2);
     expect(screen.getByText(expectedMonthRange)).toBeInTheDocument();
+
+    const positiveRow = screen.getByRole("button", { name: /week groceries/i });
+    const negativeRow = screen.getByRole("button", { name: /week transport/i });
+    const zeroSpentRow = screen.getByRole("button", { name: /monthly essentials/i });
+
+    const positiveRemaining = within(positiveRow).getByText("380.000");
+    const negativeRemaining = within(negativeRow).getByText("-50.000");
+    const fullRemaining = within(zeroSpentRow).getByText("1.000.000");
+
+    expect(positiveRemaining).toHaveClass("text-success");
+    expect(negativeRemaining).toHaveClass("text-destructive");
+    expect(fullRemaining).toHaveClass("text-success");
   });
 });
 

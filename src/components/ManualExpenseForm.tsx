@@ -21,7 +21,7 @@ import {
   type BudgetWeeklyOption,
 } from "@/lib/queries/budget-weekly";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
-import { cn, formatVnd, parseVndInput } from "@/lib/utils";
+import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
   Calendar,
@@ -747,8 +747,18 @@ const ManualExpenseForm = forwardRef<
                                               </span>
                                             </span>
                                           </span>
+                                          <span
+                                            className={cn(
+                                              "ml-2 shrink-0 text-xs font-semibold tabular-nums",
+                                              budget.remaining < 0
+                                                ? "text-destructive"
+                                                : "text-success"
+                                            )}
+                                          >
+                                            {formatVndSigned(budget.remaining)}
+                                          </span>
                                           {isActive ? (
-                                            <CheckIcon className="text-success h-4 w-4 shrink-0" />
+                                            <CheckIcon className="text-success ml-2 h-4 w-4 shrink-0" />
                                           ) : null}
                                         </button>
                                       );
