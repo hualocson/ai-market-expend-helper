@@ -62,18 +62,16 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    const submit = screen.getByRole("button", { name: /move funds/i });
-    expect(submit).toBeDisabled();
+    expect(screen.getByRole("button", { name: /move funds/i })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
 
-    expect(submit).toBeDisabled();
+    expect(screen.getByRole("button", { name: /move funds/i, hidden: true })).toBeDisabled();
 
-    const input = screen.getByLabelText(/amount/i);
-    await user.type(input, "30000");
+    await user.type(screen.getByLabelText(/amount/i), "30000");
 
-    expect(submit).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /move funds/i, hidden: true })).not.toBeDisabled();
   });
 
   it("excludes the destination from the source picker", async () => {
@@ -191,11 +189,10 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    const submit = screen.getByRole("button", { name: /^move funds$/i });
     fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
-    await user.click(submit);
+    await user.click(screen.getByRole("button", { name: /^move funds$/i, hidden: true }));
 
     expect(transferMock).toHaveBeenCalledWith({
       fromBudgetId: 2,
@@ -223,11 +220,10 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    const submit = screen.getByRole("button", { name: /^move funds$/i });
     fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
-    await user.click(submit);
+    await user.click(screen.getByRole("button", { name: /^move funds$/i, hidden: true }));
 
     expect(toastError).toHaveBeenCalledWith(
       "That budget no longer has enough to move. Try a smaller amount."
@@ -251,11 +247,10 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    const submit = screen.getByRole("button", { name: /^move funds$/i });
     fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
-    await user.click(submit);
+    await user.click(screen.getByRole("button", { name: /^move funds$/i, hidden: true }));
 
     expect(toastError).toHaveBeenCalledWith("Source budget no longer exists.");
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
