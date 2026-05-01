@@ -1,10 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const transactionMock = vi.fn();
+const updateReturningMock = vi.fn();
+const selectWhereMock = vi.fn();
 
 vi.mock("@/db", () => ({
   db: {
-    transaction: (cb: (tx: unknown) => Promise<unknown>) => transactionMock(cb),
+    update: () => ({
+      set: () => ({
+        where: () => ({
+          returning: () => updateReturningMock(),
+        }),
+      }),
+    }),
+    select: () => ({
+      from: () => ({
+        where: () => selectWhereMock(),
+      }),
+    }),
   },
 }));
 
@@ -16,15 +28,16 @@ import { transferBudgetAmount } from "./budget-weekly-actions";
 
 describe("transferBudgetAmount — input validation", () => {
   beforeEach(() => {
-    transactionMock.mockReset();
-    transactionMock.mockImplementation(async () => undefined);
+    updateReturningMock.mockReset();
+    selectWhereMock.mockReset();
+    updateReturningMock.mockResolvedValue([{ id: 1 }, { id: 2 }]);
   });
 
   it("rejects when fromBudgetId equals toBudgetId", async () => {
     await expect(
       transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 1, amount: 100 })
     ).rejects.toThrow(/different/i);
-    expect(transactionMock).not.toHaveBeenCalled();
+    expect(updateReturningMock).not.toHaveBeenCalled();
   });
 
   it("rejects non-positive amount", async () => {
@@ -34,92 +47,59 @@ describe("transferBudgetAmount — input validation", () => {
     await expect(
       transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: -5 })
     ).rejects.toThrow();
-    expect(transactionMock).not.toHaveBeenCalled();
+    expect(updateReturningMock).not.toHaveBeenCalled();
   });
 
   it("rejects non-integer ids", async () => {
     await expect(
       transferBudgetAmount({ fromBudgetId: 1.5, toBudgetId: 2, amount: 100 })
     ).rejects.toThrow();
-    expect(transactionMock).not.toHaveBeenCalled();
+    expect(updateReturningMock).not.toHaveBeenCalled();
   });
 });
 
-describe("transferBudgetAmount — transaction behavior", () => {
+describe("transferBudgetAmount — atomic update behavior", () => {
   beforeEach(() => {
-    transactionMock.mockReset();
+    updateReturningMock.mockReset();
+    selectWhereMock.mockReset();
   });
 
-  it("debits source and credits destination by the transferred amount", async () => {
-    const updates: Array<{ amount: number }> = [];
+  it("returns { ok: true } when the update affects both rows", async () => {
+    updateReturningMock.mockResolvedValue([{ id: 1 }, { id: 2 }]);
 
-    transactionMock.mockImplementation(async (cb) => {
-      const tx = {
-        select: () => ({
-          from: () => ({
-            where: () =>
-              Promise.resolve([
-                { id: 1, amount: 100_000 },
-                { id: 2, amount: 50_000 },
-              ]),
-          }),
-        }),
-        update: () => ({
-          set: (patch: { amount: number }) => {
-            updates.push(patch);
-            return { where: () => Promise.resolve(undefined) };
-          },
-        }),
-      };
-      await cb(tx);
+    const result = await transferBudgetAmount({
+      fromBudgetId: 1,
+      toBudgetId: 2,
+      amount: 30_000,
     });
 
-    const result = await transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 });
     expect(result).toEqual({ ok: true });
-    expect(updates).toEqual([{ amount: 70_000 }, { amount: 80_000 }]);
+    expect(selectWhereMock).not.toHaveBeenCalled();
   });
 
-  it("returns code: 'INSUFFICIENT_CAP' when amount exceeds source.amount", async () => {
-    transactionMock.mockImplementation(async (cb) => {
-      const tx = {
-        select: () => ({
-          from: () => ({
-            where: () =>
-              Promise.resolve([
-                { id: 1, amount: 10_000 },
-                { id: 2, amount: 50_000 },
-              ]),
-          }),
-        }),
-        update: () => ({
-          set: () => ({ where: () => Promise.resolve(undefined) }),
-        }),
-      };
-      await cb(tx);
+  it("returns code: 'INSUFFICIENT_CAP' when guard tripped but both budgets exist", async () => {
+    updateReturningMock.mockResolvedValue([]); // 0 rows updated
+    selectWhereMock.mockResolvedValue([{ id: 1 }, { id: 2 }]); // both still present
+
+    const result = await transferBudgetAmount({
+      fromBudgetId: 1,
+      toBudgetId: 2,
+      amount: 30_000,
     });
 
-    await expect(
-      transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 })
-    ).resolves.toEqual({ ok: false, code: "INSUFFICIENT_CAP" });
+    expect(result).toEqual({ ok: false, code: "INSUFFICIENT_CAP" });
   });
 
   it("returns code: 'NOT_FOUND' when one of the budgets is missing", async () => {
-    transactionMock.mockImplementation(async (cb) => {
-      const tx = {
-        select: () => ({
-          from: () => ({
-            where: () => Promise.resolve([{ id: 1, amount: 100_000 }]),
-          }),
-        }),
-        update: () => ({
-          set: () => ({ where: () => Promise.resolve(undefined) }),
-        }),
-      };
-      await cb(tx);
+    updateReturningMock.mockResolvedValue([]);
+    selectWhereMock.mockResolvedValue([{ id: 1 }]); // only one present
+
+    const result = await transferBudgetAmount({
+      fromBudgetId: 1,
+      toBudgetId: 2,
+      amount: 30_000,
     });
 
-    await expect(
-      transferBudgetAmount({ fromBudgetId: 1, toBudgetId: 2, amount: 30_000 })
-    ).resolves.toEqual({ ok: false, code: "NOT_FOUND" });
+    expect(result).toEqual({ ok: false, code: "NOT_FOUND" });
   });
 });

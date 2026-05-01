@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { eq, inArray } from "drizzle-orm";
+import { and, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -86,47 +86,44 @@ export async function transferBudgetAmount(
   input: TransferBudgetInput
 ): Promise<TransferBudgetResult> {
   const parsed = transferBudgetSchema.parse(input);
+  const { fromBudgetId, toBudgetId, amount } = parsed;
 
   try {
-    await db.transaction(async (tx) => {
-      const rows = await tx
-        .select()
-        .from(budgets)
-        .where(inArray(budgets.id, [parsed.fromBudgetId, parsed.toBudgetId]));
+    const updated = await db
+      .update(budgets)
+      .set({
+        amount: sql`CASE ${budgets.id}
+          WHEN ${fromBudgetId} THEN ${budgets.amount} - ${amount}
+          WHEN ${toBudgetId} THEN ${budgets.amount} + ${amount}
+          ELSE ${budgets.amount}
+        END`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          inArray(budgets.id, [fromBudgetId, toBudgetId]),
+          sql`(SELECT ${budgets.amount} FROM ${budgets} WHERE ${budgets.id} = ${fromBudgetId}) >= ${amount}`,
+          sql`(SELECT COUNT(*) FROM ${budgets} WHERE ${budgets.id} IN (${fromBudgetId}, ${toBudgetId})) = 2`
+        )
+      )
+      .returning({ id: budgets.id });
 
-      const source = rows.find((r) => r.id === parsed.fromBudgetId);
-      const dest = rows.find((r) => r.id === parsed.toBudgetId);
-
-      if (!source || !dest) {
-        throw new Error("Budget not found");
-      }
-      if (parsed.amount > source.amount) {
-        throw new Error("Source has insufficient cap");
-      }
-
-      await tx
-        .update(budgets)
-        .set({ amount: source.amount - parsed.amount })
-        .where(eq(budgets.id, parsed.fromBudgetId));
-
-      await tx
-        .update(budgets)
-        .set({ amount: dest.amount + parsed.amount })
-        .where(eq(budgets.id, parsed.toBudgetId));
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "Source has insufficient cap") {
-        return { ok: false, code: "INSUFFICIENT_CAP" };
-      }
-      if (error.message === "Budget not found") {
-        return { ok: false, code: "NOT_FOUND" };
-      }
+    if (updated.length === 2) {
+      revalidatePath("/budgets");
+      return { ok: true };
     }
+
+    const present = await db
+      .select({ id: budgets.id })
+      .from(budgets)
+      .where(inArray(budgets.id, [fromBudgetId, toBudgetId]));
+
+    if (present.length < 2) {
+      return { ok: false, code: "NOT_FOUND" };
+    }
+    return { ok: false, code: "INSUFFICIENT_CAP" };
+  } catch (error) {
     console.error("Error transferring budget amount:", error);
     throw new Error("Failed to transfer budget amount");
   }
-
-  revalidatePath("/budgets");
-  return { ok: true };
 }
