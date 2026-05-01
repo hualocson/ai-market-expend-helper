@@ -33,6 +33,7 @@ import {
 } from "@tanstack/react-query";
 import {
   AlertCircle,
+  ArrowDown,
   ArrowLeftIcon,
   Loader2,
   Plus,
@@ -60,6 +61,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 
+import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
 import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
@@ -281,6 +283,14 @@ const BudgetWeeklyBudgetsClient = ({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferDestination, setTransferDestination] =
+    useState<BudgetListItem | null>(null);
+
+  const openTransfer = (budget: BudgetListItem) => {
+    setTransferDestination(budget);
+    setTransferOpen(true);
+  };
 
   const [activeBudget, setActiveBudget] = useState<BudgetListItem | null>(null);
   const [detailBudget, setDetailBudget] = useState<BudgetListItem | null>(null);
@@ -1252,6 +1262,19 @@ const BudgetWeeklyBudgetsClient = ({
             <Button
               type="button"
               variant="ghost"
+              className="bg-muted/40 h-11 rounded-2xl"
+              onClick={() => {
+                if (!detailBudget) return;
+                setDetailOpen(false);
+                openTransfer(detailBudget);
+              }}
+            >
+              <ArrowDown className="h-4 w-4" />
+              Move funds
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
               className="text-destructive bg-destructive/12 h-11 rounded-2xl"
               onClick={() => {
                 if (!detailBudget) {
@@ -1334,6 +1357,19 @@ const BudgetWeeklyBudgetsClient = ({
               <p className="text-muted-foreground mt-2 text-[11px]">
                 Use the total amount you plan to spend in this period.
               </p>
+              {activeBudget ? (
+                <button
+                  type="button"
+                  className="text-primary mt-2 text-[11px] font-medium underline-offset-2 hover:underline"
+                  onClick={() => {
+                    if (!activeBudget) return;
+                    setSheetOpen(false);
+                    openTransfer(activeBudget);
+                  }}
+                >
+                  Move from another budget →
+                </button>
+              ) : null}
             </div>
 
             <div>
@@ -1476,6 +1512,20 @@ const BudgetWeeklyBudgetsClient = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {transferDestination ? (
+        <BudgetTransferDrawer
+          open={transferOpen}
+          onOpenChange={(open) => {
+            setTransferOpen(open);
+            if (!open) {
+              setTransferDestination(null);
+            }
+          }}
+          destination={transferDestination}
+          budgets={budgets}
+        />
+      ) : null}
     </section>
   );
 };
