@@ -50,7 +50,7 @@ const BudgetTransferDrawer = ({
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
       setSourceId(null);
       setAmount(0);
       setPickerOpen(false);
@@ -105,10 +105,18 @@ const BudgetTransferDrawer = ({
         return;
       }
 
-      if (result.code === "INSUFFICIENT_CAP") {
-        toast.error("That budget no longer has enough to move. Try a smaller amount.");
-      } else if (result.code === "NOT_FOUND") {
-        toast.error("Source budget no longer exists.");
+      switch (result.code) {
+        case "INSUFFICIENT_CAP":
+          toast.error("That budget no longer has enough to move. Try a smaller amount.");
+          break;
+        case "NOT_FOUND":
+          toast.error("Source budget no longer exists.");
+          break;
+        default: {
+          const _exhaustive: never = result.code;
+          void _exhaustive;
+          toast.error("Failed to move funds.");
+        }
       }
       await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
     } catch (error) {
@@ -163,6 +171,8 @@ const BudgetTransferDrawer = ({
                   type="button"
                   variant="secondary"
                   aria-label="Select source budget"
+                  aria-expanded={pickerOpen}
+                  aria-controls="source-budget-list"
                   onClick={() => setPickerOpen((v) => !v)}
                   className="mt-2 h-11 w-full justify-between rounded-xl"
                 >
@@ -176,6 +186,7 @@ const BudgetTransferDrawer = ({
 
                 {pickerOpen ? (
                   <ul
+                    id="source-budget-list"
                     aria-label="Source budgets"
                     className="border-border/45 bg-card/40 mt-2 max-h-60 space-y-1 overflow-y-auto rounded-xl border p-1"
                   >
@@ -188,7 +199,6 @@ const BudgetTransferDrawer = ({
                             type="button"
                             variant="ghost"
                             disabled={disabled}
-                            aria-label={b.name}
                             onClick={() => {
                               setSourceId(b.id);
                               setPickerOpen(false);

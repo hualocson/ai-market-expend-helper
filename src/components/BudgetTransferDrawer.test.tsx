@@ -12,14 +12,20 @@ vi.mock("@/app/actions/budget-weekly-actions", () => ({
   transferBudgetAmount: (...args: unknown[]) => transferMock(...args),
 }));
 
+const invalidateQueriesMock = vi.fn();
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({
-    invalidateQueries: vi.fn(),
+    invalidateQueries: (...args: unknown[]) => invalidateQueriesMock(...args),
   }),
 }));
 
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+  },
 }));
 
 const makeBudget = (overrides: Partial<BudgetListItem> = {}): BudgetListItem => ({
@@ -36,6 +42,9 @@ const makeBudget = (overrides: Partial<BudgetListItem> = {}): BudgetListItem => 
 
 beforeEach(() => {
   transferMock.mockReset();
+  invalidateQueriesMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
 });
 
 describe("BudgetTransferDrawer", () => {
@@ -162,5 +171,88 @@ describe("BudgetTransferDrawer", () => {
 
     expect(screen.getByRole("button", { name: /move funds/i })).toBeDisabled();
     expect(screen.getByText(/cannot move more than/i)).toBeInTheDocument();
+  });
+
+  it("on success: invalidates overview + both transaction caches, toasts success, closes drawer", async () => {
+    const user = userEvent.setup();
+    transferMock.mockResolvedValue({ ok: true });
+    const onOpenChange = vi.fn();
+    const destination = makeBudget({ id: 1, name: "Groceries" });
+    const source = makeBudget({ id: 2, name: "Dining", amount: 200_000 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={onOpenChange}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.click(screen.getByRole("button", { name: /Dining/i }));
+    await user.type(screen.getByLabelText(/amount/i), "30000");
+    await user.click(screen.getByRole("button", { name: /^move funds$/i }));
+
+    expect(transferMock).toHaveBeenCalledWith({
+      fromBudgetId: 2,
+      toBudgetId: 1,
+      amount: 30_000,
+    });
+    expect(toastSuccess).toHaveBeenCalledWith("Funds moved.");
+    expect(invalidateQueriesMock).toHaveBeenCalledTimes(3);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("on INSUFFICIENT_CAP: shows specific toast and keeps drawer open", async () => {
+    const user = userEvent.setup();
+    transferMock.mockResolvedValue({ ok: false, code: "INSUFFICIENT_CAP" });
+    const onOpenChange = vi.fn();
+    const destination = makeBudget({ id: 1 });
+    const source = makeBudget({ id: 2, name: "Dining", amount: 200_000 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={onOpenChange}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.click(screen.getByRole("button", { name: /Dining/i }));
+    await user.type(screen.getByLabelText(/amount/i), "30000");
+    await user.click(screen.getByRole("button", { name: /^move funds$/i }));
+
+    expect(toastError).toHaveBeenCalledWith(
+      "That budget no longer has enough to move. Try a smaller amount."
+    );
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it("on NOT_FOUND: shows specific toast and keeps drawer open", async () => {
+    const user = userEvent.setup();
+    transferMock.mockResolvedValue({ ok: false, code: "NOT_FOUND" });
+    const onOpenChange = vi.fn();
+    const destination = makeBudget({ id: 1 });
+    const source = makeBudget({ id: 2, name: "Dining", amount: 200_000 });
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={onOpenChange}
+        destination={destination}
+        budgets={[destination, source]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.click(screen.getByRole("button", { name: /Dining/i }));
+    await user.type(screen.getByLabelText(/amount/i), "30000");
+    await user.click(screen.getByRole("button", { name: /^move funds$/i }));
+
+    expect(toastError).toHaveBeenCalledWith("Source budget no longer exists.");
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 });
