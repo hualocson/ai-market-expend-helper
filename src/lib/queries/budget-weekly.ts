@@ -9,6 +9,9 @@ type BudgetWeeklyOptionsResponse = {
     period?: BudgetPeriod;
     periodStartDate?: string;
     periodEndDate?: string | null;
+    amount?: number;
+    spent?: number;
+    remaining?: number;
   }>;
 };
 
@@ -18,6 +21,9 @@ export type BudgetWeeklyOption = {
   period: BudgetPeriod;
   periodStartDate: string | null;
   periodEndDate: string | null;
+  amount: number;
+  spent: number;
+  remaining: number;
 };
 
 export const budgetWeeklyOptionsRootQueryKey = [
@@ -92,5 +98,8 @@ export const fetchWeeklyBudgetOptions = async (
         ? String(budget.periodStartDate)
         : null,
       periodEndDate: budget.periodEndDate ? String(budget.periodEndDate) : null,
+      amount: Number(budget.amount ?? 0),
+      spent: Number(budget.spent ?? 0),
+      remaining: Number(budget.remaining ?? 0),
     }));
 };

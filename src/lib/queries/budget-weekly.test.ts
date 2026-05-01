@@ -46,6 +46,9 @@ describe("budget weekly query helpers", () => {
             period: "month",
             periodStartDate: "2026-03-01",
             periodEndDate: "2026-03-31",
+            amount: 1000,
+            spent: 200,
+            remaining: 800,
           },
           {
             id: 2,
@@ -53,6 +56,9 @@ describe("budget weekly query helpers", () => {
             period: "month",
             periodStartDate: "2026-04-01",
             periodEndDate: "2026-04-30",
+            amount: 1500,
+            spent: 1700,
+            remaining: -200,
           },
           {
             id: 3,
@@ -60,6 +66,9 @@ describe("budget weekly query helpers", () => {
             period: "week",
             periodStartDate: "2026-03-30",
             periodEndDate: "2026-04-05",
+            amount: 500,
+            spent: 0,
+            remaining: 500,
           },
         ],
       }),
@@ -74,6 +83,9 @@ describe("budget weekly query helpers", () => {
         period: "month",
         periodStartDate: "2026-04-01",
         periodEndDate: "2026-04-30",
+        amount: 1500,
+        spent: 1700,
+        remaining: -200,
       },
       {
         id: 3,
@@ -81,6 +93,9 @@ describe("budget weekly query helpers", () => {
         period: "week",
         periodStartDate: "2026-03-30",
         periodEndDate: "2026-04-05",
+        amount: 500,
+        spent: 0,
+        remaining: 500,
       },
     ]);
   });
@@ -96,6 +111,9 @@ describe("budget weekly query helpers", () => {
             period: "month",
             periodStartDate: "2026-03-01",
             periodEndDate: "2026-03-31",
+            amount: 800,
+            spent: 100,
+            remaining: 700,
           },
           {
             id: 2,
@@ -103,6 +121,7 @@ describe("budget weekly query helpers", () => {
             period: "month",
             periodStartDate: "2026-04-01",
             periodEndDate: "2026-04-30",
+            // amount/spent/remaining intentionally omitted
           },
         ],
       }),
@@ -117,6 +136,9 @@ describe("budget weekly query helpers", () => {
         period: "month",
         periodStartDate: "2026-03-01",
         periodEndDate: "2026-03-31",
+        amount: 800,
+        spent: 100,
+        remaining: 700,
       },
       {
         id: 2,
@@ -124,6 +146,9 @@ describe("budget weekly query helpers", () => {
         period: "month",
         periodStartDate: "2026-04-01",
         periodEndDate: "2026-04-30",
+        amount: 0,
+        spent: 0,
+        remaining: 0,
       },
     ]);
   });
