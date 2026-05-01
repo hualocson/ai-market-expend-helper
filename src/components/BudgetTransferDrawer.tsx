@@ -16,11 +16,14 @@ import type { BudgetListItem } from "@/types/budget-weekly";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
+  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
+  DrawerNested,
   DrawerTitle,
+  DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 
@@ -46,14 +49,12 @@ const BudgetTransferDrawer = ({
   const queryClient = useQueryClient();
   const [sourceId, setSourceId] = useState<number | null>(null);
   const [amount, setAmount] = useState(0);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setSourceId(null);
       setAmount(0);
-      setPickerOpen(false);
       setIsSaving(false);
     }
   }, [open]);
@@ -167,69 +168,72 @@ const BudgetTransferDrawer = ({
                 <label className="text-foreground text-sm font-medium">
                   From
                 </label>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  aria-label="Select source budget"
-                  aria-expanded={pickerOpen}
-                  aria-controls="source-budget-list"
-                  onClick={() => setPickerOpen((v) => !v)}
-                  className="mt-2 h-11 w-full justify-between rounded-xl"
-                >
-                  <span className="truncate">
-                    {source ? source.name : "Select source budget"}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {source ? formatVnd(source.amount) : ""}
-                  </span>
-                </Button>
-
-                {pickerOpen ? (
-                  <ul
-                    id="source-budget-list"
-                    aria-label="Source budgets"
-                    className="border-border/45 bg-card/40 mt-2 max-h-60 space-y-1 overflow-y-auto rounded-xl border p-1"
-                  >
-                    {candidateSources.map((b) => {
-                      const disabled = b.amount === 0;
-                      const selected = b.id === sourceId;
-                      return (
-                        <li key={b.id}>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            disabled={disabled}
-                            onClick={() => {
-                              setSourceId(b.id);
-                              setPickerOpen(false);
-                            }}
-                            className={cn(
-                              "h-11 w-full justify-between rounded-lg px-3 text-left",
-                              selected && "bg-muted/60"
-                            )}
-                          >
-                            <span className="flex min-w-0 flex-col">
-                              <span className="text-foreground truncate text-sm font-medium">
-                                {b.name}
-                              </span>
-                              <span className="text-muted-foreground text-[11px]">
-                                {formatPeriod(b)} · {formatVnd(b.remaining)} left
-                              </span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="text-foreground text-xs font-semibold">
-                                {formatVnd(b.amount)}
-                              </span>
-                              {selected ? (
-                                <Check className="text-success h-4 w-4" />
-                              ) : null}
-                            </span>
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
+                <DrawerNested>
+                  <DrawerTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      aria-label="Select source budget"
+                      className="mt-2 h-11 w-full justify-between rounded-xl"
+                    >
+                      <span className="truncate">
+                        {source ? source.name : "Select source budget"}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {source ? formatVnd(source.amount) : ""}
+                      </span>
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent className="rounded-t-3xl! border-t-0!">
+                    <DrawerHeader className="gap-1 pb-2">
+                      <DrawerTitle>Select source budget</DrawerTitle>
+                      <DrawerDescription>
+                        Pull cap from one of these into &quot;{destination.name}&quot;.
+                      </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="no-scrollbar max-h-[60svh] space-y-1 overflow-y-auto px-4 pb-4">
+                      <ul aria-label="Source budgets" className="space-y-1">
+                        {candidateSources.map((b) => {
+                          const disabled = b.amount === 0;
+                          const selected = b.id === sourceId;
+                          return (
+                            <li key={b.id}>
+                              <DrawerClose asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  disabled={disabled}
+                                  onClick={() => setSourceId(b.id)}
+                                  className={cn(
+                                    "h-auto min-h-13 w-full justify-between rounded-lg px-3 text-left",
+                                    selected && "bg-muted/60"
+                                  )}
+                                >
+                                  <span className="flex min-w-0 flex-col">
+                                    <span className="text-foreground truncate text-sm font-medium">
+                                      {b.name}
+                                    </span>
+                                    <span className="text-muted-foreground text-[11px]">
+                                      {formatPeriod(b)} · {formatVnd(b.remaining)} left
+                                    </span>
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="text-foreground text-xs font-semibold">
+                                      {formatVnd(b.amount)}
+                                    </span>
+                                    {selected ? (
+                                      <Check className="text-success h-4 w-4" />
+                                    ) : null}
+                                  </span>
+                                </Button>
+                              </DrawerClose>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </DrawerContent>
+                </DrawerNested>
               </div>
 
               <div>
