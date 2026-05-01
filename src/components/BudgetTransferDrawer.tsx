@@ -35,8 +35,12 @@ type Props = {
 };
 
 const formatPeriod = (b: BudgetListItem) => {
-  if (b.period === "week") return "Weekly";
-  if (b.period === "month") return "Monthly";
+  if (b.period === "week") {
+    return "Weekly";
+  }
+  if (b.period === "month") {
+    return "Monthly";
+  }
   return "Custom";
 };
 
@@ -84,7 +88,9 @@ const BudgetTransferDrawer = ({
   const submitLabel = goesOverSpent ? "Move funds anyway" : "Move funds";
 
   const handleSubmit = async () => {
-    if (!canSubmit || !source) return;
+    if (!canSubmit || !source) {
+      return;
+    }
     try {
       setIsSaving(true);
       const result = await transferBudgetAmount({

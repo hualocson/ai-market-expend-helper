@@ -1264,7 +1264,9 @@ const BudgetWeeklyBudgetsClient = ({
               variant="ghost"
               className="bg-muted/40 h-11 rounded-2xl"
               onClick={() => {
-                if (!detailBudget) return;
+                if (!detailBudget) {
+                  return;
+                }
                 setDetailOpen(false);
                 openTransfer(detailBudget);
               }}
@@ -1362,7 +1364,9 @@ const BudgetWeeklyBudgetsClient = ({
                   type="button"
                   className="text-primary mt-2 text-[11px] font-medium underline-offset-2 hover:underline"
                   onClick={() => {
-                    if (!activeBudget) return;
+                    if (!activeBudget) {
+                      return;
+                    }
                     setSheetOpen(false);
                     openTransfer(activeBudget);
                   }}
