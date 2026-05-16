@@ -98,6 +98,7 @@ const SpendingDashboardHeader = async ({
   };
   return (
     <SpendingDashboardHeaderClient
+      activeMonth={activeMonth.format("YYYY-MM")}
       activeMonthLabel={activeMonth.format("MMMM YYYY")}
       payerOptions={Object.keys(totalsForDisplay)}
       totalsByPayer={totalsForDisplay}

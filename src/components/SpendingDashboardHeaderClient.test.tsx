@@ -8,8 +8,8 @@ vi.mock("./ui/siri-orb", () => ({
   default: () => <div data-testid="siri-orb" />,
 }));
 
-vi.mock("@/components/SpendingTrendChart", () => ({
-  default: () => <div data-testid="trend-chart" />,
+vi.mock("@/components/SpendingHeatmapChart", () => ({
+  default: () => <div data-testid="heatmap-chart" />,
 }));
 
 const originalGlobalReact = globalThis.React;
@@ -29,6 +29,7 @@ describe("SpendingDashboardHeaderClient", () => {
 
     render(
       <SpendingDashboardHeaderClient
+        activeMonth="2026-03"
         activeMonthLabel="March 2026"
         payerOptions={["All", "Loc", "Sachi"]}
         totalsByPayer={{

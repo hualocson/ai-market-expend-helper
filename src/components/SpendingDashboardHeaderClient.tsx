@@ -12,17 +12,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import SpendingTrendChart from "@/components/SpendingTrendChart";
+import SpendingHeatmapChart from "@/components/SpendingHeatmapChart";
 
 import SiriOrb from "./ui/siri-orb";
 
 type SpendingDashboardHeaderClientProps = {
+  activeMonth: string;
   activeMonthLabel: string;
   payerOptions: string[];
   totalsByPayer: Record<string, { total: number; totals: number[] }>;
 };
 
 const SpendingDashboardHeaderClient = ({
+  activeMonth,
   activeMonthLabel,
   payerOptions,
   totalsByPayer,
@@ -90,7 +92,7 @@ const SpendingDashboardHeaderClient = ({
         <div className="ds-glass rounded-[28px] border p-4">
           <div className="flex items-center justify-between">
             <p className="text-foreground/80 text-xs font-semibold">
-              Spending trend
+              Spending heatmap
             </p>
             <span className="text-muted-foreground bg-surface-3 border-border/70 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.2em] uppercase">
               This month
@@ -98,7 +100,10 @@ const SpendingDashboardHeaderClient = ({
           </div>
 
           <div className="mt-4">
-            <SpendingTrendChart totals={activeTotals?.totals ?? []} />
+            <SpendingHeatmapChart
+              activeMonth={activeMonth}
+              totals={activeTotals?.totals ?? []}
+            />
           </div>
         </div>
       </div>
