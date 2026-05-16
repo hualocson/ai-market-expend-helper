@@ -386,7 +386,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                 >
                                   {group.label}
                                 </p>
-                                <ul className="divide-y divide-border/30">
+                                <ul className="space-y-1">
                                   {group.candidates.map((b) => {
                                     const disabled = b.remaining <= 0;
                                     const selected = b.id === sourceId;
@@ -401,7 +401,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                             aria-disabled={disabled}
                                             onClick={() => setSourceId(b.id)}
                                             className={cn(
-                                              "h-auto min-h-13 w-full justify-between rounded-none px-3 text-left",
+                                              "h-auto min-h-13 w-full justify-between rounded-xl border border-border/30 bg-card/40 px-3 text-left",
                                               selected && "bg-muted/60",
                                               disabled && "opacity-60"
                                             )}
