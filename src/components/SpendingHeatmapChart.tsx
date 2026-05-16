@@ -137,7 +137,7 @@ const SpendingHeatmapChart = ({
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2">
         <p className="text-foreground/80 font-mono text-sm tabular-nums">
           {detailMessage}
         </p>
