@@ -21,6 +21,7 @@ import {
 import {
   budgetOverviewQueryKey,
   budgetTransactionsQueryKey,
+  budgetTransferCandidatesPrefixQueryKey,
   budgetTransferCandidatesQueryKey,
 } from "@/lib/queries/budgets";
 import { groupTransferCandidates } from "@/lib/budget-transfer-groups";
@@ -171,8 +172,10 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
         await queryClient.invalidateQueries({
           queryKey: budgetTransactionsQueryKey(source.id),
         });
+        // Invalidate every cached transfer-candidates query — both source and
+        // destination amounts changed, so any other budget's picker is stale too.
         await queryClient.invalidateQueries({
-          queryKey: budgetTransferCandidatesQueryKey(destination.id),
+          queryKey: budgetTransferCandidatesPrefixQueryKey,
         });
         onOpenChange(false);
         return;

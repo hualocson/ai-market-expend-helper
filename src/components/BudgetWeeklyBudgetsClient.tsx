@@ -16,6 +16,7 @@ import { invalidateBudgetWeeklyOptionsCache } from "@/lib/queries/budget-weekly"
 import {
   budgetOverviewQueryKey,
   budgetTransactionsQueryKey,
+  budgetTransferCandidatesPrefixQueryKey,
   fetchBudgetOverview,
   fetchBudgetTransactions,
 } from "@/lib/queries/budgets";
@@ -772,6 +773,9 @@ const BudgetWeeklyBudgetsClient = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+      await queryClient.invalidateQueries({
+        queryKey: budgetTransferCandidatesPrefixQueryKey,
+      });
       await invalidateBudgetWeeklyOptionsCache(queryClient);
       if (activeBudget) {
         await queryClient.invalidateQueries({
@@ -799,6 +803,9 @@ const BudgetWeeklyBudgetsClient = ({
       toast.success("Budget deleted.");
 
       await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+      await queryClient.invalidateQueries({
+        queryKey: budgetTransferCandidatesPrefixQueryKey,
+      });
       await invalidateBudgetWeeklyOptionsCache(queryClient);
       await queryClient.removeQueries({
         queryKey: budgetTransactionsQueryKey(activeBudget.id),

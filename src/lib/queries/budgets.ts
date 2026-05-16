@@ -6,8 +6,15 @@ import {
 export const budgetOverviewQueryKey = ["budgets", "overview"] as const;
 export const budgetTransactionsQueryKey = (budgetId: number) =>
   ["budgets", "transactions", budgetId] as const;
+// Prefix shared by every transfer-candidates query. Use this with
+// invalidateQueries when a mutation (create/update/delete/transfer) might
+// affect any picker's candidate list, since TanStack Query matches prefix.
+export const budgetTransferCandidatesPrefixQueryKey = [
+  "budgets",
+  "transfer-candidates",
+] as const;
 export const budgetTransferCandidatesQueryKey = (destinationId: number) =>
-  ["budgets", "transfer-candidates", destinationId] as const;
+  [...budgetTransferCandidatesPrefixQueryKey, destinationId] as const;
 
 export const fetchBudgetOverview = async (): Promise<BudgetOverviewReport> => {
   const response = await fetch("/api/budgets", {

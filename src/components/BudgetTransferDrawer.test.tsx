@@ -321,7 +321,7 @@ describe("BudgetTransferDrawer", () => {
         ["budgets", "overview"],
         ["budgets", "transactions", 1],
         ["budgets", "transactions", 2],
-        ["budgets", "transfer-candidates", 1],
+        ["budgets", "transfer-candidates"],
       ])
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
