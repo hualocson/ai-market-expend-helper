@@ -371,7 +371,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                         </div>
                       ) : (
                         <ul aria-label="Source budgets" className="space-y-1">
-                          {visibleGroups.map((group, groupIdx) => {
+                          {visibleGroups.map((group) => {
                             // EARLIER is a catch-all without a date range in its header,
                             // so rows in it carry their own period range to disambiguate.
                             const showPeriodInRow = group.key.kind === "earlier";
@@ -379,10 +379,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                               <li key={group.key.kind}>
                                 <p
                                   data-testid="budget-transfer-group-label"
-                                  className={cn(
-                                    "text-foreground/70 px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide",
-                                    groupIdx > 0 && "border-t border-border/40 mt-1"
-                                  )}
+                                  className="text-foreground/70 px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide"
                                 >
                                   {group.label}
                                 </p>
