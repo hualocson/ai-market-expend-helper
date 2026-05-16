@@ -17,12 +17,14 @@ import SpendingTrendChart from "@/components/SpendingTrendChart";
 import SiriOrb from "./ui/siri-orb";
 
 type SpendingDashboardHeaderClientProps = {
+  activeMonth: string;
   activeMonthLabel: string;
   payerOptions: string[];
   totalsByPayer: Record<string, { total: number; totals: number[] }>;
 };
 
 const SpendingDashboardHeaderClient = ({
+  activeMonth,
   activeMonthLabel,
   payerOptions,
   totalsByPayer,

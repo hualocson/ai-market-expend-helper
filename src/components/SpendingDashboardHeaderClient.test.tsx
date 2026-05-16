@@ -29,6 +29,7 @@ describe("SpendingDashboardHeaderClient", () => {
 
     render(
       <SpendingDashboardHeaderClient
+        activeMonth="2026-03"
         activeMonthLabel="March 2026"
         payerOptions={["All", "Loc", "Sachi"]}
         totalsByPayer={{
