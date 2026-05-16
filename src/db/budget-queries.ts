@@ -4,6 +4,7 @@ import { budgets, expenseBudgets, expenses } from "@/db/schema";
 import { getWeekRange } from "@/lib/week";
 import {
   BudgetCreateInput,
+  BudgetListItem,
   BudgetPeriod,
   BudgetOverviewReport,
   BudgetReport,
@@ -20,6 +21,7 @@ import {
   isNull,
   lt,
   lte,
+  ne,
   or,
   sql,
 } from "drizzle-orm";
@@ -287,6 +289,70 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
     },
     budgets: budgetsWithTotals,
   };
+};
+
+export const getTransferCandidates = async (
+  destinationBudgetId: number,
+  limit = 100
+): Promise<BudgetListItem[]> => {
+  const budgetRows = await db
+    .select({
+      id: budgets.id,
+      name: budgets.name,
+      amount: budgets.amount,
+      period: budgets.period,
+      periodStartDate: budgets.periodStartDate,
+      periodEndDate: budgets.periodEndDate,
+      spent:
+        sql<number>`coalesce(sum(${expenses.amount}), 0)`.mapWith(Number),
+    })
+    .from(budgets)
+    .leftJoin(expenseBudgets, eq(expenseBudgets.budgetId, budgets.id))
+    .leftJoin(
+      expenses,
+      and(
+        eq(expenses.id, expenseBudgets.expenseId),
+        eq(expenses.isDeleted, false),
+        gte(expenses.date, budgets.periodStartDate),
+        lte(
+          expenses.date,
+          sql`coalesce(${budgets.periodEndDate}, ${budgets.periodStartDate})`
+        )
+      )
+    )
+    .where(
+      and(
+        ne(budgets.id, destinationBudgetId),
+        sql`${budgets.amount} > 0`
+      )
+    )
+    .groupBy(
+      budgets.id,
+      budgets.name,
+      budgets.amount,
+      budgets.period,
+      budgets.periodStartDate,
+      budgets.periodEndDate
+    )
+    .orderBy(desc(budgets.periodStartDate), asc(budgets.id))
+    .limit(limit);
+
+  return budgetRows.map((budget) => {
+    const amount = Number(budget.amount ?? 0);
+    const spent = Number(budget.spent ?? 0);
+    return {
+      id: budget.id,
+      name: budget.name,
+      amount,
+      spent,
+      remaining: amount - spent,
+      period: budget.period,
+      periodStartDate: dayjs(budget.periodStartDate).format("YYYY-MM-DD"),
+      periodEndDate: budget.periodEndDate
+        ? dayjs(budget.periodEndDate).format("YYYY-MM-DD")
+        : null,
+    };
+  });
 };
 
 export const createBudget = async (input: BudgetCreateInput) => {
