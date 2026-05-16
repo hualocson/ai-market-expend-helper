@@ -1,16 +1,21 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowDown, Check, Loader2 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, ArrowDown, Check, Loader2, RefreshCcw } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { transferBudgetAmount } from "@/app/actions/budget-weekly-actions";
+import {
+  getTransferCandidates,
+  transferBudgetAmount,
+} from "@/app/actions/budget-weekly-actions";
 import {
   budgetOverviewQueryKey,
   budgetTransactionsQueryKey,
+  budgetTransferCandidatesQueryKey,
 } from "@/lib/queries/budgets";
-import { cn, formatVnd, parseVndInput } from "@/lib/utils";
+import { groupTransferCandidates } from "@/lib/budget-transfer-groups";
+import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import type { BudgetListItem } from "@/types/budget-weekly";
 
 import { Button } from "@/components/ui/button";
@@ -31,29 +36,21 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   destination: BudgetListItem;
-  budgets: BudgetListItem[];
 };
 
-const formatPeriod = (b: BudgetListItem) => {
-  if (b.period === "week") {
-    return "Weekly";
-  }
-  if (b.period === "month") {
-    return "Monthly";
-  }
-  return "Custom";
-};
-
-const BudgetTransferDrawer = ({
-  open,
-  onOpenChange,
-  destination,
-  budgets,
-}: Props) => {
+const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
   const queryClient = useQueryClient();
   const [sourceId, setSourceId] = useState<number | null>(null);
   const [amount, setAmount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+
+  const candidatesQuery = useQuery({
+    queryKey: budgetTransferCandidatesQueryKey(destination.id),
+    queryFn: () => getTransferCandidates({ destinationBudgetId: destination.id }),
+    enabled: open,
+  });
+
+  const candidates = candidatesQuery.data ?? [];
 
   useEffect(() => {
     if (open) {
@@ -63,14 +60,17 @@ const BudgetTransferDrawer = ({
     }
   }, [open]);
 
-  const candidateSources = useMemo(
-    () => budgets.filter((b) => b.id !== destination.id),
-    [budgets, destination.id]
+  const groups = useMemo(
+    () => groupTransferCandidates(candidates, new Date()),
+    [candidates]
   );
 
+  const allDisabled =
+    candidates.length > 0 && candidates.every((b) => b.remaining <= 0);
+
   const source = useMemo(
-    () => candidateSources.find((b) => b.id === sourceId) ?? null,
-    [candidateSources, sourceId]
+    () => candidates.find((b) => b.id === sourceId) ?? null,
+    [candidates, sourceId]
   );
 
   const exceedsCap = source !== null && amount > source.amount;
@@ -79,12 +79,10 @@ const BudgetTransferDrawer = ({
     amount > 0 &&
     !exceedsCap &&
     source.amount - amount < source.spent;
+  const overBy =
+    goesOverSpent && source ? source.spent - (source.amount - amount) : 0;
 
-  const overBy = goesOverSpent && source ? source.spent - (source.amount - amount) : 0;
-
-  const canSubmit =
-    source !== null && amount > 0 && !exceedsCap && !isSaving;
-
+  const canSubmit = source !== null && amount > 0 && !exceedsCap && !isSaving;
   const submitLabel = goesOverSpent ? "Move funds anyway" : "Move funds";
 
   const handleSubmit = async () => {
@@ -108,13 +106,18 @@ const BudgetTransferDrawer = ({
         await queryClient.invalidateQueries({
           queryKey: budgetTransactionsQueryKey(source.id),
         });
+        await queryClient.invalidateQueries({
+          queryKey: budgetTransferCandidatesQueryKey(destination.id),
+        });
         onOpenChange(false);
         return;
       }
 
       switch (result.code) {
         case "INSUFFICIENT_CAP":
-          toast.error("That budget no longer has enough to move. Try a smaller amount.");
+          toast.error(
+            "That budget no longer has enough to move. Try a smaller amount."
+          );
           break;
         case "NOT_FOUND":
           toast.error("Source budget no longer exists.");
@@ -134,6 +137,11 @@ const BudgetTransferDrawer = ({
     }
   };
 
+  const hasNoCandidates =
+    !candidatesQuery.isLoading &&
+    !candidatesQuery.isError &&
+    candidates.length === 0;
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <DrawerContent className="rounded-t-3xl! border-t-0!">
@@ -145,7 +153,7 @@ const BudgetTransferDrawer = ({
         </DrawerHeader>
 
         <div className="no-scrollbar flex max-h-[65svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
-          {candidateSources.length === 0 ? (
+          {hasNoCandidates ? (
             <div className="border-border/55 bg-card/40 rounded-2xl border border-dashed px-4 py-5 text-center">
               <p className="text-foreground text-sm font-semibold">
                 No other budgets to pull from yet.
@@ -164,16 +172,14 @@ const BudgetTransferDrawer = ({
                   <p className="text-foreground text-sm font-semibold">
                     {destination.name}
                   </p>
-                  <p className="text-foreground text-sm font-semibold">
+                  <p className="text-foreground text-sm font-semibold tabular-nums">
                     {formatVnd(destination.amount)}
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="text-foreground text-sm font-medium">
-                  From
-                </label>
+                <label className="text-foreground text-sm font-medium">From</label>
                 <DrawerNested>
                   <DrawerTrigger asChild>
                     <Button
@@ -185,7 +191,7 @@ const BudgetTransferDrawer = ({
                       <span className="truncate">
                         {source ? source.name : "Select source budget"}
                       </span>
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-muted-foreground text-xs tabular-nums">
                         {source ? formatVnd(source.amount) : ""}
                       </span>
                     </Button>
@@ -197,46 +203,129 @@ const BudgetTransferDrawer = ({
                         Pull cap from one of these into &quot;{destination.name}&quot;.
                       </DrawerDescription>
                     </DrawerHeader>
-                    <div className="no-scrollbar max-h-[60svh] space-y-1 overflow-y-auto px-4 pb-4">
-                      <ul aria-label="Source budgets" className="space-y-1">
-                        {candidateSources.map((b) => {
-                          const disabled = b.amount === 0;
-                          const selected = b.id === sourceId;
-                          return (
-                            <li key={b.id}>
-                              <DrawerClose asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  disabled={disabled}
-                                  onClick={() => setSourceId(b.id)}
-                                  className={cn(
-                                    "h-auto min-h-13 w-full justify-between rounded-lg px-3 text-left",
-                                    selected && "bg-muted/60"
-                                  )}
-                                >
-                                  <span className="flex min-w-0 flex-col">
-                                    <span className="text-foreground truncate text-sm font-medium">
-                                      {b.name}
-                                    </span>
-                                    <span className="text-muted-foreground text-[11px]">
-                                      {formatPeriod(b)} · {formatVnd(b.remaining)} left
-                                    </span>
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="text-foreground text-xs font-semibold">
-                                      {formatVnd(b.amount)}
-                                    </span>
-                                    {selected ? (
-                                      <Check className="text-success h-4 w-4" />
-                                    ) : null}
-                                  </span>
-                                </Button>
-                              </DrawerClose>
+
+                    <div className="no-scrollbar relative max-h-[60svh] overflow-y-auto px-4 pb-4">
+                      <div
+                        data-testid="budget-transfer-nested-destination"
+                        className="sticky top-0 z-10 -mx-1 mb-2 rounded-2xl border border-border/45 bg-card/95 px-4 py-3 backdrop-blur"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                            Filling
+                          </span>
+                          <span className="text-foreground text-sm font-semibold tabular-nums">
+                            {formatVnd(destination.amount)}
+                          </span>
+                        </div>
+                        <p className="text-foreground mt-1 text-sm font-semibold truncate">
+                          {destination.name}
+                        </p>
+                      </div>
+
+                      {candidatesQuery.isLoading ? (
+                        <div
+                          data-testid="budget-transfer-candidates-skeleton"
+                          className="space-y-2 pt-1"
+                        >
+                          {Array.from({ length: 4 }).map((_, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-muted/40 h-13 rounded-lg animate-pulse"
+                            />
+                          ))}
+                        </div>
+                      ) : candidatesQuery.isError ? (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+                          <p className="text-destructive text-xs font-medium">
+                            Failed to load budgets.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => candidatesQuery.refetch()}
+                          >
+                            <RefreshCcw className="h-3.5 w-3.5" />
+                            Retry
+                          </Button>
+                        </div>
+                      ) : allDisabled ? (
+                        <div className="border-border/55 bg-card/40 rounded-2xl border border-dashed px-4 py-5 text-center">
+                          <p className="text-foreground text-sm font-semibold">
+                            No budget has cap to spare right now.
+                          </p>
+                          <p className="text-muted-foreground mt-1 text-xs">
+                            Try again after another budget recovers some headroom.
+                          </p>
+                        </div>
+                      ) : (
+                        <ul aria-label="Source budgets" className="space-y-3">
+                          {groups.map((group) => (
+                            <li key={group.key.kind}>
+                              <p
+                                data-testid="budget-transfer-group-label"
+                                className="text-muted-foreground mt-3 mb-1 px-1 text-[10px] tracking-wide uppercase"
+                              >
+                                {group.label}
+                              </p>
+                              <ul className="space-y-1">
+                                {group.candidates.map((b) => {
+                                  const disabled = b.remaining <= 0;
+                                  const selected = b.id === sourceId;
+                                  return (
+                                    <li key={b.id}>
+                                      <DrawerClose asChild>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          disabled={disabled}
+                                          aria-disabled={disabled}
+                                          onClick={() => setSourceId(b.id)}
+                                          className={cn(
+                                            "h-auto min-h-13 w-full justify-between rounded-lg px-3 text-left",
+                                            selected && "bg-muted/60",
+                                            disabled && "opacity-60"
+                                          )}
+                                        >
+                                          <span className="min-w-0 truncate text-sm font-medium">
+                                            {b.name}
+                                          </span>
+                                          <span className="ml-2 flex shrink-0 items-center gap-2">
+                                            <span className="flex flex-col items-end">
+                                              {disabled ? (
+                                                <span className="text-muted-foreground text-[10px]">
+                                                  no cap to pull
+                                                </span>
+                                              ) : (
+                                                <span
+                                                  className={cn(
+                                                    "text-xs font-semibold tabular-nums",
+                                                    b.remaining < 0
+                                                      ? "text-destructive"
+                                                      : "text-success"
+                                                  )}
+                                                >
+                                                  {formatVndSigned(b.remaining)}
+                                                </span>
+                                              )}
+                                              <span className="text-muted-foreground text-[10px] tabular-nums">
+                                                {formatVnd(b.amount)}
+                                              </span>
+                                            </span>
+                                            {selected ? (
+                                              <Check className="text-success h-4 w-4 shrink-0" />
+                                            ) : null}
+                                          </span>
+                                        </Button>
+                                      </DrawerClose>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
                             </li>
-                          );
-                        })}
-                      </ul>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </DrawerContent>
                 </DrawerNested>
@@ -257,7 +346,7 @@ const BudgetTransferDrawer = ({
                     value={amount ? formatVnd(amount) : ""}
                     onChange={(e) => setAmount(parseVndInput(e.target.value))}
                     placeholder="0"
-                    className="h-11 pr-14 text-right text-lg font-semibold"
+                    className="h-11 pr-14 text-right text-lg font-semibold tabular-nums"
                   />
                   <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs font-medium">
                     VND
@@ -280,7 +369,7 @@ const BudgetTransferDrawer = ({
                       <p className="text-muted-foreground">{source.name}</p>
                       <p
                         className={cn(
-                          "mt-1 text-sm font-semibold",
+                          "mt-1 text-sm font-semibold tabular-nums",
                           source.amount - amount < source.spent
                             ? "text-destructive"
                             : "text-foreground"
@@ -291,7 +380,7 @@ const BudgetTransferDrawer = ({
                     </div>
                     <div>
                       <p className="text-muted-foreground">{destination.name}</p>
-                      <p className="text-foreground mt-1 text-sm font-semibold">
+                      <p className="text-foreground mt-1 text-sm font-semibold tabular-nums">
                         {formatVnd(destination.amount + amount)}
                       </p>
                     </div>
@@ -311,7 +400,7 @@ const BudgetTransferDrawer = ({
           )}
         </div>
 
-        {candidateSources.length > 0 ? (
+        {!hasNoCandidates ? (
           <DrawerFooter className="border-border/45 gap-2 border-t">
             <Button
               type="button"
