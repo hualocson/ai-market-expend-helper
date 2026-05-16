@@ -310,8 +310,13 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                             )}
                                           >
                                             <span className="flex min-w-0 flex-col">
-                                              <span className="text-foreground truncate text-sm font-medium">
-                                                {b.name}
+                                              <span className="flex items-center gap-1.5">
+                                                <span className="text-foreground truncate text-sm font-medium">
+                                                  {b.name}
+                                                </span>
+                                                {selected ? (
+                                                  <Check className="text-success h-4 w-4 shrink-0" />
+                                                ) : null}
                                               </span>
                                               {showPeriodInRow ? (
                                                 <span className="text-muted-foreground text-[10px] tabular-nums">
@@ -319,37 +324,32 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                                 </span>
                                               ) : null}
                                             </span>
-                                            <span className="ml-2 flex shrink-0 items-center gap-2">
-                                              <span className="flex flex-col items-end">
-                                                {disabled ? (
-                                                  <span className="text-muted-foreground text-[10px]">
-                                                    no cap to pull
+                                            <span className="ml-2 flex shrink-0 flex-col items-end">
+                                              {disabled ? (
+                                                <span className="text-muted-foreground text-[10px]">
+                                                  no cap to pull
+                                                </span>
+                                              ) : isPristine ? (
+                                                <span className="text-foreground text-xs font-semibold tabular-nums">
+                                                  {formatVnd(b.amount)}
+                                                </span>
+                                              ) : (
+                                                <>
+                                                  <span
+                                                    className={cn(
+                                                      "text-xs font-semibold tabular-nums",
+                                                      b.remaining < 0
+                                                        ? "text-destructive"
+                                                        : "text-success"
+                                                    )}
+                                                  >
+                                                    {formatVndSigned(b.remaining)}
                                                   </span>
-                                                ) : isPristine ? (
-                                                  <span className="text-foreground text-xs font-semibold tabular-nums">
-                                                    {formatVnd(b.amount)}
+                                                  <span className="text-muted-foreground text-[10px] tabular-nums">
+                                                    of {formatVnd(b.amount)}
                                                   </span>
-                                                ) : (
-                                                  <>
-                                                    <span
-                                                      className={cn(
-                                                        "text-xs font-semibold tabular-nums",
-                                                        b.remaining < 0
-                                                          ? "text-destructive"
-                                                          : "text-success"
-                                                      )}
-                                                    >
-                                                      {formatVndSigned(b.remaining)}
-                                                    </span>
-                                                    <span className="text-muted-foreground text-[10px] tabular-nums">
-                                                      of {formatVnd(b.amount)}
-                                                    </span>
-                                                  </>
-                                                )}
-                                              </span>
-                                              {selected ? (
-                                                <Check className="text-success h-4 w-4 shrink-0" />
-                                              ) : null}
+                                                </>
+                                              )}
                                             </span>
                                           </Button>
                                         </DrawerClose>
