@@ -390,7 +390,6 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                     const isPristine = b.spent === 0;
                                     return (
                                       <li key={b.id}>
-                                        <DrawerClose asChild>
                                           <Button
                                             type="button"
                                             variant="ghost"
@@ -446,7 +445,6 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                               )}
                                             </span>
                                           </Button>
-                                        </DrawerClose>
                                       </li>
                                     );
                                   })}
@@ -457,6 +455,19 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                         </ul>
                       )}
                     </div>
+
+                    <DrawerFooter className="border-border/45 gap-2 border-t">
+                      <DrawerClose asChild>
+                        <Button
+                          type="button"
+                          disabled={sourceId === null}
+                          className="h-11 rounded-2xl"
+                        >
+                          <Check className="h-4 w-4" />
+                          {source ? `Use "${source.name}"` : "Select a budget"}
+                        </Button>
+                      </DrawerClose>
+                    </DrawerFooter>
                   </DrawerContent>
                 </DrawerNested>
               </div>
