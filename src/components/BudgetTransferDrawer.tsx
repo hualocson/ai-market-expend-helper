@@ -76,6 +76,8 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
     [candidates, sourceId]
   );
 
+  // Transfer moves cap (amount), not headroom (remaining), so the hard cap is
+  // source.amount; pulling past remaining is allowed with a "goes over budget" warning.
   const exceedsCap = source !== null && amount > source.amount;
   const goesOverSpent =
     source !== null &&
