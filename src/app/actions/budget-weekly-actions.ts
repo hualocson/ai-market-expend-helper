@@ -9,12 +9,14 @@ import { db } from "@/db";
 import {
   createBudget,
   deleteBudget,
+  getTransferCandidates as getTransferCandidatesQuery,
   setExpenseBudget,
   updateBudget,
 } from "@/db/budget-queries";
 import { budgets } from "@/db/schema";
 import {
   BudgetCreateInput,
+  BudgetListItem,
   BudgetUpdateInput,
   ExpenseBudgetInput,
 } from "@/types/budget-weekly";
@@ -125,5 +127,26 @@ export async function transferBudgetAmount(
   } catch (error) {
     console.error("Error transferring budget amount:", error);
     throw new Error("Failed to transfer budget amount");
+  }
+}
+
+const getTransferCandidatesSchema = z.object({
+  destinationBudgetId: z.number().int().positive(),
+});
+
+export type GetTransferCandidatesInput = z.infer<
+  typeof getTransferCandidatesSchema
+>;
+
+export async function getTransferCandidates(
+  input: GetTransferCandidatesInput
+): Promise<BudgetListItem[]> {
+  const { destinationBudgetId } = getTransferCandidatesSchema.parse(input);
+
+  try {
+    return await getTransferCandidatesQuery(destinationBudgetId);
+  } catch (error) {
+    console.error("Error loading transfer candidates:", error);
+    throw new Error("Failed to load transfer candidates");
   }
 }
