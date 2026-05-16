@@ -1,6 +1,8 @@
 export const getQuantileBuckets = (totals: number[]): number[] => {
   const nonZero = totals.filter((t) => t > 0).sort((a, b) => a - b);
-  if (nonZero.length === 0) return totals.map(() => 0);
+  if (nonZero.length === 0) {
+    return totals.map(() => 0);
+  }
 
   const q = (p: number) => nonZero[Math.floor((nonZero.length - 1) * p)];
   const q25 = q(0.25);
@@ -13,10 +15,18 @@ export const getQuantileBuckets = (totals: number[]): number[] => {
   }
 
   return totals.map((t) => {
-    if (t <= 0) return 0;
-    if (t <= q25) return 1;
-    if (t <= q50) return 2;
-    if (t <= q75) return 3;
+    if (t <= 0) {
+      return 0;
+    }
+    if (t <= q25) {
+      return 1;
+    }
+    if (t <= q50) {
+      return 2;
+    }
+    if (t <= q75) {
+      return 3;
+    }
     return 4;
   });
 };
