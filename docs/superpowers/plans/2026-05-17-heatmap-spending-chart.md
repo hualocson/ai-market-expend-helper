@@ -108,6 +108,13 @@ export const getQuantileBuckets = (totals: number[]): number[] => {
   const q50 = q(0.5);
   const q75 = q(0.75);
 
+  // Degenerate distribution (1 unique value or 1 non-zero day): all
+  // quartiles collapse, and the main mapper's `t <= q25` would misroute
+  // the single non-zero value to bucket 1. Promote those days to bucket 4.
+  if (q25 === q50 && q50 === q75) {
+    return totals.map((t) => (t > 0 ? 4 : 0));
+  }
+
   return totals.map((t) => {
     if (t <= 0) return 0;
     if (t <= q25) return 1;
