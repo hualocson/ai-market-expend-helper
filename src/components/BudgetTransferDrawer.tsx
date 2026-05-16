@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -71,12 +71,102 @@ const normalizeForSearch = (value: string): string =>
     .replace(/Đ/g, "D")
     .toLowerCase();
 
+type SourceBudgetRowProps = {
+  budget: BudgetListItem;
+  selected: boolean;
+  showPeriod: boolean;
+  onSelect: (id: number) => void;
+};
+
+// Memoized so picking a row only re-renders the two rows whose `selected`
+// changed — not the whole list. Critical inside vaul's blurred DrawerContent,
+// where any descendant repaint forces Safari to recompute the backdrop blur
+// for the entire drawer area.
+const SourceBudgetRow = memo(function SourceBudgetRow({
+  budget,
+  selected,
+  showPeriod,
+  onSelect,
+}: SourceBudgetRowProps) {
+  const disabled = budget.remaining <= 0;
+  const isPristine = budget.spent === 0;
+  const handleClick = useCallback(() => onSelect(budget.id), [onSelect, budget.id]);
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      disabled={disabled}
+      aria-disabled={disabled}
+      onClick={handleClick}
+      className={cn(
+        "h-auto min-h-13 w-full justify-between rounded-xl border border-border/30 bg-card/40 px-3 text-left",
+        // iOS Safari holds :hover after a tap until the next tap elsewhere.
+        // We must override the ghost variant's hover/active bgs in BOTH light
+        // and dark modes — `dark:hover:bg-accent/50` carries an extra `.dark`
+        // ancestor in its selector and outranks a plain `hover:bg-muted/60`,
+        // so the selected row would visually flash to accent-green after tap.
+        // Also disable bg/transform transitions so selection flips instantly
+        // instead of crossfading inside the drawer.
+        "transition-none touch-manipulation active:scale-100",
+        selected
+          ? "bg-muted/60 hover:bg-muted/60 dark:hover:bg-muted/60 active:bg-muted/60"
+          : "hover:bg-card/55 dark:hover:bg-card/55 active:bg-card/55",
+        disabled && "opacity-60"
+      )}
+    >
+      <span className="flex min-w-0 flex-col">
+        <span className="flex items-center gap-1.5">
+          <span className="text-foreground truncate text-sm font-medium">
+            {budget.name}
+          </span>
+          {selected ? (
+            <Check className="text-success h-4 w-4 shrink-0" />
+          ) : null}
+        </span>
+        {showPeriod ? (
+          <span className="text-muted-foreground text-[10px] tabular-nums">
+            {formatCandidatePeriodRange(budget)}
+          </span>
+        ) : null}
+      </span>
+      <span className="ml-2 flex shrink-0 flex-col items-end">
+        {disabled ? (
+          <span className="text-muted-foreground text-[10px]">
+            no cap to pull
+          </span>
+        ) : isPristine ? (
+          <span className="text-foreground text-xs font-semibold tabular-nums">
+            {formatVnd(budget.amount)}
+          </span>
+        ) : (
+          <>
+            <span
+              className={cn(
+                "text-xs font-semibold tabular-nums",
+                budget.remaining < 0 ? "text-destructive" : "text-success"
+              )}
+            >
+              {formatVndSigned(budget.remaining)}
+            </span>
+            <span className="text-muted-foreground text-[10px] tabular-nums">
+              of {formatVnd(budget.amount)}
+            </span>
+          </>
+        )}
+      </span>
+    </Button>
+  );
+});
+
 const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
   const queryClient = useQueryClient();
   const [sourceId, setSourceId] = useState<number | null>(null);
   const [amount, setAmount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSelectSource = useCallback((id: number) => setSourceId(id), []);
 
   const candidatesQuery = useQuery({
     queryKey: budgetTransferCandidatesQueryKey(destination.id),
@@ -265,7 +355,17 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                       </span>
                     </Button>
                   </DrawerTrigger>
-                  <DrawerContent className="rounded-t-3xl! border-t-0!">
+                  <DrawerContent
+                    className={cn(
+                      "rounded-t-3xl! border-t-0!",
+                      // Override the default ds-glass-strong blur on this nested
+                      // drawer: stacking a second backdrop-filter over the parent
+                      // drawer is what makes iPhone Safari flicker when parent
+                      // state changes (the parent's content bleeds through and
+                      // forces a blur repaint on every row tap).
+                      "[background:var(--card)]! [backdrop-filter:none]!"
+                    )}
+                  >
                     <DrawerHeader className="gap-1 pb-2">
                       <DrawerTitle>Select source budget</DrawerTitle>
                       <DrawerDescription>
@@ -384,70 +484,16 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                                   {group.label}
                                 </p>
                                 <ul className="space-y-1">
-                                  {group.candidates.map((b) => {
-                                    const disabled = b.remaining <= 0;
-                                    const selected = b.id === sourceId;
-                                    const isPristine = b.spent === 0;
-                                    return (
-                                      <li key={b.id}>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            disabled={disabled}
-                                            aria-disabled={disabled}
-                                            onClick={() => setSourceId(b.id)}
-                                            className={cn(
-                                              "h-auto min-h-13 w-full justify-between rounded-xl border border-border/30 bg-card/40 px-3 text-left",
-                                              selected && "bg-muted/60",
-                                              disabled && "opacity-60"
-                                            )}
-                                          >
-                                            <span className="flex min-w-0 flex-col">
-                                              <span className="flex items-center gap-1.5">
-                                                <span className="text-foreground truncate text-sm font-medium">
-                                                  {b.name}
-                                                </span>
-                                                {selected ? (
-                                                  <Check className="text-success h-4 w-4 shrink-0" />
-                                                ) : null}
-                                              </span>
-                                              {showPeriodInRow ? (
-                                                <span className="text-muted-foreground text-[10px] tabular-nums">
-                                                  {formatCandidatePeriodRange(b)}
-                                                </span>
-                                              ) : null}
-                                            </span>
-                                            <span className="ml-2 flex shrink-0 flex-col items-end">
-                                              {disabled ? (
-                                                <span className="text-muted-foreground text-[10px]">
-                                                  no cap to pull
-                                                </span>
-                                              ) : isPristine ? (
-                                                <span className="text-foreground text-xs font-semibold tabular-nums">
-                                                  {formatVnd(b.amount)}
-                                                </span>
-                                              ) : (
-                                                <>
-                                                  <span
-                                                    className={cn(
-                                                      "text-xs font-semibold tabular-nums",
-                                                      b.remaining < 0
-                                                        ? "text-destructive"
-                                                        : "text-success"
-                                                    )}
-                                                  >
-                                                    {formatVndSigned(b.remaining)}
-                                                  </span>
-                                                  <span className="text-muted-foreground text-[10px] tabular-nums">
-                                                    of {formatVnd(b.amount)}
-                                                  </span>
-                                                </>
-                                              )}
-                                            </span>
-                                          </Button>
-                                      </li>
-                                    );
-                                  })}
+                                  {group.candidates.map((b) => (
+                                    <li key={b.id}>
+                                      <SourceBudgetRow
+                                        budget={b}
+                                        selected={b.id === sourceId}
+                                        showPeriod={showPeriodInRow}
+                                        onSelect={handleSelectSource}
+                                      />
+                                    </li>
+                                  ))}
                                 </ul>
                               </li>
                             );
