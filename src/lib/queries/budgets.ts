@@ -6,6 +6,8 @@ import {
 export const budgetOverviewQueryKey = ["budgets", "overview"] as const;
 export const budgetTransactionsQueryKey = (budgetId: number) =>
   ["budgets", "transactions", budgetId] as const;
+export const budgetTransferCandidatesQueryKey = (destinationId: number) =>
+  ["budgets", "transfer-candidates", destinationId] as const;
 
 export const fetchBudgetOverview = async (): Promise<BudgetOverviewReport> => {
   const response = await fetch("/api/budgets", {
