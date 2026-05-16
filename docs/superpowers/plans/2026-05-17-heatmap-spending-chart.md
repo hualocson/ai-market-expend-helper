@@ -101,7 +101,9 @@ Create `src/lib/heatmap-buckets.ts`:
 ```ts
 export const getQuantileBuckets = (totals: number[]): number[] => {
   const nonZero = totals.filter((t) => t > 0).sort((a, b) => a - b);
-  if (nonZero.length === 0) return totals.map(() => 0);
+  if (nonZero.length === 0) {
+    return totals.map(() => 0);
+  }
 
   const q = (p: number) => nonZero[Math.floor((nonZero.length - 1) * p)];
   const q25 = q(0.25);
@@ -116,14 +118,24 @@ export const getQuantileBuckets = (totals: number[]): number[] => {
   }
 
   return totals.map((t) => {
-    if (t <= 0) return 0;
-    if (t <= q25) return 1;
-    if (t <= q50) return 2;
-    if (t <= q75) return 3;
+    if (t <= 0) {
+      return 0;
+    }
+    if (t <= q25) {
+      return 1;
+    }
+    if (t <= q50) {
+      return 2;
+    }
+    if (t <= q75) {
+      return 3;
+    }
     return 4;
   });
 };
 ```
+
+**Note:** All `if` statements need braces — the project's ESLint config sets `curly: "error"`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -210,8 +222,12 @@ const SpendingHeatmapChart = ({
   );
 
   const detailMessage = (() => {
-    if (totalSpend === 0) return `No spending in ${monthLabel}`;
-    if (selectedDay === null) return "Tap a day to see details";
+    if (totalSpend === 0) {
+      return `No spending in ${monthLabel}`;
+    }
+    if (selectedDay === null) {
+      return "Tap a day to see details";
+    }
     const amount = totals[selectedDay - 1] ?? 0;
     return `Day ${selectedDay} · ${formatVnd(amount)} VND`;
   })();
