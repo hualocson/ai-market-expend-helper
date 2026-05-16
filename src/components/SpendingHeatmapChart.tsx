@@ -81,7 +81,7 @@ const SpendingHeatmapChart = ({
       <div
         role="group"
         aria-label={`Spending heatmap for ${monthLabel}`}
-        className="grid w-full grid-cols-7 gap-2"
+        className="grid w-full grid-cols-7 gap-1"
       >
         {WEEKDAY_LABELS.map((label) => (
           <span
