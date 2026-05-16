@@ -1522,7 +1522,6 @@ const BudgetWeeklyBudgetsClient = ({
           open={transferOpen}
           onOpenChange={setTransferOpen}
           destination={transferDestination}
-          budgets={budgets}
         />
       ) : null}
     </section>
