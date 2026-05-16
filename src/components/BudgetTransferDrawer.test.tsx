@@ -400,4 +400,87 @@ describe("BudgetTransferDrawer", () => {
     expect(within(header).getByText(/filling/i)).toBeInTheDocument();
     expect(header.className).toMatch(/sticky/);
   });
+
+  it("hides the secondary amount line when a candidate has zero spent", () => {
+    const pristine = makeBudget({
+      id: 7,
+      name: "Coffee",
+      amount: 500_000,
+      spent: 0,
+      remaining: 500_000,
+    });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [pristine] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    const row = screen.getByRole("button", { name: /Coffee/i });
+    // Single cap reading only: amount appears once, the redundant "of …" line is absent.
+    expect(within(row).getAllByText(/500\.000/)).toHaveLength(1);
+    expect(within(row).queryByText(/^of /)).toBeNull();
+  });
+
+  it("shows both remaining and amount when a candidate has been partially spent", () => {
+    const spent = makeBudget({
+      id: 8,
+      name: "Travel",
+      amount: 400_000,
+      spent: 100_000,
+      remaining: 300_000,
+    });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [spent] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    const row = screen.getByRole("button", { name: /Travel/i });
+    expect(within(row).getByText("300.000")).toBeInTheDocument();
+    expect(within(row).getByText(/of 400\.000/)).toBeInTheDocument();
+  });
+
+  it("appends a period range to row labels in the EARLIER group", () => {
+    const oldWeekly = makeBudget({
+      id: 21,
+      name: "an toi",
+      period: "week",
+      periodStartDate: "2026-04-12",
+      periodEndDate: "2026-04-18",
+    });
+    const oldMonthly = makeBudget({
+      id: 22,
+      name: "an toi",
+      period: "month",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-01-31",
+    });
+    useQueryMock.mockReturnValue(
+      useQueryReturn({ data: [oldWeekly, oldMonthly] })
+    );
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+
+    // Both budgets share the name "an toi" — their period range disambiguates them.
+    expect(screen.getByText(/Apr 12 – Apr 18/i)).toBeInTheDocument();
+    expect(screen.getByText(/Jan 2026/i)).toBeInTheDocument();
+  });
 });

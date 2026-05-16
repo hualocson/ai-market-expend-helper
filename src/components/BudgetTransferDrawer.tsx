@@ -5,6 +5,7 @@ import { AlertCircle, ArrowDown, Check, Loader2, RefreshCcw } from "lucide-react
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import dayjs from "@/configs/date";
 import {
   getTransferCandidates,
   transferBudgetAmount,
@@ -36,6 +37,18 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   destination: BudgetListItem;
+};
+
+const formatCandidatePeriodRange = (b: BudgetListItem): string => {
+  const start = dayjs(b.periodStartDate);
+  if (b.period === "month") {
+    return start.format("MMM YYYY");
+  }
+  const end =
+    b.period === "custom" && b.periodEndDate
+      ? dayjs(b.periodEndDate)
+      : start.add(6, "day");
+  return `${start.format("MMM D")} – ${end.format("MMM D")}`;
 };
 
 const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
@@ -213,18 +226,13 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                     <div className="no-scrollbar relative max-h-[60svh] overflow-y-auto px-4 pb-4">
                       <div
                         data-testid="budget-transfer-nested-destination"
-                        className="sticky top-0 z-10 -mx-1 mb-2 rounded-2xl border border-border/45 bg-card/95 px-4 py-3 backdrop-blur"
+                        className="sticky top-0 z-10 -mx-1 mb-3 rounded-2xl border border-border/45 bg-card/95 px-4 py-3 backdrop-blur"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                            Filling
-                          </span>
-                          <span className="text-foreground text-sm font-semibold tabular-nums">
-                            {formatVnd(destination.amount)}
-                          </span>
-                        </div>
-                        <p className="text-foreground mt-1 text-sm font-semibold truncate">
+                        <p className="text-foreground text-base font-semibold truncate">
                           {destination.name}
+                        </p>
+                        <p className="text-muted-foreground mt-0.5 text-[11px] tabular-nums">
+                          Filling · {formatVnd(destination.amount)}
                         </p>
                       </div>
 
@@ -265,71 +273,93 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                           </p>
                         </div>
                       ) : (
-                        <ul aria-label="Source budgets" className="space-y-3">
-                          {groups.map((group) => (
-                            <li key={group.key.kind}>
-                              <p
-                                data-testid="budget-transfer-group-label"
-                                className="text-muted-foreground mt-3 mb-1 px-1 text-[10px] tracking-wide uppercase"
-                              >
-                                {group.label}
-                              </p>
-                              <ul className="space-y-1">
-                                {group.candidates.map((b) => {
-                                  const disabled = b.remaining <= 0;
-                                  const selected = b.id === sourceId;
-                                  return (
-                                    <li key={b.id}>
-                                      <DrawerClose asChild>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          disabled={disabled}
-                                          aria-disabled={disabled}
-                                          onClick={() => setSourceId(b.id)}
-                                          className={cn(
-                                            "h-auto min-h-13 w-full justify-between rounded-lg px-3 text-left",
-                                            selected && "bg-muted/60",
-                                            disabled && "opacity-60"
-                                          )}
-                                        >
-                                          <span className="min-w-0 truncate text-sm font-medium">
-                                            {b.name}
-                                          </span>
-                                          <span className="ml-2 flex shrink-0 items-center gap-2">
-                                            <span className="flex flex-col items-end">
-                                              {disabled ? (
-                                                <span className="text-muted-foreground text-[10px]">
-                                                  no cap to pull
-                                                </span>
-                                              ) : (
-                                                <span
-                                                  className={cn(
-                                                    "text-xs font-semibold tabular-nums",
-                                                    b.remaining < 0
-                                                      ? "text-destructive"
-                                                      : "text-success"
-                                                  )}
-                                                >
-                                                  {formatVndSigned(b.remaining)}
-                                                </span>
-                                              )}
-                                              <span className="text-muted-foreground text-[10px] tabular-nums">
-                                                {formatVnd(b.amount)}
+                        <ul aria-label="Source budgets" className="space-y-1">
+                          {groups.map((group, groupIdx) => {
+                            // EARLIER is a catch-all without a date range in its header,
+                            // so rows in it carry their own period range to disambiguate.
+                            const showPeriodInRow = group.key.kind === "earlier";
+                            return (
+                              <li key={group.key.kind}>
+                                <p
+                                  data-testid="budget-transfer-group-label"
+                                  className={cn(
+                                    "text-foreground/70 px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide",
+                                    groupIdx > 0 && "border-t border-border/40 mt-1"
+                                  )}
+                                >
+                                  {group.label}
+                                </p>
+                                <ul className="divide-y divide-border/30">
+                                  {group.candidates.map((b) => {
+                                    const disabled = b.remaining <= 0;
+                                    const selected = b.id === sourceId;
+                                    const isPristine = b.spent === 0;
+                                    return (
+                                      <li key={b.id}>
+                                        <DrawerClose asChild>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            disabled={disabled}
+                                            aria-disabled={disabled}
+                                            onClick={() => setSourceId(b.id)}
+                                            className={cn(
+                                              "h-auto min-h-13 w-full justify-between rounded-none px-3 text-left",
+                                              selected && "bg-muted/60",
+                                              disabled && "opacity-60"
+                                            )}
+                                          >
+                                            <span className="flex min-w-0 flex-col">
+                                              <span className="text-foreground truncate text-sm font-medium">
+                                                {b.name}
                                               </span>
+                                              {showPeriodInRow ? (
+                                                <span className="text-muted-foreground text-[10px] tabular-nums">
+                                                  {formatCandidatePeriodRange(b)}
+                                                </span>
+                                              ) : null}
                                             </span>
-                                            {selected ? (
-                                              <Check className="text-success h-4 w-4 shrink-0" />
-                                            ) : null}
-                                          </span>
-                                        </Button>
-                                      </DrawerClose>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </li>
-                          ))}
+                                            <span className="ml-2 flex shrink-0 items-center gap-2">
+                                              <span className="flex flex-col items-end">
+                                                {disabled ? (
+                                                  <span className="text-muted-foreground text-[10px]">
+                                                    no cap to pull
+                                                  </span>
+                                                ) : isPristine ? (
+                                                  <span className="text-foreground text-xs font-semibold tabular-nums">
+                                                    {formatVnd(b.amount)}
+                                                  </span>
+                                                ) : (
+                                                  <>
+                                                    <span
+                                                      className={cn(
+                                                        "text-xs font-semibold tabular-nums",
+                                                        b.remaining < 0
+                                                          ? "text-destructive"
+                                                          : "text-success"
+                                                      )}
+                                                    >
+                                                      {formatVndSigned(b.remaining)}
+                                                    </span>
+                                                    <span className="text-muted-foreground text-[10px] tabular-nums">
+                                                      of {formatVnd(b.amount)}
+                                                    </span>
+                                                  </>
+                                                )}
+                                              </span>
+                                              {selected ? (
+                                                <Check className="text-success h-4 w-4 shrink-0" />
+                                              ) : null}
+                                            </span>
+                                          </Button>
+                                        </DrawerClose>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
