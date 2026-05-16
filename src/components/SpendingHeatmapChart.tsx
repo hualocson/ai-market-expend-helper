@@ -117,7 +117,7 @@ const SpendingHeatmapChart = ({
               }
               style={bucketStyle(bucket)}
               className={cn(
-                "border-border/50 text-foreground/90 focus-visible:ring-ring/40 flex aspect-square items-center justify-center rounded-md border text-[11px] font-medium tabular-nums transition focus-visible:ring-2 focus-visible:outline-none",
+                "text-foreground/90 focus-visible:ring-ring/40 flex aspect-square items-center justify-center rounded-md text-[11px] font-medium tabular-nums transition focus-visible:ring-2 focus-visible:outline-none",
                 isSelected && "ring-foreground/60 ring-2"
               )}
             >
