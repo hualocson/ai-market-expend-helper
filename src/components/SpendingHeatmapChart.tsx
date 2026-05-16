@@ -14,9 +14,18 @@ type SpendingHeatmapChartProps = {
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const BUCKET_OPACITY = [0, 18, 35, 55, 80] as const;
 
-const bucketStyle = (bucket: number): React.CSSProperties => ({
+type BucketIndex = 0 | 1 | 2 | 3 | 4;
+
+const bucketStyle = (bucket: BucketIndex): React.CSSProperties => ({
   backgroundColor: `color-mix(in srgb, var(--accent) ${BUCKET_OPACITY[bucket]}%, transparent)`,
 });
+
+const clampBucket = (value: number | undefined): BucketIndex => {
+  if (value === 1 || value === 2 || value === 3 || value === 4) {
+    return value;
+  }
+  return 0;
+};
 
 const toMondayIndex = (sundayBasedDay: number) => (sundayBasedDay + 6) % 7;
 
@@ -69,7 +78,11 @@ const SpendingHeatmapChart = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="grid" className="grid grid-cols-7 gap-1.5">
+      <div
+        role="group"
+        aria-label={`Spending heatmap for ${monthLabel}`}
+        className="grid grid-cols-7 gap-1.5"
+      >
         {WEEKDAY_LABELS.map((label) => (
           <span
             key={label}
@@ -91,7 +104,7 @@ const SpendingHeatmapChart = ({
 
         {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
           const amount = totals[day - 1] ?? 0;
-          const bucket = buckets[day - 1] ?? 0;
+          const bucket = clampBucket(buckets[day - 1]);
           const isSelected = selectedDay === day;
           return (
             <button
@@ -137,7 +150,7 @@ const SpendingHeatmapChart = ({
             <span
               key={bucket}
               aria-hidden="true"
-              style={bucketStyle(bucket)}
+              style={bucketStyle(bucket as BucketIndex)}
               className="border-border/50 h-3 w-3 rounded-sm border"
             />
           ))}
