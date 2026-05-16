@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -64,6 +64,12 @@ beforeEach(() => {
   toastSuccess.mockReset();
   toastError.mockReset();
   useQueryMock.mockReset();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 4, 16, 12, 0, 0));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("BudgetTransferDrawer", () => {
@@ -217,6 +223,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
+    expect(
+      screen.getByRole("button", { name: /select source budget/i })
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
@@ -304,6 +313,17 @@ describe("BudgetTransferDrawer", () => {
     });
     expect(toastSuccess).toHaveBeenCalledWith("Funds moved.");
     expect(invalidateQueriesMock).toHaveBeenCalledTimes(4);
+    const invalidatedKeys = invalidateQueriesMock.mock.calls.map(
+      (call) => (call[0] as { queryKey: unknown }).queryKey
+    );
+    expect(invalidatedKeys).toEqual(
+      expect.arrayContaining([
+        ["budgets", "overview"],
+        ["budgets", "transactions", 1],
+        ["budgets", "transactions", 2],
+        ["budgets", "transfer-candidates", 1],
+      ])
+    );
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 

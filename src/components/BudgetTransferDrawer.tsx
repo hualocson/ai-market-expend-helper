@@ -50,7 +50,10 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
     enabled: open,
   });
 
-  const candidates = candidatesQuery.data ?? [];
+  const candidates = useMemo(
+    () => candidatesQuery.data ?? [],
+    [candidatesQuery.data]
+  );
 
   useEffect(() => {
     if (open) {
@@ -137,6 +140,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
     }
   };
 
+  // Keep outer drawer visible during fetch errors so the nested retry UI is reachable.
   const hasNoCandidates =
     !candidatesQuery.isLoading &&
     !candidatesQuery.isError &&
