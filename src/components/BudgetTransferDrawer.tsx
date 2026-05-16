@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowDown, Check, Loader2, RefreshCcw } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  Check,
+  Loader2,
+  RefreshCcw,
+  Search,
+  X,
+} from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -51,11 +59,23 @@ const formatCandidatePeriodRange = (b: BudgetListItem): string => {
   return `${start.format("MMM D")} – ${end.format("MMM D")}`;
 };
 
+// Vietnamese-aware search normalizer. `đ`/`Đ` is a single codepoint that NFD
+// does NOT decompose, so we map it explicitly. All other Latin diacritics are
+// handled by NFD + the Diacritic property.
+const normalizeForSearch = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+
 const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
   const queryClient = useQueryClient();
   const [sourceId, setSourceId] = useState<number | null>(null);
   const [amount, setAmount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const candidatesQuery = useQuery({
     queryKey: budgetTransferCandidatesQueryKey(destination.id),
@@ -73,6 +93,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
       setSourceId(null);
       setAmount(0);
       setIsSaving(false);
+      setSearchQuery("");
     }
   }, [open]);
 
@@ -80,6 +101,32 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
     () => groupTransferCandidates(candidates, new Date()),
     [candidates]
   );
+
+  const trimmedQuery = searchQuery.trim();
+  const visibleGroups = useMemo(() => {
+    if (!trimmedQuery) {
+      return groups;
+    }
+    const needle = normalizeForSearch(trimmedQuery);
+    return groups
+      .map((group) => ({
+        ...group,
+        candidates: group.candidates.filter((b) => {
+          if (normalizeForSearch(b.name).includes(needle)) {
+            return true;
+          }
+          if (group.key.kind === "earlier") {
+            return normalizeForSearch(formatCandidatePeriodRange(b)).includes(
+              needle
+            );
+          }
+          return false;
+        }),
+      }))
+      .filter((group) => group.candidates.length > 0);
+  }, [groups, trimmedQuery]);
+
+  const hasNoMatches = trimmedQuery.length > 0 && visibleGroups.length === 0;
 
   const allDisabled =
     candidates.length > 0 && candidates.every((b) => b.remaining <= 0);
@@ -223,10 +270,10 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                       </DrawerDescription>
                     </DrawerHeader>
 
-                    <div className="no-scrollbar relative max-h-[60svh] overflow-y-auto px-4 pb-4">
+                    <div className="space-y-2 px-4 pb-2">
                       <div
                         data-testid="budget-transfer-nested-destination"
-                        className="sticky top-0 z-10 -mx-1 mb-3 rounded-2xl border border-border/45 bg-card/95 px-4 py-3 backdrop-blur"
+                        className="rounded-2xl border border-border/45 bg-card/95 px-4 py-3"
                       >
                         <p className="text-foreground text-base font-semibold truncate">
                           {destination.name}
@@ -236,6 +283,38 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                         </p>
                       </div>
 
+                      <div className="relative">
+                        <Search
+                          aria-hidden
+                          className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                        />
+                        <Input
+                          type="text"
+                          inputMode="search"
+                          enterKeyHint="search"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          aria-label="Search source budgets"
+                          placeholder="Search budgets"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="h-11 rounded-xl pl-9 pr-10 text-base"
+                        />
+                        {searchQuery ? (
+                          <button
+                            type="button"
+                            aria-label="Clear search"
+                            onClick={() => setSearchQuery("")}
+                            className="text-muted-foreground hover:text-foreground absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="no-scrollbar max-h-[55svh] overflow-y-auto px-4 pb-4">
                       {candidatesQuery.isLoading ? (
                         <div
                           data-testid="budget-transfer-candidates-skeleton"
@@ -272,9 +351,24 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                             Try again after another budget recovers some headroom.
                           </p>
                         </div>
+                      ) : hasNoMatches ? (
+                        <div className="border-border/55 bg-card/40 rounded-2xl border border-dashed px-4 py-5 text-center">
+                          <p className="text-foreground text-sm font-semibold">
+                            No budgets match &quot;{trimmedQuery}&quot;.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSearchQuery("")}
+                            className="mt-2"
+                          >
+                            Clear
+                          </Button>
+                        </div>
                       ) : (
                         <ul aria-label="Source budgets" className="space-y-1">
-                          {groups.map((group, groupIdx) => {
+                          {visibleGroups.map((group, groupIdx) => {
                             // EARLIER is a catch-all without a date range in its header,
                             // so rows in it carry their own period range to disambiguate.
                             const showPeriodInRow = group.key.kind === "earlier";

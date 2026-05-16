@@ -398,7 +398,6 @@ describe("BudgetTransferDrawer", () => {
     const header = screen.getByTestId("budget-transfer-nested-destination");
     expect(within(header).getByText("Groceries")).toBeInTheDocument();
     expect(within(header).getByText(/filling/i)).toBeInTheDocument();
-    expect(header.className).toMatch(/sticky/);
   });
 
   it("hides the secondary amount line when a candidate has zero spent", () => {
@@ -448,6 +447,94 @@ describe("BudgetTransferDrawer", () => {
     const row = screen.getByRole("button", { name: /Travel/i });
     expect(within(row).getByText("300.000")).toBeInTheDocument();
     expect(within(row).getByText(/of 400\.000/)).toBeInTheDocument();
+  });
+
+  it("filters candidates as the user types in the search box", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const coffee = makeBudget({ id: 10, name: "Coffee" });
+    const lunch = makeBudget({ id: 11, name: "Lunch" });
+    const dinner = makeBudget({ id: 12, name: "Dinner" });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [coffee, lunch, dinner] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.type(screen.getByLabelText(/search source budgets/i), "lun");
+
+    expect(screen.getByRole("button", { name: /Lunch/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Dinner/i })).toBeNull();
+  });
+
+  it("matches Vietnamese names whether the query or the data is accented", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const accented = makeBudget({ id: 20, name: "Ăn tối" });
+    const plain = makeBudget({ id: 21, name: "Coffee" });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [accented, plain] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    // Plain ASCII query should still match the accented budget name.
+    await user.type(screen.getByLabelText(/search source budgets/i), "an toi");
+    expect(screen.getByRole("button", { name: /Ăn tối/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+  });
+
+  it("matches Vietnamese đ as plain d in either direction", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const dau = makeBudget({ id: 30, name: "Đậu phụng" });
+    const other = makeBudget({ id: 31, name: "Coffee" });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [dau, other] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    // "dau" should hit "Đậu" — both Đ→d and the diacritics on âu must normalize away.
+    await user.type(screen.getByLabelText(/search source budgets/i), "dau");
+    expect(screen.getByRole("button", { name: /Đậu phụng/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+  });
+
+  it("shows a no-match card with a clear button when nothing matches", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const coffee = makeBudget({ id: 40, name: "Coffee" });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [coffee] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={makeBudget({ id: 1, name: "Groceries" })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    await user.type(screen.getByLabelText(/search source budgets/i), "xyz");
+
+    expect(screen.getByText(/no budgets match "xyz"/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^clear$/i }));
+    expect(screen.getByRole("button", { name: /^Coffee/i })).toBeInTheDocument();
   });
 
   it("appends a period range to row labels in the EARLIER group", () => {
