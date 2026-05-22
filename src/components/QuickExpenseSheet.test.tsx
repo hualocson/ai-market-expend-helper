@@ -1,26 +1,44 @@
 import React from "react";
-import userEvent from "@testing-library/user-event";
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createExpenseEntry } from "@/app/actions/expense-actions";
+import {
+  createExpenseEntry,
+  updateExpenseEntry,
+} from "@/app/actions/expense-actions";
+import { PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import {
-  fetchWeeklyBudgetOptions,
   type BudgetWeeklyOption,
+  fetchWeeklyBudgetOptions,
 } from "@/lib/queries/budget-weekly";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
-import QuickExpenseSheet from "./QuickExpenseSheet";
+
+import QuickExpenseSheet, {
+  type TQuickExpenseSheetProps,
+} from "./QuickExpenseSheet";
+
+const toastMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+}));
 
 vi.mock("@/app/actions/expense-actions", () => ({
   createExpenseEntry: vi.fn().mockResolvedValue({ id: 1 }),
+  updateExpenseEntry: vi.fn().mockResolvedValue({ id: 1 }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: toastMock,
 }));
 
 vi.mock("@/lib/queries/budget-weekly", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/queries/budget-weekly")>(
-    "@/lib/queries/budget-weekly"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/queries/budget-weekly")
+  >("@/lib/queries/budget-weekly");
   return {
     ...actual,
     fetchWeeklyBudgetOptions: vi.fn().mockResolvedValue([]),
@@ -35,7 +53,8 @@ vi.mock("@/components/ui/date-picker", () => ({
   ),
 }));
 
-const originalGlobalReact = (globalThis as unknown as Record<string, unknown>).React;
+const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
+  .React;
 
 const budgetOption = (
   override: Partial<BudgetWeeklyOption> = {}
@@ -51,9 +70,23 @@ const budgetOption = (
   ...override,
 });
 
+const savedExpense = (id: number) => ({
+  id,
+  date: "2026-05-20",
+  amount: 1,
+  note: "",
+  category: "Food",
+  paidBy: PaidBy.OTHER,
+  createdAt: new Date("2026-05-20T00:00:00.000Z"),
+  updatedAt: new Date("2026-05-20T00:00:00.000Z"),
+  isDeleted: false,
+  deletedAt: null,
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(createExpenseEntry).mockResolvedValue({ id: 1 });
+  vi.mocked(createExpenseEntry).mockResolvedValue(savedExpense(1));
+  vi.mocked(updateExpenseEntry).mockResolvedValue(savedExpense(1));
   vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([]);
 });
 
@@ -61,17 +94,20 @@ afterEach(() => {
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
   } else {
-    (globalThis as unknown as Record<string, unknown>).React = originalGlobalReact;
+    (globalThis as unknown as Record<string, unknown>).React =
+      originalGlobalReact;
   }
 });
 
-const renderSheet = () => {
+const renderSheet = (props: Partial<TQuickExpenseSheetProps> = {}) => {
   (globalThis as unknown as Record<string, unknown>).React = React;
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={client}>
       <SettingsStoreProvider>
-        <QuickExpenseSheet />
+        <QuickExpenseSheet {...props} />
       </SettingsStoreProvider>
     </QueryClientProvider>
   );
@@ -82,7 +118,9 @@ describe("QuickExpenseSheet — open/close", () => {
     const user = userEvent.setup();
     renderSheet();
 
-    expect(screen.queryByPlaceholderText(/what did you spend on/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText(/what did you spend on/i)
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
@@ -102,8 +140,12 @@ describe("QuickExpenseSheet — fields", () => {
   it("renders the date / budget / paid-by trigger buttons", async () => {
     await openSheet();
     expect(screen.getByRole("button", { name: /^date:/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^budget:/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^paid by:/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^budget:/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^paid by:/i })
+    ).toBeInTheDocument();
   });
 
   it("shows suggestion chips when amount > 0", async () => {
@@ -113,7 +155,9 @@ describe("QuickExpenseSheet — fields", () => {
     await user.keyboard("5");
     expect(screen.getByRole("button", { name: /50$/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /500$/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /5[.,]?000$/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /5[.,]?000$/ })
+    ).toBeInTheDocument();
   });
 
   it("applies a suggestion chip to the amount input", async () => {
@@ -127,7 +171,10 @@ describe("QuickExpenseSheet — fields", () => {
 
   it("renders the collapsed category chip row and expands then toggles active chip", async () => {
     const user = await openSheet();
-    const foodChip = screen.getByRole("button", { name: /food/i, pressed: true });
+    const foodChip = screen.getByRole("button", {
+      name: /food/i,
+      pressed: true,
+    });
     expect(foodChip).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /transport/i })
@@ -152,7 +199,9 @@ describe("QuickExpenseSheet — submit", () => {
 
   it("disables submit when amount is zero", async () => {
     await openSheet();
-    expect(screen.getByRole("button", { name: /save expense/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /save expense/i })
+    ).toBeDisabled();
   });
 
   it("calls createExpenseEntry with the full draft on submit", async () => {
@@ -228,15 +277,108 @@ describe("QuickExpenseSheet — submit", () => {
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
     await waitFor(() =>
-      expect(screen.queryByPlaceholderText(/what did you spend on/i)).not.toBeInTheDocument()
+      expect(
+        screen.queryByPlaceholderText(/what did you spend on/i)
+      ).not.toBeInTheDocument()
     );
+  });
+});
+
+describe("QuickExpenseSheet — edit mode", () => {
+  const editExpense = {
+    date: "2026-05-20",
+    amount: 150000,
+    note: "Badminton court",
+    category: "Badminton",
+    paidBy: "Embe",
+    budgetId: 2,
+  };
+
+  const renderEditSheet = (props: Partial<TQuickExpenseSheetProps> = {}) => {
+    const onOpenChange = vi.fn();
+    const onSuccess = vi.fn();
+    renderSheet({
+      mode: "edit",
+      open: true,
+      onOpenChange,
+      showTrigger: false,
+      transactionId: 42,
+      initialExpense: editExpense,
+      onSuccess,
+      ...props,
+    });
+    return { onOpenChange, onSuccess };
+  };
+
+  it("prepopulates the existing transaction fields", async () => {
+    vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([
+      budgetOption({ id: 2, name: "Sports week" }),
+    ]);
+
+    renderEditSheet();
+
+    expect(
+      await screen.findByPlaceholderText(/what did you spend on/i)
+    ).toHaveValue("Badminton court");
+    expect(
+      (screen.getByPlaceholderText("0") as HTMLInputElement).value
+    ).toMatch(/150[.,]?000/);
+    expect(
+      screen.getByRole("button", { name: /date: 20\/05/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /paid by: embe/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /badminton/i, pressed: true })
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Sports week")).toBeInTheDocument();
+  });
+
+  it("calls updateExpenseEntry instead of createExpenseEntry", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([
+      budgetOption({ id: 2, name: "Sports week" }),
+    ]);
+    const { onOpenChange, onSuccess } = renderEditSheet();
+
+    await user.click(screen.getByRole("button", { name: /update expense/i }));
+
+    await waitFor(() => {
+      expect(updateExpenseEntry).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({
+          date: "20/05/2026",
+          amount: 150000,
+          note: "Badminton court",
+          category: "Badminton",
+          paidBy: "Embe",
+          budgetId: 2,
+        })
+      );
+    });
+    expect(createExpenseEntry).not.toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("does not submit edit mode without a transaction id", async () => {
+    const user = userEvent.setup();
+    renderEditSheet({ transactionId: undefined });
+
+    await user.click(screen.getByRole("button", { name: /update expense/i }));
+
+    expect(updateExpenseEntry).not.toHaveBeenCalled();
+    expect(toastMock.error).toHaveBeenCalledWith("Failed to update expense");
   });
 });
 
 describe("QuickExpenseSheet — prefill", () => {
   it("opens and populates fields when EXPENSE_PREFILL_EVENT fires", async () => {
     renderSheet();
-    expect(screen.queryByPlaceholderText(/what did you spend on/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText(/what did you spend on/i)
+    ).not.toBeInTheDocument();
 
     act(() => {
       dispatchExpensePrefill({

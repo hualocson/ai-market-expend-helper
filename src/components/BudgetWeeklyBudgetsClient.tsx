@@ -65,6 +65,7 @@ import { Input } from "@/components/ui/input";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
+import VndSymbol from "@/components/VndSymbol";
 import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
 
 type BudgetWeeklyBudgetsClientProps = {
@@ -870,7 +871,7 @@ const BudgetWeeklyBudgetsClient = ({
             <span
               aria-hidden
               className={cn(
-                "bg-card pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 rounded-lg shadow-xs ring-1 ring-border/70",
+                "bg-card ring-border/70 pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 rounded-lg shadow-xs ring-1",
                 "transition-transform duration-300 ease-out motion-reduce:transition-none"
               )}
               style={{ transform: `translateX(${activeTabIndex * 100}%)` }}
@@ -1204,8 +1205,13 @@ const BudgetWeeklyBudgetsClient = ({
                                 )}
                                 aria-label={`Paid by ${transaction.paidBy}`}
                               >
-                                <PaidByIcon paidBy={transaction.paidBy} size="sm" />
-                                <span className="pr-1">{transaction.paidBy}</span>
+                                <PaidByIcon
+                                  paidBy={transaction.paidBy}
+                                  size="sm"
+                                />
+                                <span className="pr-1">
+                                  {transaction.paidBy}
+                                </span>
                               </span>
                             </div>
                           </div>
@@ -1360,7 +1366,7 @@ const BudgetWeeklyBudgetsClient = ({
                   className="h-11 pr-14 text-right text-lg font-semibold"
                 />
                 <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs font-medium">
-                  VND
+                  <VndSymbol />
                 </span>
               </div>
               <p className="text-muted-foreground mt-2 text-[11px]">

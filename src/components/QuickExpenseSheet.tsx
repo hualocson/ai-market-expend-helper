@@ -2,7 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { createExpenseEntry } from "@/app/actions/expense-actions";
+import {
+  createExpenseEntry,
+  updateExpenseEntry,
+} from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
@@ -46,9 +49,27 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import CategoryChipRow from "./CategoryChipRow";
 import PaidByPickerSheet from "./PaidByPickerSheet";
+import VndSymbol from "./VndSymbol";
 
 export type TQuickExpenseSheetProps = {
   compact?: boolean;
+  mode?: "create" | "edit";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialExpense?: TQuickExpenseSheetInitialExpense | null;
+  transactionId?: number;
+  onSuccess?: () => void;
+  showTrigger?: boolean;
+};
+
+export type TQuickExpenseSheetInitialExpense = {
+  id?: number;
+  date: string;
+  amount: number;
+  note?: string | null;
+  category: Category | string;
+  budgetId?: number | null;
+  paidBy?: PaidBy | string;
 };
 
 type TExpenseDraft = {
@@ -61,6 +82,8 @@ type TExpenseDraft = {
 };
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
+const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
+const ALLOWED_PAID_BY = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
 
 const buildDefaultDraft = (paidBy: PaidBy): TExpenseDraft => ({
   date: dayjs().format("DD/MM/YYYY"),
@@ -71,9 +94,52 @@ const buildDefaultDraft = (paidBy: PaidBy): TExpenseDraft => ({
   paidBy,
 });
 
-const normalizePaidBy = (value: string | undefined): PaidBy => {
-  const allowed: PaidBy[] = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
-  return allowed.find((option) => option === value) ?? PaidBy.OTHER;
+const normalizePaidBy = (
+  value: string | undefined,
+  fallback: PaidBy = PaidBy.OTHER
+): PaidBy => {
+  return (
+    ALLOWED_PAID_BY.find((option) => option === value) ??
+    ALLOWED_PAID_BY.find((option) => option === fallback) ??
+    PaidBy.OTHER
+  );
+};
+
+const normalizeCategory = (value: string | undefined): Category => {
+  return ALLOWED_CATEGORIES.find((option) => option === value) ?? Category.FOOD;
+};
+
+const formatDraftDate = (value: string | undefined): string => {
+  const displayDate = dayjs(value, "DD/MM/YYYY", true);
+  if (displayDate.isValid()) {
+    return displayDate.format("DD/MM/YYYY");
+  }
+
+  const isoDate = dayjs(value, "YYYY-MM-DD", true);
+  if (isoDate.isValid()) {
+    return isoDate.format("DD/MM/YYYY");
+  }
+
+  return dayjs().format("DD/MM/YYYY");
+};
+
+const buildDraftFromExpense = (
+  initialExpense: TQuickExpenseSheetInitialExpense | null | undefined,
+  fallbackPaidBy: PaidBy
+): TExpenseDraft => {
+  if (!initialExpense) {
+    return buildDefaultDraft(fallbackPaidBy);
+  }
+
+  const amount = Number(initialExpense.amount);
+  return {
+    date: formatDraftDate(initialExpense.date),
+    amount: Number.isFinite(amount) ? amount : 0,
+    note: initialExpense.note ?? "",
+    category: normalizeCategory(initialExpense.category),
+    budgetId: initialExpense.budgetId ?? null,
+    paidBy: normalizePaidBy(initialExpense.paidBy, fallbackPaidBy),
+  };
 };
 
 const formatDateLabel = (date: string) => {
@@ -91,11 +157,26 @@ const formatDateLabel = (date: string) => {
   return parsed.format("DD/MM");
 };
 
-const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
+const QuickExpenseSheet = ({
+  compact = false,
+  mode = "create",
+  open,
+  onOpenChange,
+  initialExpense = null,
+  transactionId,
+  onSuccess,
+  showTrigger,
+}: TQuickExpenseSheetProps) => {
+  const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
-  const [open, setOpen] = useState(false);
+  const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const sheetOpen = open ?? internalOpen;
+  const shouldShowTrigger = showTrigger ?? !isEditMode;
   const [draft, setDraft] = useState<TExpenseDraft>(() =>
-    buildDefaultDraft(normalizePaidBy(settingsPaidBy))
+    isEditMode
+      ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
+      : buildDefaultDraft(fallbackPaidBy)
   );
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
@@ -104,46 +185,43 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
 
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const handle = (event: Event) => {
-      const detail = (event as CustomEvent<ExpensePrefillPayload>).detail;
-      if (!detail) {
-        return;
-      }
-      setDraft((prev) => ({
-        ...prev,
-        amount: detail.amount,
-        note: detail.note,
-        category: (detail.category as Category) || prev.category,
-      }));
-      setOpen(true);
-    };
-    window.addEventListener(EXPENSE_PREFILL_EVENT, handle);
-    return () => window.removeEventListener(EXPENSE_PREFILL_EVENT, handle);
-  }, []);
-
   const canSubmit = draft.amount > 0 && !loading;
 
   const handleSubmit = async () => {
     if (!canSubmit) {
       return;
     }
+    const payload = {
+      date: draft.date,
+      amount: draft.amount,
+      note: draft.note,
+      category: draft.category,
+      paidBy: draft.paidBy,
+      budgetId: draft.budgetId,
+    };
+
     try {
       setLoading(true);
-      await createExpenseEntry({
-        date: draft.date,
-        amount: draft.amount,
-        note: draft.note,
-        category: draft.category,
-        paidBy: draft.paidBy,
-        budgetId: draft.budgetId,
-      });
-      toast.success("Expense added");
+      if (isEditMode) {
+        if (!transactionId) {
+          toast.error("Failed to update expense");
+          return;
+        }
+        await updateExpenseEntry(transactionId, payload);
+      } else {
+        await createExpenseEntry(payload);
+      }
+      toast.success(isEditMode ? "Expense updated" : "Expense added");
       handleOpenChange(false);
+      onSuccess?.();
     } catch (error) {
       console.error(error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to add expense"
+        error instanceof Error
+          ? error.message
+          : isEditMode
+            ? "Failed to update expense"
+            : "Failed to add expense"
       );
     } finally {
       setLoading(false);
@@ -165,12 +243,54 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   ) => setDraft((prev) => ({ ...prev, [key]: value }));
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
+    if (typeof open !== "boolean") {
+      setInternalOpen(next);
+    }
+    onOpenChange?.(next);
     if (!next) {
       setAmountFocused(false);
-      setDraft(buildDefaultDraft(normalizePaidBy(settingsPaidBy)));
+      if (!isEditMode) {
+        setDraft(buildDefaultDraft(fallbackPaidBy));
+      }
+      return;
+    }
+    if (isEditMode) {
+      setDraft(buildDraftFromExpense(initialExpense, fallbackPaidBy));
     }
   };
+
+  useEffect(() => {
+    if (!isEditMode || !sheetOpen) {
+      return;
+    }
+    setDraft(buildDraftFromExpense(initialExpense, fallbackPaidBy));
+  }, [fallbackPaidBy, initialExpense, isEditMode, sheetOpen]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      return;
+    }
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent<ExpensePrefillPayload>).detail;
+      if (!detail) {
+        return;
+      }
+      setDraft((prev) => ({
+        ...prev,
+        amount: detail.amount,
+        note: detail.note,
+        category: detail.category
+          ? normalizeCategory(detail.category)
+          : prev.category,
+      }));
+      if (typeof open !== "boolean") {
+        setInternalOpen(true);
+      }
+      onOpenChange?.(true);
+    };
+    window.addEventListener(EXPENSE_PREFILL_EVENT, handle);
+    return () => window.removeEventListener(EXPENSE_PREFILL_EVENT, handle);
+  }, [isEditMode, onOpenChange, open]);
 
   const targetDate = useMemo(() => {
     const parsed = dayjs(draft.date, "DD/MM/YYYY", true);
@@ -186,7 +306,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const budgetOptionsQuery = useQuery<BudgetWeeklyOption[]>({
     queryKey: budgetWeeklyOptionsQueryKey(weekStart, targetDate),
     queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
-    enabled: open && Boolean(weekStart),
+    enabled: sheetOpen && Boolean(weekStart),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     retry: false,
@@ -223,27 +343,29 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const showSuggestions = amountFocused && suggestions.length > 0;
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange} modal>
+    <Sheet open={sheetOpen} onOpenChange={handleOpenChange} modal>
       <input
         ref={keyboardPrimerRef}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none fixed top-0 left-0 h-px w-px opacity-0"
       />
-      <SheetTrigger asChild>
-        <Button
-          size={compact ? "icon-lg" : "default"}
-          aria-label={compact ? "Add expense" : undefined}
-          onPointerDown={primeKeyboard}
-          className={cn(
-            "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
-            compact && "size-12"
-          )}
-        >
-          <Plus className={compact ? "h-5 w-5" : "h-4 w-4"} />
-          {compact ? null : "Add expense"}
-        </Button>
-      </SheetTrigger>
+      {shouldShowTrigger ? (
+        <SheetTrigger asChild>
+          <Button
+            size={compact ? "icon-lg" : "default"}
+            aria-label={compact ? "Add expense" : undefined}
+            onPointerDown={primeKeyboard}
+            className={cn(
+              "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
+              compact && "size-12"
+            )}
+          >
+            <Plus className={compact ? "h-5 w-5" : "h-4 w-4"} />
+            {compact ? null : "Add expense"}
+          </Button>
+        </SheetTrigger>
+      ) : null}
       <SheetContent
         side="bottom"
         showCloseButton={false}
@@ -258,8 +380,12 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           <span className="sr-only">Close</span>
         </SheetClose>
         <SheetHeader className="sr-only">
-          <SheetTitle>Add expense</SheetTitle>
-          <SheetDescription>Enter expense details and save.</SheetDescription>
+          <SheetTitle>{isEditMode ? "Edit expense" : "Add expense"}</SheetTitle>
+          <SheetDescription>
+            {isEditMode
+              ? "Update expense details and save."
+              : "Enter expense details and save."}
+          </SheetDescription>
         </SheetHeader>
         <div className="my-auto flex flex-col gap-4 pt-12">
           <div className="grid grid-cols-3 gap-2 px-4">
@@ -321,9 +447,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
                 className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
               />
               <div className="flex items-baseline gap-1">
-                <span className="text-muted-foreground text-2xl font-medium">
-                  đ
-                </span>
+                <VndSymbol className="text-muted-foreground text-2xl font-medium" />
                 <input
                   ref={amountRef}
                   inputMode="numeric"
@@ -377,8 +501,10 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
+                {isEditMode ? "Updating..." : "Saving..."}
               </>
+            ) : isEditMode ? (
+              "Update expense"
             ) : (
               "Save expense"
             )}
@@ -416,7 +542,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           onChange={(id) => setField("budgetId", id)}
           weekStart={weekStart}
           targetDate={targetDate}
-          isParentOpen={open}
+          isParentOpen={sheetOpen}
         />
 
         <PaidByPickerSheet

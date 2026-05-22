@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 
 import SpendingHeatmapChart from "@/components/SpendingHeatmapChart";
+import VndSymbol from "@/components/VndSymbol";
 
 import SiriOrb from "./ui/siri-orb";
 
@@ -81,7 +82,7 @@ const SpendingDashboardHeaderClient = ({
               Total spent
             </p>
             <p className="text-foreground font-mono text-[32px] font-semibold tracking-tight tabular-nums">
-              {formatVnd(activeTotals?.total ?? 0)} VND
+              {formatVnd(activeTotals?.total ?? 0)} <VndSymbol />
             </p>
           </div>
           <span className="relative z-10 rounded-full border border-[color-mix(in_srgb,var(--accent)_42%,transparent)] bg-[color-mix(in_srgb,var(--accent)_26%,transparent)] px-3 py-1 text-[11px] font-semibold tracking-[0.22em] text-[color-mix(in_srgb,var(--accent)_90%,white)] uppercase">

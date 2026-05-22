@@ -5,15 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import {
-  deleteExpenseEntry,
-  updateExpenseEntry,
-} from "@/app/actions/expense-actions";
+import { deleteExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { cn, formatVnd } from "@/lib/utils";
-import { Copy, Loader2, NotebookIcon, Pencil, Trash2 } from "lucide-react";
+import { Copy, NotebookIcon, Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 
@@ -26,21 +23,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
-import ManualExpenseForm, {
-  type ManualExpenseFormHandle,
-} from "@/components/ManualExpenseForm";
 import PaidByIcon from "@/components/PaidByIcon";
-import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
+import QuickExpenseSheet from "@/components/QuickExpenseSheet";
+import VndSymbol from "@/components/VndSymbol";
 
 type ExpenseListItemData = {
   id: number;
@@ -62,18 +49,10 @@ const OPEN_EVENT_NAME = "expense-list-item-open";
 const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editFormState, setEditFormState] = useState({
-    canSubmit: false,
-    loading: false,
-    mode: "advanced",
-  });
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const router = useRouter();
-  const editFormRef = useRef<ManualExpenseFormHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const editSubmitLabel = "Update Expense";
-  const editLoadingLabel = "Updating...";
 
   const formattedAmount = useMemo(
     () => formatVnd(expense.amount),
@@ -194,13 +173,6 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     setIsOpen(false);
   };
 
-  const handleUpdate = async (
-    payload: TExpense & { paidBy: string; budgetId?: number | null }
-  ) => {
-    await updateExpenseEntry(expense.id, payload);
-    router.refresh();
-  };
-
   const handleDuplicate = () => {
     dispatchExpensePrefill({
       amount: expense.amount,
@@ -311,7 +283,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
             </div>
             <div className="space-y-1">
               <p className="text-destructive text-right text-sm font-semibold">
-                -{formattedAmount} VND
+                -{formattedAmount} <VndSymbol />
               </p>
               {expense.paidBy ? (
                 <div className="flex justify-end">
@@ -323,51 +295,18 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         </motion.div>
       </div>
 
-      <Sheet open={editOpen} onOpenChange={setEditOpen}>
-        <SheetContent className="h-svh w-[90svw] backdrop-blur">
-          <div className="flex items-center">
-            <DialogCompanionSlot />
-            <SheetHeader className="pl-0 text-left">
-              <SheetTitle>Edit expense</SheetTitle>
-              <SheetDescription>
-                Update the details for this entry.
-              </SheetDescription>
-            </SheetHeader>
-          </div>
-          <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
-            <ManualExpenseForm
-              ref={editFormRef}
-              initialExpense={initialExpense}
-              onSubmit={handleUpdate}
-              submitLabel={editSubmitLabel}
-              loadingLabel={editLoadingLabel}
-              successMessage="Expense updated successfully!"
-              errorMessage="Failed to update expense."
-              onSuccess={() => setEditOpen(false)}
-              showSubmitButton={false}
-              onStateChange={setEditFormState}
-              showBudgetSelect
-              isSheetOpen={editOpen}
-            />
-          </div>
-          <SheetFooter className="border-t">
-            <Button
-              onClick={() => editFormRef.current?.submit()}
-              disabled={!editFormState.canSubmit || editFormState.loading}
-              className="h-10 w-full rounded-xl text-base font-medium"
-            >
-              {editFormState.loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {editLoadingLabel}
-                </>
-              ) : (
-                editSubmitLabel
-              )}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <QuickExpenseSheet
+        mode="edit"
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        showTrigger={false}
+        transactionId={expense.id}
+        initialExpense={initialExpense}
+        onSuccess={() => {
+          setEditOpen(false);
+          router.refresh();
+        }}
+      />
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="p-0 sm:max-w-md">
@@ -401,7 +340,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
                   Amount
                 </p>
                 <p className="text-destructive text-lg font-semibold">
-                  -{formattedAmount} VND
+                  -{formattedAmount} <VndSymbol />
                 </p>
               </div>
             </div>

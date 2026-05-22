@@ -9,25 +9,25 @@ import {
   useRef,
   useState,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
-  budgetWeeklyOptionsQueryKey,
-  fetchWeeklyBudgetOptions,
-} from "@/lib/queries/budget-weekly";
-import {
+  type TBudgetOption,
   groupBudgetOptions,
   hasAnyBudgetOption,
   pickDefaultBudget,
-  type TBudgetOption,
 } from "@/lib/budget-options";
+import {
+  budgetWeeklyOptionsQueryKey,
+  fetchWeeklyBudgetOptions,
+} from "@/lib/queries/budget-weekly";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
+import { useQuery } from "@tanstack/react-query";
 import {
   Calendar,
   DollarSign,
@@ -45,6 +45,7 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import ExpenseItemIcon from "./ExpenseItemIcon";
+import VndSymbol from "./VndSymbol";
 import { Button } from "./ui/button";
 import DatePicker from "./ui/date-picker";
 import { Input } from "./ui/input";
@@ -108,7 +109,9 @@ type ManualExpenseFormProps = {
   onSuccess?: () => void;
   showSubmitButton?: boolean;
   onStateChange?: (state: ManualExpenseFormState) => void;
-  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
+  prefillExpense?: Partial<
+    Pick<TExpense, "amount" | "note" | "category">
+  > | null;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
   initialMode?: QuickAddMode;
@@ -330,7 +333,10 @@ const ManualExpenseForm = forwardRef<
     const budgetOptions = budgetOptionsQuery.data ?? [];
     const budgetLoading = budgetOptionsQuery.isPending;
     const budgetLoaded = budgetOptionsQuery.isFetched;
-    const budgetGroups = useMemo(() => groupBudgetOptions(budgetOptions), [budgetOptions]);
+    const budgetGroups = useMemo(
+      () => groupBudgetOptions(budgetOptions),
+      [budgetOptions]
+    );
     const hasBudgetOptions = useMemo(
       () => hasAnyBudgetOption(budgetGroups),
       [budgetGroups]
@@ -466,7 +472,7 @@ const ManualExpenseForm = forwardRef<
                 autoFocus
               />
               <span className="text-muted-foreground absolute top-1/2 right-5 -translate-y-1/2 text-sm font-medium">
-                VND
+                <VndSymbol />
               </span>
             </div>
           </div>

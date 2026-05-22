@@ -18,6 +18,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
+import VndSymbol from "./VndSymbol";
+
 type CategoryTotal = {
   category: string;
   total: number;
@@ -117,15 +119,15 @@ const CategorySpendPieChart = ({
                     </span>
                   </div>
                   <span className="text-foreground font-semibold">
-                    {formatVnd(item.total)} VND
+                    {formatVnd(item.total)} <VndSymbol />
                   </span>
                 </div>
               ))}
             </div>
-            <div className="flex w-full items-center justify-between border-t border-border/70 pt-2 text-xs">
+            <div className="border-border/70 flex w-full items-center justify-between border-t pt-2 text-xs">
               <span className="text-muted-foreground">Total</span>
               <span className="text-foreground font-semibold">
-                {formatVnd(totalSpent)} VND
+                {formatVnd(totalSpent)} <VndSymbol />
               </span>
             </div>
           </>

@@ -7,6 +7,7 @@ import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { cn, formatVnd } from "@/lib/utils";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
+import VndSymbol from "@/components/VndSymbol";
 
 type PrefillChip = {
   note: string;
@@ -109,7 +110,7 @@ const ExpensePrefillChipsClient = ({ items }: { items: PrefillChip[] }) => {
                   {noteLabel}
                 </p>
                 <p className="text-muted-foreground text-xs font-medium">
-                  {formatVnd(item.amount)} VND
+                  {formatVnd(item.amount)} <VndSymbol />
                 </p>
               </div>
             </button>
