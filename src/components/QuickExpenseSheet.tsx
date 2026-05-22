@@ -447,7 +447,7 @@ const QuickExpenseSheet = ({
                 className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
               />
               <div className="flex items-baseline gap-1">
-                <VndSymbol className="text-muted-foreground text-2xl font-medium" />
+                <VndSymbol className="text-muted-foreground text-4xl font-semibold tracking-tight" />
                 <input
                   ref={amountRef}
                   inputMode="numeric"
