@@ -2,12 +2,15 @@
 
 import React, { useMemo, useRef, useState } from "react";
 
+import { toast } from "sonner";
+
+import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
-import { Calendar, Plus, UserRound, Wallet } from "lucide-react";
+import { Calendar, Loader2, Plus, UserRound, Wallet } from "lucide-react";
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 import { Button } from "@/components/ui/button";
@@ -16,6 +19,7 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -68,6 +72,31 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const canSubmit = draft.amount > 0 && !loading;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    try {
+      setLoading(true);
+      await createExpenseEntry({
+        date: draft.date,
+        amount: draft.amount,
+        note: draft.note,
+        category: draft.category,
+        paidBy: draft.paidBy,
+        budgetId: draft.budgetId,
+      });
+      toast.success("Expense added");
+      handleOpenChange(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to add expense");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const noteRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -224,6 +253,24 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
             </div>
           </div>
         </div>
+
+        <SheetFooter className="standalone:pb-safe border-t px-4">
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="h-10 w-full rounded-xl text-base font-medium"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save expense"
+            )}
+          </Button>
+        </SheetFooter>
 
         <Sheet open={dateOpen} onOpenChange={setDateOpen}>
           <SheetContent side="bottom" showCloseButton={false} className="rounded-t-3xl">

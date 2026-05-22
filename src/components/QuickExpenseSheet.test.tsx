@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createExpenseEntry } from "@/app/actions/expense-actions";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import QuickExpenseSheet from "./QuickExpenseSheet";
 
@@ -98,5 +99,49 @@ describe("QuickExpenseSheet — fields", () => {
     expect(foodChip).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /transport/i }));
     expect(screen.getByRole("button", { name: /transport/i, pressed: true })).toBeInTheDocument();
+  });
+});
+
+describe("QuickExpenseSheet — submit", () => {
+  const openSheet = async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+    return user;
+  };
+
+  it("disables submit when amount is zero", async () => {
+    await openSheet();
+    expect(screen.getByRole("button", { name: /save expense/i })).toBeDisabled();
+  });
+
+  it("calls createExpenseEntry with the full draft on submit", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() => {
+      expect(createExpenseEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 12000,
+          note: "",
+          category: "Food",
+          paidBy: expect.any(String),
+        })
+      );
+    });
+  });
+
+  it("closes the sheet after successful submit", async () => {
+    const user = await openSheet();
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("5000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText(/what did you spend on/i)).not.toBeInTheDocument()
+    );
   });
 });
