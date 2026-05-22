@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { formatVnd } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 
 import {
@@ -103,21 +105,32 @@ const SpendingDashboardHeaderClient = ({
           <VndSymbol />
         </p>
 
-        <Select value={activePayer} onValueChange={setActivePayer}>
-          <SelectTrigger
-            aria-label="Select expense payer"
-            className="bg-surface-3/85 border-border/70 hover:bg-secondary focus-visible:border-ring/40 focus-visible:ring-ring/30 h-8 min-w-20 rounded-full px-3 text-xs font-semibold shadow-none transition"
+        <div className="flex items-center gap-2">
+          <Select value={activePayer} onValueChange={setActivePayer}>
+            <SelectTrigger
+              aria-label="Select expense payer"
+              className="bg-surface-3/85 border-border/70 hover:bg-secondary focus-visible:border-ring/40 focus-visible:ring-ring/30 h-8 min-w-20 rounded-full px-3 text-xs font-semibold shadow-none transition"
+            >
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
+              {payerOptions.map((payer) => (
+                <SelectItem key={payer} value={payer}>
+                  {payer}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Link
+            href="/ai"
+            aria-label="Open Spendly AI expense chat"
+            className="bg-primary/15 text-primary ring-primary/25 hover:bg-primary/20 focus-visible:ring-ring/40 flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold shadow-none ring-1 transition-[background-color,scale] duration-200 ease-out outline-none active:scale-[0.96] focus-visible:ring-2"
           >
-            <SelectValue placeholder="All" />
-          </SelectTrigger>
-          <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
-            {payerOptions.map((payer) => (
-              <SelectItem key={payer} value={payer}>
-                {payer}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <Sparkles aria-hidden="true" className="size-3.5" />
+            <span>Spendly AI</span>
+          </Link>
+        </div>
       </div>
 
       <div className="border-border/45 bg-surface-2/65 mt-32 rounded-[28px] border p-3.5 shadow-sm backdrop-blur-sm">

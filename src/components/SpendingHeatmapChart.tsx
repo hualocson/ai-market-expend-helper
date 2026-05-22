@@ -127,12 +127,12 @@ const SpendingHeatmapChart = ({
                 aria-hidden="true"
                 style={bucketStyle(bucket)}
                 className={cn(
-                  "border-foreground/10 flex h-10 w-10 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[background-color,border-color,outline-color,transform] duration-200 ease-out",
+                  "flex h-10 w-10 items-center justify-center rounded-md text-xs font-medium tabular-nums transition-[background-color,outline-color,transform] duration-200 ease-out",
                   bucket === 0
                     ? "text-muted-foreground/70"
                     : "text-foreground/90",
                   isSelected &&
-                    "border-accent/55 outline-accent/50 scale-105 outline outline-1 outline-offset-2"
+                    "outline-accent/50 scale-105 outline outline-1 outline-offset-2"
                 )}
               >
                 {day}

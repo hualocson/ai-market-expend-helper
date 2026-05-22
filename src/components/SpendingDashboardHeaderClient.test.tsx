@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 describe("SpendingDashboardHeaderClient", () => {
-  it("renders only the left-aligned large total and compact payer picker", () => {
+  it("renders the large total with compact payer and AI actions", () => {
     globalThis.React = React;
 
     render(
@@ -44,10 +44,14 @@ describe("SpendingDashboardHeaderClient", () => {
     const picker = screen.getByRole("combobox", {
       name: /select expense payer/i,
     });
+    const aiLink = screen.getByRole("link", {
+      name: /open spendly ai expense chat/i,
+    });
     const amountBlock = total.parentElement;
 
     expect(total).toBeInTheDocument();
     expect(picker).toBeInTheDocument();
+    expect(aiLink).toHaveAttribute("href", "/ai");
     expect(amountBlock).toHaveClass("items-start");
     expect(amountBlock).toHaveClass("fixed");
     expect(amountBlock).toHaveClass("spending-header-gradient");
