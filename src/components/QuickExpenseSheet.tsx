@@ -200,7 +200,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           <SheetTitle>Add expense</SheetTitle>
           <SheetDescription>Enter expense details and save.</SheetDescription>
         </SheetHeader>
-        <div className="my-auto flex flex-col">
+        <div className="my-auto flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-2 px-4">
             <Button
               type="button"
@@ -238,29 +238,31 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           </div>
 
           <div className="flex flex-1 flex-col justify-center gap-4 px-4">
-            <input
-              ref={noteRef}
-              value={draft.note}
-              onChange={(e) => setField("note", e.target.value)}
-              placeholder="What did you spend on?"
-              className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
-            />
-
-            <div className="flex items-baseline gap-1">
-              <span className="text-muted-foreground text-2xl font-medium">
-                đ
-              </span>
+            <div className="flex flex-col gap-2">
+              {" "}
               <input
-                ref={amountRef}
-                inputMode="numeric"
-                value={draft.amount === 0 ? "" : formatVnd(draft.amount)}
-                onChange={(e) =>
-                  setField("amount", parseVndInput(e.target.value))
-                }
-                placeholder="0"
-                className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
-                onFocus={() => amountRef.current?.select()}
+                ref={noteRef}
+                value={draft.note}
+                onChange={(e) => setField("note", e.target.value)}
+                placeholder="What did you spend on?"
+                className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
               />
+              <div className="flex items-baseline gap-1">
+                <span className="text-muted-foreground text-2xl font-medium">
+                  đ
+                </span>
+                <input
+                  ref={amountRef}
+                  inputMode="numeric"
+                  value={draft.amount === 0 ? "" : formatVnd(draft.amount)}
+                  onChange={(e) =>
+                    setField("amount", parseVndInput(e.target.value))
+                  }
+                  placeholder="0"
+                  className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
+                  onFocus={() => amountRef.current?.select()}
+                />
+              </div>
             </div>
 
             {suggestions.length > 0 && (
