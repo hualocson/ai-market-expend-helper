@@ -57,3 +57,46 @@ describe("QuickExpenseSheet — open/close", () => {
     await waitFor(() => expect(note).toHaveFocus());
   });
 });
+
+describe("QuickExpenseSheet — fields", () => {
+  const openSheet = async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+    return user;
+  };
+
+  it("renders the date / budget / paid-by trigger buttons", async () => {
+    await openSheet();
+    expect(screen.getByRole("button", { name: /^date:/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^budget:/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^paid by:/i })).toBeInTheDocument();
+  });
+
+  it("shows suggestion chips when amount > 0", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    await user.keyboard("5");
+    expect(screen.getByRole("button", { name: /50$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /500$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /5[.,]?000$/ })).toBeInTheDocument();
+  });
+
+  it("applies a suggestion chip to the amount input", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
+    await user.click(amount);
+    await user.keyboard("5");
+    await user.click(screen.getByRole("button", { name: /5[.,]?000$/ }));
+    expect(amount.value).toMatch(/5[.,]?000/);
+  });
+
+  it("renders the category chip row and toggles active chip", async () => {
+    const user = await openSheet();
+    const foodChip = screen.getByRole("button", { name: /food/i, pressed: true });
+    expect(foodChip).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /transport/i }));
+    expect(screen.getByRole("button", { name: /transport/i, pressed: true })).toBeInTheDocument();
+  });
+});
