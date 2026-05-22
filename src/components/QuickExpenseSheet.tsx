@@ -127,7 +127,12 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
 
   const noteRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
+  const keyboardPrimerRef = useRef<HTMLInputElement>(null);
   useAutoShrinkFont(noteRef);
+
+  const primeKeyboard = () => {
+    keyboardPrimerRef.current?.focus();
+  };
 
   const setField = <K extends keyof TExpenseDraft>(
     key: K,
@@ -163,10 +168,17 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange} modal>
+      <input
+        ref={keyboardPrimerRef}
+        aria-hidden
+        tabIndex={-1}
+        className="pointer-events-none fixed top-0 left-0 h-px w-px opacity-0"
+      />
       <SheetTrigger asChild>
         <Button
           size={compact ? "icon-lg" : "default"}
           aria-label={compact ? "Add expense" : undefined}
+          onPointerDown={primeKeyboard}
           className={cn(
             "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
             compact && "size-12"
@@ -179,6 +191,10 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
       <SheetContent
         side="bottom"
         className="h-full w-full gap-0 rounded-none p-0"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          noteRef.current?.focus({ preventScroll: true });
+        }}
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Add expense</SheetTitle>
@@ -224,7 +240,6 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           <div className="flex flex-1 flex-col gap-4 px-4 pt-6">
             <input
               ref={noteRef}
-              autoFocus
               value={draft.note}
               onChange={(e) => setField("note", e.target.value)}
               placeholder="What did you spend on?"
