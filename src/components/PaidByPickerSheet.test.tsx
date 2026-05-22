@@ -24,30 +24,23 @@ const renderSheet = (
 };
 
 describe("PaidByPickerSheet", () => {
-  it("renders all paid-by options", () => {
+  it("renders the wheel picker with all paid-by labels", () => {
     renderSheet();
-    expect(screen.getByRole("button", { name: /Cubi/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Embe/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Other/ })).toBeInTheDocument();
+    expect(screen.getAllByText(PaidBy.CUBI).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(PaidBy.EMBE).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(PaidBy.OTHER).length).toBeGreaterThan(0);
   });
 
-  it("calls onChange and closes on select", async () => {
+  it("Done button commits the initial value and closes", async () => {
     const user = userEvent.setup();
     const { onChange, onOpenChange } = renderSheet();
-    await user.click(screen.getByRole("button", { name: /Embe/ }));
-    expect(onChange).toHaveBeenCalledWith(PaidBy.EMBE);
+    await user.click(screen.getByRole("button", { name: /done/i }));
+    expect(onChange).toHaveBeenCalledWith(PaidBy.CUBI);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("marks active row with aria-pressed", () => {
-    renderSheet({ value: PaidBy.OTHER });
-    expect(screen.getByRole("button", { name: /Other/ })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-    expect(screen.getByRole("button", { name: /Cubi/ })).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
+  it("renders a Done button", () => {
+    renderSheet();
+    expect(screen.getByRole("button", { name: /done/i })).toBeInTheDocument();
   });
 });

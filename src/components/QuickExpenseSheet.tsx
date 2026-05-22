@@ -218,19 +218,17 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
               className="w-full whitespace-nowrap overflow-hidden border-0 bg-transparent px-0 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0"
             />
 
-            <div className="relative">
+            <div className="flex items-baseline gap-1">
+              <span className="text-muted-foreground text-2xl font-medium">đ</span>
               <input
                 ref={amountRef}
                 inputMode="numeric"
                 value={draft.amount === 0 ? "" : formatVnd(draft.amount)}
                 onChange={(e) => setField("amount", parseVndInput(e.target.value))}
                 placeholder="0"
-                className="w-full border-0 bg-transparent px-0 pr-12 text-right text-4xl font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-0"
+                className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-0"
                 onFocus={() => amountRef.current?.select()}
               />
-              <span className="text-muted-foreground absolute bottom-2 right-0 text-sm">
-                VND
-              </span>
             </div>
 
             {suggestions.length > 0 && (
