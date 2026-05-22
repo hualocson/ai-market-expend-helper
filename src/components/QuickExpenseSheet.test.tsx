@@ -2,10 +2,14 @@ import React from "react";
 import userEvent from "@testing-library/user-event";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
+import {
+  fetchWeeklyBudgetOptions,
+  type BudgetWeeklyOption,
+} from "@/lib/queries/budget-weekly";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import QuickExpenseSheet from "./QuickExpenseSheet";
 
@@ -23,7 +27,35 @@ vi.mock("@/lib/queries/budget-weekly", async () => {
   };
 });
 
+vi.mock("@/components/ui/date-picker", () => ({
+  default: ({ onChange }: { onChange?: (date: Date | undefined) => void }) => (
+    <button type="button" onClick={() => onChange?.(new Date(2026, 4, 20))}>
+      Pick mocked date
+    </button>
+  ),
+}));
+
 const originalGlobalReact = (globalThis as unknown as Record<string, unknown>).React;
+
+const budgetOption = (
+  override: Partial<BudgetWeeklyOption> = {}
+): BudgetWeeklyOption => ({
+  id: 1,
+  name: "Food week",
+  period: "week",
+  periodStartDate: "2026-05-17",
+  periodEndDate: "2026-05-23",
+  amount: 100000,
+  spent: 0,
+  remaining: 100000,
+  ...override,
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(createExpenseEntry).mockResolvedValue({ id: 1 });
+  vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([]);
+});
 
 afterEach(() => {
   if (typeof originalGlobalReact === "undefined") {
@@ -31,7 +63,6 @@ afterEach(() => {
   } else {
     (globalThis as unknown as Record<string, unknown>).React = originalGlobalReact;
   }
-  vi.restoreAllMocks();
 });
 
 const renderSheet = () => {
@@ -139,6 +170,53 @@ describe("QuickExpenseSheet — submit", () => {
           category: "Food",
           paidBy: expect.any(String),
         })
+      );
+    });
+  });
+
+  it("clears a selected budget when the changed date no longer includes it", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchWeeklyBudgetOptions).mockImplementation(
+      async (_weekStart, targetDate) => {
+        if (targetDate === "2026-05-20") {
+          return [budgetOption({ id: 2, name: "Transport week" })];
+        }
+        return [budgetOption({ id: 1, name: "Food week" })];
+      }
+    );
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await user.click(screen.getByRole("button", { name: /^budget:/i }));
+    await user.click(await screen.findByRole("button", { name: /food week/i }));
+    expect(
+      screen.getByRole("button", { name: /budget: selected/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^date:/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /pick mocked date/i })
+    );
+
+    await waitFor(() =>
+      expect(fetchWeeklyBudgetOptions).toHaveBeenCalledWith(
+        expect.any(String),
+        "2026-05-20"
+      )
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /budget: no budget/i })
+      ).toBeInTheDocument()
+    );
+
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() => {
+      expect(createExpenseEntry).toHaveBeenCalledWith(
+        expect.objectContaining({ budgetId: null })
       );
     });
   });

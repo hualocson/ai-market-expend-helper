@@ -12,6 +12,12 @@ afterEach(() => {
 });
 
 describe("budget weekly query helpers", () => {
+  it("includes target date in option query keys", () => {
+    expect(
+      budgetWeeklyOptionsQueryKey("2026-05-17", "2026-05-20")
+    ).not.toEqual(budgetWeeklyOptionsQueryKey("2026-05-17", "2026-05-22"));
+  });
+
   it("invalidates all weekly budget option caches", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {

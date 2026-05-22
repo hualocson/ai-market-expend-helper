@@ -47,7 +47,7 @@ const BudgetPickerSheet = ({
   isParentOpen = true,
 }: TBudgetPickerSheetProps) => {
   const query = useQuery<TBudgetOption[]>({
-    queryKey: budgetWeeklyOptionsQueryKey(weekStart),
+    queryKey: budgetWeeklyOptionsQueryKey(weekStart, targetDate),
     queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
     enabled: isParentOpen && Boolean(weekStart),
     staleTime: 5 * 60 * 1000,

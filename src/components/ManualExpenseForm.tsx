@@ -313,7 +313,10 @@ const ManualExpenseForm = forwardRef<
     }, [budgetTargetDate]);
 
     const budgetOptionsQuery = useQuery<TBudgetOption[]>({
-      queryKey: budgetWeeklyOptionsQueryKey(budgetWeekStart ?? ""),
+      queryKey: budgetWeeklyOptionsQueryKey(
+        budgetWeekStart ?? "",
+        budgetTargetDate ?? undefined
+      ),
       queryFn: () =>
         fetchWeeklyBudgetOptions(
           budgetWeekStart ?? "",

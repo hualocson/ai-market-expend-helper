@@ -174,7 +174,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   }, [targetDate]);
 
   const budgetOptionsQuery = useQuery<BudgetWeeklyOption[]>({
-    queryKey: budgetWeeklyOptionsQueryKey(weekStart),
+    queryKey: budgetWeeklyOptionsQueryKey(weekStart, targetDate),
     queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
     enabled: open && Boolean(weekStart),
     staleTime: 5 * 60 * 1000,
@@ -190,6 +190,17 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
       "Budget"
     );
   }, [draft.budgetId, budgetOptionsQuery.data]);
+
+  useEffect(() => {
+    if (draft.budgetId === null || !budgetOptionsQuery.isSuccess) {
+      return;
+    }
+    if (
+      !budgetOptionsQuery.data.some((budget) => budget.id === draft.budgetId)
+    ) {
+      setDraft((prev) => ({ ...prev, budgetId: null }));
+    }
+  }, [draft.budgetId, budgetOptionsQuery.data, budgetOptionsQuery.isSuccess]);
 
   const suggestions = useMemo(() => {
     if (draft.amount <= 0) {
@@ -361,6 +372,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           >
             <SheetHeader className="text-left">
               <SheetTitle>Date</SheetTitle>
+              <SheetDescription>Pick the expense date.</SheetDescription>
             </SheetHeader>
             <div className="px-4 pb-4 sm:px-6">
               <DatePicker
