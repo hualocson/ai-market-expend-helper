@@ -18,13 +18,21 @@ import {
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Loader2, Plus, UserRound, Wallet } from "lucide-react";
+import {
+  Calendar,
+  Loader2,
+  Plus,
+  UserRound,
+  Wallet,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -235,12 +243,17 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
       </SheetTrigger>
       <SheetContent
         side="bottom"
+        showCloseButton={false}
         className="h-full w-full gap-0 rounded-none p-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           noteRef.current?.focus({ preventScroll: true });
         }}
       >
+        <SheetClose className="ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-all duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </SheetClose>
         <SheetHeader className="sr-only">
           <SheetTitle>Add expense</SheetTitle>
           <SheetDescription>Enter expense details and save.</SheetDescription>
