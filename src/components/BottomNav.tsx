@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { BarChart3, Cog, Home, Wallet } from "lucide-react";
 
-import ExpenseEntryDrawer from "@/components/ExpenseEntryDrawer";
+import QuickExpenseSheet from "@/components/QuickExpenseSheet";
 
 const navItems = [
   {
@@ -96,7 +96,7 @@ const BottomNav = () => {
           })}
         </div>
         <div className="ds-glass-strong absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border p-1">
-          <ExpenseEntryDrawer compact />
+          <QuickExpenseSheet compact />
         </div>
       </div>
     </nav>
