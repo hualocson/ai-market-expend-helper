@@ -94,12 +94,20 @@ describe("QuickExpenseSheet — fields", () => {
     expect(amount.value).toMatch(/5[.,]?000/);
   });
 
-  it("renders the category chip row and toggles active chip", async () => {
+  it("renders the collapsed category chip row and expands then toggles active chip", async () => {
     const user = await openSheet();
     const foodChip = screen.getByRole("button", { name: /food/i, pressed: true });
     expect(foodChip).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /transport/i })
+    ).not.toBeInTheDocument();
+
+    await user.click(foodChip);
     await user.click(screen.getByRole("button", { name: /transport/i }));
-    expect(screen.getByRole("button", { name: /transport/i, pressed: true })).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /transport/i, pressed: true })
+    ).toBeInTheDocument();
   });
 });
 

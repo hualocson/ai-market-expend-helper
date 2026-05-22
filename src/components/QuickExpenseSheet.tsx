@@ -36,7 +36,7 @@ import {
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import BudgetPickerSheet from "./BudgetPickerSheet";
-import ExpenseItemIcon from "./ExpenseItemIcon";
+import CategoryChipRow from "./CategoryChipRow";
 import PaidByPickerSheet from "./PaidByPickerSheet";
 
 export type TQuickExpenseSheetProps = {
@@ -328,31 +328,10 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
               </div>
             )}
 
-            <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto pt-1">
-              {Object.values(Category).map((category) => {
-                const isActive = draft.category === category;
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setField("category", category as Category)}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition duration-300",
-                      isActive
-                        ? "border-foreground/20 bg-muted -translate-y-1"
-                        : "bg-muted/50 hover:bg-muted border-transparent"
-                    )}
-                  >
-                    <ExpenseItemIcon
-                      category={category as Category}
-                      size="sm"
-                    />
-                    <span>{category}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <CategoryChipRow
+              value={draft.category}
+              onChange={(c) => setField("category", c)}
+            />
           </div>
         </div>
 
