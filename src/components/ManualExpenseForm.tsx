@@ -18,8 +18,16 @@ import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
   budgetWeeklyOptionsQueryKey,
   fetchWeeklyBudgetOptions,
-  type BudgetWeeklyOption,
 } from "@/lib/queries/budget-weekly";
+import {
+  budgetGroupEmptyLabel,
+  budgetGroupLabels,
+  formatBudgetRange,
+  groupBudgetOptions,
+  pickDefaultBudget,
+  type TBudgetOption,
+  type TBudgetOptionGroupKey,
+} from "@/lib/budget-options";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -75,78 +83,6 @@ const paidByWheelOptions = paidByOptions.map((option) => ({
   label: option,
 }));
 const categoryOptions = Object.values(Category);
-type BudgetOption = BudgetWeeklyOption;
-type BudgetOptionGroupKey = "week" | "month" | "custom";
-
-const budgetGroupLabels: Record<BudgetOptionGroupKey, string> = {
-  week: "Weekly budgets",
-  month: "Monthly budgets",
-  custom: "Other budgets",
-};
-
-const budgetGroupEmptyLabel: Record<BudgetOptionGroupKey, string> = {
-  week: "No weekly budgets for this date.",
-  month: "No monthly budgets for this date.",
-  custom: "No additional budgets for this date.",
-};
-
-const fallbackBudgetPeriodLabel: Record<BudgetOptionGroupKey, string> = {
-  week: "Week budget",
-  month: "Month budget",
-  custom: "Custom budget",
-};
-
-const pickDefaultBudget = (groups: {
-  week: BudgetOption[];
-  month: BudgetOption[];
-  custom: BudgetOption[];
-}) => groups.week[0] ?? groups.month[0] ?? groups.custom[0] ?? null;
-
-const parseBudgetDate = (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
-  const parsed = dayjs(value, "YYYY-MM-DD", true);
-  return parsed.isValid() ? parsed : null;
-};
-
-const formatBudgetRange = (budget: BudgetOption) => {
-  const start = parseBudgetDate(budget.periodStartDate);
-  if (!start) {
-    return fallbackBudgetPeriodLabel[budget.period];
-  }
-
-  const end = parseBudgetDate(budget.periodEndDate) ?? start;
-  if (start.isSame(end, "day")) {
-    return start.format("DD MMM YYYY");
-  }
-  if (start.isSame(end, "year")) {
-    return `${start.format("DD MMM")} - ${end.format("DD MMM YYYY")}`;
-  }
-  return `${start.format("DD MMM YYYY")} - ${end.format("DD MMM YYYY")}`;
-};
-
-const sortBudgetOptions = (items: BudgetOption[]) => {
-  return [...items].sort((left, right) => {
-    const leftDate = parseBudgetDate(left.periodStartDate);
-    const rightDate = parseBudgetDate(right.periodStartDate);
-
-    if (leftDate && rightDate && !leftDate.isSame(rightDate, "day")) {
-      return rightDate.valueOf() - leftDate.valueOf();
-    }
-
-    if (leftDate && !rightDate) {
-      return -1;
-    }
-    if (!leftDate && rightDate) {
-      return 1;
-    }
-
-    return left.name.localeCompare(right.name, undefined, {
-      sensitivity: "base",
-    });
-  });
-};
 
 export type ManualExpenseFormHandle = {
   submit: () => void;
@@ -379,7 +315,7 @@ const ManualExpenseForm = forwardRef<
       return getWeekRange(resolvedDate).weekStartDate.format("YYYY-MM-DD");
     }, [budgetTargetDate]);
 
-    const budgetOptionsQuery = useQuery<BudgetOption[]>({
+    const budgetOptionsQuery = useQuery<TBudgetOption[]>({
       queryKey: budgetWeeklyOptionsQueryKey(budgetWeekStart ?? ""),
       queryFn: () =>
         fetchWeeklyBudgetOptions(
@@ -394,27 +330,7 @@ const ManualExpenseForm = forwardRef<
     const budgetOptions = budgetOptionsQuery.data ?? [];
     const budgetLoading = budgetOptionsQuery.isPending;
     const budgetLoaded = budgetOptionsQuery.isFetched;
-    const budgetGroups = useMemo(() => {
-      const groups: Record<BudgetOptionGroupKey, BudgetOption[]> = {
-        week: [],
-        month: [],
-        custom: [],
-      };
-
-      budgetOptions.forEach((budget) => {
-        if (budget.period === "week" || budget.period === "month") {
-          groups[budget.period].push(budget);
-          return;
-        }
-        groups.custom.push(budget);
-      });
-
-      return {
-        week: sortBudgetOptions(groups.week),
-        month: sortBudgetOptions(groups.month),
-        custom: sortBudgetOptions(groups.custom),
-      };
-    }, [budgetOptions]);
+    const budgetGroups = useMemo(() => groupBudgetOptions(budgetOptions), [budgetOptions]);
     const hasBudgetOptions = useMemo(
       () =>
         budgetGroups.week.length > 0 ||
