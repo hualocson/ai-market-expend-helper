@@ -71,7 +71,7 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
               <motion.span layout="position" className="whitespace-nowrap">
                 {category}
               </motion.span>
-              <AnimatePresence initial={false}>
+              <AnimatePresence initial={false} mode="popLayout">
                 {showChevron && (
                   <motion.span
                     layout
