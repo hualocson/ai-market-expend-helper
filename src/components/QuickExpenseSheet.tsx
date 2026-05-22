@@ -10,8 +10,14 @@ import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
+import {
+  type BudgetWeeklyOption,
+  budgetWeeklyOptionsQueryKey,
+  fetchWeeklyBudgetOptions,
+} from "@/lib/queries/budget-weekly";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, Loader2, Plus, UserRound, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
@@ -167,6 +173,24 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
     return getWeekRange(parsed).weekStartDate.format("YYYY-MM-DD");
   }, [targetDate]);
 
+  const budgetOptionsQuery = useQuery<BudgetWeeklyOption[]>({
+    queryKey: budgetWeeklyOptionsQueryKey(weekStart),
+    queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
+    enabled: open && Boolean(weekStart),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: false,
+  });
+  const selectedBudgetName = useMemo(() => {
+    if (draft.budgetId === null) {
+      return null;
+    }
+    return (
+      budgetOptionsQuery.data?.find((b) => b.id === draft.budgetId)?.name ??
+      "Budget"
+    );
+  }, [draft.budgetId, budgetOptionsQuery.data]);
+
   const suggestions = useMemo(() => {
     if (draft.amount <= 0) {
       return [];
@@ -236,7 +260,9 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
               onClick={() => setBudgetOpen(true)}
             >
               <Wallet className="h-4 w-4" />
-              {draft.budgetId !== null && <span>Budget</span>}
+              {selectedBudgetName !== null && (
+                <span className="truncate">{selectedBudgetName}</span>
+              )}
             </Button>
             <Button
               type="button"
