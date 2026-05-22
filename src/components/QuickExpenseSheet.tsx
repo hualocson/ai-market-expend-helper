@@ -217,12 +217,16 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
               type="button"
               variant="outline"
               size="sm"
-              className="rounded-full"
+              className={cn(
+                "rounded-full",
+                draft.budgetId === null &&
+                  "border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning"
+              )}
               aria-label={`Budget: ${draft.budgetId === null ? "No budget" : "Selected"}`}
               onClick={() => setBudgetOpen(true)}
             >
               <Wallet className="h-4 w-4" />
-              <span>{draft.budgetId === null ? "No budget" : "Budget"}</span>
+              {draft.budgetId !== null && <span>Budget</span>}
             </Button>
             <Button
               type="button"
