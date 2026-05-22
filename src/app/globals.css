@@ -363,6 +363,32 @@
 }
 
 @layer components {
+  .spending-header-gradient {
+    isolation: isolate;
+  }
+
+  .spending-header-gradient::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    content: "";
+    background: color-mix(in srgb, var(--background) 72%, transparent);
+    box-shadow: 0 20px 70px color-mix(in srgb, #000000 28%, transparent);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+    mask-repeat: no-repeat;
+    mask-size: 100% 100%;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 72%,
+      transparent 100%
+    );
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
   .ds-glass {
     background: linear-gradient(
       160deg,

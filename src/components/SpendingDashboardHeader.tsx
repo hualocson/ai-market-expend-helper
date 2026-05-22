@@ -22,12 +22,10 @@ const buildDailyTotals = (
   const start = startOfMonth.startOf("month");
   const daysInMonth = start.daysInMonth();
 
-  const totals = Array.from({ length: daysInMonth }, (_, index) => {
+  return Array.from({ length: daysInMonth }, (_, index) => {
     const date = start.add(index, "day").format("YYYY-MM-DD");
     return byDate.get(date) ?? 0;
   });
-
-  return { totals };
 };
 
 const SpendingDashboardHeader = async ({
@@ -64,42 +62,38 @@ const SpendingDashboardHeader = async ({
     }))
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 
+  const totalAmount = normalizedRows.reduce((sum, row) => sum + row.amount, 0);
   const totalsByPayer = new Map<
     string,
     Array<{ date: string; amount: number }>
   >();
+
   normalizedRows.forEach((row) => {
     const current = totalsByPayer.get(row.paidBy) ?? [];
     current.push({ date: row.date, amount: row.amount });
     totalsByPayer.set(row.paidBy, current);
   });
 
-  const allTotals = buildDailyTotals(
-    startOfMonth,
-    normalizedRows.map(({ date, amount }) => ({ date, amount }))
-  );
-  const totalAmount = normalizedRows.reduce((sum, row) => sum + row.amount, 0);
-
-  const payerTotals = Array.from(totalsByPayer.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .reduce<Record<string, { total: number; totals: number[] }>>(
-      (acc, [payer, amounts]) => {
-        const { totals } = buildDailyTotals(startOfMonth, amounts);
-        const total = amounts.reduce((sum, row) => sum + row.amount, 0);
-        acc[payer] = { total, totals };
-        return acc;
-      },
-      {}
-    );
+  const payerTotals = Array.from(totalsByPayer.entries()).reduce<
+    Record<string, { total: number; totals: number[] }>
+  >((acc, [payer, amounts]) => {
+    acc[payer] = {
+      total: amounts.reduce((sum, row) => sum + row.amount, 0),
+      totals: buildDailyTotals(startOfMonth, amounts),
+    };
+    return acc;
+  }, {});
 
   const totalsForDisplay = {
-    All: { total: totalAmount, totals: allTotals.totals },
+    All: {
+      total: totalAmount,
+      totals: buildDailyTotals(startOfMonth, normalizedRows),
+    },
     ...payerTotals,
   };
   return (
     <SpendingDashboardHeaderClient
       activeMonth={activeMonth.format("YYYY-MM")}
-      activeMonthLabel={activeMonth.format("MMMM YYYY")}
       payerOptions={Object.keys(totalsForDisplay)}
       totalsByPayer={totalsForDisplay}
     />

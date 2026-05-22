@@ -13,13 +13,16 @@ type SpendingHeatmapChartProps = {
   activeMonth: string;
 };
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const BUCKET_OPACITY = [0, 18, 35, 55, 80] as const;
+const WEEKDAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+const BUCKET_OPACITY = [0, 10, 22, 38, 58] as const;
 
 type BucketIndex = 0 | 1 | 2 | 3 | 4;
 
 const bucketStyle = (bucket: BucketIndex): React.CSSProperties => ({
-  backgroundColor: `color-mix(in srgb, var(--accent) ${BUCKET_OPACITY[bucket]}%, transparent)`,
+  backgroundColor:
+    bucket === 0
+      ? "color-mix(in srgb, var(--muted-foreground) 8%, transparent)"
+      : `color-mix(in srgb, var(--accent) ${BUCKET_OPACITY[bucket]}%, transparent)`,
 });
 
 const clampBucket = (value: number | undefined): BucketIndex => {
@@ -56,25 +59,24 @@ const SpendingHeatmapChart = ({
     [totals]
   );
 
-  const leadingDays = useMemo(
-    () =>
-      Array.from({ length: leadingPad }, (_, i) =>
-        monthStart.subtract(leadingPad - i, "day").date()
-      ),
-    [leadingPad, monthStart]
+  const leadingSlots = useMemo(
+    () => Array.from({ length: leadingPad }),
+    [leadingPad]
   );
 
-  const trailingDays = useMemo(
-    () => Array.from({ length: trailingPad }, (_, i) => i + 1),
+  const trailingSlots = useMemo(
+    () => Array.from({ length: trailingPad }),
     [trailingPad]
   );
+  const selectedLabel =
+    selectedDay === null ? null : monthStart.date(selectedDay).format("MMM D");
 
   const detailMessage = (() => {
     if (totalSpend === 0) {
       return `No spending in ${monthLabel}`;
     }
     if (selectedDay === null) {
-      return "Tap a day to see details";
+      return `${monthStart.format("MMM")} spending by day`;
     }
     return null;
   })();
@@ -86,23 +88,21 @@ const SpendingHeatmapChart = ({
         aria-label={`Spending heatmap for ${monthLabel}`}
         className="grid w-full grid-cols-7 gap-1"
       >
-        {WEEKDAY_LABELS.map((label) => (
+        {WEEKDAY_LABELS.map((label, index) => (
           <span
-            key={label}
-            className="text-muted-foreground text-center text-[10px] font-semibold tracking-[0.18em] uppercase"
+            key={`${label}-${index}`}
+            className="text-muted-foreground/55 text-center text-[9px] font-medium tabular-nums"
           >
             {label}
           </span>
         ))}
 
-        {leadingDays.map((day, index) => (
+        {leadingSlots.map((_, index) => (
           <span
             key={`lead-${index}`}
             aria-hidden="true"
-            className="text-muted-foreground/40 pointer-events-none flex aspect-square items-center justify-center rounded-md text-[11px] tabular-nums"
-          >
-            {day}
-          </span>
+            className="pointer-events-none aspect-square min-h-8 rounded-lg"
+          />
         ))}
 
         {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
@@ -118,54 +118,56 @@ const SpendingHeatmapChart = ({
               onClick={() =>
                 setSelectedDay((prev) => (prev === day ? null : day))
               }
-              style={bucketStyle(bucket)}
               className={cn(
-                "focus-visible:ring-ring/40 flex aspect-square items-center justify-center rounded-md text-[11px] font-medium tabular-nums transition focus-visible:ring-2 focus-visible:outline-none",
-                bucket === 4 ? "text-accent-foreground" : "text-foreground/90",
-                isSelected && "ring-2 ring-white/30"
+                "focus-visible:ring-ring/40 flex aspect-square min-h-8 items-center justify-center rounded-lg transition-[background-color,transform] duration-200 ease-out focus-visible:ring-2 focus-visible:outline-none active:scale-[0.96]",
+                isSelected && "bg-accent/5"
               )}
             >
-              {day}
+              <span
+                aria-hidden="true"
+                style={bucketStyle(bucket)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-md text-xs font-medium tabular-nums transition-[background-color,outline-color,transform] duration-200 ease-out",
+                  bucket === 0
+                    ? "text-muted-foreground/70"
+                    : "text-foreground/90",
+                  isSelected &&
+                    "outline-accent/50 scale-105 outline outline-1 outline-offset-2"
+                )}
+              >
+                {day}
+              </span>
             </button>
           );
         })}
 
-        {trailingDays.map((day, index) => (
+        {trailingSlots.map((_, index) => (
           <span
             key={`trail-${index}`}
             aria-hidden="true"
-            className="text-muted-foreground/40 pointer-events-none flex aspect-square items-center justify-center rounded-md text-[11px] tabular-nums"
-          >
-            {day}
-          </span>
+            className="pointer-events-none aspect-square min-h-8 rounded-lg"
+          />
         ))}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <p className="text-foreground/80 font-mono text-sm tabular-nums">
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <p className="text-muted-foreground font-mono text-xs tabular-nums">
           {detailMessage ?? (
             <>
-              Day {selectedDay} ·{" "}
+              {selectedLabel} ·{" "}
               {formatVnd(totals[(selectedDay ?? 1) - 1] ?? 0)} <VndSymbol />
             </>
           )}
         </p>
 
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground text-[10px] tracking-[0.18em] uppercase">
-            Less
-          </span>
+        <div className="flex shrink-0 items-center gap-1" aria-hidden="true">
           {BUCKET_OPACITY.map((_, bucket) => (
             <span
               key={bucket}
-              aria-hidden="true"
               style={bucketStyle(bucket as BucketIndex)}
-              className="border-border/50 h-3 w-3 rounded-sm border"
+              className="h-1.5 w-3 rounded-full"
             />
           ))}
-          <span className="text-muted-foreground text-[10px] tracking-[0.18em] uppercase">
-            More
-          </span>
         </div>
       </div>
     </div>

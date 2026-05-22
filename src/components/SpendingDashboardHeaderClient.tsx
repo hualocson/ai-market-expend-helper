@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 import { formatVnd } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 
 import {
   Select,
@@ -15,52 +18,100 @@ import {
 import SpendingHeatmapChart from "@/components/SpendingHeatmapChart";
 import VndSymbol from "@/components/VndSymbol";
 
-import SiriOrb from "./ui/siri-orb";
+const COUNTER_DURATION_MS = 780;
+
+const easeOutCubic = (progress: number) => {
+  return 1 - Math.pow(1 - progress, 3);
+};
+
+const AnimatedVndAmount = ({ amount }: { amount: number }) => {
+  const shouldReduceMotion = useReducedMotion();
+  const displayedAmountRef = useRef(0);
+  const [displayedAmount, setDisplayedAmount] = useState(0);
+
+  useEffect(() => {
+    if (shouldReduceMotion) {
+      displayedAmountRef.current = amount;
+      setDisplayedAmount(amount);
+      return;
+    }
+
+    const startAmount = displayedAmountRef.current;
+    const delta = amount - startAmount;
+
+    if (delta === 0) {
+      setDisplayedAmount(amount);
+      return;
+    }
+
+    let animationFrame = 0;
+    let startedAt: number | null = null;
+
+    const tick = (timestamp: number) => {
+      startedAt ??= timestamp;
+
+      const progress = Math.min(
+        (timestamp - startedAt) / COUNTER_DURATION_MS,
+        1
+      );
+      const nextAmount = Math.round(
+        startAmount + delta * easeOutCubic(progress)
+      );
+
+      displayedAmountRef.current = nextAmount;
+      setDisplayedAmount(nextAmount);
+
+      if (progress < 1) {
+        animationFrame = window.requestAnimationFrame(tick);
+      } else {
+        displayedAmountRef.current = amount;
+        setDisplayedAmount(amount);
+      }
+    };
+
+    animationFrame = window.requestAnimationFrame(tick);
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [amount, shouldReduceMotion]);
+
+  return <span aria-hidden="true">{formatVnd(displayedAmount)}</span>;
+};
 
 type SpendingDashboardHeaderClientProps = {
   activeMonth: string;
-  activeMonthLabel: string;
   payerOptions: string[];
   totalsByPayer: Record<string, { total: number; totals: number[] }>;
 };
 
 const SpendingDashboardHeaderClient = ({
   activeMonth,
-  activeMonthLabel,
   payerOptions,
   totalsByPayer,
 }: SpendingDashboardHeaderClientProps) => {
   const initialPayer = payerOptions[0] ?? "All";
   const [activePayer, setActivePayer] = useState(initialPayer);
-
-  const activeTotals = useMemo(() => {
-    return totalsByPayer[activePayer] ?? totalsByPayer[initialPayer];
-  }, [activePayer, initialPayer, totalsByPayer]);
-
-  const subtitle =
-    activePayer === "All"
-      ? `Spent in ${activeMonthLabel}`
-      : `Spent by ${activePayer} in ${activeMonthLabel}`;
+  const activeTotals =
+    totalsByPayer[activePayer] ?? totalsByPayer[initialPayer];
+  const activeTotal = activeTotals?.total ?? 0;
 
   return (
-    <section className="space-y-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="bg-surface-3 border-border/70 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-              <SiriOrb size="40px" className="shrink-0" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
-                Main account
-              </p>
-              <p className="text-foreground/75 truncate text-sm">{subtitle}</p>
-            </div>
-          </div>
+    <>
+      <div className="spending-header-gradient fixed top-0 right-0 left-0 z-30 flex w-dvw flex-col items-start gap-3 px-4 py-6">
+        <p
+          aria-label={`${formatVnd(activeTotal)} Vietnamese dong`}
+          className="text-foreground max-w-full font-mono text-[clamp(2.65rem,12vw,4.75rem)] leading-none font-semibold tracking-[-0.08em] whitespace-nowrap tabular-nums"
+        >
+          <AnimatedVndAmount amount={activeTotal} />
+          <VndSymbol />
+        </p>
 
+        <div className="flex items-center gap-2">
           <Select value={activePayer} onValueChange={setActivePayer}>
-            <SelectTrigger className="bg-surface-3 border-border/70 hover:bg-secondary focus-visible:border-ring/40 focus-visible:ring-ring/30 h-11 min-w-30 rounded-full px-4 text-sm font-medium shadow-none transition">
-              <SelectValue placeholder="Select payer" />
+            <SelectTrigger
+              aria-label="Select expense payer"
+              className="bg-surface-3/85 border-border/70 hover:bg-secondary focus-visible:border-ring/40 focus-visible:ring-ring/30 h-8 min-w-20 rounded-full px-3 text-xs font-semibold shadow-none transition"
+            >
+              <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
               {payerOptions.map((payer) => (
@@ -70,45 +121,25 @@ const SpendingDashboardHeaderClient = ({
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        <div className="ds-glass relative flex items-end justify-between gap-4 overflow-hidden rounded-[28px] border px-4 py-4">
-          <span
-            aria-hidden="true"
-            className="bg-primary/18 pointer-events-none absolute -top-6 -right-8 h-24 w-24 rounded-full blur-2xl"
-          />
-          <div className="relative z-10 min-w-0">
-            <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
-              Total spent
-            </p>
-            <p className="text-foreground font-mono text-[32px] font-semibold tracking-tight tabular-nums">
-              {formatVnd(activeTotals?.total ?? 0)} <VndSymbol />
-            </p>
-          </div>
-          <span className="relative z-10 rounded-full border border-[color-mix(in_srgb,var(--accent)_42%,transparent)] bg-[color-mix(in_srgb,var(--accent)_26%,transparent)] px-3 py-1 text-[11px] font-semibold tracking-[0.22em] text-[color-mix(in_srgb,var(--accent)_90%,white)] uppercase">
-            Live
-          </span>
-        </div>
-
-        <div className="ds-glass rounded-[28px] border p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-foreground/80 text-xs font-semibold">
-              Spending heatmap
-            </p>
-            <span className="text-muted-foreground bg-surface-3 border-border/70 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.2em] uppercase">
-              This month
-            </span>
-          </div>
-
-          <div className="mt-4">
-            <SpendingHeatmapChart
-              activeMonth={activeMonth}
-              totals={activeTotals?.totals ?? []}
-            />
-          </div>
+          <Link
+            href="/ai"
+            aria-label="Open Spendly AI expense chat"
+            className="bg-primary/15 text-primary ring-primary/25 hover:bg-primary/20 focus-visible:ring-ring/40 flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold shadow-none ring-1 transition-[background-color,scale] duration-200 ease-out outline-none active:scale-[0.96] focus-visible:ring-2"
+          >
+            <Sparkles aria-hidden="true" className="size-3.5" />
+            <span>Spendly AI</span>
+          </Link>
         </div>
       </div>
-    </section>
+
+      <div className="border-border/45 bg-surface-2/65 mt-32 rounded-[28px] border p-3.5 shadow-sm backdrop-blur-sm">
+        <SpendingHeatmapChart
+          activeMonth={activeMonth}
+          totals={activeTotals?.totals ?? []}
+        />
+      </div>
+    </>
   );
 };
 

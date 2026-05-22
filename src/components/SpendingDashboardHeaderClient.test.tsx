@@ -1,11 +1,12 @@
 import React from "react";
+
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import SpendingDashboardHeaderClient from "./SpendingDashboardHeaderClient";
 
-vi.mock("./ui/siri-orb", () => ({
-  default: () => <div data-testid="siri-orb" />,
+vi.mock("motion/react", () => ({
+  useReducedMotion: () => true,
 }));
 
 vi.mock("@/components/SpendingHeatmapChart", () => ({
@@ -24,13 +25,12 @@ afterEach(() => {
 });
 
 describe("SpendingDashboardHeaderClient", () => {
-  it("clips decorative glow inside the total spent card", () => {
+  it("renders the large total with compact payer and AI actions", () => {
     globalThis.React = React;
 
     render(
       <SpendingDashboardHeaderClient
         activeMonth="2026-03"
-        activeMonthLabel="March 2026"
         payerOptions={["All", "Loc", "Sachi"]}
         totalsByPayer={{
           All: { total: 1_250_000, totals: [100_000, 250_000, 900_000] },
@@ -40,10 +40,23 @@ describe("SpendingDashboardHeaderClient", () => {
       />
     );
 
-    const totalSpentLabel = screen.getByText(/total spent/i);
-    const totalSpentCard = totalSpentLabel.closest(".ds-glass");
+    const total = screen.getByLabelText("1.250.000 Vietnamese dong");
+    const picker = screen.getByRole("combobox", {
+      name: /select expense payer/i,
+    });
+    const aiLink = screen.getByRole("link", {
+      name: /open spendly ai expense chat/i,
+    });
+    const amountBlock = total.parentElement;
 
-    expect(totalSpentCard).toBeInTheDocument();
-    expect(totalSpentCard).toHaveClass("overflow-hidden");
+    expect(total).toBeInTheDocument();
+    expect(picker).toBeInTheDocument();
+    expect(aiLink).toHaveAttribute("href", "/ai");
+    expect(amountBlock).toHaveClass("items-start");
+    expect(amountBlock).toHaveClass("fixed");
+    expect(amountBlock).toHaveClass("spending-header-gradient");
+    expect(amountBlock).not.toHaveClass("ds-glass");
+    expect(screen.getByTestId("heatmap-chart")).toBeInTheDocument();
+    expect(screen.queryByText(/total spent/i)).not.toBeInTheDocument();
   });
 });
