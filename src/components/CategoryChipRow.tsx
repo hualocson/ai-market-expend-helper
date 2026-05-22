@@ -50,33 +50,37 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
           const showChevron = isActive && !expanded;
           return (
             <motion.button
+              layout
               key={category}
               type="button"
               onClick={() => handleChipClick(category)}
               aria-pressed={isActive}
-              initial={{ opacity: 0, width: 0, marginRight: 0 }}
-              animate={{ opacity: 1, width: "auto", marginRight: 0 }}
-              exit={{ opacity: 0, width: 0, marginRight: -8 }}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
               whileTap={{ scale: 0.97 }}
-              transition={{ duration: 0.32, ease: EASE_OUT }}
+              transition={{ duration: 0.2, ease: EASE_OUT }}
               className={cn(
-                "flex shrink-0 items-center gap-2 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium",
+                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium",
                 isActive
                   ? "border-foreground/20 bg-muted"
                   : "bg-muted/50 hover:bg-muted border-transparent"
               )}
             >
               <ExpenseItemIcon category={category} size="sm" />
-              <span className="whitespace-nowrap">{category}</span>
-              <AnimatePresence initial={false} mode="popLayout">
+              <motion.span layout="position" className="whitespace-nowrap">
+                {category}
+              </motion.span>
+              <AnimatePresence initial={false}>
                 {showChevron && (
                   <motion.span
+                    layout
                     key="chevron"
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.24, ease: EASE_OUT }}
-                    className="flex overflow-hidden"
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    transition={{ duration: 0.16, ease: EASE_OUT }}
+                    className="flex"
                   >
                     <ChevronRight className="text-muted-foreground h-4 w-4" />
                   </motion.span>
