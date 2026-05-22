@@ -55,11 +55,11 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
               type="button"
               onClick={() => handleChipClick(category)}
               aria-pressed={isActive}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
+              initial={{ opacity: 0, x: -12, filter: "blur(2px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: -12, filter: "blur(2px)" }}
               whileTap={{ scale: 0.97 }}
-              transition={{ duration: 0.2, ease: EASE_OUT }}
+              transition={{ duration: 0.5, ease: EASE_OUT }}
               className={cn(
                 "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium",
                 isActive
@@ -68,7 +68,7 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
               )}
             >
               <ExpenseItemIcon category={category} size="sm" />
-              <motion.span layout="position" className="whitespace-nowrap">
+              <motion.span className="whitespace-nowrap">
                 {category}
               </motion.span>
               <AnimatePresence initial={false} mode="popLayout">
@@ -77,9 +77,9 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
                     layout
                     key="chevron"
                     initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -6 }}
-                    transition={{ duration: 0.16, ease: EASE_OUT }}
+                    animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, x: -6, filter: "blur(2px)" }}
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
                     className="flex"
                   >
                     <ChevronRight className="text-muted-foreground h-4 w-4" />
