@@ -94,12 +94,13 @@ const SpendingDashboardHeaderClient = ({
 
   return (
     <>
-      <div className="supports-backdrop-filter:bg-background/62 fixed top-0 right-0 left-0 z-30 flex w-dvw flex-col items-start gap-3 px-4 py-6 backdrop-blur-xl">
+      <div className="spending-header-gradient fixed top-0 right-0 left-0 z-30 flex w-dvw flex-col items-start gap-3 px-4 py-6">
         <p
           aria-label={`${formatVnd(activeTotal)} Vietnamese dong`}
           className="text-foreground max-w-full font-mono text-[clamp(2.65rem,12vw,4.75rem)] leading-none font-semibold tracking-[-0.08em] whitespace-nowrap tabular-nums"
         >
-          <AnimatedVndAmount amount={activeTotal} /> <VndSymbol />
+          <AnimatedVndAmount amount={activeTotal} />
+          <VndSymbol />
         </p>
 
         <Select value={activePayer} onValueChange={setActivePayer}>

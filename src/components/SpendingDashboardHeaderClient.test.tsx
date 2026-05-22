@@ -49,9 +49,8 @@ describe("SpendingDashboardHeaderClient", () => {
     expect(total).toBeInTheDocument();
     expect(picker).toBeInTheDocument();
     expect(amountBlock).toHaveClass("items-start");
-    expect(amountBlock).toHaveClass("sticky");
-    expect(amountBlock).toHaveClass("backdrop-blur-xl");
-    expect(amountBlock).toHaveClass("bg-background/78");
+    expect(amountBlock).toHaveClass("fixed");
+    expect(amountBlock).toHaveClass("spending-header-gradient");
     expect(amountBlock).not.toHaveClass("ds-glass");
     expect(screen.getByTestId("heatmap-chart")).toBeInTheDocument();
     expect(screen.queryByText(/total spent/i)).not.toBeInTheDocument();
