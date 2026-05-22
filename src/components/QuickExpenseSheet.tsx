@@ -64,7 +64,17 @@ const normalizePaidBy = (value: string | undefined): PaidBy => {
 
 const formatDateLabel = (date: string) => {
   const parsed = dayjs(date, "DD/MM/YYYY", true);
-  return parsed.isValid() ? parsed.format("DD MMM") : "Today";
+  if (!parsed.isValid()) {
+    return "Today";
+  }
+  const today = dayjs().startOf("day");
+  if (parsed.isSame(today, "day")) {
+    return "Today";
+  }
+  if (parsed.isSame(today.subtract(1, "day"), "day")) {
+    return "Yesterday";
+  }
+  return parsed.format("DD/MM");
 };
 
 const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
