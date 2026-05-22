@@ -234,7 +234,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           <SheetTitle>Add expense</SheetTitle>
           <SheetDescription>Enter expense details and save.</SheetDescription>
         </SheetHeader>
-        <div className="my-auto flex flex-col gap-4">
+        <div className="my-auto flex flex-col gap-4 pt-12">
           <div className="grid grid-cols-3 gap-2 px-4">
             <Button
               type="button"

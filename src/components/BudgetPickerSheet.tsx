@@ -72,7 +72,7 @@ const BudgetPickerSheet = ({
             Choose a weekly or monthly budget for this expense.
           </SheetDescription>
         </SheetHeader>
-        <div className="no-scrollbar max-h-[50svh] flex-1 space-y-3 overflow-y-auto px-4 sm:px-6">
+        <div className="no-scrollbar standalone:pb-safe max-h-[50svh] flex-1 space-y-3 overflow-y-auto px-4 pb-6 sm:px-6">
           <button
             type="button"
             onClick={() => handleSelect(null)}
