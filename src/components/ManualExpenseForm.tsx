@@ -24,9 +24,9 @@ import {
   budgetGroupLabels,
   formatBudgetRange,
   groupBudgetOptions,
+  hasAnyBudgetOption,
   pickDefaultBudget,
   type TBudgetOption,
-  type TBudgetOptionGroupKey,
 } from "@/lib/budget-options";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
@@ -332,10 +332,7 @@ const ManualExpenseForm = forwardRef<
     const budgetLoaded = budgetOptionsQuery.isFetched;
     const budgetGroups = useMemo(() => groupBudgetOptions(budgetOptions), [budgetOptions]);
     const hasBudgetOptions = useMemo(
-      () =>
-        budgetGroups.week.length > 0 ||
-        budgetGroups.month.length > 0 ||
-        budgetGroups.custom.length > 0,
+      () => hasAnyBudgetOption(budgetGroups),
       [budgetGroups]
     );
 
