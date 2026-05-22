@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import ExpenseListItem from "@/components/ExpenseListItem";
 import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
+import VndSymbol from "@/components/VndSymbol";
 
 import JumpToTopButton from "./JumpToTopButton";
 
@@ -198,7 +199,7 @@ const ExpenseList = async ({
                 </div>
                 {/* total amount of day */}
                 <div className="text-foreground text-right text-sm font-semibold">
-                  -{formatVnd(group.totalAmount)} VND
+                  -{formatVnd(group.totalAmount)} <VndSymbol />
                 </div>
               </Link>
               <div className="flex flex-col gap-3">

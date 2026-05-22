@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
-import { getWeeklyBudgetReport } from "@/db/budget-queries";
 import { db } from "@/db";
+import { getWeeklyBudgetReport } from "@/db/budget-queries";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
-import { getWeekRange } from "@/lib/week";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
+import { getWeekRange } from "@/lib/week";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
   ArrowLeftIcon,
@@ -14,12 +14,14 @@ import {
   ClipboardList,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
 import ExpenseListItem from "@/components/ExpenseListItem";
 import PageEnterAnimation, {
   PageEnterSection,
 } from "@/components/PageEnterAnimation";
-import { Button } from "@/components/ui/button";
+import VndSymbol from "@/components/VndSymbol";
 
 interface DailyReportPageProps {
   params: Promise<{
@@ -30,7 +32,9 @@ interface DailyReportPageProps {
 const formatWeekRange = (start: dayjs.Dayjs, end: dayjs.Dayjs) =>
   `${start.format("DD MMM")} - ${end.format("DD MMM")}`;
 
-export default async function DailyReportPage({ params }: DailyReportPageProps) {
+export default async function DailyReportPage({
+  params,
+}: DailyReportPageProps) {
   const { date } = await params;
   const parsedDate = dayjs(date, "YYYY-MM-DD", true);
   const activeDate = parsedDate.isValid() ? parsedDate : dayjs();
@@ -104,12 +108,11 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
   const expectedSpendToDate = dailyTarget * dayIndex;
   const paceDelta = weekSpentToDate - expectedSpendToDate;
   const dailyRemaining = dailyTarget - totalSpentToday;
-  const paceStatus =
-    !hasWeeklyBudget
-      ? "No weekly budget"
-      : paceDelta <= 0
-        ? "On pace"
-        : "Over pace";
+  const paceStatus = !hasWeeklyBudget
+    ? "No weekly budget"
+    : paceDelta <= 0
+      ? "On pace"
+      : "Over pace";
   const paceTone =
     paceStatus === "Over pace"
       ? "text-destructive"
@@ -146,26 +149,26 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
         <PageEnterSection>
-          <div className="bg-card/80 rounded-3xl border border-border/70 p-4 shadow-[0_16px_40px_-24px_color-mix(in_srgb,var(--background)_72%,transparent)] sm:p-5">
+          <div className="bg-card/80 border-border/70 rounded-3xl border p-4 shadow-[0_16px_40px_-24px_color-mix(in_srgb,var(--background)_72%,transparent)] sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.26em]">
+                <p className="text-muted-foreground text-xs font-semibold tracking-[0.26em] uppercase">
                   Spent today
                 </p>
                 <p className="text-foreground text-3xl font-semibold">
-                  -{formatVnd(totalSpentToday)} VND
+                  -{formatVnd(totalSpentToday)} <VndSymbol />
                 </p>
                 <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <span>{dailyExpenses.length} transactions</span>
-                  <span className="bg-muted/70 rounded-full border border-border/70 px-2 py-0.5 text-[11px] font-semibold">
+                  <span className="bg-muted/70 border-border/70 rounded-full border px-2 py-0.5 text-[11px] font-semibold">
                     Day {dayIndex} of 7
                   </span>
                 </div>
               </div>
             </div>
-            <div className="bg-muted/60 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 px-3 py-3">
+            <div className="bg-muted/60 border-border/70 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-3 py-3">
               <div>
-                <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.24em]">
+                <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.24em] uppercase">
                   Week range
                 </p>
                 <p className="text-foreground text-sm font-semibold">
@@ -186,28 +189,32 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
               </span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="bg-muted/60 rounded-2xl border border-border/70 px-3 py-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="bg-muted/60 border-border/70 rounded-2xl border px-3 py-3">
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
                   <CalendarDays className="h-3.5 w-3.5" />
                   Daily target
                 </div>
                 <p className="text-foreground mt-2 text-sm font-semibold">
-                  {hasWeeklyBudget
-                    ? `${formatVnd(Math.round(dailyTarget))} VND`
-                    : "Set weekly budget"}
+                  {hasWeeklyBudget ? (
+                    <>
+                      {formatVnd(Math.round(dailyTarget))} <VndSymbol />
+                    </>
+                  ) : (
+                    "Set weekly budget"
+                  )}
                 </p>
               </div>
-              <div className="bg-muted/60 rounded-2xl border border-border/70 px-3 py-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="bg-muted/60 border-border/70 rounded-2xl border px-3 py-3">
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
                   <ChartNoAxesCombined className="h-3.5 w-3.5" />
                   Week so far
                 </div>
                 <p className="text-foreground mt-2 text-sm font-semibold">
-                  {formatVnd(weekSpentToDate)} VND
+                  {formatVnd(weekSpentToDate)} <VndSymbol />
                 </p>
               </div>
-              <div className="bg-muted/60 col-span-2 rounded-2xl border border-border/70 px-3 py-3 sm:col-span-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="bg-muted/60 border-border/70 col-span-2 rounded-2xl border px-3 py-3 sm:col-span-1">
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
                   <ClipboardList className="h-3.5 w-3.5" />
                   Today remaining
                 </div>
@@ -217,9 +224,14 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
                     dailyRemaining < 0 ? "text-destructive" : "text-success"
                   )}
                 >
-                  {hasWeeklyBudget
-                    ? `${formatVndSigned(Math.round(dailyRemaining))} VND`
-                    : "-"}
+                  {hasWeeklyBudget ? (
+                    <>
+                      {formatVndSigned(Math.round(dailyRemaining))}{" "}
+                      <VndSymbol />
+                    </>
+                  ) : (
+                    "-"
+                  )}
                 </p>
               </div>
             </div>
@@ -241,13 +253,18 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
               </div>
               <div className="text-muted-foreground flex items-center justify-between text-[11px]">
                 <span>
-                  {hasWeeklyBudget
-                    ? `Week budget ${formatVnd(weeklyBudgetTotal)} VND`
-                    : "Add a weekly budget to unlock pace tracking."}
+                  {hasWeeklyBudget ? (
+                    <>
+                      Week budget {formatVnd(weeklyBudgetTotal)} <VndSymbol />
+                    </>
+                  ) : (
+                    "Add a weekly budget to unlock pace tracking."
+                  )}
                 </span>
                 {hasWeeklyBudget ? (
                   <span>
-                    Expected {formatVnd(Math.round(expectedSpendToDate))} VND
+                    Expected {formatVnd(Math.round(expectedSpendToDate))}{" "}
+                    <VndSymbol />
                   </span>
                 ) : null}
               </div>
@@ -263,7 +280,7 @@ export default async function DailyReportPage({ params }: DailyReportPageProps) 
         </PageEnterSection>
 
         <PageEnterSection>
-          <div className="bg-card/80 rounded-3xl border border-border/70 px-4 py-4">
+          <div className="bg-card/80 border-border/70 rounded-3xl border px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-foreground text-base font-semibold">

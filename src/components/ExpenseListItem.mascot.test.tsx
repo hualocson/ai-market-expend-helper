@@ -1,5 +1,4 @@
 import React from "react";
-import type { ReactNode } from "react";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,13 +6,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import ExpenseListItem from "./ExpenseListItem";
 
+const quickExpenseSheetMock = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("@/app/actions/expense-actions", () => ({
   deleteExpenseEntry: vi.fn(),
-  updateExpenseEntry: vi.fn(),
 }));
 
 vi.mock("motion/react", () => ({
@@ -28,11 +28,11 @@ vi.mock("motion/react", () => ({
   },
 }));
 
-vi.mock("@/components/ManualExpenseForm", () => ({
-  default: React.forwardRef(function ManualExpenseFormMock(_, ref) {
-    React.useImperativeHandle(ref, () => ({ submit: vi.fn() }));
-    return <div data-testid="manual-expense-form" />;
-  }),
+vi.mock("@/components/QuickExpenseSheet", () => ({
+  default: (props: Record<string, unknown>) => {
+    quickExpenseSheetMock(props);
+    return props.open ? <div data-testid="quick-expense-sheet" /> : null;
+  },
 }));
 
 vi.mock("@/components/ExpenseItemIcon", () => ({
@@ -47,54 +47,8 @@ vi.mock("@/components/PaidByIcon", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/sheet", () => {
-  const SheetContext = React.createContext<{
-    open: boolean;
-    onOpenChange?: (open: boolean) => void;
-  } | null>(null);
-
-  const Sheet = ({
-    children,
-    open = false,
-    onOpenChange,
-  }: {
-    children: ReactNode;
-    open?: boolean;
-    onOpenChange?: (open: boolean) => void;
-  }) => (
-    <SheetContext.Provider value={{ open, onOpenChange }}>
-      <div>{children}</div>
-    </SheetContext.Provider>
-  );
-
-  const SheetContent = ({ children }: { children: ReactNode }) => {
-    const sheet = React.useContext(SheetContext);
-
-    if (!sheet?.open) {
-      return null;
-    }
-
-    return <div role="dialog">{children}</div>;
-  };
-
-  return {
-    Sheet,
-    SheetContent,
-    SheetDescription: ({ children }: { children: ReactNode }) => (
-      <p>{children}</p>
-    ),
-    SheetFooter: ({ children }: { children: ReactNode }) => (
-      <div>{children}</div>
-    ),
-    SheetHeader: ({ children }: { children: ReactNode }) => (
-      <div>{children}</div>
-    ),
-    SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-  };
-});
-
-describe("ExpenseListItem mascot companion", () => {
-  it("renders the mascot companion in the edit sheet flow", async () => {
+describe("ExpenseListItem edit flow", () => {
+  it("opens QuickExpenseSheet in edit mode", async () => {
     const user = userEvent.setup();
 
     render(
@@ -114,10 +68,22 @@ describe("ExpenseListItem mascot companion", () => {
 
     await user.click(screen.getAllByRole("button")[1]);
 
-    expect(
-      screen.getByRole("heading", { name: /edit expense/i })
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("dialog-companion-slot")).toBeInTheDocument();
-    expect(screen.getByTestId("idle-mascot")).toBeInTheDocument();
+    expect(screen.getByTestId("quick-expense-sheet")).toBeInTheDocument();
+    expect(quickExpenseSheetMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mode: "edit",
+        open: true,
+        showTrigger: false,
+        transactionId: 1,
+        initialExpense: expect.objectContaining({
+          date: "01/04/2026",
+          amount: 125000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: "me",
+          budgetId: null,
+        }),
+      })
+    );
   });
 });

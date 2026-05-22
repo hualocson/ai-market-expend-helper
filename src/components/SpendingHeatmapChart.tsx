@@ -6,6 +6,8 @@ import dayjs from "@/configs/date";
 import { getQuantileBuckets } from "@/lib/heatmap-buckets";
 import { cn, formatVnd } from "@/lib/utils";
 
+import VndSymbol from "./VndSymbol";
+
 type SpendingHeatmapChartProps = {
   totals: number[];
   activeMonth: string;
@@ -40,7 +42,9 @@ const SpendingHeatmapChart = ({
   }, [totals]);
 
   const parsed = dayjs(activeMonth, "YYYY-MM", true);
-  const monthStart = parsed.isValid() ? parsed.startOf("month") : dayjs().startOf("month");
+  const monthStart = parsed.isValid()
+    ? parsed.startOf("month")
+    : dayjs().startOf("month");
   const daysInMonth = monthStart.daysInMonth();
   const monthLabel = monthStart.format("MMMM YYYY");
   const leadingPad = toMondayIndex(monthStart.day());
@@ -72,8 +76,7 @@ const SpendingHeatmapChart = ({
     if (selectedDay === null) {
       return "Tap a day to see details";
     }
-    const amount = totals[selectedDay - 1] ?? 0;
-    return `Day ${selectedDay} · ${formatVnd(amount)} VND`;
+    return null;
   })();
 
   return (
@@ -140,7 +143,12 @@ const SpendingHeatmapChart = ({
 
       <div className="flex flex-col gap-2">
         <p className="text-foreground/80 font-mono text-sm tabular-nums">
-          {detailMessage}
+          {detailMessage ?? (
+            <>
+              Day {selectedDay} ·{" "}
+              {formatVnd(totals[(selectedDay ?? 1) - 1] ?? 0)} <VndSymbol />
+            </>
+          )}
         </p>
 
         <div className="flex items-center gap-1.5">

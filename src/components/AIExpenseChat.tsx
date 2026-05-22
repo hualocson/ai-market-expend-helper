@@ -13,6 +13,7 @@ import { ArrowUp, Loader2, PencilLine, RefreshCw } from "lucide-react";
 
 import ExpenseItemIcon from "./ExpenseItemIcon";
 import ManualExpenseForm from "./ManualExpenseForm";
+import VndSymbol from "./VndSymbol";
 import { Button } from "./ui/button";
 import PixelLoader from "./ui/pixel-loader/PixelLoader";
 import {
@@ -413,7 +414,7 @@ const SuccessBubble = ({
             <p className="text-foreground font-mono text-sm font-semibold tabular-nums">
               {formatVnd(expense.amount)}
               <span className="text-muted-foreground ml-1 text-[10px] font-medium">
-                VND
+                <VndSymbol />
               </span>
             </p>
             <span className="text-muted-foreground/80 group-hover:text-primary inline-flex items-center gap-1 text-[10px] font-medium tracking-wide uppercase transition">

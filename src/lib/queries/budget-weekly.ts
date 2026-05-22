@@ -29,8 +29,11 @@ export type BudgetWeeklyOption = {
 export const budgetWeeklyOptionsRootQueryKey = [
   "budget-weekly-options",
 ] as const;
-export const budgetWeeklyOptionsQueryKey = (weekStart: string) =>
-  [...budgetWeeklyOptionsRootQueryKey, weekStart] as const;
+export const budgetWeeklyOptionsQueryKey = (
+  weekStart: string,
+  targetDate?: string
+) =>
+  [...budgetWeeklyOptionsRootQueryKey, weekStart, targetDate ?? null] as const;
 
 export const invalidateBudgetWeeklyOptionsCache = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: budgetWeeklyOptionsRootQueryKey });

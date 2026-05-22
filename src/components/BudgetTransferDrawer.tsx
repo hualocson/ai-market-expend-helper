@@ -1,6 +1,22 @@
 "use client";
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  getTransferCandidates,
+  transferBudgetAmount,
+} from "@/app/actions/budget-weekly-actions";
+import dayjs from "@/configs/date";
+import { groupTransferCandidates } from "@/lib/budget-transfer-groups";
+import {
+  budgetOverviewQueryKey,
+  budgetTransactionsQueryKey,
+  budgetTransferCandidatesPrefixQueryKey,
+  budgetTransferCandidatesQueryKey,
+} from "@/lib/queries/budgets";
+import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
+import type { BudgetListItem } from "@/types/budget-weekly";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   ArrowDown,
@@ -10,23 +26,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-import dayjs from "@/configs/date";
-import {
-  getTransferCandidates,
-  transferBudgetAmount,
-} from "@/app/actions/budget-weekly-actions";
-import {
-  budgetOverviewQueryKey,
-  budgetTransactionsQueryKey,
-  budgetTransferCandidatesPrefixQueryKey,
-  budgetTransferCandidatesQueryKey,
-} from "@/lib/queries/budgets";
-import { groupTransferCandidates } from "@/lib/budget-transfer-groups";
-import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
-import type { BudgetListItem } from "@/types/budget-weekly";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,8 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+
+import VndSymbol from "@/components/VndSymbol";
 
 type Props = {
   open: boolean;
@@ -90,7 +92,10 @@ const SourceBudgetRow = memo(function SourceBudgetRow({
 }: SourceBudgetRowProps) {
   const disabled = budget.remaining <= 0;
   const isPristine = budget.spent === 0;
-  const handleClick = useCallback(() => onSelect(budget.id), [onSelect, budget.id]);
+  const handleClick = useCallback(
+    () => onSelect(budget.id),
+    [onSelect, budget.id]
+  );
 
   return (
     <Button
@@ -100,7 +105,7 @@ const SourceBudgetRow = memo(function SourceBudgetRow({
       aria-disabled={disabled}
       onClick={handleClick}
       className={cn(
-        "h-auto min-h-13 w-full justify-between rounded-xl border border-border/30 bg-card/40 px-3 text-left",
+        "border-border/30 bg-card/40 h-auto min-h-13 w-full justify-between rounded-xl border px-3 text-left",
         // iOS Safari holds :hover after a tap until the next tap elsewhere.
         // We must override the ghost variant's hover/active bgs in BOTH light
         // and dark modes — `dark:hover:bg-accent/50` carries an extra `.dark`
@@ -108,7 +113,7 @@ const SourceBudgetRow = memo(function SourceBudgetRow({
         // so the selected row would visually flash to accent-green after tap.
         // Also disable bg/transform transitions so selection flips instantly
         // instead of crossfading inside the drawer.
-        "transition-none touch-manipulation active:scale-100",
+        "touch-manipulation transition-none active:scale-100",
         selected
           ? "bg-muted/60 hover:bg-muted/60 dark:hover:bg-muted/60 active:bg-muted/60"
           : "hover:bg-card/55 dark:hover:bg-card/55 active:bg-card/55",
@@ -170,7 +175,8 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
 
   const candidatesQuery = useQuery({
     queryKey: budgetTransferCandidatesQueryKey(destination.id),
-    queryFn: () => getTransferCandidates({ destinationBudgetId: destination.id }),
+    queryFn: () =>
+      getTransferCandidates({ destinationBudgetId: destination.id }),
     enabled: open,
   });
 
@@ -255,7 +261,9 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
 
       if (result.ok) {
         toast.success("Funds moved.");
-        await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
+        await queryClient.invalidateQueries({
+          queryKey: budgetOverviewQueryKey,
+        });
         await queryClient.invalidateQueries({
           queryKey: budgetTransactionsQueryKey(destination.id),
         });
@@ -305,7 +313,9 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
     <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <DrawerContent className="rounded-t-3xl! border-t-0!">
         <DrawerHeader className="gap-1 pb-2">
-          <DrawerTitle>Move funds to &quot;{destination.name}&quot;</DrawerTitle>
+          <DrawerTitle>
+            Move funds to &quot;{destination.name}&quot;
+          </DrawerTitle>
           <DrawerDescription>
             Pull cap from another budget into this one
           </DrawerDescription>
@@ -338,7 +348,9 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
               </div>
 
               <div>
-                <label className="text-foreground text-sm font-medium">From</label>
+                <label className="text-foreground text-sm font-medium">
+                  From
+                </label>
                 <DrawerNested>
                   <DrawerTrigger asChild>
                     <Button
@@ -363,22 +375,23 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                       // drawer is what makes iPhone Safari flicker when parent
                       // state changes (the parent's content bleeds through and
                       // forces a blur repaint on every row tap).
-                      "[background:var(--card)]! [backdrop-filter:none]!"
+                      "[backdrop-filter:none]! [background:var(--card)]!"
                     )}
                   >
                     <DrawerHeader className="gap-1 pb-2">
                       <DrawerTitle>Select source budget</DrawerTitle>
                       <DrawerDescription>
-                        Pull cap from one of these into &quot;{destination.name}&quot;.
+                        Pull cap from one of these into &quot;{destination.name}
+                        &quot;.
                       </DrawerDescription>
                     </DrawerHeader>
 
                     <div className="space-y-2 px-4 pb-2">
                       <div
                         data-testid="budget-transfer-nested-destination"
-                        className="rounded-2xl border border-border/45 bg-card/95 px-4 py-3"
+                        className="border-border/45 bg-card/95 rounded-2xl border px-4 py-3"
                       >
-                        <p className="text-foreground text-base font-semibold truncate">
+                        <p className="text-foreground truncate text-base font-semibold">
                           {destination.name}
                         </p>
                         <p className="text-muted-foreground mt-0.5 text-[11px] tabular-nums">
@@ -389,7 +402,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                       <div className="relative">
                         <Search
                           aria-hidden
-                          className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
                         />
                         <Input
                           type="text"
@@ -402,14 +415,14 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                           placeholder="Search budgets"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="h-11 rounded-xl pl-9 pr-10 text-base"
+                          className="h-11 rounded-xl pr-10 pl-9 text-base"
                         />
                         {searchQuery ? (
                           <button
                             type="button"
                             aria-label="Clear search"
                             onClick={() => setSearchQuery("")}
-                            className="text-muted-foreground hover:text-foreground absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full"
+                            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full"
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -426,12 +439,12 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                           {Array.from({ length: 4 }).map((_, idx) => (
                             <div
                               key={idx}
-                              className="bg-muted/40 h-13 rounded-lg animate-pulse"
+                              className="bg-muted/40 h-13 animate-pulse rounded-lg"
                             />
                           ))}
                         </div>
                       ) : candidatesQuery.isError ? (
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+                        <div className="border-destructive/40 bg-destructive/10 flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5">
                           <p className="text-destructive text-xs font-medium">
                             Failed to load budgets.
                           </p>
@@ -451,7 +464,8 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                             No budget has cap to spare right now.
                           </p>
                           <p className="text-muted-foreground mt-1 text-xs">
-                            Try again after another budget recovers some headroom.
+                            Try again after another budget recovers some
+                            headroom.
                           </p>
                         </div>
                       ) : hasNoMatches ? (
@@ -474,12 +488,13 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                           {visibleGroups.map((group) => {
                             // EARLIER is a catch-all without a date range in its header,
                             // so rows in it carry their own period range to disambiguate.
-                            const showPeriodInRow = group.key.kind === "earlier";
+                            const showPeriodInRow =
+                              group.key.kind === "earlier";
                             return (
                               <li key={group.key.kind}>
                                 <p
                                   data-testid="budget-transfer-group-label"
-                                  className="text-foreground/70 px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide"
+                                  className="text-foreground/70 px-1 pt-3 pb-1 text-[11px] font-semibold tracking-wide uppercase"
                                 >
                                   {group.label}
                                 </p>
@@ -536,12 +551,13 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                     className="h-11 pr-14 text-right text-lg font-semibold tabular-nums"
                   />
                   <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs font-medium">
-                    VND
+                    <VndSymbol />
                   </span>
                 </div>
                 {exceedsCap && source ? (
                   <p className="text-destructive mt-2 text-[11px]">
-                    Cannot move more than {formatVnd(source.amount)} from {source.name}.
+                    Cannot move more than {formatVnd(source.amount)} from{" "}
+                    {source.name}.
                   </p>
                 ) : null}
               </div>
@@ -566,7 +582,9 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">{destination.name}</p>
+                      <p className="text-muted-foreground">
+                        {destination.name}
+                      </p>
                       <p className="text-foreground mt-1 text-sm font-semibold tabular-nums">
                         {formatVnd(destination.amount + amount)}
                       </p>

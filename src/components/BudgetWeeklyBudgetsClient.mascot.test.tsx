@@ -1,12 +1,14 @@
 import React from "react";
-import userEvent from "@testing-library/user-event";
-import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+
+import type { BudgetListItem } from "@/types/budget-weekly";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import BudgetWeeklyBudgetsClient from "./BudgetWeeklyBudgetsClient";
 
-const overviewData = {
+const overviewData: { budgets: BudgetListItem[] } = {
   budgets: [],
 };
 
@@ -111,7 +113,7 @@ vi.mock("@/components/ui/dialog", () => {
     return <div role="dialog">{children}</div>;
   };
 
-  const wrap = (Tag: keyof JSX.IntrinsicElements) => {
+  const wrap = (Tag: "div" | "h2") => {
     function WrappedComponent({ children }: { children: ReactNode }) {
       return <Tag>{children}</Tag>;
     }
@@ -159,7 +161,7 @@ vi.mock("@/components/ui/drawer", () => {
     return <div role="dialog">{children}</div>;
   };
 
-  const wrap = (Tag: keyof JSX.IntrinsicElements) => {
+  const wrap = (Tag: "div" | "h2") => {
     function WrappedComponent({ children }: { children: ReactNode }) {
       return <Tag>{children}</Tag>;
     }
@@ -178,19 +180,26 @@ vi.mock("@/components/ui/drawer", () => {
 });
 
 vi.mock("@/components/ui/input", () => ({
-  Input: React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-    function InputMock(props, ref) {
-      return <input ref={ref} {...props} />;
-    }
-  ),
+  Input: React.forwardRef<
+    HTMLInputElement,
+    React.InputHTMLAttributes<HTMLInputElement>
+  >(function InputMock(props, ref) {
+    return <input ref={ref} {...props} />;
+  }),
 }));
 
 vi.mock("@/components/ui/select", () => ({
   Select: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SelectContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SelectContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   SelectItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SelectTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
+  SelectTrigger: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <span>{placeholder}</span>
+  ),
 }));
 
 vi.mock("@/components/CalendarInput", () => ({
@@ -206,11 +215,12 @@ vi.mock("@/components/WeekRangePicker", () => ({
 }));
 
 vi.mock("@/components/AmountInput", () => ({
-  default: React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-    function AmountInputMock(props, ref) {
-      return <input ref={ref} {...props} />;
-    }
-  ),
+  default: React.forwardRef<
+    HTMLInputElement,
+    React.InputHTMLAttributes<HTMLInputElement>
+  >(function AmountInputMock(props, ref) {
+    return <input ref={ref} {...props} />;
+  }),
 }));
 
 vi.mock("@/components/TransactionRow", () => ({
@@ -223,7 +233,8 @@ describe("BudgetWeeklyBudgetsClient mascot companion", () => {
 
     render(<BudgetWeeklyBudgetsClient weekStartDate="2026-04-01" />);
 
-    const emptyState = screen.getByText(/no weekly budgets yet/i)
+    const emptyState = screen
+      .getByText(/no weekly budgets yet/i)
       .closest("div");
 
     expect(emptyState).not.toBeNull();

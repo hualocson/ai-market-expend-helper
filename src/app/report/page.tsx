@@ -3,12 +3,10 @@ import Link from "next/link";
 import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { expenses } from "@/db/schema";
+import { formatVnd } from "@/lib/utils";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowLeftIcon } from "lucide-react";
 
-import { formatVnd } from "@/lib/utils";
-
-import PaidByIcon from "@/components/PaidByIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,6 +15,8 @@ import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
 import PageEnterAnimation, {
   PageEnterSection,
 } from "@/components/PageEnterAnimation";
+import PaidByIcon from "@/components/PaidByIcon";
+import VndSymbol from "@/components/VndSymbol";
 
 interface ReportPageProps {
   searchParams: Promise<{
@@ -122,7 +122,7 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
         <ExpenseMonthTabs items={monthItems} />
       </PageEnterSection>
 
-      <div className="no-scrollbar grow flex flex-col gap-4 overflow-y-auto">
+      <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
         <PageEnterSection>
           <CategorySpendPieChart
             totals={categoryTotals}
@@ -132,15 +132,12 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
 
         {paidByCategoryTotals.length ? (
           Array.from(
-            paidByCategoryTotals.reduce(
-              (acc, item) => {
-                const current = acc.get(item.paidBy) ?? [];
-                current.push({ category: item.category, total: item.total });
-                acc.set(item.paidBy, current);
-                return acc;
-              },
-              new Map<string, Array<{ category: string; total: number }>>()
-            )
+            paidByCategoryTotals.reduce((acc, item) => {
+              const current = acc.get(item.paidBy) ?? [];
+              current.push({ category: item.category, total: item.total });
+              acc.set(item.paidBy, current);
+              return acc;
+            }, new Map<string, Array<{ category: string; total: number }>>())
           )
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([paidBy, totals]) => (
@@ -180,14 +177,14 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
                         </span>
                       </div>
                       <span className="text-foreground font-semibold">
-                        {formatVnd(item.total)} VND
+                        {formatVnd(item.total)} <VndSymbol />
                       </span>
                     </div>
                   ))}
                   <div className="border-border flex items-center justify-between border-t pt-2 text-xs">
                     <span className="text-muted-foreground">Total</span>
                     <span className="text-foreground font-semibold">
-                      {formatVnd(paidByTotalSpent)} VND
+                      {formatVnd(paidByTotalSpent)} <VndSymbol />
                     </span>
                   </div>
                 </div>
