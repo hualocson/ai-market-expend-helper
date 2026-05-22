@@ -20,20 +20,16 @@ import {
   fetchWeeklyBudgetOptions,
 } from "@/lib/queries/budget-weekly";
 import {
-  budgetGroupEmptyLabel,
-  budgetGroupLabels,
-  formatBudgetRange,
   groupBudgetOptions,
   hasAnyBudgetOption,
   pickDefaultBudget,
   type TBudgetOption,
 } from "@/lib/budget-options";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
-import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
+import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
   Calendar,
-  CheckIcon,
   DollarSign,
   Loader2,
   NotebookPen,
@@ -47,6 +43,7 @@ import { toast } from "sonner";
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
+import BudgetPickerSheet from "./BudgetPickerSheet";
 import ExpenseItemIcon from "./ExpenseItemIcon";
 import { Button } from "./ui/button";
 import DatePicker from "./ui/date-picker";
@@ -536,179 +533,31 @@ const ManualExpenseForm = forwardRef<
           </div>
 
           {!isQuickMode && showBudgetSelect && (
-            <Root open={budgetDrawerOpen} onOpenChange={setBudgetDrawerOpen}>
-              <Trigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 w-full justify-between rounded-xl"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <Wallet className="text-muted-foreground h-4 w-4" />
-                    Budget
-                  </span>
-                  <span className="text-muted-foreground text-xs font-medium">
-                    {budgetLabel}
-                  </span>
-                </Button>
-              </Trigger>
-              <Content
-                side="bottom"
-                showCloseButton={false}
-                className="rounded-t-3xl"
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full justify-between rounded-xl"
+                onClick={() => setBudgetDrawerOpen(true)}
               >
-                <Header className="text-left">
-                  <Title>Budget</Title>
-                  <Description>
-                    Choose a weekly or monthly budget for this expense.
-                  </Description>
-                </Header>
-                <div
-                  className="no-scrollbar max-h-[50svh] flex-1 space-y-3 overflow-y-auto px-4 sm:px-6"
-                  tabIndex={0}
-                >
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => handleBudgetChange(null)}
-                      aria-pressed={budgetId === null}
-                      className={cn(
-                        "group flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-sm font-medium transition",
-                        budgetId === null
-                          ? "border-success/40 bg-success/10"
-                          : "border-border bg-card/80 hover:bg-card"
-                      )}
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={cn(
-                            "size-2 shrink-0 rounded-full",
-                            budgetId === null
-                              ? "bg-success"
-                              : "bg-warning/80"
-                          )}
-                        />
-                        <span className="truncate">No budget</span>
-                      </span>
-                      {budgetId === null ? (
-                        <CheckIcon className="text-success h-4 w-4" />
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          Clear
-                        </span>
-                      )}
-                    </button>
-
-                    {budgetLoading ? (
-                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading budgets...
-                      </div>
-                    ) : hasBudgetOptions ? (
-                      <div className="space-y-3">
-                        {(["week", "month", "custom"] as const).map(
-                          (groupKey) => {
-                            const groupItems = budgetGroups[groupKey];
-                            if (groupKey === "custom" && !groupItems.length) {
-                              return null;
-                            }
-
-                            return (
-                              <section key={groupKey} className="space-y-2">
-                                <div className="flex items-center justify-between px-1">
-                                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.08em]">
-                                    {budgetGroupLabels[groupKey]}
-                                  </p>
-                                  <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px] font-medium">
-                                    {groupItems.length}
-                                  </span>
-                                </div>
-                                {groupItems.length ? (
-                                  <div className="bg-muted/30 border-border/60 space-y-1 rounded-2xl border p-1">
-                                    {groupItems.map((budget) => {
-                                      const isActive = budget.id === budgetId;
-                                      return (
-                                        <button
-                                          key={budget.id}
-                                          type="button"
-                                          onClick={() =>
-                                            handleBudgetChange(budget.id)
-                                          }
-                                          aria-pressed={isActive}
-                                          className={cn(
-                                            "group flex min-h-11 w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition",
-                                            isActive
-                                              ? "border-success/40 bg-success/10"
-                                              : "border-transparent bg-card/80 hover:bg-card"
-                                          )}
-                                        >
-                                          <span className="flex min-w-0 items-center gap-2">
-                                            <span
-                                              className={cn(
-                                                "size-2 shrink-0 rounded-full",
-                                                isActive
-                                                  ? "bg-success"
-                                                  : "bg-foreground/40"
-                                              )}
-                                            />
-                                            <span className="flex min-w-0 flex-col">
-                                              <span className="truncate text-sm font-medium">
-                                                {budget.name}
-                                              </span>
-                                              <span className="text-muted-foreground text-xs">
-                                                {formatBudgetRange(budget)}
-                                              </span>
-                                            </span>
-                                          </span>
-                                          <span className="ml-2 flex shrink-0 items-center gap-2">
-                                            <span
-                                              className={cn(
-                                                "text-xs font-semibold tabular-nums",
-                                                budget.remaining < 0
-                                                  ? "text-destructive"
-                                                  : "text-success"
-                                              )}
-                                            >
-                                              {formatVndSigned(budget.remaining)}
-                                            </span>
-                                            {isActive ? (
-                                              <CheckIcon className="text-success h-4 w-4 shrink-0" />
-                                            ) : null}
-                                          </span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <div className="bg-card/70 border-border rounded-2xl border border-dashed px-3 py-4">
-                                    <p className="text-muted-foreground text-xs">
-                                      {budgetGroupEmptyLabel[groupKey]}
-                                    </p>
-                                  </div>
-                                )}
-                              </section>
-                            );
-                          }
-                        )}
-                      </div>
-                    ) : (
-                      <div className="bg-card/70 border-border rounded-2xl border border-dashed px-3 py-4">
-                        <p className="text-muted-foreground text-xs">
-                          No budgets for this date yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <Footer className="standalone:pb-safe border-t">
-                  <Close asChild>
-                    <Button className="h-10 w-full rounded-xl text-base font-medium">
-                      Done
-                    </Button>
-                  </Close>
-                </Footer>
-              </Content>
-            </Root>
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <Wallet className="text-muted-foreground h-4 w-4" />
+                  Budget
+                </span>
+                <span className="text-muted-foreground text-xs font-medium">
+                  {budgetLabel}
+                </span>
+              </Button>
+              <BudgetPickerSheet
+                open={budgetDrawerOpen}
+                onOpenChange={setBudgetDrawerOpen}
+                value={budgetId}
+                onChange={handleBudgetChange}
+                weekStart={budgetWeekStart ?? ""}
+                targetDate={budgetTargetDate ?? undefined}
+                isParentOpen={isSheetOpen}
+              />
+            </>
           )}
 
           {isQuickMode ? (
