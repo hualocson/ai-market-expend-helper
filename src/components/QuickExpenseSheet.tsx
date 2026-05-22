@@ -200,8 +200,8 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           <SheetTitle>Add expense</SheetTitle>
           <SheetDescription>Enter expense details and save.</SheetDescription>
         </SheetHeader>
-        <div className="flex h-full flex-col">
-          <div className="flex items-center gap-2 px-4 pt-4">
+        <div className="my-auto flex flex-col">
+          <div className="grid grid-cols-3 gap-2 px-4">
             <Button
               type="button"
               variant="outline"
@@ -237,7 +237,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
             </Button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 px-4 pt-6">
+          <div className="flex flex-1 flex-col justify-center gap-4 px-4">
             <input
               ref={noteRef}
               value={draft.note}
@@ -308,7 +308,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           </div>
         </div>
 
-        <SheetFooter className="standalone:pb-safe border-t px-4">
+        <SheetFooter className="standalone:pb-safe px-4">
           <Button
             type="button"
             onClick={handleSubmit}
