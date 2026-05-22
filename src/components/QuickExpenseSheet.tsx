@@ -284,6 +284,12 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
                 ref={noteRef}
                 value={draft.note}
                 onChange={(e) => setField("note", e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    amountRef.current?.focus();
+                  }
+                }}
                 placeholder="What did you spend on?"
                 className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
               />
