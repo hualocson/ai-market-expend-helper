@@ -2,8 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { toast } from "sonner";
-
 import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
@@ -15,8 +13,8 @@ import {
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { Calendar, Loader2, Plus, UserRound, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
-import { useSettingsStore } from "@/components/providers/StoreProvider";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
 import {
@@ -28,6 +26,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+
+import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import ExpenseItemIcon from "./ExpenseItemIcon";
@@ -82,7 +82,9 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   useEffect(() => {
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<ExpensePrefillPayload>).detail;
-      if (!detail) return;
+      if (!detail) {
+        return;
+      }
       setDraft((prev) => ({
         ...prev,
         amount: detail.amount,
@@ -98,7 +100,9 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const canSubmit = draft.amount > 0 && !loading;
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      return;
+    }
     try {
       setLoading(true);
       await createExpenseEntry({
@@ -113,7 +117,9 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
       handleOpenChange(false);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to add expense");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to add expense"
+      );
     } finally {
       setLoading(false);
     }
@@ -123,8 +129,10 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const amountRef = useRef<HTMLInputElement>(null);
   useAutoShrinkFont(noteRef);
 
-  const setField = <K extends keyof TExpenseDraft>(key: K, value: TExpenseDraft[K]) =>
-    setDraft((prev) => ({ ...prev, [key]: value }));
+  const setField = <K extends keyof TExpenseDraft>(
+    key: K,
+    value: TExpenseDraft[K]
+  ) => setDraft((prev) => ({ ...prev, [key]: value }));
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -148,7 +156,9 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
     if (draft.amount <= 0) {
       return [];
     }
-    return SUGGESTION_MULTIPLIERS.map((m) => draft.amount * m).filter((v) => v > 0);
+    return SUGGESTION_MULTIPLIERS.map((m) => draft.amount * m).filter(
+      (v) => v > 0
+    );
   }, [draft.amount]);
 
   return (
@@ -166,7 +176,10 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
           {compact ? null : "Add expense"}
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="h-full w-full gap-0 rounded-none p-0">
+      <SheetContent
+        side="bottom"
+        className="h-full w-full gap-0 rounded-none p-0"
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>Add expense</SheetTitle>
           <SheetDescription>Enter expense details and save.</SheetDescription>
@@ -215,18 +228,22 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
               value={draft.note}
               onChange={(e) => setField("note", e.target.value)}
               placeholder="What did you spend on?"
-              className="w-full whitespace-nowrap overflow-hidden border-0 bg-transparent px-0 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0"
+              className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-base whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
             />
 
             <div className="flex items-baseline gap-1">
-              <span className="text-muted-foreground text-2xl font-medium">đ</span>
+              <span className="text-muted-foreground text-2xl font-medium">
+                đ
+              </span>
               <input
                 ref={amountRef}
                 inputMode="numeric"
                 value={draft.amount === 0 ? "" : formatVnd(draft.amount)}
-                onChange={(e) => setField("amount", parseVndInput(e.target.value))}
+                onChange={(e) =>
+                  setField("amount", parseVndInput(e.target.value))
+                }
                 placeholder="0"
-                className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-0"
+                className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
                 onFocus={() => amountRef.current?.select()}
               />
             </div>
@@ -264,7 +281,10 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
                         : "bg-muted/50 hover:bg-muted border-transparent"
                     )}
                   >
-                    <ExpenseItemIcon category={category as Category} size="sm" />
+                    <ExpenseItemIcon
+                      category={category as Category}
+                      size="sm"
+                    />
                     <span>{category}</span>
                   </button>
                 );
@@ -292,7 +312,11 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
         </SheetFooter>
 
         <Sheet open={dateOpen} onOpenChange={setDateOpen}>
-          <SheetContent side="bottom" showCloseButton={false} className="rounded-t-3xl">
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            className="rounded-t-3xl"
+          >
             <SheetHeader className="text-left">
               <SheetTitle>Date</SheetTitle>
             </SheetHeader>
