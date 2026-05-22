@@ -128,7 +128,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const noteRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const keyboardPrimerRef = useRef<HTMLInputElement>(null);
-  useAutoShrinkFont(noteRef);
+  useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
 
   const primeKeyboard = () => {
     keyboardPrimerRef.current?.focus();
@@ -243,7 +243,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
               value={draft.note}
               onChange={(e) => setField("note", e.target.value)}
               placeholder="What did you spend on?"
-              className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-base whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
+              className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
             />
 
             <div className="flex items-baseline gap-1">
