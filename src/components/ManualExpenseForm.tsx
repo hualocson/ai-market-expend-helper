@@ -17,7 +17,6 @@ import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
   type TBudgetOption,
   groupBudgetOptions,
-  hasAnyBudgetOption,
   pickDefaultBudget,
 } from "@/lib/budget-options";
 import {
@@ -331,15 +330,10 @@ const ManualExpenseForm = forwardRef<
       retry: false,
     });
     const budgetOptions = budgetOptionsQuery.data ?? [];
-    const budgetLoading = budgetOptionsQuery.isPending;
     const budgetLoaded = budgetOptionsQuery.isFetched;
     const budgetGroups = useMemo(
       () => groupBudgetOptions(budgetOptions),
       [budgetOptions]
-    );
-    const hasBudgetOptions = useMemo(
-      () => hasAnyBudgetOption(budgetGroups),
-      [budgetGroups]
     );
 
     useEffect(() => {

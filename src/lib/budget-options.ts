@@ -54,8 +54,12 @@ export const sortBudgetOptions = (items: TBudgetOption[]) =>
     if (leftDate && rightDate && !leftDate.isSame(rightDate, "day")) {
       return rightDate.valueOf() - leftDate.valueOf();
     }
-    if (leftDate && !rightDate) return -1;
-    if (!leftDate && rightDate) return 1;
+    if (leftDate && !rightDate) {
+      return -1;
+    }
+    if (!leftDate && rightDate) {
+      return 1;
+    }
     return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
   });
 
