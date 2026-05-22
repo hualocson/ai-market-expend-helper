@@ -100,6 +100,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
+  const [amountFocused, setAmountFocused] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -166,6 +167,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (!next) {
+      setAmountFocused(false);
       setDraft(buildDefaultDraft(normalizePaidBy(settingsPaidBy)));
     }
   };
@@ -218,6 +220,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
       (v) => v > 0
     );
   }, [draft.amount]);
+  const showSuggestions = amountFocused && suggestions.length > 0;
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange} modal>
@@ -330,12 +333,16 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
                   }
                   placeholder="0"
                   className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
-                  onFocus={() => amountRef.current?.select()}
+                  onFocus={() => {
+                    setAmountFocused(true);
+                    amountRef.current?.select();
+                  }}
+                  onBlur={() => setAmountFocused(false)}
                 />
               </div>
             </div>
 
-            {suggestions.length > 0 && (
+            {showSuggestions && (
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((s) => (
                   <Button
@@ -344,6 +351,7 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
                     variant="outline"
                     size="sm"
                     className="rounded-full"
+                    onPointerDown={(e) => e.preventDefault()}
                     onClick={() => setField("amount", s)}
                   >
                     {formatVnd(s)}
