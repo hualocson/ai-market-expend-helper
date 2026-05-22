@@ -1,10 +1,11 @@
 import React from "react";
 import userEvent from "@testing-library/user-event";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createExpenseEntry } from "@/app/actions/expense-actions";
+import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import QuickExpenseSheet from "./QuickExpenseSheet";
 
@@ -143,5 +144,25 @@ describe("QuickExpenseSheet — submit", () => {
     await waitFor(() =>
       expect(screen.queryByPlaceholderText(/what did you spend on/i)).not.toBeInTheDocument()
     );
+  });
+});
+
+describe("QuickExpenseSheet — prefill", () => {
+  it("opens and populates fields when EXPENSE_PREFILL_EVENT fires", async () => {
+    renderSheet();
+    expect(screen.queryByPlaceholderText(/what did you spend on/i)).not.toBeInTheDocument();
+
+    act(() => {
+      dispatchExpensePrefill({
+        amount: 25000,
+        note: "Lunch",
+        category: "Food",
+      });
+    });
+
+    const note = await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(note).toHaveValue("Lunch");
+    const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
+    expect(amount.value).toMatch(/25[.,]?000/);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { toast } from "sonner";
 
@@ -8,6 +8,10 @@ import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
+import {
+  EXPENSE_PREFILL_EVENT,
+  type ExpensePrefillPayload,
+} from "@/lib/expense-prefill";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { Calendar, Loader2, Plus, UserRound, Wallet } from "lucide-react";
@@ -74,6 +78,23 @@ const QuickExpenseSheet = ({ compact = false }: TQuickExpenseSheetProps) => {
   const [paidByOpen, setPaidByOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent<ExpensePrefillPayload>).detail;
+      if (!detail) return;
+      setDraft((prev) => ({
+        ...prev,
+        amount: detail.amount,
+        note: detail.note,
+        category: (detail.category as Category) || prev.category,
+      }));
+      setOpen(true);
+    };
+    window.addEventListener(EXPENSE_PREFILL_EVENT, handle);
+    return () => window.removeEventListener(EXPENSE_PREFILL_EVENT, handle);
+  }, []);
+
   const canSubmit = draft.amount > 0 && !loading;
 
   const handleSubmit = async () => {
