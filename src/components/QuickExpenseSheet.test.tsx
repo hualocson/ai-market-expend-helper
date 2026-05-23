@@ -6,10 +6,7 @@ import {
 } from "@/app/actions/expense-actions";
 import { PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
-import {
-  type BudgetWeeklyOption,
-  fetchWeeklyBudgetOptions,
-} from "@/lib/queries/budget-weekly";
+import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -35,13 +32,34 @@ vi.mock("sonner", () => ({
   toast: toastMock,
 }));
 
-vi.mock("@/lib/queries/budget-weekly", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/lib/queries/budget-weekly")
-  >("@/lib/queries/budget-weekly");
+const weeklyBudgetOptionsMock = vi.hoisted(() =>
+  vi
+    .fn<
+      (weekStart: string, targetDate?: string) => Promise<BudgetWeeklyOption[]>
+    >()
+    .mockResolvedValue([])
+);
+
+vi.mock("@/lib/queries", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/queries")>("@/lib/queries");
+  const options = Object.assign(
+    (weekStart: string, targetDate?: string) => ({
+      queryKey: ["budgetWeekly", "options", weekStart, targetDate],
+      queryFn: () => weeklyBudgetOptionsMock(weekStart, targetDate),
+    }),
+    { _def: ["budgetWeekly", "options"] }
+  );
+
   return {
     ...actual,
-    fetchWeeklyBudgetOptions: vi.fn().mockResolvedValue([]),
+    queries: {
+      ...actual.queries,
+      budgetWeekly: {
+        ...actual.queries.budgetWeekly,
+        options,
+      },
+    },
   };
 });
 
@@ -87,7 +105,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(createExpenseEntry).mockResolvedValue(savedExpense(1));
   vi.mocked(updateExpenseEntry).mockResolvedValue(savedExpense(1));
-  vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([]);
+  weeklyBudgetOptionsMock.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -225,7 +243,7 @@ describe("QuickExpenseSheet — submit", () => {
 
   it("clears a selected budget when the changed date no longer includes it", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchWeeklyBudgetOptions).mockImplementation(
+    weeklyBudgetOptionsMock.mockImplementation(
       async (_weekStart, targetDate) => {
         if (targetDate === "2026-05-20") {
           return [budgetOption({ id: 2, name: "Transport week" })];
@@ -248,7 +266,7 @@ describe("QuickExpenseSheet — submit", () => {
     );
 
     await waitFor(() =>
-      expect(fetchWeeklyBudgetOptions).toHaveBeenCalledWith(
+      expect(weeklyBudgetOptionsMock).toHaveBeenCalledWith(
         expect.any(String),
         "2026-05-20"
       )
@@ -311,7 +329,7 @@ describe("QuickExpenseSheet — edit mode", () => {
   };
 
   it("prepopulates the existing transaction fields", async () => {
-    vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([
+    weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
     ]);
 
@@ -337,7 +355,7 @@ describe("QuickExpenseSheet — edit mode", () => {
 
   it("calls updateExpenseEntry instead of createExpenseEntry", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchWeeklyBudgetOptions).mockResolvedValue([
+    weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
     ]);
     const { onOpenChange, onSuccess } = renderEditSheet();

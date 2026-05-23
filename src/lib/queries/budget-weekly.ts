@@ -1,6 +1,7 @@
-import { QueryClient } from "@tanstack/react-query";
 import dayjs from "@/configs/date";
 import type { BudgetPeriod } from "@/types/budget-weekly";
+import { createQueryKeys } from "@lukemorales/query-key-factory";
+import { QueryClient } from "@tanstack/react-query";
 
 type BudgetWeeklyOptionsResponse = {
   budgets?: Array<{
@@ -25,18 +26,6 @@ export type BudgetWeeklyOption = {
   spent: number;
   remaining: number;
 };
-
-export const budgetWeeklyOptionsRootQueryKey = [
-  "budget-weekly-options",
-] as const;
-export const budgetWeeklyOptionsQueryKey = (
-  weekStart: string,
-  targetDate?: string
-) =>
-  [...budgetWeeklyOptionsRootQueryKey, weekStart, targetDate ?? null] as const;
-
-export const invalidateBudgetWeeklyOptionsCache = (queryClient: QueryClient) =>
-  queryClient.invalidateQueries({ queryKey: budgetWeeklyOptionsRootQueryKey });
 
 export const fetchWeeklyBudgetOptions = async (
   weekStart: string,
@@ -83,10 +72,7 @@ export const fetchWeeklyBudgetOptions = async (
         return true;
       }
 
-      return (
-        !target.isBefore(start, "day") &&
-        !target.isAfter(end, "day")
-      );
+      return !target.isBefore(start, "day") && !target.isAfter(end, "day");
     })
     .map((budget) => ({
       id: Number(budget.id),
@@ -106,3 +92,19 @@ export const fetchWeeklyBudgetOptions = async (
       remaining: Number(budget.remaining ?? 0),
     }));
 };
+
+export const budgetWeeklyQueries = createQueryKeys("budgetWeekly", {
+  options: (weekStart: string, targetDate?: string) => ({
+    queryKey: [weekStart, targetDate],
+    queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
+  }),
+});
+
+export const budgetWeeklyOptionsRootQueryKey = budgetWeeklyQueries.options._def;
+export const budgetWeeklyOptionsQueryKey = (
+  weekStart: string,
+  targetDate?: string
+) => budgetWeeklyQueries.options(weekStart, targetDate).queryKey;
+
+export const invalidateBudgetWeeklyOptionsCache = (queryClient: QueryClient) =>
+  queryClient.invalidateQueries({ queryKey: budgetWeeklyOptionsRootQueryKey });

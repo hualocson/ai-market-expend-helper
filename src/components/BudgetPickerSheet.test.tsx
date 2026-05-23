@@ -1,35 +1,71 @@
 import React from "react";
-import userEvent from "@testing-library/user-event";
-import { render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
 
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
 import BudgetPickerSheet from "./BudgetPickerSheet";
 
-vi.mock("@/lib/queries/budget-weekly", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/queries/budget-weekly")>(
-    "@/lib/queries/budget-weekly"
+const weeklyBudgetOptionsMock = vi.hoisted(() =>
+  vi.fn<
+    (weekStart: string, targetDate?: string) => Promise<BudgetWeeklyOption[]>
+  >(
+    async (): Promise<BudgetWeeklyOption[]> => [
+      {
+        id: 1,
+        name: "Food week",
+        period: "week",
+        periodStartDate: "2026-05-18",
+        periodEndDate: "2026-05-24",
+        amount: 100,
+        spent: 0,
+        remaining: 100,
+      },
+      {
+        id: 2,
+        name: "Rent month",
+        period: "month",
+        periodStartDate: "2026-05-01",
+        periodEndDate: "2026-05-31",
+        amount: 500,
+        spent: 200,
+        remaining: 300,
+      },
+    ]
+  )
+);
+
+vi.mock("@/lib/queries", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/queries")>("@/lib/queries");
+  const options = Object.assign(
+    (weekStart: string, targetDate?: string) => ({
+      queryKey: ["budgetWeekly", "options", weekStart, targetDate],
+      queryFn: () => weeklyBudgetOptionsMock(weekStart, targetDate),
+    }),
+    { _def: ["budgetWeekly", "options"] }
   );
+
   return {
     ...actual,
-    fetchWeeklyBudgetOptions: vi.fn(async (): Promise<BudgetWeeklyOption[]> => [
-      {
-        id: 1, name: "Food week", period: "week",
-        periodStartDate: "2026-05-18", periodEndDate: "2026-05-24",
-        amount: 100, spent: 0, remaining: 100,
+    queries: {
+      ...actual.queries,
+      budgetWeekly: {
+        ...actual.queries.budgetWeekly,
+        options,
       },
-      {
-        id: 2, name: "Rent month", period: "month",
-        periodStartDate: "2026-05-01", periodEndDate: "2026-05-31",
-        amount: 500, spent: 200, remaining: 300,
-      },
-    ]),
+    },
   };
 });
 
-const renderSheet = (override: Partial<React.ComponentProps<typeof BudgetPickerSheet>> = {}) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const renderSheet = (
+  override: Partial<React.ComponentProps<typeof BudgetPickerSheet>> = {}
+) => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const onChange = vi.fn();
   const onOpenChange = vi.fn();
   const utils = render(

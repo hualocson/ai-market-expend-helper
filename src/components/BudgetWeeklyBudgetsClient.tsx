@@ -12,22 +12,18 @@ import {
 } from "@/app/actions/budget-weekly-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
-import { invalidateBudgetWeeklyOptionsCache } from "@/lib/queries/budget-weekly";
-import {
-  budgetOverviewQueryKey,
-  budgetTransactionsQueryKey,
-  budgetTransferCandidatesPrefixQueryKey,
-  fetchBudgetOverview,
-  fetchBudgetTransactions,
-} from "@/lib/queries/budgets";
+import { queries } from "@/lib/queries";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
   BudgetAssignedTransaction,
   BudgetListItem,
   BudgetPeriod,
+  BudgetTransactionsResponse,
 } from "@/types/budget-weekly";
 import {
+  type InfiniteData,
+  type QueryFunction,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -271,8 +267,7 @@ const BudgetWeeklyBudgetsClient = ({
     isPending,
     refetch,
   } = useQuery({
-    queryKey: budgetOverviewQueryKey,
-    queryFn: fetchBudgetOverview,
+    ...queries.budgets.overview,
   });
 
   const budgets = overview?.budgets ?? [];
@@ -326,6 +321,12 @@ const BudgetWeeklyBudgetsClient = ({
       (parsedEnd?.isValid() && !parsedEnd.isBefore(parsedStart, "day")));
   const isValid = trimmedName.length > 0 && amount > 0 && hasValidPeriod;
   const canSubmit = isValid && !isSaving;
+  const budgetTransactionsQuery = queries.budgets.transactions(
+    detailBudget?.id ?? 0,
+    {
+      limit: DETAIL_PAGE_SIZE,
+    }
+  );
 
   const {
     data: transactionPages,
@@ -335,17 +336,19 @@ const BudgetWeeklyBudgetsClient = ({
     hasNextPage,
     fetchNextPage,
     error: transactionError,
-  } = useInfiniteQuery({
-    queryKey: budgetTransactionsQueryKey(detailBudget?.id ?? 0),
-    queryFn: ({ pageParam }) => {
-      if (!detailBudget) {
-        throw new Error("Budget not found");
-      }
-      return fetchBudgetTransactions(detailBudget.id, {
-        limit: DETAIL_PAGE_SIZE,
-        offset: pageParam,
-      });
-    },
+  } = useInfiniteQuery<
+    BudgetTransactionsResponse,
+    Error,
+    InfiniteData<BudgetTransactionsResponse>,
+    ReturnType<typeof queries.budgets.transactions>["queryKey"],
+    number
+  >({
+    queryKey: budgetTransactionsQuery.queryKey,
+    queryFn: budgetTransactionsQuery.queryFn as QueryFunction<
+      BudgetTransactionsResponse,
+      typeof budgetTransactionsQuery.queryKey,
+      number
+    >,
     initialPageParam: 0,
     enabled: detailOpen && Boolean(detailBudget),
     staleTime: 30_000,
@@ -773,14 +776,18 @@ const BudgetWeeklyBudgetsClient = ({
         toast.success("Budget created.");
       }
 
-      await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
       await queryClient.invalidateQueries({
-        queryKey: budgetTransferCandidatesPrefixQueryKey,
+        queryKey: queries.budgets.overview.queryKey,
       });
-      await invalidateBudgetWeeklyOptionsCache(queryClient);
+      await queryClient.invalidateQueries({
+        queryKey: queries.budgets.transferCandidates._def,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queries.budgetWeekly.options._def,
+      });
       if (activeBudget) {
         await queryClient.invalidateQueries({
-          queryKey: budgetTransactionsQueryKey(activeBudget.id),
+          queryKey: queries.budgets.transactions(activeBudget.id).queryKey,
         });
       }
 
@@ -803,13 +810,17 @@ const BudgetWeeklyBudgetsClient = ({
       await deleteWeeklyBudgetEntry(activeBudget.id);
       toast.success("Budget deleted.");
 
-      await queryClient.invalidateQueries({ queryKey: budgetOverviewQueryKey });
       await queryClient.invalidateQueries({
-        queryKey: budgetTransferCandidatesPrefixQueryKey,
+        queryKey: queries.budgets.overview.queryKey,
       });
-      await invalidateBudgetWeeklyOptionsCache(queryClient);
+      await queryClient.invalidateQueries({
+        queryKey: queries.budgets.transferCandidates._def,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queries.budgetWeekly.options._def,
+      });
       await queryClient.removeQueries({
-        queryKey: budgetTransactionsQueryKey(activeBudget.id),
+        queryKey: queries.budgets.transactions(activeBudget.id).queryKey,
       });
 
       setConfirmOpen(false);

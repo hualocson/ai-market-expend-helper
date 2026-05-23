@@ -13,11 +13,7 @@ import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
-import {
-  type BudgetWeeklyOption,
-  budgetWeeklyOptionsQueryKey,
-  fetchWeeklyBudgetOptions,
-} from "@/lib/queries/budget-weekly";
+import { queries } from "@/lib/queries";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { useQuery } from "@tanstack/react-query";
@@ -303,9 +299,8 @@ const QuickExpenseSheet = ({
     return getWeekRange(parsed).weekStartDate.format("YYYY-MM-DD");
   }, [targetDate]);
 
-  const budgetOptionsQuery = useQuery<BudgetWeeklyOption[]>({
-    queryKey: budgetWeeklyOptionsQueryKey(weekStart, targetDate),
-    queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
+  const budgetOptionsQuery = useQuery({
+    ...queries.budgetWeekly.options(weekStart, targetDate),
     enabled: sheetOpen && Boolean(weekStart),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
