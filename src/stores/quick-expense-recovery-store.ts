@@ -122,10 +122,7 @@ const createQuickExpenseRecoveryState = (
 export const getPersistableQuickExpenseRecoveryState = (
   state: TQuickExpenseRecoveryState
 ): TQuickExpenseRecoveryPersistedState => ({
-  entries: state.entries.map((entry) => ({
-    ...entry,
-    toastId: undefined,
-  })),
+  entries: state.entries.map(({ toastId: _toastId, ...entry }) => entry),
   activeRecoveryOperationId: state.activeRecoveryOperationId,
 });
 
