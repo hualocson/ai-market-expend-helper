@@ -37,12 +37,14 @@ describe("quick expense recovery store", () => {
 
     store.getState().enqueue(entry);
 
-    expect(store.getState().entries).toEqual([entry]);
+    expect(store.getState().entries).toEqual({
+      [entry.operationId]: entry,
+    });
     expect(store.getState().getQueuedEntries()).toEqual([entry]);
 
     store.getState().markRunning(entry.operationId);
 
-    expect(store.getState().entries[0]).toMatchObject({
+    expect(store.getState().entries[entry.operationId]).toMatchObject({
       operationId: entry.operationId,
       status: "running",
     });
@@ -50,7 +52,7 @@ describe("quick expense recovery store", () => {
 
     store.getState().markFailed(entry.operationId);
 
-    expect(store.getState().entries[0]).toMatchObject({
+    expect(store.getState().entries[entry.operationId]).toMatchObject({
       operationId: entry.operationId,
       status: "failed",
     });
@@ -63,7 +65,7 @@ describe("quick expense recovery store", () => {
     store.getState().enqueue(entry);
     store.getState().attachToastId(entry.operationId, "toast-1");
 
-    expect(store.getState().entries[0]).toMatchObject({
+    expect(store.getState().entries[entry.operationId]).toMatchObject({
       operationId: entry.operationId,
       toastId: "toast-1",
     });
@@ -79,10 +81,12 @@ describe("quick expense recovery store", () => {
     store.getState().enqueue(failedEntry);
     store.getState().markRunning(failedEntry.operationId);
 
-    expect(store.getState().entries[0]?.status).toBe("failed");
+    expect(store.getState().entries[failedEntry.operationId]?.status).toBe(
+      "failed"
+    );
   });
 
-  it("clears entries and active recovery ids", () => {
+  it("clears record entries and active recovery ids", () => {
     const store = createQuickExpenseRecoveryStore();
     const activeEntry = buildRecoveryEntry({
       operationId: "quick-expense-active",
@@ -96,11 +100,13 @@ describe("quick expense recovery store", () => {
     store.getState().setActiveRecovery(activeEntry.operationId);
     store.getState().clear(activeEntry.operationId);
 
-    expect(store.getState().entries).toEqual([otherEntry]);
+    expect(store.getState().entries).toEqual({
+      [otherEntry.operationId]: otherEntry,
+    });
     expect(store.getState().activeRecoveryOperationId).toBeNull();
   });
 
-  it("prunes expired entries using QUICK_EXPENSE_RECOVERY_TTL_MS", () => {
+  it("prunes expired record entries using QUICK_EXPENSE_RECOVERY_TTL_MS", () => {
     const store = createQuickExpenseRecoveryStore();
     const now = 1_769_000_000_000;
     const expiredEntry = buildRecoveryEntry({
@@ -117,33 +123,67 @@ describe("quick expense recovery store", () => {
     store.getState().setActiveRecovery(expiredEntry.operationId);
     store.getState().pruneExpired(now);
 
-    expect(store.getState().entries).toEqual([freshEntry]);
+    expect(store.getState().entries).toEqual({
+      [freshEntry.operationId]: freshEntry,
+    });
     expect(store.getState().activeRecoveryOperationId).toBeNull();
   });
 
-  it("excludes toast ids from persisted state", () => {
+  it("excludes toast ids from persisted record entries", () => {
+    const entry = buildRecoveryEntry({
+      operationId: "quick-expense-toast",
+      toastId: "toast-1",
+    });
     const state = createQuickExpenseRecoveryStore({
-      entries: [
-        buildRecoveryEntry({
-          operationId: "quick-expense-toast",
-          toastId: "toast-1",
-        }),
-      ],
+      entries: {
+        [entry.operationId]: entry,
+      },
       activeRecoveryOperationId: "quick-expense-toast",
     }).getState();
 
     const persistedState = getPersistableQuickExpenseRecoveryState(state);
 
     expect(persistedState).toEqual({
-      entries: [
-        {
-          ...buildRecoveryEntry({
-            operationId: "quick-expense-toast",
-          }),
-        },
-      ],
+      entries: {
+        [entry.operationId]: buildRecoveryEntry({
+          operationId: "quick-expense-toast",
+        }),
+      },
       activeRecoveryOperationId: "quick-expense-toast",
     });
-    expect(persistedState.entries[0]).not.toHaveProperty("toastId");
+    expect(persistedState.entries[entry.operationId]).not.toHaveProperty(
+      "toastId"
+    );
+  });
+
+  it("normalizes persisted running entries back to queued", () => {
+    const runningEntry = buildRecoveryEntry({
+      operationId: "quick-expense-running",
+      status: "running",
+      toastId: "toast-1",
+    });
+    const failedEntry = buildRecoveryEntry({
+      operationId: "quick-expense-failed",
+      status: "failed",
+      toastId: "toast-2",
+    });
+    const state = createQuickExpenseRecoveryStore({
+      entries: {
+        [runningEntry.operationId]: runningEntry,
+        [failedEntry.operationId]: failedEntry,
+      },
+      activeRecoveryOperationId: runningEntry.operationId,
+    }).getState();
+
+    const persistedState = getPersistableQuickExpenseRecoveryState(state);
+
+    expect(persistedState.entries[runningEntry.operationId]).toMatchObject({
+      operationId: runningEntry.operationId,
+      status: "queued",
+    });
+    expect(persistedState.entries[failedEntry.operationId]).toMatchObject({
+      operationId: failedEntry.operationId,
+      status: "failed",
+    });
   });
 });
