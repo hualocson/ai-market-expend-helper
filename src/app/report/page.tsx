@@ -1,10 +1,8 @@
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
-import { db } from "@/db";
-import { expenses } from "@/db/schema";
+import { getMonthlyReport } from "@/lib/services/reports";
 import { formatVnd } from "@/lib/utils";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,58 +33,9 @@ const buildMonthOptions = (count = 12) => {
 export default async function ReportPage({ searchParams }: ReportPageProps) {
   const { month } = await searchParams;
   const selectedMonth = typeof month === "string" ? month : undefined;
-  const parsedMonth = selectedMonth
-    ? dayjs(selectedMonth, "YYYY-MM", true)
-    : dayjs();
-  const activeMonth = parsedMonth.isValid() ? parsedMonth : dayjs();
+  const report = await getMonthlyReport(selectedMonth);
+  const activeMonth = dayjs(report.activeMonth, "YYYY-MM", true);
   const startOfMonth = activeMonth.startOf("month");
-  const endOfMonth = activeMonth.add(1, "month").startOf("month");
-  const totalSum = sql<number>`sum(${expenses.amount})`;
-
-  const paidByCategoryTotals = await db
-    .select({
-      category: expenses.category,
-      paidBy: expenses.paidBy,
-      total: sql<number>`coalesce(${totalSum}, 0)`.mapWith(Number),
-    })
-    .from(expenses)
-    .where(
-      and(
-        eq(expenses.isDeleted, false),
-        gte(expenses.date, startOfMonth.format("YYYY-MM-DD")),
-        lt(expenses.date, endOfMonth.format("YYYY-MM-DD"))
-      )
-    )
-    .groupBy(expenses.category, expenses.paidBy)
-    .orderBy(desc(totalSum));
-
-  const categoryTotalsMap = new Map<string, number>();
-  const paidByTotalsMap = new Map<string, number>();
-  for (const item of paidByCategoryTotals) {
-    categoryTotalsMap.set(
-      item.category,
-      (categoryTotalsMap.get(item.category) ?? 0) + item.total
-    );
-    paidByTotalsMap.set(
-      item.paidBy,
-      (paidByTotalsMap.get(item.paidBy) ?? 0) + item.total
-    );
-  }
-
-  const categoryTotals = Array.from(categoryTotalsMap, ([category, total]) => ({
-    category,
-    total,
-  })).sort((a, b) => b.total - a.total);
-
-  const paidByTotals = Array.from(paidByTotalsMap, ([paidBy, total]) => ({
-    paidBy,
-    total,
-  })).sort((a, b) => b.total - a.total);
-
-  const paidByTotalSpent = paidByTotals.reduce(
-    (sum, item) => sum + item.total,
-    0
-  );
 
   const monthOptions = buildMonthOptions();
   const monthItems = monthOptions.map((monthItem) => {
@@ -125,14 +74,14 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
         <PageEnterSection>
           <CategorySpendPieChart
-            totals={categoryTotals}
+            totals={report.categoryTotals}
             monthLabel={`${activeMonth.format("MMM YYYY")} - All`}
           />
         </PageEnterSection>
 
-        {paidByCategoryTotals.length ? (
+        {report.paidByCategoryTotals.length ? (
           Array.from(
-            paidByCategoryTotals.reduce((acc, item) => {
+            report.paidByCategoryTotals.reduce((acc, item) => {
               const current = acc.get(item.paidBy) ?? [];
               current.push({ category: item.category, total: item.total });
               acc.set(item.paidBy, current);
@@ -163,9 +112,9 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
               <CardTitle>Spending by payer</CardTitle>
             </CardHeader>
             <CardContent>
-              {paidByTotals.length ? (
+              {report.paidByTotals.length ? (
                 <div className="flex flex-col gap-3">
-                  {paidByTotals.map((item) => (
+                  {report.paidByTotals.map((item) => (
                     <div
                       key={item.paidBy}
                       className="flex items-center justify-between text-sm"
@@ -184,7 +133,7 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
                   <div className="border-border flex items-center justify-between border-t pt-2 text-xs">
                     <span className="text-muted-foreground">Total</span>
                     <span className="text-foreground font-semibold">
-                      {formatVnd(paidByTotalSpent)} <VndSymbol />
+                      {formatVnd(report.paidByTotalSpent)} <VndSymbol />
                     </span>
                   </div>
                 </div>
