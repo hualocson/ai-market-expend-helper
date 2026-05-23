@@ -1,10 +1,8 @@
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
-import { db } from "@/db";
-import { budgets, expenseBudgets, expenses } from "@/db/schema";
+import { getExpenseList } from "@/lib/services/expenses";
 import { formatVnd } from "@/lib/utils";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowRightIcon, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,30 +40,22 @@ const ExpenseList = async ({
   showViewFull = false,
   monthTabBasePath = "/",
 }: ExpenseListProps) => {
-  const isRecent = mode === "recent";
-  const parsedMonth = selectedMonth
-    ? dayjs(selectedMonth, "YYYY-MM", true)
-    : dayjs();
-  const activeMonth = parsedMonth.isValid() ? parsedMonth : dayjs();
+  const {
+    activeMonth: activeMonthKey,
+    effectiveRecentDays,
+    groupedRows,
+    isRecent,
+    rows,
+    trimmedSearch,
+  } = await getExpenseList({
+    month: selectedMonth,
+    q: searchQuery,
+    mode,
+    recentDays,
+  });
+  const activeMonth = dayjs(activeMonthKey, "YYYY-MM", true);
   const startOfMonth = activeMonth.startOf("month");
-  const endOfMonth = activeMonth.add(1, "month").startOf("month");
   const showTabs = showMonthTabs ?? !isRecent;
-  const effectiveRecentDays = Math.max(1, recentDays);
-  const isCurrentMonth = activeMonth.isSame(dayjs(), "month");
-  const recentRangeEnd = isCurrentMonth
-    ? dayjs().add(1, "day").startOf("day")
-    : endOfMonth;
-  const recentRangeStart = recentRangeEnd.subtract(effectiveRecentDays, "day");
-  const rangeStart = isRecent
-    ? recentRangeStart.isAfter(startOfMonth)
-      ? recentRangeStart
-      : startOfMonth
-    : startOfMonth;
-  const rangeEnd = isRecent
-    ? recentRangeEnd.isBefore(endOfMonth)
-      ? recentRangeEnd
-      : endOfMonth
-    : endOfMonth;
   const monthOptions = buildMonthOptions();
   const monthItems = monthOptions.map((month) => {
     const value = month.format("YYYY-MM");
@@ -77,66 +67,6 @@ const ExpenseList = async ({
       isActive: value === startOfMonth.format("YYYY-MM"),
     };
   });
-
-  const trimmedSearch = searchQuery?.trim();
-  const baseWhere = and(
-    eq(expenses.isDeleted, false),
-    gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
-    lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
-  );
-  const whereClause = trimmedSearch
-    ? and(
-        baseWhere,
-        sql`to_tsvector('simple', f_unaccent(${expenses.note}) || ' ' || f_unaccent(${expenses.category}))
-            @@ websearch_to_tsquery('simple', f_unaccent(${trimmedSearch}))`
-      )
-    : baseWhere;
-
-  const rows = await db
-    .select({
-      id: expenses.id,
-      date: expenses.date,
-      amount: expenses.amount,
-      note: expenses.note,
-      category: expenses.category,
-      paidBy: expenses.paidBy,
-      budgetId: expenseBudgets.budgetId,
-      budgetName: budgets.name,
-    })
-    .from(expenses)
-    .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
-    .leftJoin(budgets, eq(budgets.id, expenseBudgets.budgetId))
-    .where(whereClause)
-    .orderBy(desc(expenses.date), desc(expenses.id));
-
-  type ExpenseRow = (typeof rows)[number];
-  const groupedRows = rows.reduce(
-    (acc, expense) => {
-      const parsedDate = dayjs(expense.date);
-      const key = parsedDate.isValid()
-        ? parsedDate.format("YYYY-MM-DD")
-        : String(expense.date);
-      const label = parsedDate.isValid()
-        ? parsedDate.format("dddd, DD/MM/YYYY")
-        : String(expense.date);
-      const lastGroup = acc[acc.length - 1];
-
-      if (!lastGroup || lastGroup.key !== key) {
-        acc.push({ key, label, items: [expense], totalAmount: expense.amount });
-      } else {
-        lastGroup.items.push(expense);
-        lastGroup.totalAmount += expense.amount;
-      }
-
-      return acc;
-    },
-    [] as Array<{
-      key: string;
-      label: string;
-      items: ExpenseRow[];
-      totalAmount: number;
-    }>
-  );
 
   const title = trimmedSearch
     ? "Search results"
@@ -204,22 +134,7 @@ const ExpenseList = async ({
               </Link>
               <div className="flex flex-col gap-3">
                 {group.items.map((expense) => (
-                  <ExpenseListItem
-                    key={expense.id}
-                    expense={{
-                      id: expense.id,
-                      date: String(expense.date),
-                      amount: expense.amount,
-                      note: expense.note,
-                      category: expense.category,
-                      paidBy: expense.paidBy,
-                      budgetId:
-                        expense.budgetId === null
-                          ? null
-                          : Number(expense.budgetId),
-                      budgetName: expense.budgetName ?? null,
-                    }}
-                  />
+                  <ExpenseListItem key={expense.id} expense={expense} />
                 ))}
               </div>
             </div>
