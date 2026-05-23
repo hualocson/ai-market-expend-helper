@@ -54,7 +54,7 @@ On submit:
 
 1. Validate `canSubmit`.
 2. Build `payload` from the current draft.
-3. Save `submittedDraft` from the current draft.
+3. Build `submittedDraft` as a new object copied from the current draft.
 4. Create a loading toast and retain its toast id.
 5. Dispatch the relevant mutation with `mutate`.
 6. Close the sheet immediately after dispatch.
@@ -62,6 +62,48 @@ On submit:
 For create mode, closing the sheet may reset the live form draft to defaults. That is acceptable because the submitted draft snapshot is used if the request later fails.
 
 For edit mode, closing the controlled sheet should behave the same as today from the parent view's perspective. The mutation success callback still invokes `onSuccess?.()` so parent edit state can close or refresh its local UI.
+
+## Draft Snapshot Mechanics
+
+The submitted draft must be captured synchronously in `handleSubmit`, before any mutation dispatch, toast action registration, or sheet close can reset state.
+
+The implementation should use a small helper or inline copy with the same shape as `TExpenseDraft`:
+
+```ts
+const submittedDraft: TExpenseDraft = {
+  date: draft.date,
+  amount: draft.amount,
+  note: draft.note,
+  category: draft.category,
+  budgetId: draft.budgetId,
+  paidBy: draft.paidBy,
+};
+```
+
+Then build the mutation `payload` from `submittedDraft`, not from the live `draft` object:
+
+```ts
+const payload = {
+  date: submittedDraft.date,
+  amount: submittedDraft.amount,
+  note: submittedDraft.note,
+  category: submittedDraft.category,
+  paidBy: submittedDraft.paidBy,
+  budgetId: submittedDraft.budgetId,
+};
+```
+
+This ordering matters because `handleOpenChange(false)` resets the create-mode draft to defaults. The mutation callbacks and the error-toast action must close over `submittedDraft`, or store that same copied value in a ref dedicated to retry recovery. They must not read the current `draft` state after dispatch.
+
+The error-toast `Reopen` action should restore in this order:
+
+1. Set the sheet draft to `submittedDraft`.
+2. Clear local pending state if still pending.
+3. Open the sheet with `handleOpenChange(true)` or the equivalent controlled callback.
+
+Restoring the draft before opening avoids a visible flash of the default create draft or stale edit props. If React batching makes the order visually equivalent in tests, the implementation should still keep this logical order for clarity.
+
+Only one submitted draft needs to be retained per `QuickExpenseSheet` instance. While local pending is true, further submits are disabled, so there should not be multiple in-flight draft snapshots from the same sheet instance. If a parent unmounts the sheet before an error action is clicked, the action should no-op safely rather than trying to recover state in an unmounted component.
 
 ## Toast Behavior
 
