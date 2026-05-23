@@ -78,10 +78,10 @@ Default success/info/error without action:
 
 Recovery/action toast:
 
-- May use two lines because it carries a repair path.
-- Visual height target: `52-60px`.
+- Still uses one text line.
+- Visual height target: `44-48px`.
 - Keep the action inline when the label is short, for example `Reopen`.
-- If text plus action would crowd, shorten the message before adding a second descriptive line.
+- If text plus action would crowd, shorten the message. Do not add a second descriptive line.
 
 The compact contract is more important than decorative richness. A toast should never look like a card, alert panel, or notification center item.
 
@@ -107,7 +107,7 @@ The target toast should feel like a compact, elevated app surface:
 - Semantic accent: a `2px` left rail or a tiny icon color only. Do not tint the whole surface.
 - Radius: `10-12px`, matching the app's radius scale while staying compact.
 - Shadow: one or two soft layers, enough to lift from content without looking like a card.
-- Typography: compact `13px` title, no description for routine success.
+- Typography: compact `13px` title only.
 - Icon: semantic `14-16px` icon for success, error, loading, warning, and info.
 
 Do not rely on red/green background color alone. Use icon, text, and a small semantic accent.
@@ -124,7 +124,7 @@ Avoid:
 - Full red/green backgrounds.
 - Large close buttons.
 - Multi-line success messages.
-- Toast descriptions for routine confirmation.
+- Toast descriptions.
 - Card-like padding.
 
 ### Copy
@@ -142,7 +142,7 @@ Routine error toasts should also stay short:
 - `Budget not deleted`
 - `Source budget no longer exists`
 
-Avoid generic punctuation-heavy or verbose copy. Do not add secondary descriptions unless the toast has an action or the message would otherwise be ambiguous.
+Avoid generic punctuation-heavy or verbose copy. Do not add secondary descriptions, including for recovery/action toasts.
 
 Copy limits:
 
@@ -223,7 +223,7 @@ Recommended checks:
   - Top toast clears the safe area.
   - Toast does not overlap primary page controls.
   - Routine success toast is one line and about `40-44px` tall.
-  - Routine toast uses no description and no close button.
+  - Toasts use no description and no close button.
   - Only one mobile toast is visible during quick expense loading-to-success replacement.
   - Error toast with `Reopen` remains compact, actionable, and reopens the failed draft.
   - Light and dark themes keep readable contrast.
