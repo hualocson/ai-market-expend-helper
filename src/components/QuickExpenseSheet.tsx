@@ -9,22 +9,16 @@ import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
-import {
-  useCreateExpenseMutation,
-  useUpdateExpenseMutation,
-} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
-import { useQuery } from "@tanstack/react-query";
 import {
-  Calendar,
-  Loader2,
-  Plus,
-  UserRound,
-  Wallet,
-  XIcon,
-} from "lucide-react";
+  type TQuickExpenseDraft,
+  type TQuickExpensePayload,
+  useQuickExpenseRecoveryStore,
+} from "@/stores/quick-expense-recovery-store";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, Plus, UserRound, Wallet, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +47,7 @@ export type TQuickExpenseSheetProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialExpense?: TQuickExpenseSheetInitialExpense | null;
+  recoveryDraft?: TQuickExpenseDraft | null;
   transactionId?: number;
   onSuccess?: () => void;
   showTrigger?: boolean;
@@ -68,14 +63,7 @@ export type TQuickExpenseSheetInitialExpense = {
   paidBy?: PaidBy | string;
 };
 
-type TExpenseDraft = {
-  date: string;
-  amount: number;
-  note: string;
-  category: Category;
-  budgetId: number | null;
-  paidBy: PaidBy;
-};
+export type TExpenseDraft = TQuickExpenseDraft;
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
@@ -138,6 +126,34 @@ const buildDraftFromExpense = (
   };
 };
 
+const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
+  date: draft.date,
+  amount: draft.amount,
+  note: draft.note,
+  category: draft.category,
+  budgetId: draft.budgetId,
+  paidBy: draft.paidBy,
+});
+
+const buildQuickExpensePayload = (
+  draft: TExpenseDraft
+): TQuickExpensePayload => ({
+  date: draft.date,
+  amount: draft.amount,
+  note: draft.note,
+  category: draft.category,
+  paidBy: draft.paidBy,
+  budgetId: draft.budgetId,
+});
+
+const createOperationId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 const formatDateLabel = (date: string) => {
   const parsed = dayjs(date, "DD/MM/YYYY", true);
   if (!parsed.isValid()) {
@@ -159,18 +175,21 @@ const QuickExpenseSheet = ({
   open,
   onOpenChange,
   initialExpense = null,
+  recoveryDraft = null,
   transactionId,
-  onSuccess,
   showTrigger,
 }: TQuickExpenseSheetProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
+  const enqueueRecovery = useQuickExpenseRecoveryStore((state) => state.enqueue);
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
   const shouldShowTrigger = showTrigger ?? !isEditMode;
   const [draft, setDraft] = useState<TExpenseDraft>(() =>
-    isEditMode
+    recoveryDraft
+      ? { ...recoveryDraft }
+      : isEditMode
       ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
       : buildDefaultDraft(fallbackPaidBy)
   );
@@ -179,54 +198,35 @@ const QuickExpenseSheet = ({
   const [paidByOpen, setPaidByOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const createExpenseMutation = useCreateExpenseMutation();
-  const updateExpenseMutation = useUpdateExpenseMutation();
+  const [queueing, setQueueing] = useState(false);
 
-  const canSubmit = draft.amount > 0 && !loading;
+  const canSubmit = draft.amount > 0 && !queueing;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!canSubmit) {
       return;
     }
-    const payload = {
-      date: draft.date,
-      amount: draft.amount,
-      note: draft.note,
-      category: draft.category,
-      paidBy: draft.paidBy,
-      budgetId: draft.budgetId,
-    };
 
-    try {
-      setLoading(true);
-      if (isEditMode) {
-        if (!transactionId) {
-          toast.error("Failed to update expense");
-          return;
-        }
-        await updateExpenseMutation.mutateAsync({
-          id: transactionId,
-          input: payload,
-        });
-      } else {
-        await createExpenseMutation.mutateAsync(payload);
-      }
-      toast.success(isEditMode ? "Expense updated" : "Expense added");
-      handleOpenChange(false);
-      onSuccess?.();
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : isEditMode
-            ? "Failed to update expense"
-            : "Failed to add expense"
-      );
-    } finally {
-      setLoading(false);
+    if (isEditMode && !transactionId) {
+      toast.error("Failed to update expense");
+      return;
     }
+
+    setQueueing(true);
+    const submittedDraft = cloneExpenseDraft(draft);
+    const payload = buildQuickExpensePayload(submittedDraft);
+
+    enqueueRecovery({
+      operationId: createOperationId(),
+      mode,
+      transactionId,
+      draft: submittedDraft,
+      payload,
+      status: "queued",
+      createdAt: Date.now(),
+    });
+    handleOpenChange(false);
+    setQueueing(false);
   };
 
   const noteRef = useRef<HTMLInputElement>(null);
@@ -256,7 +256,11 @@ const QuickExpenseSheet = ({
       return;
     }
     if (isEditMode) {
-      setDraft(buildDraftFromExpense(initialExpense, fallbackPaidBy));
+      setDraft(
+        recoveryDraft
+          ? { ...recoveryDraft }
+          : buildDraftFromExpense(initialExpense, fallbackPaidBy)
+      );
     }
   };
 
@@ -264,8 +268,12 @@ const QuickExpenseSheet = ({
     if (!isEditMode || !sheetOpen) {
       return;
     }
-    setDraft(buildDraftFromExpense(initialExpense, fallbackPaidBy));
-  }, [fallbackPaidBy, initialExpense, isEditMode, sheetOpen]);
+    setDraft(
+      recoveryDraft
+        ? { ...recoveryDraft }
+        : buildDraftFromExpense(initialExpense, fallbackPaidBy)
+    );
+  }, [fallbackPaidBy, initialExpense, isEditMode, recoveryDraft, sheetOpen]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -498,16 +506,7 @@ const QuickExpenseSheet = ({
             disabled={!canSubmit}
             className="h-10 w-full rounded-xl text-base font-medium"
           >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {isEditMode ? "Updating..." : "Saving..."}
-              </>
-            ) : isEditMode ? (
-              "Update expense"
-            ) : (
-              "Save expense"
-            )}
+            {isEditMode ? "Update expense" : "Save expense"}
           </Button>
         </SheetFooter>
 
