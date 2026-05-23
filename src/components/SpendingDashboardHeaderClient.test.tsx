@@ -1,8 +1,12 @@
 import React from "react";
 
+import { queries } from "@/lib/queries";
+import type { DashboardMonthlySummary } from "@/lib/services/dashboard";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import SpendingDashboardHeader from "./SpendingDashboardHeader";
 import SpendingDashboardHeaderClient from "./SpendingDashboardHeaderClient";
 
 vi.mock("motion/react", () => ({
@@ -58,5 +62,43 @@ describe("SpendingDashboardHeaderClient", () => {
     expect(amountBlock).not.toHaveClass("ds-glass");
     expect(screen.getByTestId("heatmap-chart")).toBeInTheDocument();
     expect(screen.queryByText(/total spent/i)).not.toBeInTheDocument();
+  });
+
+  it("renders hydrated monthly summary data without an immediate fetch", () => {
+    globalThis.React = React;
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: 60 * 1000,
+        },
+      },
+    });
+    const payload: DashboardMonthlySummary = {
+      activeMonth: "2026-05",
+      payerOptions: ["All", "Loc"],
+      totalsByPayer: {
+        All: { total: 900_000, totals: [300_000, 600_000] },
+        Loc: { total: 900_000, totals: [300_000, 600_000] },
+      },
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    queryClient.setQueryData(
+      queries.dashboard.monthlySummary().queryKey,
+      payload
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SpendingDashboardHeader />
+      </QueryClientProvider>
+    );
+
+    expect(
+      screen.getByLabelText("900.000 Vietnamese dong")
+    ).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
