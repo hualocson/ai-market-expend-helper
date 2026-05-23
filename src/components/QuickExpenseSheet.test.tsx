@@ -1,5 +1,6 @@
 import React from "react";
 
+import { Category, PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -117,13 +118,20 @@ const renderSheet = (props: Partial<TQuickExpenseSheetProps> = {}) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const renderWithProps = (nextProps: Partial<TQuickExpenseSheetProps>) => (
     <QueryClientProvider client={client}>
       <SettingsStoreProvider>
-        <QuickExpenseSheet {...props} />
+        <QuickExpenseSheet {...nextProps} />
       </SettingsStoreProvider>
     </QueryClientProvider>
   );
+  const result = render(renderWithProps(props));
+
+  return {
+    ...result,
+    rerenderSheet: (nextProps: Partial<TQuickExpenseSheetProps>) =>
+      result.rerender(renderWithProps(nextProps)),
+  };
 };
 
 describe("QuickExpenseSheet — open/close", () => {
@@ -254,6 +262,51 @@ describe("QuickExpenseSheet — submit", () => {
     expect(
       screen.queryByPlaceholderText(/what did you spend on/i)
     ).not.toBeInTheDocument();
+  });
+
+  it("opens create mode with a recovery draft after rerender", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const { rerenderSheet } = renderSheet({
+      open: false,
+      onOpenChange,
+      showTrigger: false,
+    });
+
+    rerenderSheet({
+      open: true,
+      onOpenChange,
+      showTrigger: false,
+      recoveryDraft: {
+        date: "20/05/2026",
+        amount: 45000,
+        note: "Recovered lunch",
+        category: Category.FOOD,
+        budgetId: null,
+        paidBy: PaidBy.OTHER,
+      },
+    });
+
+    expect(
+      await screen.findByPlaceholderText(/what did you spend on/i)
+    ).toHaveValue("Recovered lunch");
+    expect(screen.getByPlaceholderText("0")).toHaveValue("45.000");
+
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    expect(recoveryStoreMock.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "create",
+        draft: expect.objectContaining({
+          amount: 45000,
+          note: "Recovered lunch",
+        }),
+        payload: expect.objectContaining({
+          amount: 45000,
+          note: "Recovered lunch",
+        }),
+      })
+    );
   });
 
   it("clears a selected budget when the changed date no longer includes it", async () => {

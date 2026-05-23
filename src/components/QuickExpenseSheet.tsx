@@ -186,12 +186,14 @@ const QuickExpenseSheet = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
   const shouldShowTrigger = showTrigger ?? !isEditMode;
-  const [draft, setDraft] = useState<TExpenseDraft>(() =>
+  const buildDraftForOpen = () =>
     recoveryDraft
       ? { ...recoveryDraft }
       : isEditMode
-      ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
-      : buildDefaultDraft(fallbackPaidBy)
+        ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
+        : buildDefaultDraft(fallbackPaidBy);
+  const [draft, setDraft] = useState<TExpenseDraft>(() =>
+    buildDraftForOpen()
   );
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
@@ -255,24 +257,20 @@ const QuickExpenseSheet = ({
       }
       return;
     }
-    if (isEditMode) {
-      setDraft(
-        recoveryDraft
-          ? { ...recoveryDraft }
-          : buildDraftFromExpense(initialExpense, fallbackPaidBy)
-      );
-    }
+    setDraft(buildDraftForOpen());
   };
 
   useEffect(() => {
-    if (!isEditMode || !sheetOpen) {
+    if (!sheetOpen) {
       return;
     }
-    setDraft(
-      recoveryDraft
-        ? { ...recoveryDraft }
-        : buildDraftFromExpense(initialExpense, fallbackPaidBy)
-    );
+    if (recoveryDraft) {
+      setDraft({ ...recoveryDraft });
+      return;
+    }
+    if (isEditMode) {
+      setDraft(buildDraftFromExpense(initialExpense, fallbackPaidBy));
+    }
   }, [fallbackPaidBy, initialExpense, isEditMode, recoveryDraft, sheetOpen]);
 
   useEffect(() => {
