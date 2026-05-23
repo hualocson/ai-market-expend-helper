@@ -36,10 +36,6 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
-vi.mock("@/app/actions/budget-weekly-actions", () => ({
-  getTransferCandidates: vi.fn(),
-}));
-
 vi.mock("@/lib/mutations", () => ({
   useCreateBudgetMutation: () => ({
     mutateAsync: vi.fn(),

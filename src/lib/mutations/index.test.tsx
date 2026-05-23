@@ -9,7 +9,14 @@ import {
   useUpdateBudgetMutation,
 } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { BudgetTransactionsResponse } from "@/types/budget-weekly";
+import {
+  type InfiniteData,
+  QueryClient,
+  QueryClientProvider,
+  type QueryFunction,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -172,25 +179,81 @@ describe("mutation hooks", () => {
     });
   });
 
-  it("removes deleted budget transaction detail cache after successful delete", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: 9 }));
-    const { result, queryClient } = renderMutationHook(() =>
-      useDeleteBudgetMutation()
-    );
+  it("does not refetch deleted budget transactions after successful delete", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+
+        if (url.startsWith("/api/budgets/9/transactions")) {
+          return jsonResponse({
+            budgetId: 9,
+            summary: { count: 0, totalSpent: 0 },
+            items: [],
+            pagination: { limit: 20, offset: 0, hasMore: false },
+          });
+        }
+
+        if (url === "/api/weekly-budgets/9" && init?.method === "DELETE") {
+          return jsonResponse({ id: 9 });
+        }
+
+        return jsonResponse({ error: "Unexpected request" }, { status: 500 });
+      });
+    const { result, queryClient } = renderMutationHook(() => {
+      const detailQuery = queries.budgets.transactions(9);
+      useInfiniteQuery<
+        BudgetTransactionsResponse,
+        Error,
+        InfiniteData<BudgetTransactionsResponse>,
+        ReturnType<typeof queries.budgets.transactions>["queryKey"],
+        number
+      >({
+        queryKey: detailQuery.queryKey,
+        queryFn: detailQuery.queryFn as QueryFunction<
+          BudgetTransactionsResponse,
+          typeof detailQuery.queryKey,
+          number
+        >,
+        initialPageParam: 0,
+        getNextPageParam: () => undefined,
+      });
+
+      return useDeleteBudgetMutation();
+    });
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-    const removeSpy = vi.spyOn(queryClient, "removeQueries");
+    const cancelSpy = vi.spyOn(queryClient, "cancelQueries");
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/budgets/9/transactions?limit=20&offset=0",
+        expect.anything()
+      )
+    );
+    fetchMock.mockClear();
 
     await act(async () => {
       await result.current.mutateAsync(9);
     });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/weekly-budgets/9",
+      expect.objectContaining({ method: "DELETE" })
+    );
+    expect(invalidateSpy).not.toHaveBeenCalledWith({
       queryKey: queries.budgets._def,
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly._def,
     });
-    expect(removeSpy).toHaveBeenCalledWith({
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.budgets.overview.queryKey,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.budgets.transferCandidates._def,
+    });
+    expect(cancelSpy).toHaveBeenCalledWith({
       queryKey: queries.budgets.transactions(9).queryKey,
     });
   });

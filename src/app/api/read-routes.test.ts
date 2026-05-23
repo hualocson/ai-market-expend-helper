@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { GET as getBudgetTransferCandidates } from "./budgets/transfer-candidates/route";
 import { GET as getDashboardMonthlySummary } from "./dashboard/monthly-summary/route";
 import { GET as getExpensePrefills } from "./expense-prefills/route";
 import { GET as getExpenses } from "./expenses/route";
@@ -8,6 +9,7 @@ import { GET as getMonthlyReport } from "./reports/monthly/route";
 
 const mocks = vi.hoisted(() => ({
   createExpense: vi.fn(),
+  getBudgetTransferCandidates: vi.fn(),
   getDashboardMonthlySummary: vi.fn(),
   getDailyReport: vi.fn(),
   getExpenseList: vi.fn(),
@@ -17,6 +19,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/db/queries", () => ({
   createExpense: mocks.createExpense,
+}));
+
+vi.mock("@/db/budget-queries", () => ({
+  getTransferCandidates: mocks.getBudgetTransferCandidates,
 }));
 
 vi.mock("@/lib/services/dashboard", () => ({
@@ -64,6 +70,46 @@ describe("REST read routes", () => {
       mode: "recent",
       recentDays: 14,
     });
+  });
+
+  it("returns budget transfer candidates for the destination budget", async () => {
+    const payload = [
+      {
+        id: 2,
+        name: "Dining",
+        amount: 500000,
+        spent: 100000,
+        remaining: 400000,
+        period: "week",
+        periodStartDate: "2026-05-18",
+        periodEndDate: "2026-05-24",
+      },
+    ];
+    mocks.getBudgetTransferCandidates.mockResolvedValue(payload);
+
+    const response = await getBudgetTransferCandidates(
+      new Request(
+        "http://localhost/api/budgets/transfer-candidates?destinationId=1"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.getBudgetTransferCandidates).toHaveBeenCalledWith(1);
+  });
+
+  it("returns 400 for an invalid transfer candidate destination", async () => {
+    const response = await getBudgetTransferCandidates(
+      new Request(
+        "http://localhost/api/budgets/transfer-candidates?destinationId=0"
+      )
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid destination budget id",
+    });
+    expect(mocks.getBudgetTransferCandidates).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid expense list params", async () => {

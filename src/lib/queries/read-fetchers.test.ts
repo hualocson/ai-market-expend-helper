@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { budgetQueries, fetchBudgetTransferCandidates } from "./budgets";
 import { dashboardQueries, fetchDashboardMonthlySummary } from "./dashboard";
 import {
   expenseQueries,
@@ -60,6 +61,31 @@ describe("read query fetchers", () => {
     });
   });
 
+  it("fetches budget transfer candidates", async () => {
+    const payload = [
+      {
+        id: 2,
+        name: "Dining",
+        amount: 500000,
+        spent: 100000,
+        remaining: 400000,
+        period: "week",
+        periodStartDate: "2026-05-18",
+        periodEndDate: "2026-05-24",
+      },
+    ];
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(payload));
+
+    await expect(fetchBudgetTransferCandidates(1)).resolves.toEqual(payload);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/budgets/transfer-candidates?destinationId=1",
+      { method: "GET", cache: "no-store" }
+    );
+  });
+
   it("fetches dashboard monthly summaries", async () => {
     const payload = {
       activeMonth: "2026-05",
@@ -118,6 +144,7 @@ describe("read query fetchers", () => {
   it("adds queryFns to read query factory entries", () => {
     expect(typeof expenseQueries.list().queryFn).toBe("function");
     expect(typeof expenseQueries.prefills.queryFn).toBe("function");
+    expect(typeof budgetQueries.transferCandidates(1).queryFn).toBe("function");
     expect(typeof dashboardQueries.monthlySummary("2026-05").queryFn).toBe(
       "function"
     );
