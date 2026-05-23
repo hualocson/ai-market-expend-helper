@@ -192,6 +192,20 @@ describe("REST mutation routes", () => {
     });
   });
 
+  it("returns 404 when deleting an already deleted expense", async () => {
+    mocks.softDeleteExpense.mockResolvedValue(undefined);
+
+    const response = await deleteExpense(
+      new Request("http://localhost/api/expenses/5", { method: "DELETE" }),
+      { params: { id: "5" } }
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Expense not found",
+    });
+  });
+
   it("creates a weekly budget with a validated payload", async () => {
     const payload = {
       name: "Groceries",

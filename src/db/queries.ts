@@ -1,8 +1,8 @@
 import dayjs from "@/configs/date";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { db } from "./index";
 import { setExpenseBudget } from "./budget-queries";
+import { db } from "./index";
 import { expenses } from "./schema";
 import { CreateExpenseInput } from "./type";
 
@@ -71,7 +71,7 @@ export const softDeleteExpense = async (id: number) => {
       isDeleted: true,
       deletedAt: new Date(),
     })
-    .where(eq(expenses.id, id))
+    .where(and(eq(expenses.id, id), eq(expenses.isDeleted, false)))
     .returning();
 
   return deleted;
