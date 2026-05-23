@@ -1,45 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { softDeleteExpense, updateExpense } from "@/db/queries";
-import { CreateExpenseInput } from "@/db/type";
-import { PaidBy } from "@/enums";
+import {
+  expenseMutationPayloadSchema,
+  parseJsonPayload,
+  parsePositiveIntParam,
+} from "@/lib/api/route-schemas";
 import { verifyInternalToken } from "@/lib/internal-auth";
-
-type InternalUpdateTransactionInput = {
-  amount: number;
-  budgetId?: number | null;
-  category: string;
-  date: string;
-  note?: string;
-  paidBy: PaidBy;
-};
-
-const isPaidBy = (value: unknown): value is PaidBy =>
-  typeof value === "string" &&
-  Object.values(PaidBy).includes(value as PaidBy);
-
-const isValidPayload = (
-  payload: unknown
-): payload is InternalUpdateTransactionInput => {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
-  const input = payload as Record<string, unknown>;
-  const hasValidBudgetId =
-    typeof input.budgetId === "undefined" ||
-    input.budgetId === null ||
-    typeof input.budgetId === "number";
-
-  return (
-    typeof input.date === "string" &&
-    typeof input.amount === "number" &&
-    typeof input.category === "string" &&
-    (typeof input.note === "undefined" || typeof input.note === "string") &&
-    isPaidBy(input.paidBy) &&
-    hasValidBudgetId
-  );
-};
 
 export const PATCH = async (
   request: Request,
@@ -53,21 +20,21 @@ export const PATCH = async (
     );
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id) || id <= 0) {
-    return NextResponse.json(
-      { error: "Invalid transaction id" },
-      { status: 400 }
-    );
+  const id = parsePositiveIntParam(params.id, "Invalid transaction id");
+  if ("error" in id) {
+    return NextResponse.json({ error: id.error }, { status: 400 });
   }
 
   try {
-    const payload = await request.json();
-    if (!isValidPayload(payload)) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    const payload = await parseJsonPayload(
+      request,
+      expenseMutationPayloadSchema
+    );
+    if ("error" in payload) {
+      return NextResponse.json({ error: payload.error }, { status: 400 });
     }
 
-    const updated = await updateExpense(id, payload as CreateExpenseInput);
+    const updated = await updateExpense(id.value, payload.value);
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof Error && error.message === "Expense not found") {
@@ -94,16 +61,13 @@ export const DELETE = async (
     );
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id) || id <= 0) {
-    return NextResponse.json(
-      { error: "Invalid transaction id" },
-      { status: 400 }
-    );
+  const id = parsePositiveIntParam(params.id, "Invalid transaction id");
+  if ("error" in id) {
+    return NextResponse.json({ error: id.error }, { status: 400 });
   }
 
   try {
-    const deleted = await softDeleteExpense(id);
+    const deleted = await softDeleteExpense(id.value);
     if (!deleted) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
     }

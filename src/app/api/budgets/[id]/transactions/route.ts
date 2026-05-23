@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getBudgetTransactions } from "@/db/budget-queries";
+import {
+  parsePaginationParams,
+  parsePositiveIntParam,
+} from "@/lib/api/route-schemas";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -10,29 +14,25 @@ export const GET = async (
   { params }: { params: Promise<{ id: string }> }
 ) => {
   const { id } = await params;
-  const budgetId = Number(id);
-  if (!Number.isInteger(budgetId) || budgetId <= 0) {
-    return NextResponse.json({ error: "Invalid budget id" }, { status: 400 });
+  const budgetId = parsePositiveIntParam(id, "Invalid budget id");
+  if ("error" in budgetId) {
+    return NextResponse.json({ error: budgetId.error }, { status: 400 });
   }
 
   const { searchParams } = new URL(request.url);
-  const rawLimit = searchParams.get("limit");
-  const rawOffset = searchParams.get("offset");
-  const parsedLimit = rawLimit ? Number.parseInt(rawLimit, 10) : DEFAULT_LIMIT;
-  const parsedOffset = rawOffset ? Number.parseInt(rawOffset, 10) : 0;
-
-  if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
-    return NextResponse.json({ error: "Invalid limit" }, { status: 400 });
-  }
-  if (!Number.isInteger(parsedOffset) || parsedOffset < 0) {
-    return NextResponse.json({ error: "Invalid offset" }, { status: 400 });
+  const pagination = parsePaginationParams(searchParams, {
+    defaultLimit: DEFAULT_LIMIT,
+    maxLimit: MAX_LIMIT,
+  });
+  if ("error" in pagination) {
+    return NextResponse.json({ error: pagination.error }, { status: 400 });
   }
 
   try {
-    const report = await getBudgetTransactions(budgetId, {
-      limit: Math.min(parsedLimit, MAX_LIMIT),
-      offset: parsedOffset,
-    });
+    const report = await getBudgetTransactions(
+      budgetId.value,
+      pagination.value
+    );
     return NextResponse.json(report);
   } catch (error) {
     if (error instanceof Error && error.message === "Budget not found") {

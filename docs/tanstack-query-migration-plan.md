@@ -184,6 +184,12 @@ Acceptance criteria:
 - Validation behavior is consistent between expense, budget, assignment, and transfer routes.
 - Auth decision is explicit in docs or code comments.
 
+Runtime route auth decision for PR 7:
+
+- Browser-facing mutation routes under `/api/expenses`, `/api/weekly-budgets`, and `/api/transaction-budget` are treated as app-internal UI endpoints for this personal app. They remain unauthenticated in this migration to avoid changing UI behavior before mutation hooks land.
+- Protected integration/admin-style routes stay under `/api/internal/*` and must continue to require `INTERNAL_API_TOKEN` via `x-internal-token` or `Authorization: Bearer`.
+- These browser-facing mutation routes should not be presented as a public third-party API without adding an explicit auth/session model first.
+
 ## PR 8: Complete REST Mutation Routes
 
 Scope:

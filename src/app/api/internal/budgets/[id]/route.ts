@@ -1,55 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { deleteBudget, updateBudget } from "@/db/budget-queries";
+import {
+  budgetUpdatePayloadSchema,
+  parseJsonPayload,
+  parsePositiveIntParam,
+} from "@/lib/api/route-schemas";
 import { verifyInternalToken } from "@/lib/internal-auth";
-import { BudgetPeriod, BudgetUpdateInput } from "@/types/budget-weekly";
-
-type InternalUpdateBudgetInput = BudgetUpdateInput;
-
-const isBudgetPeriod = (value: unknown): value is BudgetPeriod =>
-  value === "week" || value === "month" || value === "custom";
-
-const isValidUpdatePayload = (
-  payload: unknown
-): payload is InternalUpdateBudgetInput => {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
-  const input = payload as Record<string, unknown>;
-
-  if (typeof input.name !== "undefined" && typeof input.name !== "string") {
-    return false;
-  }
-
-  if (
-    typeof input.amount !== "undefined" &&
-    typeof input.amount !== "number"
-  ) {
-    return false;
-  }
-
-  if (typeof input.period !== "undefined" && !isBudgetPeriod(input.period)) {
-    return false;
-  }
-
-  if (
-    typeof input.periodStartDate !== "undefined" &&
-    typeof input.periodStartDate !== "string"
-  ) {
-    return false;
-  }
-
-  if (
-    typeof input.periodEndDate !== "undefined" &&
-    input.periodEndDate !== null &&
-    typeof input.periodEndDate !== "string"
-  ) {
-    return false;
-  }
-
-  return true;
-};
 
 export const PATCH = async (
   request: Request,
@@ -63,25 +20,25 @@ export const PATCH = async (
     );
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id) || id <= 0) {
-    return NextResponse.json({ error: "Invalid budget id" }, { status: 400 });
+  const id = parsePositiveIntParam(params.id, "Invalid budget id");
+  if ("error" in id) {
+    return NextResponse.json({ error: id.error }, { status: 400 });
   }
 
   try {
-    const payload = await request.json();
-    if (!isValidUpdatePayload(payload)) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    const payload = await parseJsonPayload(request, budgetUpdatePayloadSchema);
+    if ("error" in payload) {
+      return NextResponse.json({ error: payload.error }, { status: 400 });
     }
 
-    if (!Object.keys(payload as Record<string, unknown>).length) {
+    if (!Object.keys(payload.value).length) {
       return NextResponse.json(
         { error: "No fields provided for update" },
         { status: 400 }
       );
     }
 
-    const updated = await updateBudget(id, payload);
+    const updated = await updateBudget(id.value, payload.value);
     if (!updated) {
       return NextResponse.json(
         { error: "No fields provided for update" },
@@ -115,13 +72,13 @@ export const DELETE = async (
     );
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id) || id <= 0) {
-    return NextResponse.json({ error: "Invalid budget id" }, { status: 400 });
+  const id = parsePositiveIntParam(params.id, "Invalid budget id");
+  if ("error" in id) {
+    return NextResponse.json({ error: id.error }, { status: 400 });
   }
 
   try {
-    const deleted = await deleteBudget(id);
+    const deleted = await deleteBudget(id.value);
     if (!deleted) {
       return NextResponse.json({ error: "Budget not found" }, { status: 404 });
     }
