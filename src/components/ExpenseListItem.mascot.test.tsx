@@ -8,10 +8,6 @@ import ExpenseListItem from "./ExpenseListItem";
 
 const quickExpenseSheetMock = vi.hoisted(() => vi.fn());
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
-}));
-
 vi.mock("@/lib/mutations", () => ({
   useDeleteExpenseMutation: () => ({
     mutateAsync: vi.fn(),
@@ -22,11 +18,27 @@ vi.mock("motion/react", () => ({
   motion: {
     div: ({
       children,
+      animate: _animate,
+      drag: _drag,
+      dragConstraints: _dragConstraints,
+      dragDirectionLock: _dragDirectionLock,
+      dragElastic: _dragElastic,
+      dragTransition: _dragTransition,
       initial: _initial,
+      transition: _transition,
+      whileDrag: _whileDrag,
       ...props
-    }: React.HTMLAttributes<HTMLDivElement> & { initial?: unknown }) => (
-      <div {...props}>{children}</div>
-    ),
+    }: React.HTMLAttributes<HTMLDivElement> & {
+      animate?: unknown;
+      drag?: unknown;
+      dragConstraints?: unknown;
+      dragDirectionLock?: unknown;
+      dragElastic?: unknown;
+      dragTransition?: unknown;
+      initial?: unknown;
+      transition?: unknown;
+      whileDrag?: unknown;
+    }) => <div {...props}>{children}</div>,
   },
 }));
 
