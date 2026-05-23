@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const updateReturningMock = vi.fn();
 const selectWhereMock = vi.fn();
@@ -20,13 +20,9 @@ vi.mock("@/db", () => ({
   },
 }));
 
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
+import { transferBudgetAmount } from "./budget-transfer";
 
-import { transferBudgetAmount } from "./budget-weekly-actions";
-
-describe("transferBudgetAmount — input validation", () => {
+describe("transferBudgetAmount input validation", () => {
   beforeEach(() => {
     updateReturningMock.mockReset();
     selectWhereMock.mockReset();
@@ -58,7 +54,7 @@ describe("transferBudgetAmount — input validation", () => {
   });
 });
 
-describe("transferBudgetAmount — atomic update behavior", () => {
+describe("transferBudgetAmount atomic update behavior", () => {
   beforeEach(() => {
     updateReturningMock.mockReset();
     selectWhereMock.mockReset();
@@ -78,8 +74,8 @@ describe("transferBudgetAmount — atomic update behavior", () => {
   });
 
   it("returns code: 'INSUFFICIENT_CAP' when guard tripped but both budgets exist", async () => {
-    updateReturningMock.mockResolvedValue([]); // 0 rows updated
-    selectWhereMock.mockResolvedValue([{ id: 1 }, { id: 2 }]); // both still present
+    updateReturningMock.mockResolvedValue([]);
+    selectWhereMock.mockResolvedValue([{ id: 1 }, { id: 2 }]);
 
     const result = await transferBudgetAmount({
       fromBudgetId: 1,
@@ -92,7 +88,7 @@ describe("transferBudgetAmount — atomic update behavior", () => {
 
   it("returns code: 'NOT_FOUND' when one of the budgets is missing", async () => {
     updateReturningMock.mockResolvedValue([]);
-    selectWhereMock.mockResolvedValue([{ id: 1 }]); // only one present
+    selectWhereMock.mockResolvedValue([{ id: 1 }]);
 
     const result = await transferBudgetAmount({
       fromBudgetId: 1,
