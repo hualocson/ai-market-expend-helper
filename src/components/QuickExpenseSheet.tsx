@@ -2,10 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  createExpenseEntry,
-  updateExpenseEntry,
-} from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
@@ -13,6 +9,10 @@ import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
+import {
+  useCreateExpenseMutation,
+  useUpdateExpenseMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -180,6 +180,8 @@ const QuickExpenseSheet = ({
   const [amountFocused, setAmountFocused] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const createExpenseMutation = useCreateExpenseMutation();
+  const updateExpenseMutation = useUpdateExpenseMutation();
 
   const canSubmit = draft.amount > 0 && !loading;
 
@@ -203,9 +205,12 @@ const QuickExpenseSheet = ({
           toast.error("Failed to update expense");
           return;
         }
-        await updateExpenseEntry(transactionId, payload);
+        await updateExpenseMutation.mutateAsync({
+          id: transactionId,
+          input: payload,
+        });
       } else {
-        await createExpenseEntry(payload);
+        await createExpenseMutation.mutateAsync(payload);
       }
       toast.success(isEditMode ? "Expense updated" : "Expense added");
       handleOpenChange(false);

@@ -1,9 +1,5 @@
 import React from "react";
 
-import {
-  createExpenseEntry,
-  updateExpenseEntry,
-} from "@/app/actions/expense-actions";
 import { PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
@@ -23,9 +19,18 @@ const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("@/app/actions/expense-actions", () => ({
-  createExpenseEntry: vi.fn().mockResolvedValue({ id: 1 }),
-  updateExpenseEntry: vi.fn().mockResolvedValue({ id: 1 }),
+const mutationMocks = vi.hoisted(() => ({
+  createExpenseMutateAsync: vi.fn(),
+  updateExpenseMutateAsync: vi.fn(),
+}));
+
+vi.mock("@/lib/mutations", () => ({
+  useCreateExpenseMutation: () => ({
+    mutateAsync: mutationMocks.createExpenseMutateAsync,
+  }),
+  useUpdateExpenseMutation: () => ({
+    mutateAsync: mutationMocks.updateExpenseMutateAsync,
+  }),
 }));
 
 vi.mock("sonner", () => ({
@@ -103,8 +108,8 @@ const savedExpense = (id: number) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(createExpenseEntry).mockResolvedValue(savedExpense(1));
-  vi.mocked(updateExpenseEntry).mockResolvedValue(savedExpense(1));
+  mutationMocks.createExpenseMutateAsync.mockResolvedValue(savedExpense(1));
+  mutationMocks.updateExpenseMutateAsync.mockResolvedValue(savedExpense(1));
   weeklyBudgetOptionsMock.mockResolvedValue([]);
 });
 
@@ -222,7 +227,7 @@ describe("QuickExpenseSheet — submit", () => {
     ).toBeDisabled();
   });
 
-  it("calls createExpenseEntry with the full draft on submit", async () => {
+  it("calls create expense mutation with the full draft on submit", async () => {
     const user = await openSheet();
     const amount = screen.getByPlaceholderText("0");
     await user.click(amount);
@@ -230,7 +235,7 @@ describe("QuickExpenseSheet — submit", () => {
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
     await waitFor(() => {
-      expect(createExpenseEntry).toHaveBeenCalledWith(
+      expect(mutationMocks.createExpenseMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           amount: 12000,
           note: "",
@@ -282,7 +287,7 @@ describe("QuickExpenseSheet — submit", () => {
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
     await waitFor(() => {
-      expect(createExpenseEntry).toHaveBeenCalledWith(
+      expect(mutationMocks.createExpenseMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({ budgetId: null })
       );
     });
@@ -353,7 +358,7 @@ describe("QuickExpenseSheet — edit mode", () => {
     expect(await screen.findByText("Sports week")).toBeInTheDocument();
   });
 
-  it("calls updateExpenseEntry instead of createExpenseEntry", async () => {
+  it("calls update expense mutation instead of create expense mutation", async () => {
     const user = userEvent.setup();
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
@@ -363,19 +368,19 @@ describe("QuickExpenseSheet — edit mode", () => {
     await user.click(screen.getByRole("button", { name: /update expense/i }));
 
     await waitFor(() => {
-      expect(updateExpenseEntry).toHaveBeenCalledWith(
-        42,
-        expect.objectContaining({
+      expect(mutationMocks.updateExpenseMutateAsync).toHaveBeenCalledWith({
+        id: 42,
+        input: expect.objectContaining({
           date: "20/05/2026",
           amount: 150000,
           note: "Badminton court",
           category: "Badminton",
           paidBy: "Embe",
           budgetId: 2,
-        })
-      );
+        }),
+      });
     });
-    expect(createExpenseEntry).not.toHaveBeenCalled();
+    expect(mutationMocks.createExpenseMutateAsync).not.toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onSuccess).toHaveBeenCalled();
   });
@@ -386,7 +391,7 @@ describe("QuickExpenseSheet — edit mode", () => {
 
     await user.click(screen.getByRole("button", { name: /update expense/i }));
 
-    expect(updateExpenseEntry).not.toHaveBeenCalled();
+    expect(mutationMocks.updateExpenseMutateAsync).not.toHaveBeenCalled();
     expect(toastMock.error).toHaveBeenCalledWith("Failed to update expense");
   });
 });

@@ -12,8 +12,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 
-vi.mock("@/app/actions/expense-actions", () => ({
-  deleteExpenseEntry: vi.fn(),
+vi.mock("@/lib/mutations", () => ({
+  useDeleteExpenseMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
 }));
 
 vi.mock("motion/react", () => ({

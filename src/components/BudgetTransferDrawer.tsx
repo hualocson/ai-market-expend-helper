@@ -2,13 +2,13 @@
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 
-import { transferBudgetAmount } from "@/app/actions/budget-weekly-actions";
 import dayjs from "@/configs/date";
 import { groupTransferCandidates } from "@/lib/budget-transfer-groups";
+import { useTransferBudgetMutation } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import type { BudgetListItem } from "@/types/budget-weekly";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   ArrowDown,
@@ -157,11 +157,11 @@ const SourceBudgetRow = memo(function SourceBudgetRow({
 });
 
 const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
-  const queryClient = useQueryClient();
   const [sourceId, setSourceId] = useState<number | null>(null);
   const [amount, setAmount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const transferBudgetMutation = useTransferBudgetMutation();
 
   const handleSelectSource = useCallback((id: number) => setSourceId(id), []);
 
@@ -243,7 +243,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
     }
     try {
       setIsSaving(true);
-      const result = await transferBudgetAmount({
+      const result = await transferBudgetMutation.mutateAsync({
         fromBudgetId: source.id,
         toBudgetId: destination.id,
         amount,
@@ -251,20 +251,6 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
 
       if (result.ok) {
         toast.success("Funds moved.");
-        await queryClient.invalidateQueries({
-          queryKey: queries.budgets.overview.queryKey,
-        });
-        await queryClient.invalidateQueries({
-          queryKey: queries.budgets.transactions(destination.id).queryKey,
-        });
-        await queryClient.invalidateQueries({
-          queryKey: queries.budgets.transactions(source.id).queryKey,
-        });
-        // Invalidate every cached transfer-candidates query — both source and
-        // destination amounts changed, so any other budget's picker is stale too.
-        await queryClient.invalidateQueries({
-          queryKey: queries.budgets.transferCandidates._def,
-        });
         onOpenChange(false);
         return;
       }
@@ -284,9 +270,6 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
           toast.error("Failed to move funds.");
         }
       }
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgets.overview.queryKey,
-      });
     } catch (error) {
       console.error(error);
       toast.error("Failed to move funds.");

@@ -1,25 +1,27 @@
 import React from "react";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+
+import type { BudgetListItem } from "@/types/budget-weekly";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import BudgetTransferDrawer from "./BudgetTransferDrawer";
-import type { BudgetListItem } from "@/types/budget-weekly";
 
 const transferMock = vi.fn();
 const getCandidatesMock = vi.fn();
 
 vi.mock("@/app/actions/budget-weekly-actions", () => ({
-  transferBudgetAmount: (...args: unknown[]) => transferMock(...args),
   getTransferCandidates: (...args: unknown[]) => getCandidatesMock(...args),
 }));
 
-const invalidateQueriesMock = vi.fn();
+vi.mock("@/lib/mutations", () => ({
+  useTransferBudgetMutation: () => ({
+    mutateAsync: (...args: unknown[]) => transferMock(...args),
+  }),
+}));
+
 const useQueryMock = vi.fn();
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({
-    invalidateQueries: (...args: unknown[]) => invalidateQueriesMock(...args),
-  }),
   useQuery: (opts: { queryFn: () => Promise<unknown>; enabled?: boolean }) =>
     useQueryMock(opts),
 }));
@@ -60,7 +62,6 @@ const useQueryReturn = (overrides: {
 beforeEach(() => {
   transferMock.mockReset();
   getCandidatesMock.mockReset();
-  invalidateQueriesMock.mockReset();
   toastSuccess.mockReset();
   toastError.mockReset();
   useQueryMock.mockReset();
@@ -78,10 +79,16 @@ describe("BudgetTransferDrawer", () => {
     const destination = makeBudget({ id: 1, name: "Groceries" });
 
     render(
-      <BudgetTransferDrawer open onOpenChange={() => {}} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     expect(
       screen.getByTestId("budget-transfer-candidates-skeleton")
     ).toBeInTheDocument();
@@ -89,24 +96,43 @@ describe("BudgetTransferDrawer", () => {
 
   it("disables submit until a source is picked and amount is valid", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    const destination = makeBudget({ id: 1, name: "Groceries", amount: 100_000 });
-    const source = makeBudget({ id: 2, name: "Dining", amount: 200_000, remaining: 150_000 });
+    const destination = makeBudget({
+      id: 1,
+      name: "Groceries",
+      amount: 100_000,
+    });
+    const source = makeBudget({
+      id: 2,
+      name: "Dining",
+      amount: 200_000,
+      remaining: 150_000,
+    });
     useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
 
     render(
-      <BudgetTransferDrawer open onOpenChange={() => {}} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+      />
     );
 
     expect(screen.getByRole("button", { name: /move funds/i })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
 
-    expect(screen.getByRole("button", { name: /move funds/i, hidden: true })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /move funds/i, hidden: true })
+    ).toBeDisabled();
 
     await user.type(screen.getByLabelText(/amount/i), "30000");
 
-    expect(screen.getByRole("button", { name: /move funds/i, hidden: true })).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /move funds/i, hidden: true })
+    ).not.toBeDisabled();
   });
 
   it("renders candidates inside period-instance groups in fixed order", () => {
@@ -129,7 +155,9 @@ describe("BudgetTransferDrawer", () => {
       periodStartDate: "2026-05-01",
       periodEndDate: "2026-05-31",
     });
-    useQueryMock.mockReturnValue(useQueryReturn({ data: [thisMonth, lastWeek, thisWeek] }));
+    useQueryMock.mockReturnValue(
+      useQueryReturn({ data: [thisMonth, lastWeek, thisWeek] })
+    );
 
     render(
       <BudgetTransferDrawer
@@ -139,7 +167,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
 
     const headings = screen
       .getAllByTestId("budget-transfer-group-label")
@@ -165,7 +195,9 @@ describe("BudgetTransferDrawer", () => {
       spent: 0,
       remaining: 200_000,
     });
-    useQueryMock.mockReturnValue(useQueryReturn({ data: [overspent, healthy] }));
+    useQueryMock.mockReturnValue(
+      useQueryReturn({ data: [overspent, healthy] })
+    );
 
     render(
       <BudgetTransferDrawer
@@ -175,13 +207,21 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     expect(screen.getByRole("button", { name: /Travel/i })).toBeDisabled();
     expect(screen.getByText(/no cap to pull/i)).toBeInTheDocument();
   });
 
   it("shows the 'no cap to spare' card when every candidate has remaining <= 0", () => {
-    const drained = makeBudget({ id: 99, name: "Travel", amount: 100_000, spent: 100_000, remaining: 0 });
+    const drained = makeBudget({
+      id: 99,
+      name: "Travel",
+      amount: 100_000,
+      spent: 100_000,
+      remaining: 0,
+    });
     useQueryMock.mockReturnValue(useQueryReturn({ data: [drained] }));
 
     render(
@@ -192,7 +232,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     expect(screen.getByText(/no budget has cap to spare/i)).toBeInTheDocument();
   });
 
@@ -207,7 +249,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    expect(screen.getByText(/no other budgets to pull from/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/no other budgets to pull from/i)
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /move funds/i })).toBeNull();
   });
 
@@ -226,7 +270,9 @@ describe("BudgetTransferDrawer", () => {
     expect(
       screen.getByRole("button", { name: /select source budget/i })
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
   });
@@ -244,10 +290,16 @@ describe("BudgetTransferDrawer", () => {
     useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
 
     render(
-      <BudgetTransferDrawer open onOpenChange={() => {}} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /Travel/i }));
     await user.type(screen.getByLabelText(/amount/i), "50000");
 
@@ -270,10 +322,16 @@ describe("BudgetTransferDrawer", () => {
     useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
 
     render(
-      <BudgetTransferDrawer open onOpenChange={() => {}} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /Snacks/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
 
@@ -283,7 +341,7 @@ describe("BudgetTransferDrawer", () => {
     expect(screen.getByText(/cannot move more than/i)).toBeInTheDocument();
   });
 
-  it("on success: invalidates overview + transactions + transfer-candidates, toasts, closes drawer", async () => {
+  it("on success: transfers funds, toasts, and closes drawer", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     transferMock.mockResolvedValue({ ok: true });
     const onOpenChange = vi.fn();
@@ -298,13 +356,21 @@ describe("BudgetTransferDrawer", () => {
     useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
 
     render(
-      <BudgetTransferDrawer open onOpenChange={onOpenChange} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={onOpenChange}
+        destination={destination}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
-    await user.click(screen.getByRole("button", { name: /^move funds$/i, hidden: true }));
+    await user.click(
+      screen.getByRole("button", { name: /^move funds$/i, hidden: true })
+    );
 
     expect(transferMock).toHaveBeenCalledWith({
       fromBudgetId: 2,
@@ -312,18 +378,6 @@ describe("BudgetTransferDrawer", () => {
       amount: 30_000,
     });
     expect(toastSuccess).toHaveBeenCalledWith("Funds moved.");
-    expect(invalidateQueriesMock).toHaveBeenCalledTimes(4);
-    const invalidatedKeys = invalidateQueriesMock.mock.calls.map(
-      (call) => (call[0] as { queryKey: unknown }).queryKey
-    );
-    expect(invalidatedKeys).toEqual(
-      expect.arrayContaining([
-        ["budgets", "overview"],
-        ["budgets", "transactions", 1],
-        ["budgets", "transactions", 2],
-        ["budgets", "transferCandidates"],
-      ])
-    );
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
@@ -342,13 +396,21 @@ describe("BudgetTransferDrawer", () => {
     useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
 
     render(
-      <BudgetTransferDrawer open onOpenChange={onOpenChange} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={onOpenChange}
+        destination={destination}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
-    await user.click(screen.getByRole("button", { name: /^move funds$/i, hidden: true }));
+    await user.click(
+      screen.getByRole("button", { name: /^move funds$/i, hidden: true })
+    );
 
     expect(toastError).toHaveBeenCalledWith(
       "That budget no longer has enough to move. Try a smaller amount."
@@ -371,20 +433,30 @@ describe("BudgetTransferDrawer", () => {
     useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
 
     render(
-      <BudgetTransferDrawer open onOpenChange={onOpenChange} destination={destination} />
+      <BudgetTransferDrawer
+        open
+        onOpenChange={onOpenChange}
+        destination={destination}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
     await user.type(screen.getByLabelText(/amount/i), "30000");
-    await user.click(screen.getByRole("button", { name: /^move funds$/i, hidden: true }));
+    await user.click(
+      screen.getByRole("button", { name: /^move funds$/i, hidden: true })
+    );
 
     expect(toastError).toHaveBeenCalledWith("Source budget no longer exists.");
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
   it("renders sticky destination header inside the nested drawer", () => {
-    useQueryMock.mockReturnValue(useQueryReturn({ data: [makeBudget({ id: 2, name: "Coffee" })] }));
+    useQueryMock.mockReturnValue(
+      useQueryReturn({ data: [makeBudget({ id: 2, name: "Coffee" })] })
+    );
 
     render(
       <BudgetTransferDrawer
@@ -394,7 +466,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     const header = screen.getByTestId("budget-transfer-nested-destination");
     expect(within(header).getByText("Groceries")).toBeInTheDocument();
     expect(within(header).getByText(/filling/i)).toBeInTheDocument();
@@ -418,7 +492,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     const row = screen.getByRole("button", { name: /Coffee/i });
     // Single cap reading only: amount appears once, the redundant "of …" line is absent.
     expect(within(row).getAllByText(/500\.000/)).toHaveLength(1);
@@ -443,7 +519,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     const row = screen.getByRole("button", { name: /Travel/i });
     expect(within(row).getByText("300.000")).toBeInTheDocument();
     expect(within(row).getByText(/of 400\.000/)).toBeInTheDocument();
@@ -454,7 +532,9 @@ describe("BudgetTransferDrawer", () => {
     const coffee = makeBudget({ id: 10, name: "Coffee" });
     const lunch = makeBudget({ id: 11, name: "Lunch" });
     const dinner = makeBudget({ id: 12, name: "Dinner" });
-    useQueryMock.mockReturnValue(useQueryReturn({ data: [coffee, lunch, dinner] }));
+    useQueryMock.mockReturnValue(
+      useQueryReturn({ data: [coffee, lunch, dinner] })
+    );
 
     render(
       <BudgetTransferDrawer
@@ -464,7 +544,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     await user.type(screen.getByLabelText(/search source budgets/i), "lun");
 
     expect(screen.getByRole("button", { name: /Lunch/i })).toBeInTheDocument();
@@ -486,7 +568,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     // Plain ASCII query should still match the accented budget name.
     await user.type(screen.getByLabelText(/search source budgets/i), "an toi");
     expect(screen.getByRole("button", { name: /Ăn tối/i })).toBeInTheDocument();
@@ -507,10 +591,14 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     // "dau" should hit "Đậu" — both Đ→d and the diacritics on âu must normalize away.
     await user.type(screen.getByLabelText(/search source budgets/i), "dau");
-    expect(screen.getByRole("button", { name: /Đậu phụng/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Đậu phụng/i })
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
   });
 
@@ -527,14 +615,18 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
     await user.type(screen.getByLabelText(/search source budgets/i), "xyz");
 
     expect(screen.getByText(/no budgets match "xyz"/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /^clear$/i }));
-    expect(screen.getByRole("button", { name: /^Coffee/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Coffee/i })
+    ).toBeInTheDocument();
   });
 
   it("appends a period range to row labels in the EARLIER group", () => {
@@ -564,7 +656,9 @@ describe("BudgetTransferDrawer", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select source budget/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
 
     // Both budgets share the name "an toi" — their period range disambiguates them.
     expect(screen.getByText(/Apr 12 – Apr 18/i)).toBeInTheDocument();

@@ -10,11 +10,11 @@ import {
   useState,
 } from "react";
 
-import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { groupBudgetOptions, pickDefaultBudget } from "@/lib/budget-options";
+import { useCreateExpenseMutation } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
@@ -172,6 +172,7 @@ const ManualExpenseForm = forwardRef<
     const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
     const [paidByDrawerOpen, setPaidByDrawerOpen] = useState(false);
     const [budgetDrawerOpen, setBudgetDrawerOpen] = useState(false);
+    const createExpenseMutation = useCreateExpenseMutation();
 
     const amountRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -224,8 +225,11 @@ const ManualExpenseForm = forwardRef<
           paidBy: paidBy?.trim() || paidByOptions[0],
           budgetId: showBudgetSelect ? budgetId : null,
         };
-        const submitAction = onSubmit ?? createExpenseEntry;
-        await submitAction(payload);
+        if (onSubmit) {
+          await onSubmit(payload);
+        } else {
+          await createExpenseMutation.mutateAsync(payload);
+        }
         toast.success(successMessage);
         onSuccess?.();
       } catch (error) {
@@ -243,6 +247,7 @@ const ManualExpenseForm = forwardRef<
       onSuccess,
       paidBy,
       budgetId,
+      createExpenseMutation,
       showBudgetSelect,
       successMessage,
     ]);
