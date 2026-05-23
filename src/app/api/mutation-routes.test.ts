@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { POST as postBudgetTransfer } from "./budgets/transfer/route";
+import {
+  DELETE as deleteExpense,
+  PATCH as patchExpense,
+} from "./expenses/[id]/route";
 import { POST as postExpense } from "./expenses/route";
 import { POST as postTransactionBudget } from "./transaction-budget/route";
 import {
@@ -12,12 +17,18 @@ const mocks = vi.hoisted(() => ({
   createBudget: vi.fn(),
   createExpense: vi.fn(),
   deleteBudget: vi.fn(),
+  revalidatePath: vi.fn(),
   setExpenseBudget: vi.fn(),
+  softDeleteExpense: vi.fn(),
+  transferBudgetAmount: vi.fn(),
   updateBudget: vi.fn(),
+  updateExpense: vi.fn(),
 }));
 
 vi.mock("@/db/queries", () => ({
   createExpense: mocks.createExpense,
+  softDeleteExpense: mocks.softDeleteExpense,
+  updateExpense: mocks.updateExpense,
 }));
 
 vi.mock("@/db/budget-queries", () => ({
@@ -25,6 +36,14 @@ vi.mock("@/db/budget-queries", () => ({
   deleteBudget: mocks.deleteBudget,
   setExpenseBudget: mocks.setExpenseBudget,
   updateBudget: mocks.updateBudget,
+}));
+
+vi.mock("@/lib/services/budget-transfer", () => ({
+  transferBudgetAmount: mocks.transferBudgetAmount,
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: mocks.revalidatePath,
 }));
 
 const jsonRequest = (url: string, payload: unknown) =>
@@ -76,6 +95,101 @@ describe("REST mutation routes", () => {
       error: "Invalid payload",
     });
     expect(mocks.createExpense).not.toHaveBeenCalled();
+  });
+
+  it("updates an expense with a validated payload", async () => {
+    const payload = {
+      date: "23/05/2026",
+      note: "Lunch",
+      amount: 85000,
+      category: "Food",
+      paidBy: "Embe",
+      budgetId: 2,
+    };
+    const updated = { id: 5, ...payload };
+    mocks.updateExpense.mockResolvedValue(updated);
+
+    const response = await patchExpense(
+      jsonRequest("http://localhost/api/expenses/5", payload),
+      { params: { id: "5" } }
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(updated);
+    expect(mocks.updateExpense).toHaveBeenCalledWith(5, payload);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
+  });
+
+  it("returns 400 for an invalid expense id", async () => {
+    const response = await patchExpense(
+      jsonRequest("http://localhost/api/expenses/0", {
+        date: "23/05/2026",
+        note: "Lunch",
+        amount: 85000,
+        category: "Food",
+        paidBy: "Embe",
+        budgetId: null,
+      }),
+      { params: { id: "0" } }
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid expense id",
+    });
+    expect(mocks.updateExpense).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when updating a missing expense", async () => {
+    mocks.updateExpense.mockRejectedValue(new Error("Expense not found"));
+
+    const response = await patchExpense(
+      jsonRequest("http://localhost/api/expenses/5", {
+        date: "23/05/2026",
+        note: "Lunch",
+        amount: 85000,
+        category: "Food",
+        paidBy: "Embe",
+        budgetId: null,
+      }),
+      { params: { id: "5" } }
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Expense not found",
+    });
+  });
+
+  it("soft deletes an expense", async () => {
+    const deleted = { id: 5, isDeleted: true };
+    mocks.softDeleteExpense.mockResolvedValue(deleted);
+
+    const response = await deleteExpense(
+      new Request("http://localhost/api/expenses/5", { method: "DELETE" }),
+      { params: { id: "5" } }
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(deleted);
+    expect(mocks.softDeleteExpense).toHaveBeenCalledWith(5);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
+  });
+
+  it("returns 404 when deleting a missing expense", async () => {
+    mocks.softDeleteExpense.mockResolvedValue(undefined);
+
+    const response = await deleteExpense(
+      new Request("http://localhost/api/expenses/5", { method: "DELETE" }),
+      { params: { id: "5" } }
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Expense not found",
+    });
   });
 
   it("creates a weekly budget with a validated payload", async () => {
@@ -184,5 +298,75 @@ describe("REST mutation routes", () => {
       error: "Invalid payload",
     });
     expect(mocks.setExpenseBudget).not.toHaveBeenCalled();
+  });
+
+  it("transfers budget amount with a validated payload", async () => {
+    const payload = { fromBudgetId: 1, toBudgetId: 2, amount: 50000 };
+    mocks.transferBudgetAmount.mockResolvedValue({ ok: true });
+
+    const response = await postBudgetTransfer(
+      jsonRequest("http://localhost/api/budgets/transfer", payload)
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.transferBudgetAmount).toHaveBeenCalledWith(payload);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
+  });
+
+  it("returns 400 for an invalid budget transfer payload", async () => {
+    const response = await postBudgetTransfer(
+      jsonRequest("http://localhost/api/budgets/transfer", {
+        fromBudgetId: 1,
+        toBudgetId: 1,
+        amount: 50000,
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid payload",
+    });
+    expect(mocks.transferBudgetAmount).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when transferring from or to a missing budget", async () => {
+    mocks.transferBudgetAmount.mockResolvedValue({
+      ok: false,
+      code: "NOT_FOUND",
+    });
+
+    const response = await postBudgetTransfer(
+      jsonRequest("http://localhost/api/budgets/transfer", {
+        fromBudgetId: 1,
+        toBudgetId: 2,
+        amount: 50000,
+      })
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Budget not found",
+    });
+  });
+
+  it("returns 400 when transfer source has insufficient amount", async () => {
+    mocks.transferBudgetAmount.mockResolvedValue({
+      ok: false,
+      code: "INSUFFICIENT_CAP",
+    });
+
+    const response = await postBudgetTransfer(
+      jsonRequest("http://localhost/api/budgets/transfer", {
+        fromBudgetId: 1,
+        toBudgetId: 2,
+        amount: 50000,
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Insufficient source budget amount",
+    });
   });
 });

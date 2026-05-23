@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { setExpenseBudget } from "@/db/budget-queries";
@@ -14,6 +15,7 @@ export const POST = async (request: Request) => {
     }
 
     const updated = await setExpenseBudget(payload.value);
+    revalidatePath("/budgets");
     return NextResponse.json(updated);
   } catch (error) {
     if (
