@@ -1,10 +1,11 @@
-import { getTransferCandidates } from "@/app/actions/budget-weekly-actions";
 import {
   BudgetListItem,
   BudgetOverviewReport,
   BudgetTransactionsResponse,
 } from "@/types/budget-weekly";
 import { createQueryKeys } from "@lukemorales/query-key-factory";
+
+import { fetchJson } from "./http";
 
 export const fetchBudgetOverview = async (): Promise<BudgetOverviewReport> => {
   const response = await fetch("/api/budgets", {
@@ -55,6 +56,17 @@ export const fetchBudgetTransactions = async (
   return (await response.json()) as BudgetTransactionsResponse;
 };
 
+export const fetchBudgetTransferCandidates = async (
+  destinationId: number
+): Promise<BudgetListItem[]> =>
+  fetchJson<BudgetListItem[]>(
+    `/api/budgets/transfer-candidates?destinationId=${destinationId}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
+
 const baseBudgetQueries = createQueryKeys("budgets", {
   overview: {
     queryKey: null,
@@ -74,7 +86,7 @@ const baseBudgetQueries = createQueryKeys("budgets", {
   transferCandidates: (destinationId: number) => ({
     queryKey: [destinationId],
     queryFn: (): Promise<BudgetListItem[]> =>
-      getTransferCandidates({ destinationBudgetId: destinationId }),
+      fetchBudgetTransferCandidates(destinationId),
   }),
 });
 
