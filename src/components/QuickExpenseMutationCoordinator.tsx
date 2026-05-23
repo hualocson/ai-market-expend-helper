@@ -15,6 +15,8 @@ import { toast } from "sonner";
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
+const RECOVERY_TOAST_DURATION_MS = 9000;
+
 export default function QuickExpenseMutationCoordinator() {
   const { mutateAsync: createExpense } = useCreateExpenseMutation();
   const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
@@ -97,6 +99,7 @@ export default function QuickExpenseMutationCoordinator() {
             ),
             {
               id: latest?.toastId,
+              duration: RECOVERY_TOAST_DURATION_MS,
               action: {
                 label: "Reopen",
                 onClick: () => setActiveRecovery(operationId),
