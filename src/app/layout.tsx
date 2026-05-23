@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import AppMain from "@/components/AppMain";
 import BottomNav from "@/components/BottomNav";
+import CssPropertyRegistry from "@/components/CssPropertyRegistry";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
@@ -282,6 +283,7 @@ export default function RootLayout({
         )}
       >
         <ReactQueryProvider>
+          <CssPropertyRegistry />
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"

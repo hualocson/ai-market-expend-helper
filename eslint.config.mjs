@@ -1,4 +1,5 @@
 import pluginJs from "@eslint/js";
+import nextPlugin from "@next/eslint-plugin-next";
 import pluginReact from "eslint-plugin-react";
 import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
@@ -21,6 +22,9 @@ export default defineConfig([
 
   // React recommended config
   pluginReact.configs.flat.recommended,
+
+  // Next.js recommended config
+  nextPlugin.flatConfig.coreWebVitals,
 
   // TypeScript recommended configs
   ...tseslint.configs.recommended,
