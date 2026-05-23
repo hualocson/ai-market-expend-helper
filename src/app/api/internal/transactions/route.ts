@@ -4,46 +4,12 @@ import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { createExpense } from "@/db/queries";
 import { expenses } from "@/db/schema";
-import { CreateExpenseInput } from "@/db/type";
-import { PaidBy } from "@/enums";
+import {
+  expenseMutationPayloadSchema,
+  parseJsonPayload,
+} from "@/lib/api/route-schemas";
 import { verifyInternalToken } from "@/lib/internal-auth";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
-
-type InternalCreateTransactionInput = {
-  amount: number;
-  budgetId?: number | null;
-  category: string;
-  date: string;
-  note?: string;
-  paidBy: PaidBy;
-};
-
-const isPaidBy = (value: unknown): value is PaidBy =>
-  typeof value === "string" &&
-  Object.values(PaidBy).includes(value as PaidBy);
-
-const isValidPayload = (
-  payload: unknown
-): payload is InternalCreateTransactionInput => {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
-  const input = payload as Record<string, unknown>;
-  const hasValidBudgetId =
-    typeof input.budgetId === "undefined" ||
-    input.budgetId === null ||
-    typeof input.budgetId === "number";
-
-  return (
-    typeof input.date === "string" &&
-    typeof input.amount === "number" &&
-    typeof input.category === "string" &&
-    (typeof input.note === "undefined" || typeof input.note === "string") &&
-    isPaidBy(input.paidBy) &&
-    hasValidBudgetId
-  );
-};
 
 const isIsoDate = (value: string) => dayjs(value, "YYYY-MM-DD", true).isValid();
 const DEFAULT_LIMIT = 100;
@@ -65,7 +31,9 @@ export const GET = async (request: Request) => {
   const query = searchParams.get("q");
   const limitParam = searchParams.get("limit");
 
-  const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : DEFAULT_LIMIT;
+  const parsedLimit = limitParam
+    ? Number.parseInt(limitParam, 10)
+    : DEFAULT_LIMIT;
   if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
     return NextResponse.json(
       { error: "Invalid limit. Use a positive integer." },
@@ -139,12 +107,15 @@ export const POST = async (request: Request) => {
   }
 
   try {
-    const payload = await request.json();
-    if (!isValidPayload(payload)) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    const payload = await parseJsonPayload(
+      request,
+      expenseMutationPayloadSchema
+    );
+    if ("error" in payload) {
+      return NextResponse.json({ error: payload.error }, { status: 400 });
     }
 
-    const created = await createExpense(payload as CreateExpenseInput);
+    const created = await createExpense(payload.value);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create internal transaction:", error);

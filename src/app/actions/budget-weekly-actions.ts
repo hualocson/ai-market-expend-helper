@@ -2,9 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 
-import { and, inArray, sql } from "drizzle-orm";
-import { z } from "zod";
-
 import { db } from "@/db";
 import {
   createBudget,
@@ -15,11 +12,17 @@ import {
 } from "@/db/budget-queries";
 import { budgets } from "@/db/schema";
 import {
+  BudgetTransferPayload,
+  budgetTransferPayloadSchema,
+  positiveIntParamSchema,
+} from "@/lib/api/route-schemas";
+import {
   BudgetCreateInput,
   BudgetListItem,
   BudgetUpdateInput,
   ExpenseBudgetInput,
 } from "@/types/budget-weekly";
+import { and, inArray, sql } from "drizzle-orm";
 
 export async function createWeeklyBudgetEntry(input: BudgetCreateInput) {
   try {
@@ -68,17 +71,7 @@ export async function setTransactionBudgetEntry(input: ExpenseBudgetInput) {
   }
 }
 
-const transferBudgetSchema = z
-  .object({
-    fromBudgetId: z.number().int().positive(),
-    toBudgetId: z.number().int().positive(),
-    amount: z.number().int().positive(),
-  })
-  .refine((d) => d.fromBudgetId !== d.toBudgetId, {
-    message: "Source and destination must be different budgets",
-  });
-
-export type TransferBudgetInput = z.infer<typeof transferBudgetSchema>;
+export type TransferBudgetInput = BudgetTransferPayload;
 
 export type TransferBudgetResult =
   | { ok: true }
@@ -87,7 +80,7 @@ export type TransferBudgetResult =
 export async function transferBudgetAmount(
   input: TransferBudgetInput
 ): Promise<TransferBudgetResult> {
-  const parsed = transferBudgetSchema.parse(input);
+  const parsed = budgetTransferPayloadSchema.parse(input);
   const { fromBudgetId, toBudgetId, amount } = parsed;
 
   try {
@@ -130,18 +123,16 @@ export async function transferBudgetAmount(
   }
 }
 
-const getTransferCandidatesSchema = z.object({
-  destinationBudgetId: z.number().int().positive(),
-});
-
-export type GetTransferCandidatesInput = z.infer<
-  typeof getTransferCandidatesSchema
->;
+export type GetTransferCandidatesInput = {
+  destinationBudgetId: number;
+};
 
 export async function getTransferCandidates(
   input: GetTransferCandidatesInput
 ): Promise<BudgetListItem[]> {
-  const { destinationBudgetId } = getTransferCandidatesSchema.parse(input);
+  const destinationBudgetId = positiveIntParamSchema.parse(
+    input.destinationBudgetId
+  );
 
   try {
     return await getTransferCandidatesQuery(destinationBudgetId);

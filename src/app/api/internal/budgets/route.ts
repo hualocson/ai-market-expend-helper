@@ -5,28 +5,11 @@ import {
   getBudgetOverview,
   getWeeklyBudgetReport,
 } from "@/db/budget-queries";
+import {
+  budgetCreatePayloadSchema,
+  parseJsonPayload,
+} from "@/lib/api/route-schemas";
 import { verifyInternalToken } from "@/lib/internal-auth";
-import { BudgetCreateInput, BudgetPeriod } from "@/types/budget-weekly";
-
-const isBudgetPeriod = (value: unknown): value is BudgetPeriod =>
-  value === "week" || value === "month" || value === "custom";
-
-const isValidCreatePayload = (payload: unknown): payload is BudgetCreateInput => {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
-  const input = payload as Record<string, unknown>;
-  return (
-    typeof input.name === "string" &&
-    typeof input.amount === "number" &&
-    isBudgetPeriod(input.period) &&
-    typeof input.periodStartDate === "string" &&
-    (typeof input.periodEndDate === "undefined" ||
-      input.periodEndDate === null ||
-      typeof input.periodEndDate === "string")
-  );
-};
 
 export const GET = async (request: Request) => {
   const authResult = verifyInternalToken(request);
@@ -68,12 +51,12 @@ export const POST = async (request: Request) => {
   }
 
   try {
-    const payload = await request.json();
-    if (!isValidCreatePayload(payload)) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    const payload = await parseJsonPayload(request, budgetCreatePayloadSchema);
+    if ("error" in payload) {
+      return NextResponse.json({ error: payload.error }, { status: 400 });
     }
 
-    const created = await createBudget(payload);
+    const created = await createBudget(payload.value);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create internal budget:", error);

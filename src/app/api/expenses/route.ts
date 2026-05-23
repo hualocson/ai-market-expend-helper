@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { createExpense } from "@/db/queries";
-import { CreateExpenseInput } from "@/db/type";
 import { parseExpenseListParams } from "@/lib/api/read-route-params";
+import {
+  expenseMutationPayloadSchema,
+  parseJsonPayload,
+} from "@/lib/api/route-schemas";
 import { getExpenseList } from "@/lib/services/expenses";
 
 export const GET = async (request: Request) => {
@@ -26,8 +29,15 @@ export const GET = async (request: Request) => {
 
 export const POST = async (request: Request) => {
   try {
-    const payload = (await request.json()) as CreateExpenseInput;
-    const created = await createExpense(payload);
+    const payload = await parseJsonPayload(
+      request,
+      expenseMutationPayloadSchema
+    );
+    if ("error" in payload) {
+      return NextResponse.json({ error: payload.error }, { status: 400 });
+    }
+
+    const created = await createExpense(payload.value);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create expense:", error);
