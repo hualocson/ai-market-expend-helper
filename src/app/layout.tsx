@@ -307,15 +307,7 @@ export default function RootLayout({
             </SettingsStoreProvider>
           </ThemeProvider>
 
-          <Toaster
-            position="top-right"
-            richColors
-            toastOptions={{
-              classNames: {
-                toast: "group-[.toaster]:pointer-events-auto",
-              },
-            }}
-          />
+          <Toaster />
         </ReactQueryProvider>
       </body>
     </html>

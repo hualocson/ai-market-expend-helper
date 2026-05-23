@@ -164,6 +164,7 @@ describe("QuickExpenseMutationCoordinator", () => {
         "Network down",
         expect.objectContaining({
           id: "loading-toast",
+          duration: 9000,
           action: expect.objectContaining({ label: "Reopen" }),
         })
       )
@@ -214,7 +215,11 @@ describe("QuickExpenseMutationCoordinator", () => {
     await waitFor(() =>
       expect(toastMock.error).toHaveBeenCalledWith(
         "Failed to update expense",
-        expect.objectContaining({ id: undefined })
+        expect.objectContaining({
+          id: undefined,
+          duration: 9000,
+          action: expect.objectContaining({ label: "Reopen" }),
+        })
       )
     );
     expect(
@@ -236,6 +241,7 @@ describe("QuickExpenseMutationCoordinator", () => {
         "Failed to update expense",
         expect.objectContaining({
           id: "loading-toast",
+          duration: 9000,
           action: expect.objectContaining({ label: "Reopen" }),
         })
       )
