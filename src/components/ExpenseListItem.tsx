@@ -5,10 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { deleteExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
+import { useDeleteExpenseMutation } from "@/lib/mutations";
 import { cn, formatVnd } from "@/lib/utils";
 import { Copy, NotebookIcon, Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
@@ -52,6 +52,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const router = useRouter();
+  const deleteExpenseMutation = useDeleteExpenseMutation();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const formattedAmount = useMemo(
@@ -156,7 +157,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
 
     try {
       setIsDeleting(true);
-      await deleteExpenseEntry(expense.id);
+      await deleteExpenseMutation.mutateAsync(expense.id);
       toast.success("Expense deleted.");
       setIsOpen(false);
       router.refresh();

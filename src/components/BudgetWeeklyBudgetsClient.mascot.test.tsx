@@ -34,17 +34,22 @@ vi.mock("@tanstack/react-query", () => ({
     isFetchingNextPage: false,
     isPending: false,
   }),
-  useQueryClient: () => ({
-    invalidateQueries: vi.fn(),
-  }),
 }));
 
 vi.mock("@/app/actions/budget-weekly-actions", () => ({
-  createWeeklyBudgetEntry: vi.fn(),
-  deleteWeeklyBudgetEntry: vi.fn(),
   getTransferCandidates: vi.fn(),
-  transferBudgetAmount: vi.fn(),
-  updateWeeklyBudgetEntry: vi.fn(),
+}));
+
+vi.mock("@/lib/mutations", () => ({
+  useCreateBudgetMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+  useDeleteBudgetMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+  useUpdateBudgetMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
 }));
 
 vi.mock("@/components/ExpenseItemIcon", () => ({

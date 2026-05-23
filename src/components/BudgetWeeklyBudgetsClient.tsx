@@ -5,13 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import {
-  createWeeklyBudgetEntry,
-  deleteWeeklyBudgetEntry,
-  updateWeeklyBudgetEntry,
-} from "@/app/actions/budget-weekly-actions";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import {
+  useCreateBudgetMutation,
+  useDeleteBudgetMutation,
+  useUpdateBudgetMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -26,7 +26,6 @@ import {
   type QueryFunction,
   useInfiniteQuery,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -259,7 +258,6 @@ const useHorizontalFadeMask = (deps: unknown[] = []) => {
 const BudgetWeeklyBudgetsClient = ({
   weekStartDate,
 }: BudgetWeeklyBudgetsClientProps) => {
-  const queryClient = useQueryClient();
   const {
     data: overview,
     error,
@@ -298,6 +296,9 @@ const BudgetWeeklyBudgetsClient = ({
   const [periodStartDate, setPeriodStartDate] = useState(weekStartDate);
   const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const createBudgetMutation = useCreateBudgetMutation();
+  const updateBudgetMutation = useUpdateBudgetMutation();
+  const deleteBudgetMutation = useDeleteBudgetMutation();
 
   const currentMonthKey = dayjs().format("YYYY-MM");
   const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey);
@@ -757,16 +758,19 @@ const BudgetWeeklyBudgetsClient = ({
     try {
       setIsSaving(true);
       if (activeBudget) {
-        await updateWeeklyBudgetEntry(activeBudget.id, {
-          name,
-          amount,
-          period,
-          periodStartDate,
-          periodEndDate: period === "custom" ? periodEndDate : null,
+        await updateBudgetMutation.mutateAsync({
+          id: activeBudget.id,
+          input: {
+            name,
+            amount,
+            period,
+            periodStartDate,
+            periodEndDate: period === "custom" ? periodEndDate : null,
+          },
         });
         toast.success("Budget updated.");
       } else {
-        await createWeeklyBudgetEntry({
+        await createBudgetMutation.mutateAsync({
           name,
           amount,
           period,
@@ -774,21 +778,6 @@ const BudgetWeeklyBudgetsClient = ({
           periodEndDate: period === "custom" ? periodEndDate : null,
         });
         toast.success("Budget created.");
-      }
-
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgets.overview.queryKey,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgets.transferCandidates._def,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgetWeekly.options._def,
-      });
-      if (activeBudget) {
-        await queryClient.invalidateQueries({
-          queryKey: queries.budgets.transactions(activeBudget.id).queryKey,
-        });
       }
 
       setSheetOpen(false);
@@ -807,21 +796,8 @@ const BudgetWeeklyBudgetsClient = ({
 
     try {
       setIsSaving(true);
-      await deleteWeeklyBudgetEntry(activeBudget.id);
+      await deleteBudgetMutation.mutateAsync(activeBudget.id);
       toast.success("Budget deleted.");
-
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgets.overview.queryKey,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgets.transferCandidates._def,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queries.budgetWeekly.options._def,
-      });
-      await queryClient.removeQueries({
-        queryKey: queries.budgets.transactions(activeBudget.id).queryKey,
-      });
 
       setConfirmOpen(false);
       setSheetOpen(false);
