@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { createBudget } from "@/db/budget-queries";
@@ -14,6 +15,7 @@ export const POST = async (request: Request) => {
     }
 
     const created = await createBudget(payload.value);
+    revalidatePath("/budgets");
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create budget:", error);

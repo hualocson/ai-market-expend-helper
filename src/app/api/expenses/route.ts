@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { createExpense } from "@/db/queries";
@@ -38,6 +39,8 @@ export const POST = async (request: Request) => {
     }
 
     const created = await createExpense(payload.value);
+    revalidatePath("/");
+    revalidatePath("/budgets");
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create expense:", error);
