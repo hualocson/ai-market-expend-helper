@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
-import { getExpenseList } from "@/lib/services/expenses";
+import { queries } from "@/lib/queries";
+import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import { formatVnd } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,15 +35,28 @@ const buildMonthOptions = (count = 12) => {
   );
 };
 
-const ExpenseList = async ({
+const ExpenseList = ({
   selectedMonth,
   searchQuery,
-  mode = "full",
-  recentDays = 7,
+  mode,
+  recentDays,
   showMonthTabs,
   showViewFull = false,
   monthTabBasePath = "/",
 }: ExpenseListProps) => {
+  const resolvedMode = mode ?? "full";
+  const params: ExpenseListQueryParams = {
+    month: selectedMonth,
+    q: searchQuery,
+    mode,
+    recentDays,
+  };
+  const { data } = useQuery(queries.expenses.list(params));
+
+  if (!data) {
+    return null;
+  }
+
   const {
     activeMonth: activeMonthKey,
     effectiveRecentDays,
@@ -47,12 +64,7 @@ const ExpenseList = async ({
     isRecent,
     rows,
     trimmedSearch,
-  } = await getExpenseList({
-    month: selectedMonth,
-    q: searchQuery,
-    mode,
-    recentDays,
-  });
+  } = data;
   const activeMonth = dayjs(activeMonthKey, "YYYY-MM", true);
   const startOfMonth = activeMonth.startOf("month");
   const showTabs = showMonthTabs ?? !isRecent;
@@ -149,7 +161,7 @@ const ExpenseList = async ({
           </div>
         )}
 
-        {mode === "full" && (
+        {resolvedMode === "full" && (
           <JumpToTopButton
             targetId="expense-list"
             className="right-6 bottom-[100px]"
