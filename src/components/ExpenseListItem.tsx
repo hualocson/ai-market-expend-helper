@@ -3,8 +3,6 @@
 import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useRouter } from "next/navigation";
-
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
@@ -51,7 +49,6 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const router = useRouter();
   const deleteExpenseMutation = useDeleteExpenseMutation();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +157,6 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
       await deleteExpenseMutation.mutateAsync(expense.id);
       toast.success("Expense deleted.");
       setIsOpen(false);
-      router.refresh();
     } catch (error) {
       console.error(error);
       toast.error("Failed to delete expense.");
@@ -305,7 +301,6 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         initialExpense={initialExpense}
         onSuccess={() => {
           setEditOpen(false);
-          router.refresh();
         }}
       />
 

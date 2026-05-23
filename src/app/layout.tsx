@@ -10,6 +10,8 @@ import BottomNav from "@/components/BottomNav";
 import CssPropertyRegistry from "@/components/CssPropertyRegistry";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import QuickExpenseMutationCoordinator from "@/components/QuickExpenseMutationCoordinator";
+import QuickExpenseRecoverySheetHost from "@/components/QuickExpenseRecoverySheetHost";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -294,6 +296,8 @@ export default function RootLayout({
               <AppMain>
                 <PullToRefresh>{children}</PullToRefresh>
               </AppMain>
+              <QuickExpenseMutationCoordinator />
+              <QuickExpenseRecoverySheetHost />
               <ProgressiveBlur
                 className="fixed right-0 bottom-0 left-0"
                 position="bottom"
