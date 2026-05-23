@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   createQuickExpenseRecoveryStore,
   getPersistableQuickExpenseRecoveryState,
+  mergeQuickExpenseRecoveryPersistedState,
   QUICK_EXPENSE_RECOVERY_TTL_MS,
   type TQuickExpensePayload,
   type TQuickExpenseRecoveryEntry,
@@ -185,5 +186,36 @@ describe("quick expense recovery store", () => {
       operationId: failedEntry.operationId,
       status: "failed",
     });
+  });
+
+  it("normalizes hydrated persisted entries when merged into current state", () => {
+    const currentState = createQuickExpenseRecoveryStore().getState();
+    const runningEntry = buildRecoveryEntry({
+      operationId: "quick-expense-running",
+      status: "running",
+      toastId: "toast-1",
+    });
+
+    const mergedState = mergeQuickExpenseRecoveryPersistedState(
+      {
+        entries: {
+          [runningEntry.operationId]: runningEntry,
+        },
+        activeRecoveryOperationId: runningEntry.operationId,
+      },
+      currentState
+    );
+
+    expect(mergedState.entries[runningEntry.operationId]).toMatchObject({
+      operationId: runningEntry.operationId,
+      status: "queued",
+    });
+    expect(mergedState.entries[runningEntry.operationId]).not.toHaveProperty(
+      "toastId"
+    );
+    expect(mergedState.activeRecoveryOperationId).toBe(
+      runningEntry.operationId
+    );
+    expect(mergedState.enqueue).toBe(currentState.enqueue);
   });
 });
