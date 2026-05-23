@@ -221,6 +221,42 @@ describe("QuickExpenseMutationCoordinator", () => {
     ).toMatchObject({ status: "failed" });
   });
 
+  it("marks edit entries without a transaction id failed and wires Reopen", async () => {
+    const entry = buildEntry({
+      mode: "edit",
+      operationId: "quick-expense-invalid-edit",
+    });
+    enqueue(entry);
+
+    renderCoordinator();
+
+    await waitFor(() =>
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Failed to update expense",
+        expect.objectContaining({
+          id: "loading-toast",
+          action: expect.objectContaining({ label: "Reopen" }),
+        })
+      )
+    );
+
+    expect(mutationMocks.updateMutateAsync).not.toHaveBeenCalled();
+    expect(
+      useQuickExpenseRecoveryStore.getState().entries[entry.operationId]
+    ).toMatchObject({ status: "failed" });
+
+    const options = toastMock.error.mock.calls[0]?.[1] as {
+      action: { onClick: () => void };
+    };
+    act(() => {
+      options.action.onClick();
+    });
+
+    expect(
+      useQuickExpenseRecoveryStore.getState().activeRecoveryOperationId
+    ).toBe(entry.operationId);
+  });
+
   it("does not process entries already marked running", async () => {
     enqueue(buildEntry({ status: "running" }));
 
