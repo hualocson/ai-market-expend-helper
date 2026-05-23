@@ -2,6 +2,12 @@
 
 import type { TBudget, TExpense } from "@/db/schema";
 import type { CreateExpenseInput } from "@/db/type";
+import {
+  applyOptimisticExpenseCreate,
+  applyOptimisticExpenseDelete,
+  applyOptimisticExpenseUpdate,
+  restoreExpenseListSnapshots,
+} from "@/lib/mutations/expense-optimistic";
 import { queries } from "@/lib/queries";
 import type {
   TransferBudgetInput,
@@ -161,7 +167,14 @@ export const useCreateExpenseMutation = () => {
         body: input,
         fallbackError: "Failed to create expense",
       }),
-    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: queries.expenses.list._def });
+      return applyOptimisticExpenseCreate(queryClient, input);
+    },
+    onError: (_error, _input, context) => {
+      restoreExpenseListSnapshots(queryClient, context);
+    },
+    onSettled: () => invalidateExpenseMutationQueries(queryClient),
   });
 };
 
@@ -175,7 +188,14 @@ export const useUpdateExpenseMutation = () => {
         body: input,
         fallbackError: "Failed to update expense",
       }),
-    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: queries.expenses.list._def });
+      return applyOptimisticExpenseUpdate(queryClient, variables);
+    },
+    onError: (_error, _variables, context) => {
+      restoreExpenseListSnapshots(queryClient, context);
+    },
+    onSettled: () => invalidateExpenseMutationQueries(queryClient),
   });
 };
 
@@ -188,7 +208,14 @@ export const useDeleteExpenseMutation = () => {
         method: "DELETE",
         fallbackError: "Failed to delete expense",
       }),
-    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queries.expenses.list._def });
+      return applyOptimisticExpenseDelete(queryClient, id);
+    },
+    onError: (_error, _id, context) => {
+      restoreExpenseListSnapshots(queryClient, context);
+    },
+    onSettled: () => invalidateExpenseMutationQueries(queryClient),
   });
 };
 

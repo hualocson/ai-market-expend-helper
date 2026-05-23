@@ -5,10 +5,13 @@ import {
   useCreateBudgetMutation,
   useCreateExpenseMutation,
   useDeleteBudgetMutation,
+  useDeleteExpenseMutation,
   useTransferBudgetMutation,
   useUpdateBudgetMutation,
+  useUpdateExpenseMutation,
 } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
+import type { ExpenseListResult } from "@/lib/services/expenses";
 import type { BudgetTransactionsResponse } from "@/types/budget-weekly";
 import {
   type InfiniteData,
@@ -39,6 +42,45 @@ const renderMutationHook = <TResult,>(
 
   return { result: rendered.result, queryClient };
 };
+
+const expenseListResult = (
+  rows: ExpenseListResult["rows"]
+): ExpenseListResult => ({
+  activeMonth: "2026-05",
+  effectiveRecentDays: 7,
+  groupedRows: rows.length
+    ? [
+        {
+          key: "2026-05-23",
+          label: "Saturday, 23/05/2026",
+          items: rows,
+          totalAmount: rows.reduce((sum, row) => sum + row.amount, 0),
+        },
+      ]
+    : [],
+  isRecent: false,
+  rows,
+});
+
+const deferredResponse = () => {
+  let resolve: (response: Response) => void = () => {};
+  const promise = new Promise<Response>((resolver) => {
+    resolve = resolver;
+  });
+
+  return { promise, resolve };
+};
+
+const coffeeExpense = (): ExpenseListResult["rows"][number] => ({
+  id: 10,
+  date: "2026-05-23",
+  amount: 10000,
+  note: "Coffee",
+  category: "Food",
+  paidBy: PaidBy.CUBI,
+  budgetId: null,
+  budgetName: null,
+});
 
 describe("mutation hooks", () => {
   beforeEach(() => {
@@ -94,6 +136,201 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly.options._def,
     });
+  });
+
+  it("optimistically adds an expense to matching cached expense lists", async () => {
+    const response = deferredResponse();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockReturnValue(response.promise);
+    const { result, queryClient } = renderMutationHook(() =>
+      useCreateExpenseMutation()
+    );
+    const query = queries.expenses.list({ month: "2026-05" });
+    queryClient.setQueryData(query.queryKey, expenseListResult([]));
+
+    let mutation!: Promise<unknown>;
+    await act(async () => {
+      mutation = result.current.mutateAsync({
+        date: "23/05/2026",
+        amount: 50000,
+        note: "Lunch",
+        category: "Food",
+        paidBy: PaidBy.OTHER,
+        budgetId: null,
+      });
+
+      await vi.waitFor(() => {
+        const cached =
+          queryClient.getQueryData<ExpenseListResult>(query.queryKey);
+        expect(cached?.rows[0]).toMatchObject({
+          amount: 50000,
+          note: "Lunch",
+          category: "Food",
+        });
+        expect(cached?.rows[0]?.id).toBeLessThan(0);
+      });
+    });
+
+    response.resolve(jsonResponse({ id: 123 }, { status: 201 }));
+    await act(async () => {
+      await mutation;
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("rolls back an optimistic create when the REST route fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ error: "Failed to create expense" }, { status: 400 })
+    );
+    const { result, queryClient } = renderMutationHook(() =>
+      useCreateExpenseMutation()
+    );
+    const query = queries.expenses.list({ month: "2026-05" });
+    const previous = expenseListResult([]);
+    queryClient.setQueryData(query.queryKey, previous);
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          date: "23/05/2026",
+          amount: 50000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: PaidBy.OTHER,
+          budgetId: null,
+        })
+      ).rejects.toThrow("Failed to create expense");
+    });
+
+    expect(queryClient.getQueryData(query.queryKey)).toEqual(previous);
+  });
+
+  it("optimistically updates and deletes cached expense rows", async () => {
+    const updateResponse = deferredResponse();
+    const deleteResponse = deferredResponse();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockReturnValueOnce(updateResponse.promise)
+      .mockReturnValueOnce(deleteResponse.promise);
+    const { result, queryClient } = renderMutationHook(() => ({
+      update: useUpdateExpenseMutation(),
+      remove: useDeleteExpenseMutation(),
+    }));
+    const query = queries.expenses.list({ month: "2026-05" });
+    queryClient.setQueryData(
+      query.queryKey,
+      expenseListResult([coffeeExpense()])
+    );
+
+    let updateMutation!: Promise<unknown>;
+    await act(async () => {
+      updateMutation = result.current.update.mutateAsync({
+        id: 10,
+        input: {
+          date: "23/05/2026",
+          amount: 30000,
+          note: "Dinner",
+          category: "Food",
+          paidBy: PaidBy.EMBE,
+          budgetId: null,
+        },
+      });
+
+      await vi.waitFor(() => {
+        const cached =
+          queryClient.getQueryData<ExpenseListResult>(query.queryKey);
+        expect(cached?.rows[0]).toMatchObject({
+          id: 10,
+          amount: 30000,
+          note: "Dinner",
+        });
+      });
+    });
+
+    updateResponse.resolve(jsonResponse({ id: 10 }));
+    await act(async () => {
+      await updateMutation;
+    });
+
+    let deleteMutation!: Promise<unknown>;
+    await act(async () => {
+      deleteMutation = result.current.remove.mutateAsync(10);
+
+      await vi.waitFor(() => {
+        const cached =
+          queryClient.getQueryData<ExpenseListResult>(query.queryKey);
+        expect(cached?.rows).toEqual([]);
+      });
+    });
+
+    deleteResponse.resolve(jsonResponse({ id: 10 }));
+    await act(async () => {
+      await deleteMutation;
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses/10",
+      expect.objectContaining({ method: "PATCH" })
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses/10",
+      expect.objectContaining({ method: "DELETE" })
+    );
+  });
+
+  it("rolls back an optimistic update when the REST route fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ error: "Failed to update expense" }, { status: 400 })
+    );
+    const { result, queryClient } = renderMutationHook(() =>
+      useUpdateExpenseMutation()
+    );
+    const query = queries.expenses.list({ month: "2026-05" });
+    const previous = expenseListResult([coffeeExpense()]);
+    queryClient.setQueryData(query.queryKey, previous);
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          id: 10,
+          input: {
+            date: "23/05/2026",
+            amount: 30000,
+            note: "Dinner",
+            category: "Food",
+            paidBy: PaidBy.EMBE,
+            budgetId: null,
+          },
+        })
+      ).rejects.toThrow("Failed to update expense");
+    });
+
+    expect(queryClient.getQueryData(query.queryKey)).toEqual(previous);
+  });
+
+  it("rolls back an optimistic delete when the REST route fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ error: "Failed to delete expense" }, { status: 400 })
+    );
+    const { result, queryClient } = renderMutationHook(() =>
+      useDeleteExpenseMutation()
+    );
+    const query = queries.expenses.list({ month: "2026-05" });
+    const previous = expenseListResult([coffeeExpense()]);
+    queryClient.setQueryData(query.queryKey, previous);
+
+    await act(async () => {
+      await expect(result.current.mutateAsync(10)).rejects.toThrow(
+        "Failed to delete expense"
+      );
+    });
+
+    expect(queryClient.getQueryData(query.queryKey)).toEqual(previous);
   });
 
   it("updates budgets with the id route and invalidates budget query roots", async () => {
