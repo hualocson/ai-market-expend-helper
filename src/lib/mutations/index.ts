@@ -82,6 +82,22 @@ const invalidateBudgetMutationQueries = async (queryClient: QueryClient) => {
   await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
 };
 
+const invalidateBudgetDeleteMutationQueries = async (
+  queryClient: QueryClient,
+  deletedBudgetId: number
+) => {
+  await queryClient.cancelQueries({
+    queryKey: queries.budgets.transactions(deletedBudgetId).queryKey,
+  });
+  await queryClient.invalidateQueries({
+    queryKey: queries.budgets.overview.queryKey,
+  });
+  await queryClient.invalidateQueries({
+    queryKey: queries.budgets.transferCandidates._def,
+  });
+  await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
+};
+
 const invalidateTransactionBudgetMutationQueries = async (
   queryClient: QueryClient
 ) => {
@@ -217,10 +233,7 @@ export const useDeleteBudgetMutation = () => {
         fallbackError: "Failed to delete budget",
       }),
     onSuccess: async (_deleted, id) => {
-      await invalidateBudgetMutationQueries(queryClient);
-      queryClient.removeQueries({
-        queryKey: queries.budgets.transactions(id).queryKey,
-      });
+      await invalidateBudgetDeleteMutationQueries(queryClient, id);
     },
   });
 };
