@@ -1,4 +1,7 @@
-import { getDashboardMonthlySummary } from "@/lib/services/dashboard";
+"use client";
+
+import { queries } from "@/lib/queries";
+import { useQuery } from "@tanstack/react-query";
 
 import SpendingDashboardHeaderClient from "@/components/SpendingDashboardHeaderClient";
 
@@ -6,10 +9,16 @@ type SpendingDashboardHeaderProps = {
   selectedMonth?: string;
 };
 
-const SpendingDashboardHeader = async ({
+const SpendingDashboardHeader = ({
   selectedMonth,
 }: SpendingDashboardHeaderProps) => {
-  const summary = await getDashboardMonthlySummary(selectedMonth);
+  const { data: summary } = useQuery(
+    queries.dashboard.monthlySummary(selectedMonth)
+  );
+
+  if (!summary) {
+    return null;
+  }
 
   return (
     <SpendingDashboardHeaderClient
