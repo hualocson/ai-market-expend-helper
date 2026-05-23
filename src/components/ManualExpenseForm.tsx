@@ -14,15 +14,8 @@ import { createExpenseEntry } from "@/app/actions/expense-actions";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
-import {
-  type TBudgetOption,
-  groupBudgetOptions,
-  pickDefaultBudget,
-} from "@/lib/budget-options";
-import {
-  budgetWeeklyOptionsQueryKey,
-  fetchWeeklyBudgetOptions,
-} from "@/lib/queries/budget-weekly";
+import { groupBudgetOptions, pickDefaultBudget } from "@/lib/budget-options";
+import { queries } from "@/lib/queries";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -314,16 +307,11 @@ const ManualExpenseForm = forwardRef<
       return getWeekRange(resolvedDate).weekStartDate.format("YYYY-MM-DD");
     }, [budgetTargetDate]);
 
-    const budgetOptionsQuery = useQuery<TBudgetOption[]>({
-      queryKey: budgetWeeklyOptionsQueryKey(
+    const budgetOptionsQuery = useQuery({
+      ...queries.budgetWeekly.options(
         budgetWeekStart ?? "",
         budgetTargetDate ?? undefined
       ),
-      queryFn: () =>
-        fetchWeeklyBudgetOptions(
-          budgetWeekStart ?? "",
-          budgetTargetDate ?? undefined
-        ),
       enabled: showBudgetSelect && isSheetOpen && Boolean(budgetWeekStart),
       staleTime: 5 * 60 * 1000,
       gcTime: 30 * 60 * 1000,

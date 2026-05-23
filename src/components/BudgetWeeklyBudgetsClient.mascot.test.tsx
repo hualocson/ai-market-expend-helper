@@ -42,18 +42,9 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/app/actions/budget-weekly-actions", () => ({
   createWeeklyBudgetEntry: vi.fn(),
   deleteWeeklyBudgetEntry: vi.fn(),
+  getTransferCandidates: vi.fn(),
+  transferBudgetAmount: vi.fn(),
   updateWeeklyBudgetEntry: vi.fn(),
-}));
-
-vi.mock("@/lib/queries/budget-weekly", () => ({
-  invalidateBudgetWeeklyOptionsCache: vi.fn(),
-}));
-
-vi.mock("@/lib/queries/budgets", () => ({
-  budgetOverviewQueryKey: ["budget-overview"],
-  budgetTransactionsQueryKey: vi.fn(() => ["budget-transactions"]),
-  fetchBudgetOverview: vi.fn(),
-  fetchBudgetTransactions: vi.fn(),
 }));
 
 vi.mock("@/components/ExpenseItemIcon", () => ({

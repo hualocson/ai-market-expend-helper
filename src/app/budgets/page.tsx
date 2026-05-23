@@ -1,7 +1,7 @@
 import dayjs from "@/configs/date";
 import { getBudgetOverview } from "@/db/budget-queries";
 import { getQueryClient } from "@/lib/get-query-client";
-import { budgetOverviewQueryKey } from "@/lib/queries/budgets";
+import { queries } from "@/lib/queries";
 import { getWeekRange } from "@/lib/week";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
@@ -16,7 +16,7 @@ export default async function BudgetsPage() {
   const queryClient = getQueryClient();
 
   await queryClient.prefetchQuery({
-    queryKey: budgetOverviewQueryKey,
+    queryKey: queries.budgets.overview.queryKey,
     queryFn: () => getBudgetOverview(),
   });
 
