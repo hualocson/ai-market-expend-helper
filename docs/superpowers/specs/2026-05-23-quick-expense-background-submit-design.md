@@ -7,7 +7,7 @@ The transaction list now performs visible-list-only optimistic updates in the Ta
 The desired UX is:
 
 - Submit add/edit from `QuickExpenseSheet`.
-- Close the sheet immediately after the mutation request is dispatched.
+- Close the sheet immediately after the submit operation is queued.
 - Show a loading toast while the mutation is pending.
 - Let the existing mutation hooks handle optimistic cache updates and invalidation in the background.
 - If the mutation fails, show an error toast with an action that reopens the sheet using the user's submitted draft.
@@ -18,8 +18,10 @@ In scope:
 
 - `QuickExpenseSheet` create mode.
 - `QuickExpenseSheet` edit mode.
-- Loading, success, and error toast behavior for those add/edit mutations.
+- A stable mutation coordinator for those add/edit mutations.
+- Loading, success, and error toast behavior for those add/edit mutation operations.
 - Restoring the submitted draft when the user chooses the error-toast action.
+- A stable recovery sheet host that can reopen a failed create/edit draft even if the original sheet unmounted.
 - Focused component tests for immediate close, pending toast, success, error, and draft restoration.
 
 Out of scope:
@@ -32,23 +34,23 @@ Out of scope:
 
 ## Considered Approaches
 
-### Recommended: component-level fire-and-follow submission, recovery state stays outside the sheet
+### Recommended: sheet queues the operation, stable coordinator owns mutation lifecycle
 
-Use the existing mutation hooks with a non-blocking `mutateAsync` call: start the promise, attach `then`/`catch` handlers, and close the sheet without awaiting it. The submitted draft and loading toast id are saved to a small recovery store before dispatch. The promise handlers use the recovery entry for user-facing toast and draft restoration behavior. Optimistic cache work remains entirely inside `src/lib/mutations`.
+`QuickExpenseSheet` should not start the mutation promise itself. Instead, it saves a queued submit operation to a recovery store and closes immediately. A stable client component mounted above route/list churn, for example `QuickExpenseMutationCoordinator`, observes queued operations, owns the existing mutation hooks, creates the loading toast, stores the toast id, starts `mutateAsync`, and handles success/error.
 
-This matches the current TanStack Query architecture: components own UI state and user feedback, a client store owns cross-unmount recovery state, and mutation hooks own REST writes, optimistic list patches, rollback, and invalidation. It also avoids relying on live sheet state after the sheet closes.
+This makes the mutation lifecycle independent from the sheet instance. If the sheet closes, unmounts, or its list item disappears, the coordinator is still mounted and can finish the toast/recovery flow. Optimistic cache work remains entirely inside `src/lib/mutations`.
+
+### Alternative: sheet starts a non-blocking `mutateAsync` promise
+
+The sheet could call `mutateAsync`, attach `then`/`catch`, and close without awaiting. The request usually continues after unmount, but the completion handlers still belong to the sheet render that started them. That is more fragile for edit sheets mounted inside list items, and reopen behavior can fail if the original component no longer exists.
 
 ### Alternative: move toast lifecycle into mutation hooks
 
 The hooks could show loading/success/error toasts internally. That would centralize side effects, but it would make hooks less reusable and would couple generic mutation behavior to one sheet-specific "Reopen" action.
 
-### Alternative: keep awaiting `mutateAsync`, but close first
-
-The sheet could call `handleOpenChange(false)` and then `await mutateAsync(...)`. This would reduce the blocking feel, but the component would still need local loading cleanup and would be easier to accidentally sequence incorrectly. It also makes the error-toast action harder to reason about because the submitted draft must be preserved across an async `try/catch`.
-
 ## Design
 
-`QuickExpenseSheet` should build a submitted draft snapshot before dispatching the mutation. The snapshot is the exact values sent by the user, not whatever the form state becomes after closing or resetting.
+`QuickExpenseSheet` should build a submitted draft snapshot before queueing the operation. The snapshot is the exact values sent by the user, not whatever the form state becomes after closing or resetting.
 
 On submit:
 
@@ -56,18 +58,17 @@ On submit:
 2. Build `payload` from the current draft.
 3. Build `submittedDraft` as a new object copied from the current draft.
 4. Create a recovery operation id.
-5. Save the submitted draft in the recovery store.
-6. Create a loading toast and save its toast id in the same recovery entry.
-7. Dispatch the relevant mutation with `mutateAsync`, attach completion handlers, and do not await it.
-8. Close the sheet immediately after dispatch.
+5. Save the submitted draft and mutation variables in the recovery store with `status: "queued"`.
+6. Close the sheet immediately after queueing.
+7. Let `QuickExpenseMutationCoordinator` pick up the queued operation, create the loading toast, attach the toast id, mark the operation `running`, and call the relevant `mutateAsync`.
 
 For create mode, closing the sheet may reset the live form draft to defaults. That is acceptable because the submitted draft snapshot is used if the request later fails.
 
-For edit mode, closing the controlled sheet should behave the same as today from the parent view's perspective. The mutation success handler still invokes `onSuccess?.()` so parent edit state can close or refresh its local UI.
+For edit mode, closing the controlled sheet should behave the same as today from the parent view's perspective. The queued operation must include `transactionId`, so the coordinator does not need the original edit sheet to remain mounted.
 
 ## Draft Snapshot Mechanics
 
-The submitted draft must be captured synchronously in `handleSubmit`, before any mutation dispatch, toast action registration, or sheet close can reset state.
+The submitted draft must be captured synchronously in `handleSubmit`, before queueing, coordinator processing, or sheet close can reset state.
 
 The implementation should use a small helper or inline copy with the same shape as `TExpenseDraft`:
 
@@ -95,18 +96,41 @@ const payload = {
 };
 ```
 
-This ordering matters because `handleOpenChange(false)` resets the create-mode draft to defaults. The mutation completion handlers and the error-toast action must read the copied draft from the recovery store or close over the same copied value. They must not read the current `draft` state after dispatch.
+This ordering matters because `handleOpenChange(false)` resets the create-mode draft to defaults. The coordinator and the error-toast action must read the copied draft from the recovery store. They must not read the current `draft` state after queueing.
 
 The error-toast `Reopen` action should restore in this order:
 
 1. Read the failed recovery entry by `operationId`.
-2. Set the sheet draft to the stored recovery draft.
-3. Clear local pending state if still pending.
-4. Open the sheet with `handleOpenChange(true)` or the equivalent controlled callback.
+2. Set the active recovery operation id in the recovery store.
+3. The stable recovery sheet host reads the stored draft for that operation.
+4. The host sets its sheet draft from the stored recovery draft before opening.
+5. The host opens the sheet.
 
 Restoring the draft before opening avoids a visible flash of the default create draft or stale edit props. If React batching makes the order visually equivalent in tests, the implementation should still keep this logical order for clarity.
 
-Only one submitted draft needs to be retained per submit operation. While local pending is true, further submits from the same sheet instance are disabled, so there should not be multiple in-flight draft snapshots from the same sheet instance. If a parent unmounts the sheet before an error action is clicked, the submitted draft remains available in the recovery store.
+Only one submitted draft needs to be retained per submit operation. While local pending is true, further submits from the same sheet instance are disabled, so there should not be multiple in-flight draft snapshots from the same sheet instance. If a parent unmounts the original sheet before an error action is clicked, the submitted draft remains available in the recovery store and can be opened by the stable recovery sheet host.
+
+## Unmount Safety
+
+Calling a TanStack Query mutation from a component does not normally abort the underlying network request when that component unmounts. The risky part is the owner of the completion flow:
+
+- Per-call mutation callbacks can be skipped or become disconnected from UI when the mutation observer unmounts.
+- Promise handlers attached in the sheet can still run, but they close over a component instance that may no longer be able to safely update state or reopen itself.
+- Edit sheets rendered inside list items are especially fragile because the optimistic update or later invalidation can remove the list item that owns the sheet.
+
+To avoid this, `QuickExpenseSheet` must only enqueue the operation. A stable coordinator, mounted near the app providers or another route-stable client shell, owns:
+
+- `useCreateExpenseMutation`
+- `useUpdateExpenseMutation`
+- loading toast creation
+- toast id storage
+- mutation promise completion
+- success cleanup
+- failed-draft recovery marking
+
+The coordinator should not render form UI. It should process queued operations from the recovery store and ignore operations that are already `running` to avoid duplicate requests.
+
+Add a stable `QuickExpenseRecoverySheetHost` near the coordinator. It renders a recoverable `QuickExpenseSheet` when the user clicks the error-toast `Reopen` action. This host reads the failed operation from the recovery store and passes the stored draft into the sheet, so recovery does not depend on the original sheet or original list item still being mounted.
 
 ## Recovery Store
 
@@ -120,19 +144,29 @@ type QuickExpenseRecoveryEntry = {
   mode: "create" | "edit";
   transactionId?: number;
   draft: TExpenseDraft;
+  payload: {
+    date: string;
+    amount: number;
+    note: string;
+    category: Category;
+    paidBy: PaidBy;
+    budgetId: number | null;
+  };
   toastId?: string | number;
-  status: "pending" | "failed";
+  status: "queued" | "running" | "failed";
   createdAt: number;
 };
 ```
 
 Recommended actions:
 
-- `savePending(entry)` saves the submitted draft before dispatch.
+- `enqueue(entry)` saves the submitted draft and mutation variables before the sheet closes.
 - `attachToastId(operationId, toastId)` stores the loading toast id returned by `toast.loading`.
+- `markRunning(operationId)` marks an operation after the coordinator starts the mutation.
 - `markFailed(operationId)` keeps the draft available for `Reopen`.
 - `clear(operationId)` removes the entry after success or after the user successfully reopens and resubmits.
 - `pruneExpired(now)` removes entries older than the TTL.
+- `setActiveRecovery(operationId | null)` selects which failed draft the recovery sheet host should render.
 
 Use Zustand to match the app's existing client-state pattern. Persist only the recoverable draft metadata to `sessionStorage` with a short TTL, for example 10-30 minutes. Do not persist the toast id across page reloads because a Sonner toast id is only valid for the current browser runtime. The store can keep `toastId` in memory during the current runtime so success/error handling can update the correct loading toast even if the sheet component is closed.
 
@@ -145,12 +179,13 @@ Each submit operation should have an `operationId` and one associated loading to
 Suggested sequence:
 
 1. Generate `operationId`.
-2. Save the recovery entry with `status: "pending"` and no toast id.
-3. Call `toast.loading(...)`.
-4. Save the returned toast id with `attachToastId(operationId, toastId)`.
-5. Start the mutation promise.
-6. In success/error handlers, read the current recovery entry by `operationId`.
-7. Use the stored toast id when replacing the loading toast with success or error.
+2. Save the recovery entry with `status: "queued"` and no toast id.
+3. Coordinator claims the queued operation and marks it `running`.
+4. Coordinator calls `toast.loading(...)`.
+5. Coordinator saves the returned toast id with `attachToastId(operationId, toastId)`.
+6. Coordinator starts the mutation promise.
+7. In success/error handlers, read the current recovery entry by `operationId`.
+8. Use the stored toast id when replacing the loading toast with success or error.
 
 Success should clear the recovery entry after replacing the loading toast. Error should keep the draft entry, mark it failed, and replace the loading toast with an error toast that has the `Reopen` action.
 
@@ -162,7 +197,7 @@ The toast id should be treated as a presentation handle, not as the durable iden
 
 Pending:
 
-- Show a loading toast when the request is dispatched.
+- Show a loading toast when the coordinator starts the mutation.
 - Suggested copy:
   - Create: `Adding expense...`
   - Edit: `Updating expense...`
@@ -184,18 +219,18 @@ Error:
 - Include an action labeled `Reopen`.
 - When clicked, the action restores the submitted draft snapshot and opens the sheet.
 
-If the component unmounts while the mutation is pending, completion handlers should not assume mounted sheet state. The implementation should avoid throwing, and the toast can still report success or failure.
+If the original sheet unmounts while the mutation is pending, coordinator completion handlers should not assume mounted sheet state. The implementation should avoid throwing, and the toast can still report success or failure.
 
 ## Data Flow
 
 Create:
 
 1. User submits.
-2. The sheet saves `{ operationId, mode: "create", draft, status: "pending" }` in the recovery store.
-3. The sheet creates a loading toast and stores its toast id on that recovery entry.
-4. `useCreateExpenseMutation().mutateAsync(payload)` starts without being awaited by the submit handler.
-5. Mutation hook performs existing optimistic visible-list update in `onMutate`.
-6. Sheet closes immediately.
+2. The sheet saves `{ operationId, mode: "create", draft, payload, status: "queued" }` in the recovery store.
+3. Sheet closes immediately.
+4. Coordinator observes the queued operation, marks it `running`, creates a loading toast, and stores the toast id.
+5. Coordinator calls `useCreateExpenseMutation().mutateAsync(payload)`.
+6. Mutation hook performs existing optimistic visible-list update in `onMutate`.
 7. Success handler replaces the loading toast, clears the recovery entry, and does not require the sheet to still be open.
 8. Error handler replaces the loading toast with `Reopen`, marks the recovery entry failed, and the action restores the draft from the recovery store.
 9. Mutation hook invalidation remains the final source of server truth.
@@ -204,12 +239,12 @@ Edit:
 
 1. User submits.
 2. If `transactionId` is missing, show the existing failure toast and keep the sheet open.
-3. The sheet saves `{ operationId, mode: "edit", transactionId, draft, status: "pending" }` in the recovery store.
-4. The sheet creates a loading toast and stores its toast id on that recovery entry.
-5. `useUpdateExpenseMutation().mutateAsync({ id: transactionId, input: payload })` starts without being awaited by the submit handler.
-6. Mutation hook performs existing optimistic visible-list update in `onMutate`.
-7. Sheet closes immediately.
-8. Success handler replaces the loading toast, clears the recovery entry, and calls `onSuccess?.()`.
+3. The sheet saves `{ operationId, mode: "edit", transactionId, draft, payload, status: "queued" }` in the recovery store.
+4. Sheet closes immediately.
+5. Coordinator observes the queued operation, marks it `running`, creates a loading toast, and stores the toast id.
+6. Coordinator calls `useUpdateExpenseMutation().mutateAsync({ id: transactionId, input: payload })`.
+7. Mutation hook performs existing optimistic visible-list update in `onMutate`.
+8. Success handler replaces the loading toast and clears the recovery entry.
 9. Error handler replaces the loading toast with `Reopen`, marks the recovery entry failed, and the action restores the draft from the recovery store.
 10. Mutation hook rollback/invalidation handles the list cache.
 
@@ -221,16 +256,28 @@ Keep optimistic cache logic out of `QuickExpenseSheet`.
 
 - Whether the sheet is open when uncontrolled.
 - Current draft fields.
-- UI-only pending state for disabling duplicate submits while a request is pending.
-- Starting the toast lifecycle for a submitted operation.
-- Reading a failed recovery entry when the user clicks `Reopen`.
+- UI-only pending state for disabling duplicate submits while the operation is being queued.
+- Enqueueing submitted operations into the recovery store.
 
 The recovery store owns:
 
 - Submitted draft snapshots that must survive sheet close or unmount.
+- Mutation variables needed by the coordinator.
 - Operation ids.
-- Current-runtime toast ids for pending operations.
+- Current-runtime toast ids for active operations.
 - Short-lived failed-submit recovery entries.
+- Active failed operation selected for recovery reopening.
+
+The coordinator owns:
+
+- Starting create/update mutations from queued recovery entries.
+- Loading/success/error toast transitions.
+- Success cleanup and failed-entry marking.
+
+The recovery sheet host owns:
+
+- Opening a failed create/edit draft from the recovery store.
+- Rendering the recoverable sheet independently from the original list item or original sheet instance.
 
 Mutation hooks continue to own:
 
@@ -242,9 +289,9 @@ Mutation hooks continue to own:
 
 ## Duplicate Submit Handling
 
-Keep a local pending flag so the submit button cannot dispatch duplicate requests while a create/edit mutation from this sheet is still pending. Since the sheet closes immediately, the main practical protection is against rapid double activation before the close transition completes.
+Keep a local pending flag so the submit button cannot enqueue duplicate operations while a create/edit submit from this sheet is being queued. Since the sheet closes immediately, the main practical protection is against rapid double activation before the close transition completes.
 
-The pending flag should reset in both success and error handlers when the sheet instance is still mounted. Recovery cleanup should not depend on this local flag.
+The coordinator should also ignore queued operations that have already been marked `running`. Recovery cleanup must not depend on a local sheet flag.
 
 ## Error Handling
 
@@ -259,23 +306,24 @@ The error-toast action should restore the draft exactly as submitted:
 - budget id
 - paid by
 
-For edit mode, reopening should preserve edit mode and the same transaction id. If the parent has already removed the edit sheet from the tree, the action should fail gracefully rather than throwing.
+For edit mode, reopening should preserve edit mode and the same transaction id through the recovery sheet host. If the failed recovery entry has expired or no longer exists, the action should no-op safely rather than throwing.
 
 ## Tests
 
-Update `src/components/QuickExpenseSheet.test.tsx` with focused behavior tests:
+Update or add focused tests for `QuickExpenseSheet`, `QuickExpenseMutationCoordinator`, the recovery store, and the recovery sheet host:
 
-- Create submit starts `mutateAsync` without awaiting it, closes immediately, and shows a loading toast.
-- Create submit saves the recovery draft and toast id before closing.
+- Create submit enqueues without calling `mutateAsync` from the sheet.
+- Create submit enqueues the recovery draft and payload, then closes immediately.
+- Coordinator starts the create mutation from the queued entry and stores the loading toast id.
 - Create success handler uses the stored toast id, shows success toast, and clears the recovery entry.
 - Create error handler uses the stored toast id, shows an error toast with a `Reopen` action, and keeps the recovery draft.
-- Create `Reopen` action restores the submitted draft.
-- Edit submit starts `mutateAsync` without awaiting it, closes immediately, and shows a loading toast.
-- Edit submit saves the recovery draft and toast id before closing.
-- Edit success handler uses the stored toast id, shows success toast, clears the recovery entry, and calls `onSuccess`.
+- Create `Reopen` action opens the stable recovery sheet host with the submitted draft.
+- Edit submit enqueues the recovery draft, transaction id, and payload, then closes immediately.
+- Coordinator starts the edit mutation from the queued entry and stores the loading toast id.
+- Edit success handler uses the stored toast id, shows success toast, and clears the recovery entry.
 - Edit error handler uses the stored toast id, shows an error toast with a `Reopen` action, and keeps the recovery draft.
-- Edit `Reopen` action restores the submitted draft.
-- Missing edit `transactionId` still shows a failure toast and does not dispatch a mutation.
+- Edit `Reopen` action opens the stable recovery sheet host with the submitted draft and transaction id.
+- Missing edit `transactionId` still shows a failure toast and does not enqueue an operation.
 - Recovery store pruning removes expired failed-submit drafts.
 - The persisted recovery state excludes the toast id.
 
@@ -291,10 +339,11 @@ Do not run `npm run build`.
 
 ## Acceptance Criteria
 
-- Add/edit sheet closes immediately after dispatching a valid mutation request.
+- Add/edit sheet closes immediately after queueing a valid submit operation.
 - A loading toast is visible while the mutation is pending.
+- Mutation execution and toast completion do not depend on the original sheet staying mounted.
 - Success toast appears when the request succeeds.
 - Failure toast includes a `Reopen` action.
-- `Reopen` restores the user's submitted draft instead of resetting to defaults or initial edit props.
+- `Reopen` restores the user's submitted draft through a stable recovery sheet host instead of relying on the original sheet instance.
 - Optimistic updates remain in mutation/cache helpers, not components.
 - Existing invalidation continues to correct derived dashboard/report/budget caches.
