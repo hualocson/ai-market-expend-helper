@@ -62,7 +62,7 @@ const normalizeQuickExpenseRecoveryEntry = ({
   ...entry
 }: TQuickExpenseRecoveryEntry): TQuickExpenseRecoveryEntry => ({
   ...entry,
-  status: status === "running" ? "queued" : status,
+  status: status === "running" ? "failed" : status,
 });
 
 export const normalizeQuickExpenseRecoveryPersistedState = (
@@ -190,12 +190,20 @@ const createQuickExpenseRecoveryState = (
       const activeEntryExists =
         state.activeRecoveryOperationId !== null &&
         state.activeRecoveryOperationId in entries;
+      const activeRecoveryOperationId = activeEntryExists
+        ? state.activeRecoveryOperationId
+        : null;
+
+      if (
+        Object.keys(entries).length === Object.keys(state.entries).length &&
+        activeRecoveryOperationId === state.activeRecoveryOperationId
+      ) {
+        return state;
+      }
 
       return {
         entries,
-        activeRecoveryOperationId: activeEntryExists
-          ? state.activeRecoveryOperationId
-          : null,
+        activeRecoveryOperationId,
       };
     }),
   getQueuedEntries: () =>

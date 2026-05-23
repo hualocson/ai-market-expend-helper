@@ -157,7 +157,7 @@ describe("quick expense recovery store", () => {
     );
   });
 
-  it("normalizes persisted running entries back to queued", () => {
+  it("normalizes persisted running entries to failed recovery drafts", () => {
     const runningEntry = buildRecoveryEntry({
       operationId: "quick-expense-running",
       status: "running",
@@ -180,7 +180,7 @@ describe("quick expense recovery store", () => {
 
     expect(persistedState.entries[runningEntry.operationId]).toMatchObject({
       operationId: runningEntry.operationId,
-      status: "queued",
+      status: "failed",
     });
     expect(persistedState.entries[failedEntry.operationId]).toMatchObject({
       operationId: failedEntry.operationId,
@@ -208,7 +208,7 @@ describe("quick expense recovery store", () => {
 
     expect(mergedState.entries[runningEntry.operationId]).toMatchObject({
       operationId: runningEntry.operationId,
-      status: "queued",
+      status: "failed",
     });
     expect(mergedState.entries[runningEntry.operationId]).not.toHaveProperty(
       "toastId"

@@ -2,6 +2,7 @@ import React, { type PropsWithChildren } from "react";
 
 import { Category, PaidBy } from "@/enums";
 import {
+  QUICK_EXPENSE_RECOVERY_TTL_MS,
   useQuickExpenseRecoveryStore,
   type TQuickExpenseRecoveryEntry,
   type TQuickExpensePayload,
@@ -53,7 +54,7 @@ const buildEntry = (
   draft: payload,
   payload,
   status: "queued",
-  createdAt: 1_769_000_000_000,
+  createdAt: Date.now(),
   ...overrides,
 });
 
@@ -266,6 +267,26 @@ describe("QuickExpenseMutationCoordinator", () => {
       expect(mutationMocks.createMutateAsync).not.toHaveBeenCalled()
     );
     expect(mutationMocks.updateMutateAsync).not.toHaveBeenCalled();
+    expect(toastMock.loading).not.toHaveBeenCalled();
+  });
+
+  it("prunes expired entries before processing queued operations", async () => {
+    const expiredEntry = buildEntry({
+      operationId: "quick-expense-expired",
+      createdAt: Date.now() - QUICK_EXPENSE_RECOVERY_TTL_MS - 1,
+    });
+    enqueue(expiredEntry);
+
+    renderCoordinator();
+
+    await waitFor(() =>
+      expect(
+        useQuickExpenseRecoveryStore.getState().entries[
+          expiredEntry.operationId
+        ]
+      ).toBeUndefined()
+    );
+    expect(mutationMocks.createMutateAsync).not.toHaveBeenCalled();
     expect(toastMock.loading).not.toHaveBeenCalled();
   });
 

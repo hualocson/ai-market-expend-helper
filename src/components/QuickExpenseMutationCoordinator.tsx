@@ -6,7 +6,10 @@ import {
   useCreateExpenseMutation,
   useUpdateExpenseMutation,
 } from "@/lib/mutations";
-import { useQuickExpenseRecoveryStore } from "@/stores/quick-expense-recovery-store";
+import {
+  QUICK_EXPENSE_RECOVERY_TTL_MS,
+  useQuickExpenseRecoveryStore,
+} from "@/stores/quick-expense-recovery-store";
 import { toast } from "sonner";
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -26,14 +29,24 @@ export default function QuickExpenseMutationCoordinator() {
   );
   const markFailed = useQuickExpenseRecoveryStore((state) => state.markFailed);
   const clear = useQuickExpenseRecoveryStore((state) => state.clear);
+  const pruneExpired = useQuickExpenseRecoveryStore(
+    (state) => state.pruneExpired
+  );
   const setActiveRecovery = useQuickExpenseRecoveryStore(
     (state) => state.setActiveRecovery
   );
   const inFlightRef = useRef(new Set<string>());
 
   useEffect(() => {
+    const now = Date.now();
+    pruneExpired(now);
+
     queuedEntries.forEach((entry) => {
       const { operationId } = entry;
+
+      if (now - entry.createdAt > QUICK_EXPENSE_RECOVERY_TTL_MS) {
+        return;
+      }
 
       if (inFlightRef.current.has(operationId)) {
         return;
@@ -101,6 +114,7 @@ export default function QuickExpenseMutationCoordinator() {
     createExpense,
     markFailed,
     markRunning,
+    pruneExpired,
     queuedEntries,
     setActiveRecovery,
     updateExpense,
