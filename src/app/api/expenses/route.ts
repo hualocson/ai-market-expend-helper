@@ -1,18 +1,27 @@
 import { NextResponse } from "next/server";
 
-import { db } from "@/db";
 import { createExpense } from "@/db/queries";
-import { expenses } from "@/db/schema";
 import { CreateExpenseInput } from "@/db/type";
-import { desc } from "drizzle-orm";
+import { parseExpenseListParams } from "@/lib/api/read-route-params";
+import { getExpenseList } from "@/lib/services/expenses";
 
-export const GET = async () => {
-  const rows = await db
-    .select()
-    .from(expenses)
-    .orderBy(desc(expenses.date), desc(expenses.id));
+export const GET = async (request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const parsedParams = parseExpenseListParams(searchParams);
+  if ("error" in parsedParams) {
+    return NextResponse.json({ error: parsedParams.error }, { status: 400 });
+  }
 
-  return NextResponse.json(rows);
+  try {
+    const result = await getExpenseList(parsedParams.value);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Failed to fetch expenses:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch expenses" },
+      { status: 400 }
+    );
+  }
 };
 
 export const POST = async (request: Request) => {
