@@ -8,11 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BudgetTransferDrawer from "./BudgetTransferDrawer";
 
 const transferMock = vi.fn();
-const getCandidatesMock = vi.fn();
-
-vi.mock("@/app/actions/budget-weekly-actions", () => ({
-  getTransferCandidates: (...args: unknown[]) => getCandidatesMock(...args),
-}));
 
 vi.mock("@/lib/mutations", () => ({
   useTransferBudgetMutation: () => ({
@@ -61,7 +56,6 @@ const useQueryReturn = (overrides: {
 
 beforeEach(() => {
   transferMock.mockReset();
-  getCandidatesMock.mockReset();
   toastSuccess.mockReset();
   toastError.mockReset();
   useQueryMock.mockReset();
