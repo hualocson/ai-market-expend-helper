@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
+import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
@@ -22,7 +23,6 @@ import { Calendar, Plus, UserRound, Wallet, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import DatePicker from "@/components/ui/date-picker";
 import {
   Sheet,
   SheetClose,
@@ -38,6 +38,7 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import CategoryChipRow from "./CategoryChipRow";
+import DatePickerSheet from "./DatePickerSheet";
 import PaidByPickerSheet from "./PaidByPickerSheet";
 import VndSymbol from "./VndSymbol";
 
@@ -199,6 +200,7 @@ const QuickExpenseSheet = ({
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
+  const keyboardOffset = useKeyboardOffset();
 
   const [queueing, setQueueing] = useState(false);
 
@@ -347,6 +349,7 @@ const QuickExpenseSheet = ({
     );
   }, [draft.amount]);
   const showSuggestions = amountFocused && suggestions.length > 0;
+  const anchorSuggestionsToKeyboard = keyboardOffset > 0;
 
   return (
     <Sheet open={sheetOpen} onOpenChange={handleOpenChange} modal>
@@ -378,6 +381,9 @@ const QuickExpenseSheet = ({
         className="h-full w-full gap-0 rounded-none p-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
+          if (isEditMode) {
+            return;
+          }
           noteRef.current?.focus({ preventScroll: true });
         }}
       >
@@ -473,16 +479,35 @@ const QuickExpenseSheet = ({
             </div>
 
             {showSuggestions && (
-              <div className="flex flex-wrap gap-2">
+              <div
+                role="group"
+                aria-label="Amount suggestions"
+                className={cn(
+                  "no-scrollbar flex gap-2 overflow-x-auto flex-nowrap",
+                  anchorSuggestionsToKeyboard &&
+                    "fixed inset-x-0 z-60 mx-auto w-full max-w-md justify-start px-4 pt-2 pb-2"
+                )}
+                style={
+                  anchorSuggestionsToKeyboard
+                    ? {
+                        bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom) + 8px)`,
+                      }
+                    : undefined
+                }
+              >
                 {suggestions.map((s) => (
                   <Button
                     key={s}
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="rounded-full"
+                    className="rounded-full tabular-nums"
                     onPointerDown={(e) => e.preventDefault()}
-                    onClick={() => setField("amount", s)}
+                    onClick={() => {
+                      setField("amount", s);
+                      setAmountFocused(false);
+                      amountRef.current?.blur();
+                    }}
                   >
                     {formatVnd(s)}
                   </Button>
@@ -508,29 +533,12 @@ const QuickExpenseSheet = ({
           </Button>
         </SheetFooter>
 
-        <Sheet open={dateOpen} onOpenChange={setDateOpen}>
-          <SheetContent
-            side="bottom"
-            showCloseButton={false}
-            className="rounded-t-3xl"
-          >
-            <SheetHeader className="text-left">
-              <SheetTitle>Date</SheetTitle>
-              <SheetDescription>Pick the expense date.</SheetDescription>
-            </SheetHeader>
-            <div className="px-4 pb-4 sm:px-6">
-              <DatePicker
-                value={dayjs(draft.date, "DD/MM/YYYY", true).toDate()}
-                onChange={(d) => {
-                  if (d) {
-                    setField("date", dayjs(d).format("DD/MM/YYYY"));
-                  }
-                  setDateOpen(false);
-                }}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+        <DatePickerSheet
+          open={dateOpen}
+          onOpenChange={setDateOpen}
+          value={draft.date}
+          onChange={(next) => setField("date", next)}
+        />
 
         <BudgetPickerSheet
           open={budgetOpen}

@@ -114,6 +114,7 @@ describe("DailyReportContent", () => {
     expect(
       screen.getByRole("heading", { name: "Daily report" })
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "" })).toHaveAttribute("href", "/");
     expect(screen.getByText("Saturday, 23 May 2026")).toBeInTheDocument();
     expect(screen.getByText(/-120\.000/)).toBeInTheDocument();
     expect(screen.getByText("1 transactions")).toBeInTheDocument();

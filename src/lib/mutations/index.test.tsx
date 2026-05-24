@@ -59,6 +59,11 @@ const expenseListResult = (
       ]
     : [],
   isRecent: false,
+  pagination: {
+    limit: 30,
+    offset: 0,
+    hasMore: false,
+  },
   rows,
 });
 

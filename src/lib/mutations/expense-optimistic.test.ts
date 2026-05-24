@@ -1,6 +1,7 @@
 import { PaidBy } from "@/enums";
 import type { ExpenseListResult } from "@/lib/services/expenses";
 import { queries } from "@/lib/queries";
+import type { InfiniteData } from "@tanstack/react-query";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
@@ -44,10 +45,22 @@ const buildExpenseList = (
       []
     ),
     isRecent: false,
+    pagination: {
+      limit: 30,
+      offset: 0,
+      hasMore: false,
+    },
     rows,
     ...overrides,
   };
 };
+
+const buildInfiniteExpenseList = (
+  pages: ExpenseListResult[]
+): InfiniteData<ExpenseListResult, number> => ({
+  pageParams: pages.map((page) => page.pagination.offset),
+  pages,
+});
 
 const buildRows = (): ExpenseListResult["rows"] => [
   {
@@ -572,6 +585,76 @@ describe("expense optimistic cache helpers", () => {
     ).toEqual([[12], [11]]);
     expect(monthNext?.groupedRows[0]?.totalAmount).toBe(5000);
     expect(monthNext?.groupedRows[1]?.totalAmount).toBe(25000);
+  });
+
+  it("patches infinite expense list pages and restores them on rollback", () => {
+    const queryClient = new QueryClient();
+    const query = queries.expenses.list({ month: "2026-05", limit: 30 });
+    const previous = buildInfiniteExpenseList([
+      buildExpenseList([buildRows()[0]], {
+        pagination: { limit: 30, offset: 0, hasMore: true },
+      }),
+      buildExpenseList(buildRows().slice(1), {
+        pagination: { limit: 30, offset: 30, hasMore: false },
+      }),
+    ]);
+    queryClient.setQueryData(query.queryKey, previous);
+
+    const context = applyOptimisticExpenseDelete(queryClient, 10);
+    const next = queryClient.getQueryData<InfiniteData<ExpenseListResult, number>>(
+      query.queryKey
+    );
+
+    expect(next?.pages.flatMap((page) => page.rows.map((row) => row.id))).toEqual(
+      [12, 11]
+    );
+
+    restoreExpenseListSnapshots(queryClient, context);
+    expect(queryClient.getQueryData(query.queryKey)).toEqual(previous);
+  });
+
+  it("adds rows from any month to an all-time infinite expense list cache", () => {
+    const queryClient = new QueryClient();
+    const allTimeQuery = queries.expenses.list({ limit: 30 });
+    const mayQuery = queries.expenses.list({ month: "2026-05", limit: 30 });
+    queryClient.setQueryData(
+      allTimeQuery.queryKey,
+      buildInfiniteExpenseList([
+        buildExpenseList([], {
+          pagination: { limit: 30, offset: 0, hasMore: false },
+        }),
+      ])
+    );
+    queryClient.setQueryData(
+      mayQuery.queryKey,
+      buildInfiniteExpenseList([
+        buildExpenseList([], {
+          pagination: { limit: 30, offset: 0, hasMore: false },
+        }),
+      ])
+    );
+
+    applyOptimisticExpenseCreate(queryClient, {
+      date: "01/06/2026",
+      amount: 25000,
+      note: "June lunch",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+      budgetId: null,
+    });
+
+    const allTimeNext = queryClient.getQueryData<
+      InfiniteData<ExpenseListResult, number>
+    >(allTimeQuery.queryKey);
+    const mayNext = queryClient.getQueryData<
+      InfiniteData<ExpenseListResult, number>
+    >(mayQuery.queryKey);
+
+    expect(allTimeNext?.pages[0]?.rows[0]).toMatchObject({
+      date: "2026-06-01",
+      note: "June lunch",
+    });
+    expect(mayNext?.pages[0]?.rows).toEqual([]);
   });
 
   it("restores exact snapshots for all cached lists after a failed optimistic change", () => {

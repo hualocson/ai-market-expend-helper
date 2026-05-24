@@ -79,7 +79,7 @@ export default function OfflinePage() {
                 </Link>
                 <Link
                   className="bg-card/70 text-foreground hover:bg-card inline-flex items-center justify-center rounded-2xl border border-border/70 px-5 py-3 text-sm font-semibold transition"
-                  href="/transactions"
+                  href="/"
                 >
                   Browse transactions
                 </Link>

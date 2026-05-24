@@ -83,6 +83,8 @@ vi.mock("@/components/ui/date-picker", () => ({
 
 const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
   .React;
+const originalVisualViewport = window.visualViewport;
+const originalInnerHeight = window.innerHeight;
 
 const budgetOption = (
   override: Partial<BudgetWeeklyOption> = {}
@@ -105,6 +107,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: originalVisualViewport,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: originalInnerHeight,
+  });
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
   } else {
@@ -188,6 +198,74 @@ describe("QuickExpenseSheet — fields", () => {
     await user.keyboard("5");
     await user.click(screen.getByRole("button", { name: /5[.,]?000$/ }));
     expect(amount.value).toMatch(/5[.,]?000/);
+  });
+
+  it("hides amount suggestions after applying a suggestion", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
+    await user.click(amount);
+    await user.keyboard("5");
+    await user.click(screen.getByRole("button", { name: /5[.,]?000$/ }));
+
+    expect(amount.value).toMatch(/5[.,]?000/);
+    expect(amount).not.toHaveFocus();
+    expect(
+      screen.queryByRole("group", { name: /amount suggestions/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides amount suggestions when the amount input loses focus", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    await user.keyboard("5");
+    expect(
+      screen.getByRole("group", { name: /amount suggestions/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByPlaceholderText(/what did you spend on/i));
+
+    expect(
+      screen.queryByRole("group", { name: /amount suggestions/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("positions amount suggestions above the software keyboard", async () => {
+    const visualViewport = new EventTarget() as VisualViewport;
+    Object.defineProperties(visualViewport, {
+      height: { configurable: true, value: 544 },
+      offsetTop: { configurable: true, value: 0 },
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    act(() => {
+      visualViewport.dispatchEvent(new Event("resize"));
+    });
+    await user.keyboard("5");
+
+    const suggestions = screen.getByRole("group", {
+      name: /amount suggestions/i,
+    });
+
+    expect(suggestions).toHaveClass("fixed");
+    expect(suggestions).toHaveClass(
+      "no-scrollbar",
+      "flex-nowrap",
+      "overflow-x-auto"
+    );
+    expect(suggestions).toHaveStyle({
+      bottom: "calc(256px + env(safe-area-inset-bottom) + 8px)",
+    });
   });
 
   it("renders the collapsed category chip row and expands then toggles active chip", async () => {
@@ -333,6 +411,13 @@ describe("QuickExpenseSheet — submit", () => {
       await screen.findByRole("button", { name: /pick mocked date/i })
     );
 
+    expect(weeklyBudgetOptionsMock).not.toHaveBeenCalledWith(
+      expect.any(String),
+      "2026-05-20"
+    );
+
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
     await waitFor(() =>
       expect(weeklyBudgetOptionsMock).toHaveBeenCalledWith(
         expect.any(String),
@@ -407,6 +492,14 @@ describe("QuickExpenseSheet — edit mode", () => {
       screen.getByRole("button", { name: /badminton/i, pressed: true })
     ).toBeInTheDocument();
     expect(await screen.findByText("Sports week")).toBeInTheDocument();
+  });
+
+  it("does not autofocus the note field when edit mode opens", async () => {
+    renderEditSheet();
+
+    const note = await screen.findByPlaceholderText(/what did you spend on/i);
+
+    expect(note).not.toHaveFocus();
   });
 
   it("enqueues the submitted draft and closes immediately on edit submit", async () => {

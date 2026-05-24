@@ -1,7 +1,4 @@
-import type {
-  ExpenseListResult,
-  ExpensePrefillItem,
-} from "@/lib/services/expenses";
+import type { ExpenseListResult } from "@/lib/services/expenses";
 import { createQueryKeys } from "@lukemorales/query-key-factory";
 
 import { fetchJson } from "./http";
@@ -11,6 +8,8 @@ export type ExpenseListQueryParams = {
   q?: string;
   mode?: "full" | "recent";
   recentDays?: number;
+  limit?: number;
+  offset?: number;
 };
 
 export const fetchExpenseList = async ({
@@ -18,6 +17,8 @@ export const fetchExpenseList = async ({
   q,
   mode,
   recentDays,
+  limit,
+  offset,
 }: ExpenseListQueryParams = {}): Promise<ExpenseListResult> => {
   const query = new URLSearchParams();
 
@@ -33,6 +34,12 @@ export const fetchExpenseList = async ({
   if (recentDays !== undefined) {
     query.set("recentDays", String(recentDays));
   }
+  if (limit !== undefined) {
+    query.set("limit", String(limit));
+  }
+  if (offset !== undefined) {
+    query.set("offset", String(offset));
+  }
 
   const queryString = query.toString();
   return fetchJson<ExpenseListResult>(
@@ -44,12 +51,6 @@ export const fetchExpenseList = async ({
   );
 };
 
-export const fetchExpensePrefills = async (): Promise<ExpensePrefillItem[]> =>
-  fetchJson<ExpensePrefillItem[]>("/api/expense-prefills", {
-    method: "GET",
-    cache: "no-store",
-  });
-
 export const expenseQueries = createQueryKeys("expenses", {
   list: (params: ExpenseListQueryParams = {}) => ({
     queryKey: [
@@ -58,12 +59,13 @@ export const expenseQueries = createQueryKeys("expenses", {
         q: params.q ?? null,
         mode: params.mode ?? null,
         recentDays: params.recentDays ?? null,
+        limit: params.limit ?? null,
       },
     ],
-    queryFn: () => fetchExpenseList(params),
+    queryFn: ({ pageParam }) =>
+      fetchExpenseList({
+        ...params,
+        offset: typeof pageParam === "number" ? pageParam : params.offset,
+      }),
   }),
-  prefills: {
-    queryKey: null,
-    queryFn: fetchExpensePrefills,
-  },
 });

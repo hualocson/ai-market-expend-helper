@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET as getBudgetTransferCandidates } from "./budgets/transfer-candidates/route";
 import { GET as getDashboardMonthlySummary } from "./dashboard/monthly-summary/route";
-import { GET as getExpensePrefills } from "./expense-prefills/route";
 import { GET as getExpenses } from "./expenses/route";
 import { GET as getDailyReport } from "./reports/daily/route";
 import { GET as getMonthlyReport } from "./reports/monthly/route";
@@ -13,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   getDashboardMonthlySummary: vi.fn(),
   getDailyReport: vi.fn(),
   getExpenseList: vi.fn(),
-  getExpensePrefills: vi.fn(),
   getMonthlyReport: vi.fn(),
 }));
 
@@ -31,7 +29,6 @@ vi.mock("@/lib/services/dashboard", () => ({
 
 vi.mock("@/lib/services/expenses", () => ({
   getExpenseList: mocks.getExpenseList,
-  getExpensePrefills: mocks.getExpensePrefills,
 }));
 
 vi.mock("@/lib/services/reports", () => ({
@@ -58,7 +55,7 @@ describe("REST read routes", () => {
 
     const response = await getExpenses(
       new Request(
-        "http://localhost/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14"
+        "http://localhost/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14&limit=30&offset=60"
       )
     );
 
@@ -69,6 +66,8 @@ describe("REST read routes", () => {
       q: "coffee",
       mode: "recent",
       recentDays: 14,
+      limit: 30,
+      offset: 60,
     });
   });
 
@@ -134,21 +133,16 @@ describe("REST read routes", () => {
     expect(mocks.getExpenseList).not.toHaveBeenCalled();
   });
 
-  it("returns the expense prefills service payload", async () => {
-    const payload = [
-      {
-        note: "Lunch",
-        category: "Food",
-        totalFrequency: 3,
-        amount: 120000,
-      },
-    ];
-    mocks.getExpensePrefills.mockResolvedValue(payload);
+  it("returns 400 for invalid expense pagination", async () => {
+    const response = await getExpenses(
+      new Request("http://localhost/api/expenses?offset=-1")
+    );
 
-    const response = await getExpensePrefills();
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid offset",
+    });
+    expect(mocks.getExpenseList).not.toHaveBeenCalled();
   });
 
   it("returns the dashboard monthly summary service payload", async () => {

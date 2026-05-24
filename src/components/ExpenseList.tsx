@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 import dayjs from "@/configs/date";
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
+import type {
+  ExpenseListGroup,
+  ExpenseListItem as ExpenseListItemData,
+  ExpenseListResult,
+} from "@/lib/services/expenses";
 import { formatVnd } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowRightIcon, ChevronRight } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import type { InfiniteData, QueryFunction } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { ChevronRight, Loader2 } from "lucide-react";
 
 import ExpenseListItem from "@/components/ExpenseListItem";
-import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
 import VndSymbol from "@/components/VndSymbol";
 
 import JumpToTopButton from "./JumpToTopButton";
@@ -22,17 +26,29 @@ type ExpenseListProps = {
   searchQuery?: string;
   mode?: "full" | "recent";
   recentDays?: number;
-  showMonthTabs?: boolean;
-  showViewFull?: boolean;
-  monthTabBasePath?: string;
+  pageSize?: number;
 };
 
-const buildMonthOptions = (count = 12) => {
-  return Array.from({ length: count }, (_, index) =>
-    dayjs()
-      .subtract(count - 1 - index, "month")
-      .startOf("month")
-  );
+const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
+  return rows.reduce<ExpenseListGroup[]>((groups, expense) => {
+    const parsedDate = dayjs(expense.date);
+    const key = parsedDate.isValid()
+      ? parsedDate.format("YYYY-MM-DD")
+      : String(expense.date);
+    const label = parsedDate.isValid()
+      ? parsedDate.format("dddd, DD/MM/YYYY")
+      : String(expense.date);
+    const lastGroup = groups[groups.length - 1];
+
+    if (!lastGroup || lastGroup.key !== key) {
+      groups.push({ key, label, items: [expense], totalAmount: expense.amount });
+      return groups;
+    }
+
+    lastGroup.items.push(expense);
+    lastGroup.totalAmount += expense.amount;
+    return groups;
+  }, []);
 };
 
 const ExpenseList = ({
@@ -40,9 +56,7 @@ const ExpenseList = ({
   searchQuery,
   mode,
   recentDays,
-  showMonthTabs,
-  showViewFull = false,
-  monthTabBasePath = "/",
+  pageSize = 30,
 }: ExpenseListProps) => {
   const resolvedMode = mode ?? "full";
   const params: ExpenseListQueryParams = {
@@ -50,82 +64,79 @@ const ExpenseList = ({
     q: searchQuery,
     mode,
     recentDays,
+    limit: pageSize,
   };
-  const { data } = useQuery(queries.expenses.list(params));
+  const expenseListQuery = queries.expenses.list(params);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = useInfiniteQuery<
+    ExpenseListResult,
+    Error,
+    InfiniteData<ExpenseListResult, number>,
+    ReturnType<typeof queries.expenses.list>["queryKey"],
+    number
+  >({
+    queryKey: expenseListQuery.queryKey,
+    queryFn: expenseListQuery.queryFn as QueryFunction<
+      ExpenseListResult,
+      typeof expenseListQuery.queryKey,
+      number
+    >,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore
+        ? lastPage.pagination.offset + lastPage.pagination.limit
+        : undefined,
+  });
 
-  if (!data) {
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasNextPage || isFetchingNextPage) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void fetchNextPage();
+        }
+      },
+      {
+        root: listContainerRef.current,
+        rootMargin: "240px 0px",
+      }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  if (!data || data.pages.length === 0) {
     return null;
   }
 
-  const {
-    activeMonth: activeMonthKey,
-    effectiveRecentDays,
-    groupedRows,
-    isRecent,
-    rows,
-    trimmedSearch,
-  } = data;
-  const activeMonth = dayjs(activeMonthKey, "YYYY-MM", true);
-  const startOfMonth = activeMonth.startOf("month");
-  const showTabs = showMonthTabs ?? !isRecent;
-  const monthOptions = buildMonthOptions();
-  const monthItems = monthOptions.map((month) => {
-    const value = month.format("YYYY-MM");
-    const isCurrent = value === dayjs().format("YYYY-MM");
-    return {
-      value,
-      label: month.format("MMM"),
-      href: isCurrent ? monthTabBasePath : `${monthTabBasePath}?month=${value}`,
-      isActive: value === startOfMonth.format("YYYY-MM"),
-    };
-  });
+  const firstPage = data.pages[0];
+  const rows = data.pages.flatMap((page) => page.rows);
+  const groupedRows = groupRowsByDate(rows);
+  const { effectiveRecentDays, isRecent, trimmedSearch } = firstPage;
+  const isMonthFiltered = Boolean(selectedMonth);
 
-  const title = trimmedSearch
-    ? "Search results"
-    : isRecent
-      ? `Latest ${effectiveRecentDays} days`
-      : "All expenses";
-  const subtitle = trimmedSearch
-    ? `Matching "${trimmedSearch}"`
-    : isRecent
-      ? "Recent entries from this month."
-      : "Latest entries from your sheet.";
   const listContainerClassName =
     "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto";
 
   return (
     <section className="flex w-full grow flex-col gap-4 overflow-auto">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-foreground text-lg font-semibold sm:text-xl">
-            {title}
-          </h2>
-          <p className="text-muted-foreground text-sm">{subtitle}</p>
-        </div>
-        <div className="flex flex-col justify-end text-right">
-          <span className="text-muted-foreground text-xs">
-            {rows.length} items
-          </span>
-          {showViewFull ? (
-            <Link href="/transactions" className="w-full">
-              <Button
-                variant="ghost"
-                className="w-full rounded-full active:scale-[0.97]"
-              >
-                View full
-                <ArrowRightIcon />
-              </Button>
-            </Link>
-          ) : null}
-        </div>
-      </div>
-      {showTabs ? (
-        <div className="shrink-0">
-          <ExpenseMonthTabs items={monthItems} />
-        </div>
-      ) : null}
-
-      <div id="expense-list" className={listContainerClassName}>
+      <div
+        id="expense-list"
+        ref={listContainerRef}
+        className={listContainerClassName}
+      >
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
@@ -157,9 +168,32 @@ const ExpenseList = ({
               ? "No expenses match your search."
               : isRecent
                 ? `No expenses in the last ${effectiveRecentDays} days.`
-                : "No expenses for this month yet. Add one above to see it here."}
+                : isMonthFiltered
+                  ? "No expenses for this month yet. Add one above to see it here."
+                  : "No expenses yet. Add one above to see it here."}
           </div>
         )}
+
+        {hasNextPage || isFetchingNextPage || isFetchNextPageError ? (
+          <div ref={loadMoreRef} className="flex justify-center py-3">
+            {isFetchNextPageError ? (
+              <button
+                type="button"
+                onClick={() => void fetchNextPage()}
+                className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+              >
+                Retry loading more
+              </button>
+            ) : isFetchingNextPage ? (
+              <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more
+              </span>
+            ) : (
+              <span className="sr-only">Loading more transactions</span>
+            )}
+          </div>
+        ) : null}
 
         {resolvedMode === "full" && (
           <JumpToTopButton

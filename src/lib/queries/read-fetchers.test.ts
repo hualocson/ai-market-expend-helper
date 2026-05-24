@@ -2,11 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { budgetQueries, fetchBudgetTransferCandidates } from "./budgets";
 import { dashboardQueries, fetchDashboardMonthlySummary } from "./dashboard";
-import {
-  expenseQueries,
-  fetchExpenseList,
-  fetchExpensePrefills,
-} from "./expenses";
+import { expenseQueries, fetchExpenseList } from "./expenses";
 import { fetchDailyReport, fetchMonthlyReport, reportQueries } from "./reports";
 
 const mockJsonResponse = (payload: unknown, init?: ResponseInit) =>
@@ -38,27 +34,15 @@ describe("read query fetchers", () => {
         q: "coffee",
         mode: "recent",
         recentDays: 14,
+        limit: 30,
+        offset: 60,
       })
     ).resolves.toEqual(payload);
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      "/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14",
+      "/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14&limit=30&offset=60",
       { method: "GET", cache: "no-store" }
     );
-  });
-
-  it("fetches expense prefills", async () => {
-    const payload = [{ note: "Lunch", category: "Food", amount: 120000 }];
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
-
-    await expect(fetchExpensePrefills()).resolves.toEqual(payload);
-
-    expect(fetchSpy).toHaveBeenCalledWith("/api/expense-prefills", {
-      method: "GET",
-      cache: "no-store",
-    });
   });
 
   it("fetches budget transfer candidates", async () => {
@@ -143,7 +127,6 @@ describe("read query fetchers", () => {
 
   it("adds queryFns to read query factory entries", () => {
     expect(typeof expenseQueries.list().queryFn).toBe("function");
-    expect(typeof expenseQueries.prefills.queryFn).toBe("function");
     expect(typeof budgetQueries.transferCandidates(1).queryFn).toBe("function");
     expect(typeof dashboardQueries.monthlySummary("2026-05").queryFn).toBe(
       "function"
