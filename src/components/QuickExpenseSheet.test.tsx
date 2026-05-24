@@ -158,6 +158,17 @@ describe("QuickExpenseSheet — open/close", () => {
     const note = await screen.findByPlaceholderText(/what did you spend on/i);
     await waitFor(() => expect(note).toHaveFocus());
   });
+
+  it("uses the quick expense morph entrance surface", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    expect(await screen.findByRole("dialog")).toHaveClass(
+      "quick-expense-sheet-morph"
+    );
+  });
 });
 
 describe("QuickExpenseSheet — fields", () => {

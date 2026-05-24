@@ -182,7 +182,9 @@ const QuickExpenseSheet = ({
 }: TQuickExpenseSheetProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
-  const enqueueRecovery = useQuickExpenseRecoveryStore((state) => state.enqueue);
+  const enqueueRecovery = useQuickExpenseRecoveryStore(
+    (state) => state.enqueue
+  );
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -193,9 +195,7 @@ const QuickExpenseSheet = ({
       : isEditMode
         ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
         : buildDefaultDraft(fallbackPaidBy);
-  const [draft, setDraft] = useState<TExpenseDraft>(() =>
-    buildDraftForOpen()
-  );
+  const [draft, setDraft] = useState<TExpenseDraft>(() => buildDraftForOpen());
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
@@ -378,7 +378,7 @@ const QuickExpenseSheet = ({
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className="h-full w-full gap-0 rounded-none p-0"
+        className="quick-expense-sheet-morph h-full w-full gap-0 rounded-none p-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           if (isEditMode) {
@@ -387,7 +387,7 @@ const QuickExpenseSheet = ({
           noteRef.current?.focus({ preventScroll: true });
         }}
       >
-        <SheetClose className="ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-all duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+        <SheetClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-all duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetClose>
@@ -400,7 +400,7 @@ const QuickExpenseSheet = ({
           </SheetDescription>
         </SheetHeader>
         <div className="my-auto flex flex-col gap-4 pt-12">
-          <div className="grid grid-cols-3 gap-2 px-4">
+          <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-3 gap-2 px-4">
             <Button
               type="button"
               variant="outline"
@@ -443,7 +443,7 @@ const QuickExpenseSheet = ({
           </div>
 
           <div className="flex flex-1 flex-col justify-center gap-4 px-4">
-            <div className="flex flex-col gap-2">
+            <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2">
               {" "}
               <input
                 ref={noteRef}
@@ -483,14 +483,14 @@ const QuickExpenseSheet = ({
                 role="group"
                 aria-label="Amount suggestions"
                 className={cn(
-                  "no-scrollbar flex gap-2 overflow-x-auto flex-nowrap",
+                  "no-scrollbar flex flex-nowrap gap-2 overflow-x-auto",
                   anchorSuggestionsToKeyboard &&
                     "fixed inset-x-0 z-60 mx-auto w-full max-w-md justify-start px-4 pt-2 pb-2"
                 )}
                 style={
                   anchorSuggestionsToKeyboard
                     ? {
-                        bottom: `calc(${keyboardOffset}px +  8px)`,
+                        bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom) + 8px)`,
                       }
                     : undefined
                 }
@@ -515,14 +515,16 @@ const QuickExpenseSheet = ({
               </div>
             )}
 
-            <CategoryChipRow
-              value={draft.category}
-              onChange={(c) => setField("category", c)}
-            />
+            <div className="quick-expense-enter-group quick-expense-enter-delay-3">
+              <CategoryChipRow
+                value={draft.category}
+                onChange={(c) => setField("category", c)}
+              />
+            </div>
           </div>
         </div>
 
-        <SheetFooter className="standalone:pb-safe px-4">
+        <SheetFooter className="quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4">
           <Button
             type="button"
             onClick={handleSubmit}
