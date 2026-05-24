@@ -1,4 +1,8 @@
 import { Category, PaidBy } from "@/enums";
+import type {
+  ExpenseOutboxOperation,
+  LocalExpense,
+} from "@/lib/sync/expenses/types";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
@@ -6,6 +10,7 @@ import { createStore } from "zustand/vanilla";
 export const QUICK_EXPENSE_RECOVERY_TTL_MS = 30 * 60 * 1000;
 
 export type TQuickExpensePayload = {
+  clientId?: string;
   date: string;
   amount: number;
   note: string;
@@ -16,119 +21,245 @@ export type TQuickExpensePayload = {
 
 export type TQuickExpenseDraft = TQuickExpensePayload;
 
-export type TQuickExpenseRecoveryStatus = "queued" | "running" | "failed";
+export type TQuickExpenseRecoveryStatus = "failed";
 
 export type TQuickExpenseRecoveryEntry = {
   operationId: string;
   mode: "create" | "edit";
+  clientId: string;
+  serverId: number | null;
   transactionId?: number;
   draft: TQuickExpenseDraft;
   payload: TQuickExpensePayload;
   toastId?: string | number;
+  notifiedAt?: number;
   status: TQuickExpenseRecoveryStatus;
+  lastError: string;
   createdAt: number;
 };
 
 export type TQuickExpenseRecoveryPersistedState = {
-  entries: Record<string, TQuickExpenseRecoveryEntry>;
   activeRecoveryOperationId: string | null;
+  dismissedErrorsByOperationId: Record<string, string>;
 };
 
 export type TQuickExpenseRecoveryState = TQuickExpenseRecoveryPersistedState & {
-  enqueue: (entry: TQuickExpenseRecoveryEntry) => void;
-  markRunning: (operationId: string) => void;
-  attachToastId: (
-    operationId: string,
-    toastId: TQuickExpenseRecoveryEntry["toastId"]
+  entries: Record<string, TQuickExpenseRecoveryEntry>;
+  syncFailedOutboxEntries: (
+    operations: ExpenseOutboxOperation[],
+    now?: number
   ) => void;
-  markFailed: (operationId: string) => void;
+  markNotified: (
+    operationId: string,
+    toastId?: TQuickExpenseRecoveryEntry["toastId"],
+    now?: number
+  ) => void;
   clear: (operationId: string) => void;
   setActiveRecovery: (operationId: string | null) => void;
   pruneExpired: (now?: number) => void;
-  getQueuedEntries: () => TQuickExpenseRecoveryEntry[];
+  getUnnotifiedFailedEntries: () => TQuickExpenseRecoveryEntry[];
 };
 
 const defaultPersistedState: TQuickExpenseRecoveryPersistedState = {
-  entries: {},
   activeRecoveryOperationId: null,
+  dismissedErrorsByOperationId: {},
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const normalizeQuickExpenseRecoveryEntry = ({
-  toastId: _toastId,
-  status,
-  ...entry
-}: TQuickExpenseRecoveryEntry): TQuickExpenseRecoveryEntry => ({
-  ...entry,
-  status: status === "running" ? "failed" : status,
-});
+const isCategory = (value: string): value is Category =>
+  (Object.values(Category) as string[]).includes(value);
+
+const isPaidBy = (value: string): value is PaidBy =>
+  (Object.values(PaidBy) as string[]).includes(value);
+
+const isRecoverableExpense = (value: unknown): value is LocalExpense => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    value.entity === "expenses" &&
+    typeof value.clientId === "string" &&
+    (typeof value.serverId === "number" || value.serverId === null) &&
+    typeof value.date === "string" &&
+    typeof value.amount === "number" &&
+    Number.isFinite(value.amount) &&
+    typeof value.note === "string" &&
+    typeof value.category === "string" &&
+    isCategory(value.category) &&
+    typeof value.paidBy === "string" &&
+    isPaidBy(value.paidBy) &&
+    (typeof value.budgetId === "number" || value.budgetId === null)
+  );
+};
+
+const getOperationRecoveryStartedAt = (
+  operation: ExpenseOutboxOperation,
+  now: number
+) => {
+  const parsed = Date.parse(operation.lastAttemptAt ?? operation.createdAt);
+  return Number.isFinite(parsed) ? parsed : now;
+};
+
+const getDismissedRecoveryKey = (entry: TQuickExpenseRecoveryEntry) =>
+  `${entry.lastError}:${entry.createdAt}`;
+
+export const quickExpenseRecoveryEntryFromOutboxOperation = (
+  operation: ExpenseOutboxOperation,
+  now = Date.now()
+): TQuickExpenseRecoveryEntry | null => {
+  if (
+    operation.entity !== "expenses" ||
+    operation.lastError === null ||
+    operation.type === "delete" ||
+    !isRecoverableExpense(operation.payload)
+  ) {
+    return null;
+  }
+
+  const { category, paidBy } = operation.payload;
+  if (!isCategory(category) || !isPaidBy(paidBy)) {
+    return null;
+  }
+
+  const draft: TQuickExpenseDraft = {
+    clientId: operation.clientId,
+    date: operation.payload.date,
+    amount: operation.payload.amount,
+    note: operation.payload.note,
+    category,
+    paidBy,
+    budgetId: operation.payload.budgetId,
+  };
+
+  const mode = operation.type === "update" ? "edit" : "create";
+  const serverId = operation.serverId ?? operation.payload.serverId;
+
+  return {
+    operationId: operation.operationId,
+    mode,
+    clientId: operation.clientId,
+    serverId,
+    transactionId: mode === "edit" && serverId !== null ? serverId : undefined,
+    draft,
+    payload: draft,
+    status: "failed",
+    lastError: operation.lastError,
+    createdAt: getOperationRecoveryStartedAt(operation, now),
+  };
+};
 
 export const normalizeQuickExpenseRecoveryPersistedState = (
-  state: TQuickExpenseRecoveryPersistedState
+  state: Partial<TQuickExpenseRecoveryPersistedState>
 ): TQuickExpenseRecoveryPersistedState => ({
-  entries: Object.fromEntries(
-    Object.entries(state.entries).map(([operationId, entry]) => [
-      operationId,
-      normalizeQuickExpenseRecoveryEntry(entry),
-    ])
+  activeRecoveryOperationId:
+    typeof state.activeRecoveryOperationId === "string"
+      ? state.activeRecoveryOperationId
+      : null,
+  dismissedErrorsByOperationId: Object.fromEntries(
+    Object.entries(state.dismissedErrorsByOperationId ?? {}).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[0] === "string" && typeof entry[1] === "string"
+    )
   ),
-  activeRecoveryOperationId: state.activeRecoveryOperationId,
 });
 
 const getHydratedQuickExpenseRecoveryPersistedState = (
   persistedState: unknown
 ): TQuickExpenseRecoveryPersistedState | null => {
-  if (!isRecord(persistedState) || !isRecord(persistedState.entries)) {
+  if (!isRecord(persistedState)) {
     return null;
   }
 
-  return {
-    entries: persistedState.entries as Record<string, TQuickExpenseRecoveryEntry>,
+  return normalizeQuickExpenseRecoveryPersistedState({
     activeRecoveryOperationId:
       typeof persistedState.activeRecoveryOperationId === "string"
         ? persistedState.activeRecoveryOperationId
         : null,
-  };
+    dismissedErrorsByOperationId: isRecord(
+      persistedState.dismissedErrorsByOperationId
+    )
+      ? (persistedState.dismissedErrorsByOperationId as Record<string, string>)
+      : {},
+  });
 };
 
 const createQuickExpenseRecoveryState = (
   set: (
     partial:
       | Partial<TQuickExpenseRecoveryState>
-      | ((state: TQuickExpenseRecoveryState) => Partial<TQuickExpenseRecoveryState>)
+      | ((
+          state: TQuickExpenseRecoveryState
+        ) => Partial<TQuickExpenseRecoveryState>)
   ) => void,
   get: () => TQuickExpenseRecoveryState,
   initState: TQuickExpenseRecoveryPersistedState = defaultPersistedState
 ): TQuickExpenseRecoveryState => ({
+  entries: {},
   ...initState,
-  enqueue: (entry) =>
-    set((state) => ({
-      entries: {
-        ...state.entries,
-        [entry.operationId]: entry,
-      },
-    })),
-  markRunning: (operationId) =>
+  syncFailedOutboxEntries: (operations, now = Date.now()) =>
     set((state) => {
-      const entry = state.entries[operationId];
+      const incomingEntries = operations.flatMap((operation) => {
+        const entry = quickExpenseRecoveryEntryFromOutboxOperation(
+          operation,
+          now
+        );
+        return entry ? [entry] : [];
+      });
+      const incomingOperationIds = new Set(
+        incomingEntries.map((entry) => entry.operationId)
+      );
+      const dismissedErrorsByOperationId = Object.fromEntries(
+        Object.entries(state.dismissedErrorsByOperationId).filter(
+          ([operationId]) => incomingOperationIds.has(operationId)
+        )
+      );
+      const entries = Object.fromEntries(
+        incomingEntries.flatMap((entry) => {
+          if (
+            dismissedErrorsByOperationId[entry.operationId] ===
+            getDismissedRecoveryKey(entry)
+          ) {
+            return [];
+          }
 
-      if (!entry || entry.status !== "queued") {
-        return {};
-      }
+          const existing = state.entries[entry.operationId];
+          const preserveNotification =
+            existing && existing.lastError === entry.lastError;
+
+          return [
+            [
+              entry.operationId,
+              {
+                ...entry,
+                ...(preserveNotification &&
+                typeof existing.toastId !== "undefined"
+                  ? { toastId: existing.toastId }
+                  : {}),
+                ...(preserveNotification &&
+                typeof existing.notifiedAt !== "undefined"
+                  ? { notifiedAt: existing.notifiedAt }
+                  : {}),
+              },
+            ],
+          ];
+        })
+      );
+      const activeRecoveryOperationId =
+        state.activeRecoveryOperationId &&
+        state.activeRecoveryOperationId in entries
+          ? state.activeRecoveryOperationId
+          : null;
 
       return {
-        entries: {
-          ...state.entries,
-          [operationId]: {
-            ...entry,
-            status: "running",
-          },
-        },
+        entries,
+        activeRecoveryOperationId,
+        dismissedErrorsByOperationId,
       };
     }),
-  attachToastId: (operationId, toastId) =>
+  markNotified: (operationId, toastId, now = Date.now()) =>
     set((state) => {
       const entry = state.entries[operationId];
 
@@ -142,34 +273,24 @@ const createQuickExpenseRecoveryState = (
           [operationId]: {
             ...entry,
             toastId,
-          },
-        },
-      };
-    }),
-  markFailed: (operationId) =>
-    set((state) => {
-      const entry = state.entries[operationId];
-
-      if (!entry) {
-        return {};
-      }
-
-      return {
-        entries: {
-          ...state.entries,
-          [operationId]: {
-            ...entry,
-            status: "failed",
+            notifiedAt: now,
           },
         },
       };
     }),
   clear: (operationId) =>
     set((state) => {
+      const entry = state.entries[operationId];
       const { [operationId]: _entry, ...entries } = state.entries;
 
       return {
         entries,
+        dismissedErrorsByOperationId: entry
+          ? {
+              ...state.dismissedErrorsByOperationId,
+              [operationId]: getDismissedRecoveryKey(entry),
+            }
+          : state.dismissedErrorsByOperationId,
         activeRecoveryOperationId:
           state.activeRecoveryOperationId === operationId
             ? null
@@ -182,6 +303,13 @@ const createQuickExpenseRecoveryState = (
     }),
   pruneExpired: (now = Date.now()) =>
     set((state) => {
+      const dismissedExpiredEntries = Object.fromEntries(
+        Object.values(state.entries)
+          .filter(
+            (entry) => now - entry.createdAt > QUICK_EXPENSE_RECOVERY_TTL_MS
+          )
+          .map((entry) => [entry.operationId, getDismissedRecoveryKey(entry)])
+      );
       const entries = Object.fromEntries(
         Object.entries(state.entries).filter(
           ([, entry]) => now - entry.createdAt <= QUICK_EXPENSE_RECOVERY_TTL_MS
@@ -190,32 +318,28 @@ const createQuickExpenseRecoveryState = (
       const activeEntryExists =
         state.activeRecoveryOperationId !== null &&
         state.activeRecoveryOperationId in entries;
-      const activeRecoveryOperationId = activeEntryExists
-        ? state.activeRecoveryOperationId
-        : null;
-
-      if (
-        Object.keys(entries).length === Object.keys(state.entries).length &&
-        activeRecoveryOperationId === state.activeRecoveryOperationId
-      ) {
-        return state;
-      }
 
       return {
         entries,
-        activeRecoveryOperationId,
+        dismissedErrorsByOperationId: {
+          ...state.dismissedErrorsByOperationId,
+          ...dismissedExpiredEntries,
+        },
+        activeRecoveryOperationId: activeEntryExists
+          ? state.activeRecoveryOperationId
+          : null,
       };
     }),
-  getQueuedEntries: () =>
-    Object.values(get().entries).filter((entry) => entry.status === "queued"),
+  getUnnotifiedFailedEntries: () =>
+    Object.values(get().entries).filter((entry) => !entry.notifiedAt),
 });
 
 export const getPersistableQuickExpenseRecoveryState = (
   state: TQuickExpenseRecoveryState
 ): TQuickExpenseRecoveryPersistedState =>
   normalizeQuickExpenseRecoveryPersistedState({
-    entries: state.entries,
     activeRecoveryOperationId: state.activeRecoveryOperationId,
+    dismissedErrorsByOperationId: state.dismissedErrorsByOperationId,
   });
 
 export const mergeQuickExpenseRecoveryPersistedState = (
@@ -231,7 +355,8 @@ export const mergeQuickExpenseRecoveryPersistedState = (
 
   return {
     ...currentState,
-    ...normalizeQuickExpenseRecoveryPersistedState(hydratedState),
+    ...hydratedState,
+    entries: {},
   };
 };
 
@@ -242,15 +367,13 @@ export const createQuickExpenseRecoveryStore = (
     createQuickExpenseRecoveryState(set, get, initState)
   );
 
-export const useQuickExpenseRecoveryStore = create<TQuickExpenseRecoveryState>()(
-  persist(
-    (set, get) => createQuickExpenseRecoveryState(set, get),
-    {
+export const useQuickExpenseRecoveryStore =
+  create<TQuickExpenseRecoveryState>()(
+    persist((set, get) => createQuickExpenseRecoveryState(set, get), {
       name: "quick-expense-recovery",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => sessionStorage),
       partialize: getPersistableQuickExpenseRecoveryState,
       merge: mergeQuickExpenseRecoveryPersistedState,
-    }
-  )
-);
+    })
+  );

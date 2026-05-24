@@ -21,7 +21,12 @@ const toastMock = vi.hoisted(() => ({
 }));
 
 const recoveryStoreMock = vi.hoisted(() => ({
-  enqueue: vi.fn(),
+  clear: vi.fn(),
+}));
+
+const mutationMocks = vi.hoisted(() => ({
+  createMutateAsync: vi.fn(),
+  updateMutateAsync: vi.fn(),
 }));
 
 vi.mock("@/stores/quick-expense-recovery-store", async () => {
@@ -33,10 +38,19 @@ vi.mock("@/stores/quick-expense-recovery-store", async () => {
     ...actual,
     useQuickExpenseRecoveryStore: (selector: (state: unknown) => unknown) =>
       selector({
-        enqueue: recoveryStoreMock.enqueue,
+        clear: recoveryStoreMock.clear,
       }),
   };
 });
+
+vi.mock("@/lib/mutations", () => ({
+  useCreateExpenseMutation: () => ({
+    mutateAsync: mutationMocks.createMutateAsync,
+  }),
+  useUpdateExpenseMutation: () => ({
+    mutateAsync: mutationMocks.updateMutateAsync,
+  }),
+}));
 
 vi.mock("sonner", () => ({
   toast: toastMock,
@@ -103,6 +117,12 @@ const budgetOption = (
 beforeEach(() => {
   vi.clearAllMocks();
   toastMock.loading.mockReturnValue("loading-toast");
+  mutationMocks.createMutateAsync.mockResolvedValue({
+    clientId: "expense-client-1",
+  });
+  mutationMocks.updateMutateAsync.mockResolvedValue({
+    clientId: "expense-client-1",
+  });
   weeklyBudgetOptionsMock.mockResolvedValue([]);
 });
 
@@ -326,7 +346,7 @@ describe("QuickExpenseSheet — submit", () => {
     ).toBeDisabled();
   });
 
-  it("enqueues the submitted draft and closes immediately on create submit", async () => {
+  it("calls the local-first create mutation with the submitted draft and closes", async () => {
     const user = await openSheet();
     await user.type(
       screen.getByPlaceholderText(/what did you spend on/i),
@@ -337,32 +357,45 @@ describe("QuickExpenseSheet — submit", () => {
     await user.keyboard("12000");
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
-    expect(recoveryStoreMock.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        operationId: expect.any(String),
-        mode: "create",
-        transactionId: undefined,
-        status: "queued",
-        createdAt: expect.any(Number),
-        draft: expect.objectContaining({
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
           amount: 12000,
           note: "Retry lunch",
           category: "Food",
           paidBy: expect.any(String),
           budgetId: null,
-        }),
-        payload: expect.objectContaining({
-          amount: 12000,
-          note: "Retry lunch",
-          category: "Food",
-          paidBy: expect.any(String),
-          budgetId: null,
-        }),
-      })
+        })
+      )
     );
     expect(
       screen.queryByPlaceholderText(/what did you spend on/i)
     ).not.toBeInTheDocument();
+  });
+
+  it("closes immediately after dispatching a local-first create", async () => {
+    let resolveCreate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.createMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+    const user = await openSheet();
+
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalled()
+    );
+    expect(
+      screen.queryByPlaceholderText(/what did you spend on/i)
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveCreate({ clientId: "expense-client-1" });
+    });
   });
 
   it("opens create mode with a recovery draft after rerender", async () => {
@@ -379,6 +412,7 @@ describe("QuickExpenseSheet — submit", () => {
       onOpenChange,
       showTrigger: false,
       recoveryDraft: {
+        clientId: "expense-client-1",
         date: "20/05/2026",
         amount: 45000,
         note: "Recovered lunch",
@@ -395,18 +429,14 @@ describe("QuickExpenseSheet — submit", () => {
 
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
-    expect(recoveryStoreMock.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: "create",
-        draft: expect.objectContaining({
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: "expense-client-1",
           amount: 45000,
           note: "Recovered lunch",
-        }),
-        payload: expect.objectContaining({
-          amount: 45000,
-          note: "Recovered lunch",
-        }),
-      })
+        })
+      )
     );
   });
 
@@ -457,11 +487,10 @@ describe("QuickExpenseSheet — submit", () => {
     await user.keyboard("12000");
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
-    expect(recoveryStoreMock.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draft: expect.objectContaining({ budgetId: null }),
-        payload: expect.objectContaining({ budgetId: null }),
-      })
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ budgetId: null })
+      )
     );
   });
 });
@@ -525,7 +554,7 @@ describe("QuickExpenseSheet — edit mode", () => {
     expect(note).not.toHaveFocus();
   });
 
-  it("enqueues the submitted draft and closes immediately on edit submit", async () => {
+  it("calls the local-first update mutation with the submitted draft and closes", async () => {
     const user = userEvent.setup();
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
@@ -534,22 +563,10 @@ describe("QuickExpenseSheet — edit mode", () => {
 
     await user.click(screen.getByRole("button", { name: /^update$/i }));
 
-    expect(recoveryStoreMock.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        operationId: expect.any(String),
-        mode: "edit",
-        transactionId: 42,
-        status: "queued",
-        createdAt: expect.any(Number),
-        draft: expect.objectContaining({
-          date: "20/05/2026",
-          amount: 150000,
-          note: "Badminton court",
-          category: "Badminton",
-          paidBy: "Embe",
-          budgetId: 2,
-        }),
-        payload: expect.objectContaining({
+    await waitFor(() =>
+      expect(mutationMocks.updateMutateAsync).toHaveBeenCalledWith({
+        id: 42,
+        input: expect.objectContaining({
           date: "20/05/2026",
           amount: 150000,
           note: "Badminton court",
@@ -654,7 +671,7 @@ describe("QuickExpenseSheet — edit mode", () => {
 
     await user.click(screen.getByRole("button", { name: /^update$/i }));
 
-    expect(recoveryStoreMock.enqueue).not.toHaveBeenCalled();
+    expect(mutationMocks.updateMutateAsync).not.toHaveBeenCalled();
     expect(toastMock.error).toHaveBeenCalledWith("Failed to update expense");
   });
 });

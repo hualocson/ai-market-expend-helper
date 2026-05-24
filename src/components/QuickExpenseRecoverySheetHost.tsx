@@ -31,6 +31,7 @@ const QuickExpenseRecoverySheetHost = () => {
       }}
       showTrigger={false}
       transactionId={entry.transactionId}
+      recoveryOperationId={entry.operationId}
       recoveryDraft={entry.draft}
     />
   );

@@ -10,6 +10,10 @@ import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
+import {
+  useCreateExpenseMutation,
+  useUpdateExpenseMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -66,6 +70,7 @@ export type TQuickExpenseSheetProps = {
   onOpenChange?: (open: boolean) => void;
   initialExpense?: TQuickExpenseSheetInitialExpense | null;
   recoveryDraft?: TQuickExpenseDraft | null;
+  recoveryOperationId?: string;
   transactionId?: number;
   onSuccess?: () => void;
   onConfirmDelete?: () => void | Promise<void>;
@@ -74,6 +79,7 @@ export type TQuickExpenseSheetProps = {
 
 export type TQuickExpenseSheetInitialExpense = {
   id?: number;
+  clientId?: string;
   date: string;
   amount: number;
   note?: string | null;
@@ -136,6 +142,7 @@ const buildDraftFromExpense = (
 
   const amount = Number(initialExpense.amount);
   return {
+    clientId: initialExpense.clientId,
     date: formatDraftDate(initialExpense.date),
     amount: Number.isFinite(amount) ? amount : 0,
     note: initialExpense.note ?? "",
@@ -146,6 +153,7 @@ const buildDraftFromExpense = (
 };
 
 const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
+  clientId: draft.clientId,
   date: draft.date,
   amount: draft.amount,
   note: draft.note,
@@ -157,6 +165,7 @@ const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
 const buildQuickExpensePayload = (
   draft: TExpenseDraft
 ): TQuickExpensePayload => ({
+  clientId: draft.clientId,
   date: draft.date,
   amount: draft.amount,
   note: draft.note,
@@ -164,14 +173,6 @@ const buildQuickExpensePayload = (
   paidBy: draft.paidBy,
   budgetId: draft.budgetId,
 });
-
-const createOperationId = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-};
 
 const formatDateLabel = (date: string) => {
   const parsed = dayjs(date, "DD/MM/YYYY", true);
@@ -195,15 +196,16 @@ const QuickExpenseSheet = ({
   onOpenChange,
   initialExpense = null,
   recoveryDraft = null,
+  recoveryOperationId,
   transactionId,
   onConfirmDelete,
   showTrigger,
 }: TQuickExpenseSheetProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
-  const enqueueRecovery = useQuickExpenseRecoveryStore(
-    (state) => state.enqueue
-  );
+  const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
+  const { mutateAsync: createExpense } = useCreateExpenseMutation();
+  const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -239,18 +241,38 @@ const QuickExpenseSheet = ({
     setQueueing(true);
     const submittedDraft = cloneExpenseDraft(draft);
     const payload = buildQuickExpensePayload(submittedDraft);
+    const submittedTransactionId = transactionId;
 
-    enqueueRecovery({
-      operationId: createOperationId(),
-      mode,
-      transactionId,
-      draft: submittedDraft,
-      payload,
-      status: "queued",
-      createdAt: Date.now(),
-    });
-    handleOpenChange(false);
-    setQueueing(false);
+    try {
+      const localWrite = isEditMode
+        ? typeof submittedTransactionId === "number"
+          ? updateExpense({
+              id: submittedTransactionId,
+              input: payload,
+            })
+          : Promise.reject(new Error("Failed to update expense"))
+        : createExpense(payload);
+
+      if (recoveryOperationId) {
+        clearRecovery(recoveryOperationId);
+      }
+      handleOpenChange(false);
+
+      void localWrite
+        .catch(() => {
+          toast.error(
+            isEditMode ? "Failed to update expense" : "Failed to add expense"
+          );
+        })
+        .finally(() => {
+          setQueueing(false);
+        });
+    } catch {
+      toast.error(
+        isEditMode ? "Failed to update expense" : "Failed to add expense"
+      );
+      setQueueing(false);
+    }
   };
 
   const noteRef = useRef<HTMLInputElement>(null);
