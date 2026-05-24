@@ -1,9 +1,12 @@
 "use client";
 
+import { useCallback, useState } from "react";
+
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
 import { queries } from "@/lib/queries";
+import type { DailyReportExpense } from "@/lib/services/reports";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
+import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
 import ExpenseListItem from "@/components/ExpenseListItem";
 import PageEnterAnimation, {
   PageEnterSection,
@@ -28,6 +32,16 @@ type DailyReportContentProps = {
 
 const DailyReportContent = ({ date }: DailyReportContentProps) => {
   const { data: report } = useQuery(queries.reports.daily(date));
+  const [editingExpense, setEditingExpense] =
+    useState<DailyReportExpense | null>(null);
+  const handleEditExpense = useCallback((expense: DailyReportExpense) => {
+    setEditingExpense(expense);
+  }, []);
+  const handleEditOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setEditingExpense(null);
+    }
+  }, []);
 
   if (!report) {
     return null;
@@ -221,7 +235,11 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
             <div className="mt-3 flex flex-col gap-3">
               {report.dailyExpenses.length ? (
                 report.dailyExpenses.map((expense) => (
-                  <ExpenseListItem key={expense.id} expense={expense} />
+                  <ExpenseListItem
+                    key={expense.id}
+                    expense={expense}
+                    onEditExpense={handleEditExpense}
+                  />
                 ))
               ) : (
                 <div className="text-muted-foreground py-6 text-center text-sm">
@@ -232,6 +250,11 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
           </div>
         </PageEnterSection>
       </div>
+      <ExpenseEditSheetHost
+        expense={editingExpense}
+        open={Boolean(editingExpense)}
+        onOpenChange={handleEditOpenChange}
+      />
     </PageEnterAnimation>
   );
 };

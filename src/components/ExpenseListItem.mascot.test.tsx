@@ -1,18 +1,11 @@
 import React from "react";
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseListItem from "./ExpenseListItem";
 
-const quickExpenseSheetMock = vi.hoisted(() => vi.fn());
 const deleteExpenseMutationMock = vi.hoisted(() => vi.fn());
 const deleteExpenseIsPendingMock = vi.hoisted(() => ({ value: false }));
 const toastMock = vi.hoisted(() => ({
@@ -60,13 +53,6 @@ vi.mock("motion/react", () => ({
   },
 }));
 
-vi.mock("@/components/QuickExpenseSheet", () => ({
-  default: (props: Record<string, unknown>) => {
-    quickExpenseSheetMock(props);
-    return props.open ? <div data-testid="quick-expense-sheet" /> : null;
-  },
-}));
-
 vi.mock("@/components/ExpenseItemIcon", () => ({
   default: ({ category }: { category: string }) => (
     <div data-testid="expense-item-icon">{category}</div>
@@ -90,7 +76,10 @@ const expense = {
   budgetName: null,
 };
 
-const renderItem = () => <ExpenseListItem expense={expense} />;
+const renderItem = (onEditExpense = vi.fn()) => {
+  render(<ExpenseListItem expense={expense} onEditExpense={onEditExpense} />);
+  return { onEditExpense };
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -100,81 +89,35 @@ beforeEach(() => {
 });
 
 describe("ExpenseListItem edit flow", () => {
-  it("opens QuickExpenseSheet in edit mode when tapping the item", async () => {
+  it("requests edit from the parent host when tapping the item", async () => {
     const user = userEvent.setup();
-
-    render(renderItem());
+    const { onEditExpense } = renderItem();
 
     await user.click(screen.getByText("Lunch"));
 
-    expect(screen.getByTestId("quick-expense-sheet")).toBeInTheDocument();
-    expect(quickExpenseSheetMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        mode: "edit",
-        open: true,
-        transactionId: 1,
-      })
-    );
+    expect(onEditExpense).toHaveBeenCalledTimes(1);
+    expect(onEditExpense).toHaveBeenCalledWith(expense);
   });
 
   it("does not open edit from the drag click that follows a swipe", async () => {
     const user = userEvent.setup();
-
-    render(renderItem());
+    const { onEditExpense } = renderItem();
 
     const item = screen.getByRole("button", { name: /edit expense lunch/i });
     fireEvent.dragStart(item);
     await user.click(item);
 
-    expect(screen.queryByTestId("quick-expense-sheet")).not.toBeInTheDocument();
+    expect(onEditExpense).not.toHaveBeenCalled();
   });
 
-  it("opens QuickExpenseSheet in edit mode", async () => {
+  it("requests edit from the parent host from the swipe edit action", async () => {
     const user = userEvent.setup();
-
-    render(renderItem());
+    const { onEditExpense } = renderItem();
 
     await user.click(screen.getByRole("button", { name: /edit expense$/i }));
 
-    expect(screen.getByTestId("quick-expense-sheet")).toBeInTheDocument();
-    expect(quickExpenseSheetMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        mode: "edit",
-        open: true,
-        showTrigger: false,
-        transactionId: 1,
-        initialExpense: expect.objectContaining({
-          date: "01/04/2026",
-          amount: 125000,
-          note: "Lunch",
-          category: "Food",
-          paidBy: "me",
-          budgetId: null,
-        }),
-      })
-    );
-  });
-
-  it("passes delete handling to the edit sheet confirmation flow", async () => {
-    const user = userEvent.setup();
-
-    render(renderItem());
-
-    await user.click(screen.getByRole("button", { name: /edit expense$/i }));
-
-    const props = quickExpenseSheetMock.mock.calls.at(-1)?.[0] as {
-      onConfirmDelete?: () => void;
-      onDelete?: () => void;
-    };
-    expect(props.onDelete).toBeUndefined();
-    expect(props.onConfirmDelete).toEqual(expect.any(Function));
-
-    await act(async () => {
-      await props.onConfirmDelete?.();
-    });
-
-    expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
-    expect(deleteExpenseMutationMock).toHaveBeenCalledWith(1);
+    expect(onEditExpense).toHaveBeenCalledTimes(1);
+    expect(onEditExpense).toHaveBeenCalledWith(expense);
   });
 });
 
@@ -182,7 +125,7 @@ describe("ExpenseListItem delete flow", () => {
   it("shows a loading toast and replaces it on successful delete", async () => {
     const user = userEvent.setup();
 
-    render(renderItem());
+    renderItem();
 
     await user.click(screen.getAllByRole("button")[2]);
     await user.click(screen.getByRole("button", { name: "Delete expense" }));
@@ -203,7 +146,7 @@ describe("ExpenseListItem delete flow", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(renderItem());
+    renderItem();
 
     await user.click(screen.getAllByRole("button")[2]);
     await user.click(screen.getByRole("button", { name: "Delete expense" }));
@@ -223,7 +166,7 @@ describe("ExpenseListItem delete flow", () => {
     const user = userEvent.setup();
     deleteExpenseIsPendingMock.value = true;
 
-    render(renderItem());
+    renderItem();
 
     const actionDeleteButton = screen.getAllByRole("button")[2];
     expect(actionDeleteButton).toBeDisabled();
