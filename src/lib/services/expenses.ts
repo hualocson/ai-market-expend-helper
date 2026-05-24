@@ -27,6 +27,11 @@ export type ExpenseListResult = {
   effectiveRecentDays: number;
   groupedRows: ExpenseListGroup[];
   isRecent: boolean;
+  pagination: {
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
   rows: ExpenseListItem[];
   trimmedSearch?: string;
 };
@@ -97,15 +102,24 @@ export const getExpenseList = async ({
   q,
   mode = "full",
   recentDays = 7,
+  limit = 30,
+  offset = 0,
 }: ExpenseListQueryParams = {}): Promise<ExpenseListResult> => {
   const { activeMonth, effectiveRecentDays, isRecent, rangeEnd, rangeStart } =
     resolveExpenseListRange({ month, mode, recentDays });
   const trimmedSearch = q?.trim();
-  const baseWhere = and(
-    eq(expenses.isDeleted, false),
-    gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
-    lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
-  );
+  const pageLimit = Math.max(1, Math.floor(limit));
+  const pageOffset = Math.max(0, Math.floor(offset));
+  const whereParts = [eq(expenses.isDeleted, false)];
+  if (month || isRecent) {
+    whereParts.push(
+      gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
+      lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
+    );
+  }
+
+  const baseWhere =
+    whereParts.length === 1 ? whereParts[0] : and(...whereParts);
   const whereClause = trimmedSearch
     ? and(
         baseWhere,
@@ -129,9 +143,11 @@ export const getExpenseList = async ({
     .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
     .leftJoin(budgets, eq(budgets.id, expenseBudgets.budgetId))
     .where(whereClause)
-    .orderBy(desc(expenses.date), desc(expenses.id));
+    .orderBy(desc(expenses.date), desc(expenses.id))
+    .limit(pageLimit + 1)
+    .offset(pageOffset);
 
-  const normalizedRows = rows.map((expense) => ({
+  const normalizedRows = rows.slice(0, pageLimit).map((expense) => ({
     id: Number(expense.id),
     date: String(expense.date),
     amount: Number(expense.amount ?? 0),
@@ -147,6 +163,11 @@ export const getExpenseList = async ({
     effectiveRecentDays,
     groupedRows: groupExpenseRowsByDate(normalizedRows),
     isRecent,
+    pagination: {
+      limit: pageLimit,
+      offset: pageOffset,
+      hasMore: rows.length > pageLimit,
+    },
     rows: normalizedRows,
     trimmedSearch,
   };

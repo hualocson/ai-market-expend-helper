@@ -48,7 +48,7 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
 
       <PageEnterSection>
         <div className="relative z-10 flex shrink-0 items-center gap-2">
-          <Link href={`/transactions?month=${report.monthKey}`}>
+          <Link href="/">
             <Button variant="ghost" size="icon" className="active:scale-[0.97]">
               <ArrowLeftIcon />
             </Button>

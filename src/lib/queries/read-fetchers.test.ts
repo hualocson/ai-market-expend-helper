@@ -34,11 +34,13 @@ describe("read query fetchers", () => {
         q: "coffee",
         mode: "recent",
         recentDays: 14,
+        limit: 30,
+        offset: 60,
       })
     ).resolves.toEqual(payload);
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      "/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14",
+      "/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14&limit=30&offset=60",
       { method: "GET", cache: "no-store" }
     );
   });

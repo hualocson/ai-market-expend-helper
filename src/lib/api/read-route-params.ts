@@ -1,4 +1,5 @@
 import dayjs from "@/configs/date";
+import { parsePaginationParams } from "@/lib/api/route-schemas";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 
 type ParamResult<T> =
@@ -78,12 +79,22 @@ export const parseExpenseListParams = (
     }
   }
 
+  const pagination = parsePaginationParams(searchParams, {
+    defaultLimit: 30,
+    maxLimit: 100,
+  });
+  if ("error" in pagination) {
+    return pagination;
+  }
+
   return {
     value: {
       month: month.value,
       q: searchParams.get("q") ?? undefined,
       mode,
       recentDays,
+      limit: pagination.value.limit,
+      offset: pagination.value.offset,
     },
   };
 };

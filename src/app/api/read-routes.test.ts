@@ -55,7 +55,7 @@ describe("REST read routes", () => {
 
     const response = await getExpenses(
       new Request(
-        "http://localhost/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14"
+        "http://localhost/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14&limit=30&offset=60"
       )
     );
 
@@ -66,6 +66,8 @@ describe("REST read routes", () => {
       q: "coffee",
       mode: "recent",
       recentDays: 14,
+      limit: 30,
+      offset: 60,
     });
   });
 
@@ -127,6 +129,18 @@ describe("REST read routes", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "Invalid recentDays",
+    });
+    expect(mocks.getExpenseList).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid expense pagination", async () => {
+    const response = await getExpenses(
+      new Request("http://localhost/api/expenses?offset=-1")
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid offset",
     });
     expect(mocks.getExpenseList).not.toHaveBeenCalled();
   });

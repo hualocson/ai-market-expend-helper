@@ -6,11 +6,15 @@ import type {
   ExpenseListItem,
   ExpenseListResult,
 } from "@/lib/services/expenses";
-import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
+
+type ExpenseListCacheData =
+  | ExpenseListResult
+  | InfiniteData<ExpenseListResult, number>;
 
 type ExpenseListSnapshot = {
   queryKey: QueryKey;
-  data: ExpenseListResult;
+  data: ExpenseListCacheData;
 };
 
 export type ExpenseOptimisticContext = {
@@ -67,12 +71,27 @@ const isExpenseListResult = (data: unknown): data is ExpenseListResult =>
   Array.isArray((data as Partial<ExpenseListResult>).rows) &&
   Array.isArray((data as Partial<ExpenseListResult>).groupedRows);
 
+const isInfiniteExpenseListResult = (
+  data: unknown
+): data is InfiniteData<ExpenseListResult, number> => {
+  if (typeof data !== "object" || data === null) {
+    return false;
+  }
+
+  const candidate = data as Partial<InfiniteData<ExpenseListResult, number>>;
+  return (
+    Array.isArray(candidate.pages) &&
+    candidate.pages.every(isExpenseListResult) &&
+    Array.isArray(candidate.pageParams)
+  );
+};
+
 const snapshotExpenseLists = (
   queryClient: QueryClient
 ): ExpenseOptimisticContext => ({
   snapshots: getExpenseListQueries(queryClient).flatMap((query) => {
     const data = query.state.data;
-    if (!isExpenseListResult(data)) {
+    if (!isExpenseListResult(data) && !isInfiniteExpenseListResult(data)) {
       return [];
     }
 
@@ -127,12 +146,15 @@ const matchesSearch = (row: ExpenseListItem, q: string | null) => {
 
 const matchesMonth = (
   row: ExpenseListItem,
-  result: ExpenseListResult,
+  _result: ExpenseListResult,
   params: ExpenseListQueryParamsFromKey
 ) => {
+  if (params.month === null) {
+    return true;
+  }
+
   const rowMonth = dayjs(row.date, "YYYY-MM-DD", true).format("YYYY-MM");
-  const month = params.month ?? result.activeMonth;
-  return rowMonth === month;
+  return rowMonth === params.month;
 };
 
 const matchesRecent = (
@@ -235,6 +257,11 @@ const withRows = (
   };
 };
 
+const getRowsFromCacheData = (data: ExpenseListCacheData) =>
+  isInfiniteExpenseListResult(data)
+    ? data.pages.flatMap((page) => page.rows)
+    : data.rows;
+
 const findBudgetName = (
   queryClient: QueryClient,
   budgetId: number | null | undefined
@@ -307,9 +334,52 @@ const patchSnapshots = (
   patch: (result: ExpenseListResult, queryKey: QueryKey) => ExpenseListResult
 ) => {
   context.snapshots.forEach((snapshot) => {
+    if (isInfiniteExpenseListResult(snapshot.data)) {
+      queryClient.setQueryData(snapshot.queryKey, {
+        ...snapshot.data,
+        pages: snapshot.data.pages.map((page) =>
+          patch(page, snapshot.queryKey)
+        ),
+      });
+      return;
+    }
+
     queryClient.setQueryData(
       snapshot.queryKey,
       patch(snapshot.data, snapshot.queryKey)
+    );
+  });
+};
+
+const patchCreateSnapshots = (
+  queryClient: QueryClient,
+  context: ExpenseOptimisticContext,
+  row: ExpenseListItem
+) => {
+  context.snapshots.forEach((snapshot) => {
+    if (isInfiniteExpenseListResult(snapshot.data)) {
+      const firstPage = snapshot.data.pages[0];
+      if (!firstPage || !matchesExpenseList(row, firstPage, snapshot.queryKey)) {
+        return;
+      }
+
+      queryClient.setQueryData(snapshot.queryKey, {
+        ...snapshot.data,
+        pages: [
+          withRows(firstPage, [row, ...firstPage.rows]),
+          ...snapshot.data.pages.slice(1),
+        ],
+      });
+      return;
+    }
+
+    if (!matchesExpenseList(row, snapshot.data, snapshot.queryKey)) {
+      return;
+    }
+
+    queryClient.setQueryData(
+      snapshot.queryKey,
+      withRows(snapshot.data, [row, ...snapshot.data.rows])
     );
   });
 };
@@ -334,13 +404,7 @@ export const applyOptimisticExpenseCreate = (
   }
   optimisticExpenseId -= 1;
 
-  patchSnapshots(queryClient, context, (result, queryKey) => {
-    if (!matchesExpenseList(row, result, queryKey)) {
-      return result;
-    }
-
-    return withRows(result, [row, ...result.rows]);
-  });
+  patchCreateSnapshots(queryClient, context, row);
 
   return context;
 };
@@ -351,7 +415,7 @@ export const applyOptimisticExpenseUpdate = (
 ): ExpenseOptimisticContext => {
   const context = snapshotExpenseLists(queryClient);
   const previousRow = context.snapshots
-    .flatMap((snapshot) => snapshot.data.rows)
+    .flatMap((snapshot) => getRowsFromCacheData(snapshot.data))
     .find((row) => row.id === variables.id);
   const nextRow = buildRow(variables.input, queryClient, variables.id, {
     fallbackBudgetId: previousRow?.budgetId,

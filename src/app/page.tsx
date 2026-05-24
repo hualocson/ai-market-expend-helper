@@ -5,11 +5,11 @@ import { getExpenseList } from "@/lib/services/expenses";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 import ExpenseList from "@/components/ExpenseList";
-import JumpToTopButton from "@/components/JumpToTopButton";
 import SpendingDashboardHeader from "@/components/SpendingDashboardHeader";
 
 export default async function Home() {
-  const expenseListParams = { mode: "recent" as const, recentDays: 3 };
+  const expenseListParams = { limit: 30 };
+  const expenseListQuery = queries.expenses.list(expenseListParams);
   const queryClient = getQueryClient();
 
   await Promise.all([
@@ -17,9 +17,14 @@ export default async function Home() {
       queryKey: queries.dashboard.monthlySummary().queryKey,
       queryFn: () => getDashboardMonthlySummary(),
     }),
-    queryClient.prefetchQuery({
-      queryKey: queries.expenses.list(expenseListParams).queryKey,
-      queryFn: () => getExpenseList(expenseListParams),
+    queryClient.prefetchInfiniteQuery({
+      queryKey: expenseListQuery.queryKey,
+      queryFn: ({ pageParam }) =>
+        getExpenseList({
+          ...expenseListParams,
+          offset: typeof pageParam === "number" ? pageParam : 0,
+        }),
+      initialPageParam: 0,
     }),
   ]);
 
@@ -29,11 +34,9 @@ export default async function Home() {
         <HydrationBoundary state={dehydrate(queryClient)}>
           <SpendingDashboardHeader />
 
-          <ExpenseList mode="recent" recentDays={3} showViewFull />
+          <ExpenseList />
         </HydrationBoundary>
       </div>
-
-      <JumpToTopButton />
     </div>
   );
 }

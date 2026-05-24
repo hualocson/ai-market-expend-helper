@@ -8,6 +8,8 @@ export type ExpenseListQueryParams = {
   q?: string;
   mode?: "full" | "recent";
   recentDays?: number;
+  limit?: number;
+  offset?: number;
 };
 
 export const fetchExpenseList = async ({
@@ -15,6 +17,8 @@ export const fetchExpenseList = async ({
   q,
   mode,
   recentDays,
+  limit,
+  offset,
 }: ExpenseListQueryParams = {}): Promise<ExpenseListResult> => {
   const query = new URLSearchParams();
 
@@ -29,6 +33,12 @@ export const fetchExpenseList = async ({
   }
   if (recentDays !== undefined) {
     query.set("recentDays", String(recentDays));
+  }
+  if (limit !== undefined) {
+    query.set("limit", String(limit));
+  }
+  if (offset !== undefined) {
+    query.set("offset", String(offset));
   }
 
   const queryString = query.toString();
@@ -49,8 +59,13 @@ export const expenseQueries = createQueryKeys("expenses", {
         q: params.q ?? null,
         mode: params.mode ?? null,
         recentDays: params.recentDays ?? null,
+        limit: params.limit ?? null,
       },
     ],
-    queryFn: () => fetchExpenseList(params),
+    queryFn: ({ pageParam }) =>
+      fetchExpenseList({
+        ...params,
+        offset: typeof pageParam === "number" ? pageParam : params.offset,
+      }),
   }),
 });
