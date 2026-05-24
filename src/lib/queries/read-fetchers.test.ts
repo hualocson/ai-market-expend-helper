@@ -1,4 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  clearSyncDb,
+  listSyncRecords,
+  putSyncRecord,
+} from "@/lib/sync/core/repository";
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { budgetQueries, fetchBudgetTransferCandidates } from "./budgets";
 import { dashboardQueries, fetchDashboardMonthlySummary } from "./dashboard";
@@ -11,11 +17,223 @@ const mockJsonResponse = (payload: unknown, init?: ResponseInit) =>
     ...init,
   });
 
-afterEach(() => {
+beforeEach(async () => {
+  await clearSyncDb();
+});
+
+afterEach(async () => {
   vi.restoreAllMocks();
+  await clearSyncDb();
 });
 
 describe("read query fetchers", () => {
+  it("returns local expense IndexedDB rows before fetching the network", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 1 });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ note: "Coffee", amount: 45000 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fetches the server page when local rows only partially fill the first page", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: true,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+        {
+          id: 2,
+          date: "2026-05-22",
+          amount: 50000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(serverPage));
+
+    await expect(
+      fetchExpenseList({ month: "2026-05", limit: 30 })
+    ).resolves.toEqual(serverPage);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses?month=2026-05&limit=30",
+      { method: "GET", cache: "no-store" }
+    );
+  });
+
+  it("fetches the server page when local-only rows would consume a server page slot", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "pending-create",
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: null,
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Offline coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "server-1",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Server cached",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 2,
+        offset: 0,
+        hasMore: true,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Server cached",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+        {
+          id: 2,
+          date: "2026-05-22",
+          amount: 50000,
+          note: "Server next",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(serverPage));
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 2 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses?month=2026-05&limit=2",
+      { method: "GET", cache: "no-store" }
+    );
+    expect(result.rows).toMatchObject([
+      { amount: 60000, note: "Offline coffee" },
+      { id: 1, note: "Server cached" },
+      { id: 2, note: "Server next" },
+    ]);
+  });
+
+  it("keeps a full local first page open for infinite loading", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 1 });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.pagination.hasMore).toBe(true);
+  });
+
   it("fetches expense lists with query params", async () => {
     const payload = {
       activeMonth: "2026-05",
@@ -43,6 +261,792 @@ describe("read query fetchers", () => {
       "/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14&limit=30&offset=60",
       { method: "GET", cache: "no-store" }
     );
+  });
+
+  it("falls back to the network when local rows do not match the requested month", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "may-client",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const junePayload = {
+      activeMonth: "2026-06",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 2,
+          date: "2026-06-02",
+          amount: 50000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(junePayload));
+
+    await expect(fetchExpenseList({ month: "2026-06" })).resolves.toEqual(
+      junePayload
+    );
+
+    expect(fetchSpy).toHaveBeenCalledWith("/api/expenses?month=2026-06", {
+      method: "GET",
+      cache: "no-store",
+    });
+  });
+
+  it("fetches and seeds additional expense pages when local rows cannot fill the requested offset", async () => {
+    const firstPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 1,
+        offset: 0,
+        hasMore: true,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-24",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const secondPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 1,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 2,
+          date: "2026-05-23",
+          amount: 50000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(firstPage))
+      .mockResolvedValueOnce(mockJsonResponse(secondPage));
+
+    await expect(
+      fetchExpenseList({ month: "2026-05", limit: 1 })
+    ).resolves.toEqual(firstPage);
+    await expect(
+      fetchExpenseList({ month: "2026-05", limit: 1, offset: 1 })
+    ).resolves.toEqual(secondPage);
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      "/api/expenses?month=2026-05&limit=1&offset=1",
+      { method: "GET", cache: "no-store" }
+    );
+    await expect(listSyncRecords("expenses")).resolves.toHaveLength(2);
+  });
+
+  it("does not duplicate or overwrite a dirty local row when seeding the same server id", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 60000,
+        note: "Local edit",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 1,
+        offset: 1,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Server value",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(serverPage)
+    );
+
+    const result = await fetchExpenseList({
+      month: "2026-05",
+      limit: 1,
+    });
+
+    expect(result.rows).toMatchObject([
+      {
+        id: 1,
+        amount: 60000,
+        note: "Local edit",
+      },
+    ]);
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "client-1",
+        serverId: 1,
+        syncStatus: "pending",
+        payload: expect.objectContaining({
+          amount: 60000,
+          note: "Local edit",
+        }),
+      },
+    ]);
+  });
+
+  it("does not return a stale network row hidden by a dirty local delete", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "deleted",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Deleted local expense",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Server stale expense",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(serverPage)
+    );
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
+
+    expect(result.rows).toEqual([]);
+    expect(result.groupedRows).toEqual([]);
+  });
+
+  it("does not return a dirty network overlay when the local edit no longer matches the requested month", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-06-01",
+        amount: 60000,
+        note: "Moved local edit",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Server value",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(serverPage)
+    );
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
+
+    expect(result.rows).toEqual([]);
+    expect(result.groupedRows).toEqual([]);
+  });
+
+  it("keeps a pending local create visible when falling back to the network", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "pending-create",
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: null,
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Offline coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Server value",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(serverPage)
+    );
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
+
+    expect(result.rows).toMatchObject([
+      {
+        amount: 60000,
+        note: "Offline coffee",
+      },
+      {
+        id: 1,
+        amount: 45000,
+        note: "Server value",
+      },
+    ]);
+  });
+
+  it("does not duplicate a pending local create on later network pages", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "pending-create",
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: null,
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Offline coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const secondPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 30,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 2,
+          date: "2026-05-22",
+          amount: 50000,
+          note: "Server lunch",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(secondPage)
+    );
+
+    const result = await fetchExpenseList({
+      month: "2026-05",
+      limit: 30,
+      offset: 30,
+    });
+
+    expect(result.rows).toMatchObject([
+      {
+        id: 2,
+        note: "Server lunch",
+      },
+    ]);
+  });
+
+  it("fetches nonzero server pages when a matching local-only row shifts local ordering", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "pending-create",
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: null,
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Offline coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "server-1",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Cached server first",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "server-2",
+      serverId: 2,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T08:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T08:00:00.000Z",
+      payload: {
+        date: "2026-05-22",
+        amount: 50000,
+        note: "Cached server second",
+        category: "Food",
+        paidBy: "Embe",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const secondPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 1,
+        offset: 1,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 2,
+          date: "2026-05-22",
+          amount: 50000,
+          note: "Server second",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(secondPage));
+
+    const result = await fetchExpenseList({
+      month: "2026-05",
+      limit: 1,
+      offset: 1,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses?month=2026-05&limit=1&offset=1",
+      { method: "GET", cache: "no-store" }
+    );
+    expect(result.rows).toMatchObject([
+      {
+        id: 2,
+        note: "Server second",
+      },
+    ]);
+  });
+
+  it("fetches nonzero server pages even when local cache has a full synced page", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "server-1",
+      serverId: 1,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Cached server first",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "server-2",
+      serverId: 2,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T08:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T08:00:00.000Z",
+      payload: {
+        date: "2026-05-22",
+        amount: 50000,
+        note: "Cached server second",
+        category: "Food",
+        paidBy: "Embe",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const secondPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 1,
+        offset: 1,
+        hasMore: true,
+      },
+      rows: [
+        {
+          id: 2,
+          date: "2026-05-22",
+          amount: 50000,
+          note: "Server second",
+          category: "Food",
+          paidBy: "Embe",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(secondPage));
+
+    await expect(
+      fetchExpenseList({ month: "2026-05", limit: 1, offset: 1 })
+    ).resolves.toEqual(secondPage);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses?month=2026-05&limit=1&offset=1",
+      { method: "GET", cache: "no-store" }
+    );
+  });
+
+  it("assigns unique ids to colliding pending local rows after network fallback", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "Aa",
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: null,
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Offline coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "BB",
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T09:00:00.000Z",
+      serverUpdatedAt: null,
+      payload: {
+        date: "2026-05-24",
+        amount: 50000,
+        note: "Offline lunch",
+        category: "Food",
+        paidBy: "Embe",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 1,
+          date: "2026-05-22",
+          amount: 45000,
+          note: "Server value",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(serverPage)
+    );
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
+
+    const ids = result.rows.map((row) => row.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("keeps a dirty local row moved into the requested month visible after network fallback", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 1,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Moved into May",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const serverPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: false,
+      },
+      rows: [],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(serverPage)
+    );
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
+
+    expect(result.rows).toMatchObject([
+      {
+        id: 1,
+        amount: 60000,
+        note: "Moved into May",
+      },
+    ]);
+  });
+
+  it("does not duplicate a moved-in dirty server-backed row on later pages", async () => {
+    await putSyncRecord({
+      entity: "expenses",
+      clientId: "client-60",
+      serverId: 60,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+      payload: {
+        date: "2026-05-24",
+        amount: 60000,
+        note: "Moved into top page",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const firstPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: true,
+      },
+      rows: [],
+    };
+    const laterPage = {
+      activeMonth: "2026-05",
+      effectiveRecentDays: 7,
+      groupedRows: [],
+      isRecent: false,
+      pagination: {
+        limit: 30,
+        offset: 30,
+        hasMore: false,
+      },
+      rows: [
+        {
+          id: 60,
+          date: "2026-05-01",
+          amount: 45000,
+          note: "Stale server placement",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(firstPage))
+      .mockResolvedValueOnce(mockJsonResponse(laterPage));
+
+    const firstResult = await fetchExpenseList({
+      month: "2026-05",
+      limit: 30,
+    });
+    const laterResult = await fetchExpenseList({
+      month: "2026-05",
+      limit: 30,
+      offset: 30,
+    });
+
+    expect(firstResult.rows).toMatchObject([
+      {
+        id: 60,
+        note: "Moved into top page",
+      },
+    ]);
+    expect(laterResult.rows).toEqual([]);
   });
 
   it("fetches budget transfer candidates", async () => {
