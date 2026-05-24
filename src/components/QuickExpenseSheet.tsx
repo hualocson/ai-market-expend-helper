@@ -23,7 +23,6 @@ import { Calendar, Plus, UserRound, Wallet, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import DatePicker from "@/components/ui/date-picker";
 import {
   Sheet,
   SheetClose,
@@ -39,6 +38,7 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import CategoryChipRow from "./CategoryChipRow";
+import DatePickerSheet from "./DatePickerSheet";
 import PaidByPickerSheet from "./PaidByPickerSheet";
 import VndSymbol from "./VndSymbol";
 
@@ -533,29 +533,12 @@ const QuickExpenseSheet = ({
           </Button>
         </SheetFooter>
 
-        <Sheet open={dateOpen} onOpenChange={setDateOpen}>
-          <SheetContent
-            side="bottom"
-            showCloseButton={false}
-            className="rounded-t-3xl"
-          >
-            <SheetHeader className="text-left">
-              <SheetTitle>Date</SheetTitle>
-              <SheetDescription>Pick the expense date.</SheetDescription>
-            </SheetHeader>
-            <div className="px-4 pb-4 sm:px-6">
-              <DatePicker
-                value={dayjs(draft.date, "DD/MM/YYYY", true).toDate()}
-                onChange={(d) => {
-                  if (d) {
-                    setField("date", dayjs(d).format("DD/MM/YYYY"));
-                  }
-                  setDateOpen(false);
-                }}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+        <DatePickerSheet
+          open={dateOpen}
+          onOpenChange={setDateOpen}
+          value={draft.date}
+          onChange={(next) => setField("date", next)}
+        />
 
         <BudgetPickerSheet
           open={budgetOpen}

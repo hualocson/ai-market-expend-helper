@@ -411,6 +411,13 @@ describe("QuickExpenseSheet — submit", () => {
       await screen.findByRole("button", { name: /pick mocked date/i })
     );
 
+    expect(weeklyBudgetOptionsMock).not.toHaveBeenCalledWith(
+      expect.any(String),
+      "2026-05-20"
+    );
+
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
     await waitFor(() =>
       expect(weeklyBudgetOptionsMock).toHaveBeenCalledWith(
         expect.any(String),
