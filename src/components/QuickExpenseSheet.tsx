@@ -19,10 +19,26 @@ import {
   useQuickExpenseRecoveryStore,
 } from "@/stores/quick-expense-recovery-store";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Plus, UserRound, Wallet, XIcon } from "lucide-react";
+import {
+  Calendar,
+  NotebookIcon,
+  Plus,
+  Trash2,
+  UserRound,
+  Wallet,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetClose,
@@ -39,6 +55,7 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import CategoryChipRow from "./CategoryChipRow";
 import DatePickerSheet from "./DatePickerSheet";
+import ExpenseItemIcon from "./ExpenseItemIcon";
 import PaidByPickerSheet from "./PaidByPickerSheet";
 import VndSymbol from "./VndSymbol";
 
@@ -51,6 +68,7 @@ export type TQuickExpenseSheetProps = {
   recoveryDraft?: TQuickExpenseDraft | null;
   transactionId?: number;
   onSuccess?: () => void;
+  onConfirmDelete?: () => void | Promise<void>;
   showTrigger?: boolean;
 };
 
@@ -178,6 +196,7 @@ const QuickExpenseSheet = ({
   initialExpense = null,
   recoveryDraft = null,
   transactionId,
+  onConfirmDelete,
   showTrigger,
 }: TQuickExpenseSheetProps) => {
   const isEditMode = mode === "edit";
@@ -199,6 +218,7 @@ const QuickExpenseSheet = ({
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
   const keyboardOffset = useKeyboardOffset();
 
@@ -254,12 +274,23 @@ const QuickExpenseSheet = ({
     onOpenChange?.(next);
     if (!next) {
       setAmountFocused(false);
+      setDeleteConfirmOpen(false);
       if (!isEditMode) {
         setDraft(buildDefaultDraft(fallbackPaidBy));
       }
       return;
     }
     setDraft(buildDraftForOpen());
+  };
+
+  const handleConfirmDelete = () => {
+    if (!onConfirmDelete) {
+      return;
+    }
+
+    void onConfirmDelete();
+    setDeleteConfirmOpen(false);
+    handleOpenChange(false);
   };
 
   useEffect(() => {
@@ -524,14 +555,32 @@ const QuickExpenseSheet = ({
           </div>
         </div>
 
-        <SheetFooter className="quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4">
+        <SheetFooter
+          className={cn(
+            "quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4",
+            isEditMode && "flex-row gap-2"
+          )}
+        >
+          {isEditMode ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Delete expense"
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={!onConfirmDelete || queueing}
+              className="rounded-xl"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="h-10 w-full rounded-xl text-base font-medium"
+            className="h-10 flex-1 rounded-xl text-base font-medium"
           >
-            {isEditMode ? "Update expense" : "Save expense"}
+            {isEditMode ? "Update" : "Save expense"}
           </Button>
         </SheetFooter>
 
@@ -558,6 +607,66 @@ const QuickExpenseSheet = ({
           value={draft.paidBy}
           onChange={(next) => setField("paidBy", next)}
         />
+
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent className="p-0 sm:max-w-md">
+            <div className="bg-muted/40 flex items-start gap-4 border-b px-6 py-5">
+              <div className="bg-destructive/10 text-destructive flex size-11 shrink-0 items-center justify-center rounded-full">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <DialogHeader className="text-left">
+                <DialogTitle>Delete this expense?</DialogTitle>
+                <DialogDescription>
+                  We will remove it from your list. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="bg-card/80 border-border mx-2 space-y-4 rounded-xl border p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">{draft.date}</p>
+                  <div className="flex items-center gap-2">
+                    <ExpenseItemIcon category={draft.category} size="sm" />
+                    <span className="text-sm font-medium">
+                      {draft.category}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                    Amount
+                  </p>
+                  <p className="text-destructive text-lg font-semibold">
+                    -{formatVnd(draft.amount)} <VndSymbol />
+                  </p>
+                </div>
+              </div>
+              {draft.note ? (
+                <div className="text-muted-foreground flex items-center gap-2">
+                  <NotebookIcon className="size-4" />
+                  <span className="text-sm font-medium">{draft.note}</span>
+                </div>
+              ) : null}
+            </div>
+            <DialogFooter className="border-t px-6 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteConfirmOpen(false)}
+              >
+                Keep it
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={!onConfirmDelete}
+              >
+                Delete expense
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );

@@ -334,6 +334,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         showTrigger={false}
         transactionId={expense.id}
         initialExpense={initialExpense}
+        onConfirmDelete={handleDelete}
         onSuccess={() => {
           setEditOpen(false);
         }}

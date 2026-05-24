@@ -1,6 +1,12 @@
 import React from "react";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -147,6 +153,28 @@ describe("ExpenseListItem edit flow", () => {
         }),
       })
     );
+  });
+
+  it("passes delete handling to the edit sheet confirmation flow", async () => {
+    const user = userEvent.setup();
+
+    render(renderItem());
+
+    await user.click(screen.getByRole("button", { name: /edit expense$/i }));
+
+    const props = quickExpenseSheetMock.mock.calls.at(-1)?.[0] as {
+      onConfirmDelete?: () => void;
+      onDelete?: () => void;
+    };
+    expect(props.onDelete).toBeUndefined();
+    expect(props.onConfirmDelete).toEqual(expect.any(Function));
+
+    await act(async () => {
+      await props.onConfirmDelete?.();
+    });
+
+    expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
+    expect(deleteExpenseMutationMock).toHaveBeenCalledWith(1);
   });
 });
 

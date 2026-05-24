@@ -4,7 +4,7 @@ import { Category, PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -520,7 +520,7 @@ describe("QuickExpenseSheet — edit mode", () => {
     ]);
     const { onOpenChange } = renderEditSheet();
 
-    await user.click(screen.getByRole("button", { name: /update expense/i }));
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
 
     expect(recoveryStoreMock.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -550,11 +550,97 @@ describe("QuickExpenseSheet — edit mode", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("renders edit footer with Update and an icon-only delete action", async () => {
+    const user = userEvent.setup();
+    const onConfirmDelete = vi.fn();
+    renderEditSheet({ onConfirmDelete });
+
+    expect(
+      screen.getByRole("button", { name: /^update$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /update expense/i })
+    ).not.toBeInTheDocument();
+
+    const deleteButton = screen.getByRole("button", {
+      name: /delete expense/i,
+    });
+    expect(deleteButton).toHaveTextContent(/^$/);
+    expect(deleteButton).toHaveAttribute("data-variant", "outline");
+
+    await user.click(deleteButton);
+
+    expect(screen.getByRole("dialog", { name: /delete this expense/i }));
+    expect(
+      screen.getByPlaceholderText(/what did you spend on/i)
+    ).toBeInTheDocument();
+    expect(onConfirmDelete).not.toHaveBeenCalled();
+  });
+
+  it("keeps the edit sheet open when canceling delete confirmation", async () => {
+    const user = userEvent.setup();
+    const { onOpenChange } = renderEditSheet({ onConfirmDelete: vi.fn() });
+
+    await user.click(screen.getByRole("button", { name: /delete expense/i }));
+    const confirmDialog = screen.getByRole("dialog", {
+      name: /delete this expense/i,
+    });
+
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: /keep it/i })
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: /delete this expense/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/what did you spend on/i)
+    ).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it("shows the expense details in the delete confirmation", async () => {
+    const user = userEvent.setup();
+    renderEditSheet({ onConfirmDelete: vi.fn() });
+
+    await user.click(screen.getByRole("button", { name: /delete expense/i }));
+    const confirmDialog = screen.getByRole("dialog", {
+      name: /delete this expense/i,
+    });
+
+    expect(within(confirmDialog).getByText("20/05/2026")).toBeInTheDocument();
+    expect(within(confirmDialog).getByText("Badminton")).toBeInTheDocument();
+    expect(within(confirmDialog).getByText(/150[.,]?000/)).toBeInTheDocument();
+    expect(
+      within(confirmDialog).getByText("Badminton court")
+    ).toBeInTheDocument();
+  });
+
+  it("confirms delete and closes the edit sheet", async () => {
+    const user = userEvent.setup();
+    const onConfirmDelete = vi.fn();
+    const { onOpenChange } = renderEditSheet({ onConfirmDelete });
+
+    await user.click(screen.getByRole("button", { name: /delete expense/i }));
+    const confirmDialog = screen.getByRole("dialog", {
+      name: /delete this expense/i,
+    });
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: /delete expense/i })
+    );
+
+    expect(onConfirmDelete).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(
+      screen.queryByRole("dialog", { name: /delete this expense/i })
+    ).not.toBeInTheDocument();
+  });
+
   it("does not submit edit mode without a transaction id", async () => {
     const user = userEvent.setup();
     renderEditSheet({ transactionId: undefined });
 
-    await user.click(screen.getByRole("button", { name: /update expense/i }));
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
 
     expect(recoveryStoreMock.enqueue).not.toHaveBeenCalled();
     expect(toastMock.error).toHaveBeenCalledWith("Failed to update expense");
