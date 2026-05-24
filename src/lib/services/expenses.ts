@@ -1,7 +1,6 @@
 import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
-import { Category } from "@/enums";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 
@@ -30,22 +29,6 @@ export type ExpenseListResult = {
   isRecent: boolean;
   rows: ExpenseListItem[];
   trimmedSearch?: string;
-};
-
-type ExpensePrefillRow = {
-  note: string;
-  category: string;
-  paid_by: string;
-  total_frequency: number;
-  latest_amount: number;
-  most_frequent_amount: number;
-};
-
-export type ExpensePrefillItem = {
-  note: string;
-  category: Category;
-  totalFrequency: number;
-  amount: number;
 };
 
 export const resolveExpenseListRange = ({
@@ -109,21 +92,6 @@ export const groupExpenseRowsByDate = (
   }, []);
 };
 
-export const normalizeExpensePrefillRows = (
-  rows: ExpensePrefillRow[]
-): ExpensePrefillItem[] => {
-  return rows
-    .map((row) => ({
-      note: String(row.note ?? ""),
-      category: row.category as Category,
-      totalFrequency: Number(row.total_frequency ?? 0),
-      amount: Number(row.most_frequent_amount ?? 0),
-    }))
-    .filter(
-      (row) => Object.values(Category).includes(row.category) && row.amount > 0
-    );
-};
-
 export const getExpenseList = async ({
   month,
   q,
@@ -182,35 +150,4 @@ export const getExpenseList = async ({
     rows: normalizedRows,
     trimmedSearch,
   };
-};
-
-export const getExpensePrefills = async (): Promise<ExpensePrefillItem[]> => {
-  const { rows } = await db.execute<ExpensePrefillRow>(sql`
-    WITH RankedStats AS (
-      SELECT
-        note,
-        category,
-        paid_by,
-        amount,
-        created_at,
-        COUNT(*) OVER(PARTITION BY note, category, paid_by, amount) as price_frequency,
-        ROW_NUMBER() OVER(PARTITION BY note, category, paid_by ORDER BY created_at DESC) as recency_rank
-      FROM expenses
-      WHERE is_deleted = false
-      AND created_at >= NOW() - INTERVAL '30 days'
-    )
-    SELECT
-      note,
-      category,
-      paid_by,
-      COUNT(*) as total_frequency,
-      COALESCE(MAX(amount) FILTER (WHERE recency_rank = 1), 0) as latest_amount,
-      COALESCE((ARRAY_AGG(amount ORDER BY price_frequency DESC, created_at DESC))[1], 0) as most_frequent_amount
-    FROM RankedStats
-    GROUP BY note, category, paid_by
-    ORDER BY total_frequency DESC
-    LIMIT 10;
-  `);
-
-  return normalizeExpensePrefillRows(rows);
 };

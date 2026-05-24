@@ -5,24 +5,6 @@ import {
 } from "@/lib/quick-add-mode";
 
 describe("resolveQuickAddMode", () => {
-  it('returns quick for { source: "home_prefill", hasPrefill: true }', () => {
-    expect(
-      resolveQuickAddMode({
-        hasPrefill: true,
-        source: "home_prefill",
-      })
-    ).toBe("quick");
-  });
-
-  it('returns advanced for { source: "home_prefill", hasPrefill: false }', () => {
-    expect(
-      resolveQuickAddMode({
-        hasPrefill: false,
-        source: "home_prefill",
-      })
-    ).toBe("advanced");
-  });
-
   it('returns advanced for { source: "manual", hasPrefill: false }', () => {
     expect(
       resolveQuickAddMode({
@@ -62,10 +44,6 @@ describe("normalizePrefillSource", () => {
 
   it('returns "manual" for "manual"', () => {
     expect(normalizePrefillSource("manual")).toBe("manual");
-  });
-
-  it('returns "home_prefill" for "home_prefill"', () => {
-    expect(normalizePrefillSource("home_prefill")).toBe("home_prefill");
   });
 
   it('returns "repeat_entry" for "repeat_entry"', () => {

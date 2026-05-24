@@ -5,7 +5,6 @@ import { getExpenseList } from "@/lib/services/expenses";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
 import ExpenseList from "@/components/ExpenseList";
-import ExpensePrefillChips from "@/components/ExpensePrefillChips";
 import JumpToTopButton from "@/components/JumpToTopButton";
 import SpendingDashboardHeader from "@/components/SpendingDashboardHeader";
 
@@ -29,8 +28,6 @@ export default async function Home() {
       <div className="flex flex-col items-stretch gap-6">
         <HydrationBoundary state={dehydrate(queryClient)}>
           <SpendingDashboardHeader />
-
-          <ExpensePrefillChips />
 
           <ExpenseList mode="recent" recentDays={3} showViewFull />
         </HydrationBoundary>

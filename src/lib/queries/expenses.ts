@@ -1,7 +1,4 @@
-import type {
-  ExpenseListResult,
-  ExpensePrefillItem,
-} from "@/lib/services/expenses";
+import type { ExpenseListResult } from "@/lib/services/expenses";
 import { createQueryKeys } from "@lukemorales/query-key-factory";
 
 import { fetchJson } from "./http";
@@ -44,12 +41,6 @@ export const fetchExpenseList = async ({
   );
 };
 
-export const fetchExpensePrefills = async (): Promise<ExpensePrefillItem[]> =>
-  fetchJson<ExpensePrefillItem[]>("/api/expense-prefills", {
-    method: "GET",
-    cache: "no-store",
-  });
-
 export const expenseQueries = createQueryKeys("expenses", {
   list: (params: ExpenseListQueryParams = {}) => ({
     queryKey: [
@@ -62,8 +53,4 @@ export const expenseQueries = createQueryKeys("expenses", {
     ],
     queryFn: () => fetchExpenseList(params),
   }),
-  prefills: {
-    queryKey: null,
-    queryFn: fetchExpensePrefills,
-  },
 });

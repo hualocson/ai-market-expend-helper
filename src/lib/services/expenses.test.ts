@@ -1,9 +1,7 @@
-import { Category } from "@/enums";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   groupExpenseRowsByDate,
-  normalizeExpensePrefillRows,
   resolveExpenseListRange,
 } from "./expenses";
 
@@ -82,41 +80,4 @@ describe("expense services", () => {
     ]);
   });
 
-  it("normalizes prefill rows and drops unusable suggestions", () => {
-    expect(
-      normalizeExpensePrefillRows([
-        {
-          note: "Banh mi",
-          category: Category.FOOD,
-          paid_by: "Cubi",
-          total_frequency: 3,
-          latest_amount: 30000,
-          most_frequent_amount: 25000,
-        },
-        {
-          note: "Unknown",
-          category: "Not a category",
-          paid_by: "Cubi",
-          total_frequency: 2,
-          latest_amount: 10000,
-          most_frequent_amount: 10000,
-        },
-        {
-          note: "Free",
-          category: Category.OTHER,
-          paid_by: "Embe",
-          total_frequency: 1,
-          latest_amount: 0,
-          most_frequent_amount: 0,
-        },
-      ])
-    ).toEqual([
-      {
-        note: "Banh mi",
-        category: Category.FOOD,
-        totalFrequency: 3,
-        amount: 25000,
-      },
-    ]);
-  });
 });
