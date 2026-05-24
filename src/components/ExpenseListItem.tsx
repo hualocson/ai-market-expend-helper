@@ -51,6 +51,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   const deleteExpenseMutation = useDeleteExpenseMutation();
   const isDeleting = deleteExpenseMutation.isPending;
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragClickGuardRef = useRef(false);
 
   const formattedAmount = useMemo(
     () => formatVnd(expense.amount),
@@ -110,6 +111,10 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     if (shouldClose && isOpen) {
       setIsOpen(false);
     }
+
+    window.setTimeout(() => {
+      dragClickGuardRef.current = false;
+    }, 0);
   };
 
   useEffect(() => {
@@ -179,6 +184,29 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     setIsOpen(false);
   };
 
+  const openEditSheet = () => {
+    setEditOpen(true);
+    setIsOpen(false);
+  };
+
+  const handleItemClick = () => {
+    if (dragClickGuardRef.current) {
+      dragClickGuardRef.current = false;
+      return;
+    }
+
+    openEditSheet();
+  };
+
+  const handleItemKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    openEditSheet();
+  };
+
   return (
     <>
       <div
@@ -202,6 +230,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
             type="button"
             size="icon"
             variant="secondary"
+            aria-label="Duplicate expense"
             onClick={handleDuplicate}
             className="backdrop-blur-md"
           >
@@ -211,10 +240,8 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
             type="button"
             size="icon"
             variant="secondary"
-            onClick={() => {
-              setEditOpen(true);
-              setIsOpen(false);
-            }}
+            aria-label="Edit expense"
+            onClick={openEditSheet}
             className="backdrop-blur-md"
           >
             <Pencil className="h-4 w-4" />
@@ -223,6 +250,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
             type="button"
             size="icon"
             variant="destructive"
+            aria-label="Delete expense"
             onClick={handleDeleteRequest}
             disabled={isDeleting}
             className="backdrop-blur-md"
@@ -236,13 +264,21 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
           dragDirectionLock
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.1}
+          onClick={handleItemClick}
+          onDragStart={() => {
+            dragClickGuardRef.current = true;
+          }}
           onDragEnd={handleDragEnd}
+          onKeyDown={handleItemKeyDown}
           dragTransition={{
             bounceStiffness: 500,
             bounceDamping: 15,
             min: 20,
           }}
-          className="relative"
+          role="button"
+          tabIndex={0}
+          aria-label={`Edit expense ${expense.note || expense.category}`}
+          className="focus-visible:ring-ring/40 relative cursor-pointer rounded-[16px] transition-[transform] outline-none focus-visible:ring-2 active:scale-[0.99]"
           whileDrag={{ cursor: "grabbing" }}
           animate={{
             opacity: isOpen ? 0.3 : 1,
@@ -298,6 +334,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         showTrigger={false}
         transactionId={expense.id}
         initialExpense={initialExpense}
+        onConfirmDelete={handleDelete}
         onSuccess={() => {
           setEditOpen(false);
         }}

@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef } from "react";
+
+import Link from "next/link";
 
 import dayjs from "@/configs/date";
 import { queries } from "@/lib/queries";
@@ -15,6 +16,7 @@ import { formatVnd } from "@/lib/utils";
 import type { InfiniteData, QueryFunction } from "@tanstack/react-query";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronRight, Loader2 } from "lucide-react";
+import { motion as m } from "motion/react";
 
 import ExpenseListItem from "@/components/ExpenseListItem";
 import VndSymbol from "@/components/VndSymbol";
@@ -41,7 +43,12 @@ const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
     const lastGroup = groups[groups.length - 1];
 
     if (!lastGroup || lastGroup.key !== key) {
-      groups.push({ key, label, items: [expense], totalAmount: expense.amount });
+      groups.push({
+        key,
+        label,
+        items: [expense],
+        totalAmount: expense.amount,
+      });
       return groups;
     }
 
@@ -131,7 +138,12 @@ const ExpenseList = ({
     "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto";
 
   return (
-    <section className="flex w-full grow flex-col gap-4 overflow-auto">
+    <m.section
+      initial={{ opacity: 0, filter: "blur(10px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
+      transition={{ duration: 0.3, ease: "easeInOut", delay: 0.35 }}
+      className="flex w-full grow flex-col gap-4 overflow-auto"
+    >
       <div
         id="expense-list"
         ref={listContainerRef}
@@ -202,7 +214,7 @@ const ExpenseList = ({
           />
         )}
       </div>
-    </section>
+    </m.section>
   );
 };
 

@@ -19,10 +19,26 @@ import {
   useQuickExpenseRecoveryStore,
 } from "@/stores/quick-expense-recovery-store";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Plus, UserRound, Wallet, XIcon } from "lucide-react";
+import {
+  Calendar,
+  NotebookIcon,
+  Plus,
+  Trash2,
+  UserRound,
+  Wallet,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetClose,
@@ -39,6 +55,7 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 import BudgetPickerSheet from "./BudgetPickerSheet";
 import CategoryChipRow from "./CategoryChipRow";
 import DatePickerSheet from "./DatePickerSheet";
+import ExpenseItemIcon from "./ExpenseItemIcon";
 import PaidByPickerSheet from "./PaidByPickerSheet";
 import VndSymbol from "./VndSymbol";
 
@@ -51,6 +68,7 @@ export type TQuickExpenseSheetProps = {
   recoveryDraft?: TQuickExpenseDraft | null;
   transactionId?: number;
   onSuccess?: () => void;
+  onConfirmDelete?: () => void | Promise<void>;
   showTrigger?: boolean;
 };
 
@@ -178,11 +196,14 @@ const QuickExpenseSheet = ({
   initialExpense = null,
   recoveryDraft = null,
   transactionId,
+  onConfirmDelete,
   showTrigger,
 }: TQuickExpenseSheetProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
-  const enqueueRecovery = useQuickExpenseRecoveryStore((state) => state.enqueue);
+  const enqueueRecovery = useQuickExpenseRecoveryStore(
+    (state) => state.enqueue
+  );
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -193,12 +214,11 @@ const QuickExpenseSheet = ({
       : isEditMode
         ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
         : buildDefaultDraft(fallbackPaidBy);
-  const [draft, setDraft] = useState<TExpenseDraft>(() =>
-    buildDraftForOpen()
-  );
+  const [draft, setDraft] = useState<TExpenseDraft>(() => buildDraftForOpen());
   const [dateOpen, setDateOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
   const keyboardOffset = useKeyboardOffset();
 
@@ -254,12 +274,23 @@ const QuickExpenseSheet = ({
     onOpenChange?.(next);
     if (!next) {
       setAmountFocused(false);
+      setDeleteConfirmOpen(false);
       if (!isEditMode) {
         setDraft(buildDefaultDraft(fallbackPaidBy));
       }
       return;
     }
     setDraft(buildDraftForOpen());
+  };
+
+  const handleConfirmDelete = () => {
+    if (!onConfirmDelete) {
+      return;
+    }
+
+    void onConfirmDelete();
+    setDeleteConfirmOpen(false);
+    handleOpenChange(false);
   };
 
   useEffect(() => {
@@ -378,7 +409,7 @@ const QuickExpenseSheet = ({
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className="h-full w-full gap-0 rounded-none p-0"
+        className="quick-expense-sheet-morph h-full w-full gap-0 rounded-none p-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           if (isEditMode) {
@@ -387,7 +418,7 @@ const QuickExpenseSheet = ({
           noteRef.current?.focus({ preventScroll: true });
         }}
       >
-        <SheetClose className="ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-all duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+        <SheetClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-all duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetClose>
@@ -400,7 +431,7 @@ const QuickExpenseSheet = ({
           </SheetDescription>
         </SheetHeader>
         <div className="my-auto flex flex-col gap-4 pt-12">
-          <div className="grid grid-cols-3 gap-2 px-4">
+          <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-3 gap-2 px-4">
             <Button
               type="button"
               variant="outline"
@@ -443,7 +474,7 @@ const QuickExpenseSheet = ({
           </div>
 
           <div className="flex flex-1 flex-col justify-center gap-4 px-4">
-            <div className="flex flex-col gap-2">
+            <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2">
               {" "}
               <input
                 ref={noteRef}
@@ -483,14 +514,14 @@ const QuickExpenseSheet = ({
                 role="group"
                 aria-label="Amount suggestions"
                 className={cn(
-                  "no-scrollbar flex gap-2 overflow-x-auto flex-nowrap",
+                  "no-scrollbar flex flex-nowrap gap-2 overflow-x-auto",
                   anchorSuggestionsToKeyboard &&
                     "fixed inset-x-0 z-60 mx-auto w-full max-w-md justify-start px-4 pt-2 pb-2"
                 )}
                 style={
                   anchorSuggestionsToKeyboard
                     ? {
-                        bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom) + 8px)`,
+                        bottom: `calc(${keyboardOffset}px + 8px)`,
                       }
                     : undefined
                 }
@@ -515,21 +546,41 @@ const QuickExpenseSheet = ({
               </div>
             )}
 
-            <CategoryChipRow
-              value={draft.category}
-              onChange={(c) => setField("category", c)}
-            />
+            <div className="quick-expense-enter-group quick-expense-enter-delay-3">
+              <CategoryChipRow
+                value={draft.category}
+                onChange={(c) => setField("category", c)}
+              />
+            </div>
           </div>
         </div>
 
-        <SheetFooter className="standalone:pb-safe px-4">
+        <SheetFooter
+          className={cn(
+            "quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4",
+            isEditMode && "flex-row gap-2"
+          )}
+        >
+          {isEditMode ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Delete expense"
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={!onConfirmDelete || queueing}
+              className="rounded-xl"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="h-10 w-full rounded-xl text-base font-medium"
+            className="h-10 flex-1 rounded-xl text-base font-medium"
           >
-            {isEditMode ? "Update expense" : "Save expense"}
+            {isEditMode ? "Update" : "Save expense"}
           </Button>
         </SheetFooter>
 
@@ -556,6 +607,66 @@ const QuickExpenseSheet = ({
           value={draft.paidBy}
           onChange={(next) => setField("paidBy", next)}
         />
+
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent className="p-0 sm:max-w-md">
+            <div className="bg-muted/40 flex items-start gap-4 border-b px-6 py-5">
+              <div className="bg-destructive/10 text-destructive flex size-11 shrink-0 items-center justify-center rounded-full">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <DialogHeader className="text-left">
+                <DialogTitle>Delete this expense?</DialogTitle>
+                <DialogDescription>
+                  We will remove it from your list. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="bg-card/80 border-border mx-2 space-y-4 rounded-xl border p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">{draft.date}</p>
+                  <div className="flex items-center gap-2">
+                    <ExpenseItemIcon category={draft.category} size="sm" />
+                    <span className="text-sm font-medium">
+                      {draft.category}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                    Amount
+                  </p>
+                  <p className="text-destructive text-lg font-semibold">
+                    -{formatVnd(draft.amount)} <VndSymbol />
+                  </p>
+                </div>
+              </div>
+              {draft.note ? (
+                <div className="text-muted-foreground flex items-center gap-2">
+                  <NotebookIcon className="size-4" />
+                  <span className="text-sm font-medium">{draft.note}</span>
+                </div>
+              ) : null}
+            </div>
+            <DialogFooter className="border-t px-6 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteConfirmOpen(false)}
+              >
+                Keep it
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={!onConfirmDelete}
+              >
+                Delete expense
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );

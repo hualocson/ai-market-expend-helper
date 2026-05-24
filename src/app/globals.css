@@ -522,6 +522,93 @@
   animation: slide-in-from-bottom 0.3s ease-out;
 }
 
+.quick-expense-sheet-morph {
+  transform-origin: bottom center;
+  will-change: transform, opacity, filter, border-radius, clip-path;
+}
+
+.quick-expense-sheet-morph[data-state="open"] {
+  animation: quick-expense-sheet-morph-in 260ms cubic-bezier(0.2, 0, 0, 1) both !important;
+}
+
+.quick-expense-sheet-morph[data-state="closed"] {
+  animation: quick-expense-sheet-morph-out 180ms cubic-bezier(0.4, 0, 1, 1) both !important;
+}
+
+.quick-expense-enter-group {
+  will-change: transform, opacity, filter;
+}
+
+.quick-expense-sheet-morph[data-state="open"] .quick-expense-enter-group {
+  animation: quick-expense-enter-group-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.quick-expense-enter-delay-1 {
+  animation-delay: 60ms !important;
+}
+
+.quick-expense-enter-delay-2 {
+  animation-delay: 95ms !important;
+}
+
+.quick-expense-enter-delay-3 {
+  animation-delay: 125ms !important;
+}
+
+.quick-expense-enter-delay-4 {
+  animation-delay: 150ms !important;
+}
+
+@keyframes quick-expense-sheet-morph-in {
+  from {
+    opacity: 0;
+    border-radius: 2rem 2rem 0 0;
+    clip-path: inset(16% 4% 0 4% round 2rem 2rem 0 0);
+    filter: blur(8px);
+    transform: translateY(28px) scaleX(0.94) scaleY(0.96);
+  }
+
+  to {
+    opacity: 1;
+    border-radius: 0;
+    clip-path: inset(0 0 0 0 round 0);
+    filter: blur(0);
+    transform: translateY(0) scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes quick-expense-sheet-morph-out {
+  from {
+    opacity: 1;
+    border-radius: 0;
+    clip-path: inset(0 0 0 0 round 0);
+    filter: blur(0);
+    transform: translateY(0) scaleX(1) scaleY(1);
+  }
+
+  to {
+    opacity: 0;
+    border-radius: 1.5rem 1.5rem 0 0;
+    clip-path: inset(10% 3% 0 3% round 1.5rem 1.5rem 0 0);
+    filter: blur(4px);
+    transform: translateY(18px) scaleX(0.97) scaleY(0.98);
+  }
+}
+
+@keyframes quick-expense-enter-group-in {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
 /* Smooth focus transitions */
 input:focus,
 textarea:focus {
@@ -559,5 +646,12 @@ textarea:focus {
   .ds-interactive-card:hover,
   .ds-interactive-card:active {
     transform: none;
+  }
+
+  .quick-expense-sheet-morph,
+  .quick-expense-enter-group {
+    filter: none !important;
+    transform: none !important;
+    will-change: auto;
   }
 }
