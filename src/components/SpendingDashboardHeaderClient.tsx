@@ -133,7 +133,7 @@ const SpendingDashboardHeaderClient = ({
         </div>
       </div>
 
-      <div className="border-border/45 bg-surface-2/65 mt-32 rounded-[28px] border p-3.5 shadow-sm backdrop-blur-sm">
+      <div className="border-border/45 bg-surface-2/65 mt-28 rounded-[28px] border p-3.5 shadow-sm backdrop-blur-sm">
         <SpendingHeatmapChart
           activeMonth={activeMonth}
           totals={activeTotals?.totals ?? []}
