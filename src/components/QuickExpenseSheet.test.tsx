@@ -487,6 +487,14 @@ describe("QuickExpenseSheet — edit mode", () => {
     expect(await screen.findByText("Sports week")).toBeInTheDocument();
   });
 
+  it("does not autofocus the note field when edit mode opens", async () => {
+    renderEditSheet();
+
+    const note = await screen.findByPlaceholderText(/what did you spend on/i);
+
+    expect(note).not.toHaveFocus();
+  });
+
   it("enqueues the submitted draft and closes immediately on edit submit", async () => {
     const user = userEvent.setup();
     weeklyBudgetOptionsMock.mockResolvedValue([

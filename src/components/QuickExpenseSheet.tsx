@@ -381,6 +381,9 @@ const QuickExpenseSheet = ({
         className="h-full w-full gap-0 rounded-none p-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
+          if (isEditMode) {
+            return;
+          }
           noteRef.current?.focus({ preventScroll: true });
         }}
       >
