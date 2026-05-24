@@ -1,18 +1,19 @@
 "use client";
 
-import type { TBudget, TExpense } from "@/db/schema";
+import type { TBudget } from "@/db/schema";
 import type { CreateExpenseInput } from "@/db/type";
-import {
-  applyOptimisticExpenseCreate,
-  applyOptimisticExpenseDelete,
-  applyOptimisticExpenseUpdate,
-  restoreExpenseListSnapshots,
-} from "@/lib/mutations/expense-optimistic";
 import { queries } from "@/lib/queries";
 import type {
   TransferBudgetInput,
   TransferBudgetResult,
 } from "@/lib/services/budget-transfer";
+import {
+  createLocalExpense,
+  deleteLocalExpense,
+  updateLocalExpense,
+} from "@/lib/sync/expenses/actions";
+import { expenseSyncStore } from "@/lib/sync/expenses/store";
+import type { LocalExpense } from "@/lib/sync/expenses/types";
 import type {
   BudgetCreateInput,
   BudgetUpdateInput,
@@ -133,6 +134,76 @@ const mapTransferError = (message: string): TransferBudgetResult | null => {
   return null;
 };
 
+const buildServerExpenseClientId = (serverId: number) => `server-${serverId}`;
+
+const findExpenseClientIdByServerId = (serverId: number) =>
+  Object.values(expenseSyncStore.getState().expensesByClientId).find(
+    (expense) => expense.serverId === serverId
+  )?.clientId;
+
+const ensureLocalExpenseForUpdate = (
+  serverId: number,
+  input: CreateExpenseInput
+) => {
+  const existingClientId = findExpenseClientIdByServerId(serverId);
+  if (existingClientId) {
+    return existingClientId;
+  }
+
+  const clientId = input.clientId ?? buildServerExpenseClientId(serverId);
+  const now = new Date().toISOString();
+  const expense: LocalExpense = {
+    entity: "expenses",
+    clientId,
+    serverId,
+    date: input.date,
+    amount: input.amount,
+    note: input.note?.trim() ?? "",
+    category: input.category,
+    paidBy: input.paidBy,
+    budgetId: input.budgetId ?? null,
+    budgetName: null,
+    syncStatus: "synced",
+    lastError: null,
+    updatedAt: now,
+    serverUpdatedAt: null,
+  };
+
+  expenseSyncStore.getState().upsertExpense(expense);
+
+  return clientId;
+};
+
+const ensureLocalExpenseForDelete = (serverId: number) => {
+  const existingClientId = findExpenseClientIdByServerId(serverId);
+  if (existingClientId) {
+    return existingClientId;
+  }
+
+  const clientId = buildServerExpenseClientId(serverId);
+  const now = new Date().toISOString();
+  const expense: LocalExpense = {
+    entity: "expenses",
+    clientId,
+    serverId,
+    date: "",
+    amount: 0,
+    note: "",
+    category: "",
+    paidBy: "",
+    budgetId: null,
+    budgetName: null,
+    syncStatus: "synced",
+    lastError: null,
+    updatedAt: now,
+    serverUpdatedAt: null,
+  };
+
+  expenseSyncStore.getState().upsertExpense(expense);
+
+  return clientId;
+};
+
 const postBudgetTransfer = async (
   input: TransferBudgetInput
 ): Promise<TransferBudgetResult> => {
@@ -162,19 +233,8 @@ export const useCreateExpenseMutation = () => {
 
   return useMutation({
     mutationFn: (input: CreateExpenseInput) =>
-      fetchJsonMutation<TExpense, CreateExpenseInput>("/api/expenses", {
-        method: "POST",
-        body: input,
-        fallbackError: "Failed to create expense",
-      }),
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: queries.expenses.list._def });
-      return applyOptimisticExpenseCreate(queryClient, input);
-    },
-    onError: (_error, _input, context) => {
-      restoreExpenseListSnapshots(queryClient, context);
-    },
-    onSettled: () => invalidateExpenseMutationQueries(queryClient),
+      createLocalExpense(expenseSyncStore, input),
+    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
   });
 };
 
@@ -183,19 +243,12 @@ export const useUpdateExpenseMutation = () => {
 
   return useMutation({
     mutationFn: ({ id, input }: UpdateExpenseVariables) =>
-      fetchJsonMutation<TExpense, CreateExpenseInput>(`/api/expenses/${id}`, {
-        method: "PATCH",
-        body: input,
-        fallbackError: "Failed to update expense",
-      }),
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries({ queryKey: queries.expenses.list._def });
-      return applyOptimisticExpenseUpdate(queryClient, variables);
-    },
-    onError: (_error, _variables, context) => {
-      restoreExpenseListSnapshots(queryClient, context);
-    },
-    onSettled: () => invalidateExpenseMutationQueries(queryClient),
+      updateLocalExpense(
+        expenseSyncStore,
+        ensureLocalExpenseForUpdate(id, input),
+        input
+      ),
+    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
   });
 };
 
@@ -204,18 +257,8 @@ export const useDeleteExpenseMutation = () => {
 
   return useMutation({
     mutationFn: (id: number) =>
-      fetchJsonMutation<TExpense, undefined>(`/api/expenses/${id}`, {
-        method: "DELETE",
-        fallbackError: "Failed to delete expense",
-      }),
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: queries.expenses.list._def });
-      return applyOptimisticExpenseDelete(queryClient, id);
-    },
-    onError: (_error, _id, context) => {
-      restoreExpenseListSnapshots(queryClient, context);
-    },
-    onSettled: () => invalidateExpenseMutationQueries(queryClient),
+      deleteLocalExpense(expenseSyncStore, ensureLocalExpenseForDelete(id)),
+    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
   });
 };
 
