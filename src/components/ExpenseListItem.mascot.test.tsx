@@ -1,17 +1,27 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseListItem from "./ExpenseListItem";
 
 const quickExpenseSheetMock = vi.hoisted(() => vi.fn());
+const deleteExpenseMutationMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => ({
+  loading: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+}));
 
 vi.mock("@/lib/mutations", () => ({
   useDeleteExpenseMutation: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: deleteExpenseMutationMock,
   }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: toastMock,
 }));
 
 vi.mock("motion/react", () => ({
@@ -61,24 +71,30 @@ vi.mock("@/components/PaidByIcon", () => ({
   ),
 }));
 
+const expense = {
+  id: 1,
+  date: "2026-04-01",
+  amount: 125000,
+  note: "Lunch",
+  category: "Food",
+  paidBy: "me",
+  budgetId: null,
+  budgetName: null,
+};
+
+const renderItem = () => <ExpenseListItem expense={expense} />;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  deleteExpenseMutationMock.mockResolvedValue({ id: 1 });
+  toastMock.loading.mockReturnValue("loading-toast");
+});
+
 describe("ExpenseListItem edit flow", () => {
   it("opens QuickExpenseSheet in edit mode", async () => {
     const user = userEvent.setup();
 
-    render(
-      <ExpenseListItem
-        expense={{
-          id: 1,
-          date: "2026-04-01",
-          amount: 125000,
-          note: "Lunch",
-          category: "Food",
-          paidBy: "me",
-          budgetId: null,
-          budgetName: null,
-        }}
-      />
-    );
+    render(renderItem());
 
     await user.click(screen.getAllByRole("button")[1]);
 
@@ -99,5 +115,47 @@ describe("ExpenseListItem edit flow", () => {
         }),
       })
     );
+  });
+});
+
+describe("ExpenseListItem delete flow", () => {
+  it("shows a loading toast and replaces it on successful delete", async () => {
+    const user = userEvent.setup();
+
+    render(renderItem());
+
+    await user.click(screen.getAllByRole("button")[2]);
+    await user.click(screen.getByRole("button", { name: "Delete expense" }));
+
+    expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
+    expect(deleteExpenseMutationMock).toHaveBeenCalledWith(1);
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Expense deleted.", {
+        id: "loading-toast",
+      })
+    );
+  });
+
+  it("replaces the loading toast on delete failure", async () => {
+    const user = userEvent.setup();
+    deleteExpenseMutationMock.mockRejectedValue(new Error("Network down"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(renderItem());
+
+    await user.click(screen.getAllByRole("button")[2]);
+    await user.click(screen.getByRole("button", { name: "Delete expense" }));
+
+    expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
+    await waitFor(() =>
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Failed to delete expense.",
+        { id: "loading-toast" }
+      )
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 });

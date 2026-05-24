@@ -152,14 +152,16 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
       return;
     }
 
+    const loadingToastId = toast.loading("Deleting expense...");
+
     try {
       setIsDeleting(true);
       await deleteExpenseMutation.mutateAsync(expense.id);
-      toast.success("Expense deleted.");
+      toast.success("Expense deleted.", { id: loadingToastId });
       setIsOpen(false);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to delete expense.");
+      toast.error("Failed to delete expense.", { id: loadingToastId });
     } finally {
       setIsDeleting(false);
     }
