@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
+import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
@@ -199,6 +200,7 @@ const QuickExpenseSheet = ({
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
+  const keyboardOffset = useKeyboardOffset();
 
   const [queueing, setQueueing] = useState(false);
 
@@ -347,6 +349,7 @@ const QuickExpenseSheet = ({
     );
   }, [draft.amount]);
   const showSuggestions = amountFocused && suggestions.length > 0;
+  const anchorSuggestionsToKeyboard = keyboardOffset > 0;
 
   return (
     <Sheet open={sheetOpen} onOpenChange={handleOpenChange} modal>
@@ -473,14 +476,29 @@ const QuickExpenseSheet = ({
             </div>
 
             {showSuggestions && (
-              <div className="flex flex-wrap gap-2">
+              <div
+                role="group"
+                aria-label="Amount suggestions"
+                className={cn(
+                  "flex flex-wrap gap-2",
+                  anchorSuggestionsToKeyboard &&
+                    "fixed inset-x-0 z-60 mx-auto w-full max-w-md justify-start px-4 pt-2 pb-2"
+                )}
+                style={
+                  anchorSuggestionsToKeyboard
+                    ? {
+                        bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom) + 8px)`,
+                      }
+                    : undefined
+                }
+              >
                 {suggestions.map((s) => (
                   <Button
                     key={s}
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="rounded-full"
+                    className="rounded-full tabular-nums"
                     onPointerDown={(e) => e.preventDefault()}
                     onClick={() => setField("amount", s)}
                   >

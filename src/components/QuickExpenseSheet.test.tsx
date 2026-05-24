@@ -83,6 +83,8 @@ vi.mock("@/components/ui/date-picker", () => ({
 
 const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
   .React;
+const originalVisualViewport = window.visualViewport;
+const originalInnerHeight = window.innerHeight;
 
 const budgetOption = (
   override: Partial<BudgetWeeklyOption> = {}
@@ -105,6 +107,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: originalVisualViewport,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: originalInnerHeight,
+  });
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
   } else {
@@ -188,6 +198,39 @@ describe("QuickExpenseSheet — fields", () => {
     await user.keyboard("5");
     await user.click(screen.getByRole("button", { name: /5[.,]?000$/ }));
     expect(amount.value).toMatch(/5[.,]?000/);
+  });
+
+  it("positions amount suggestions above the software keyboard", async () => {
+    const visualViewport = new EventTarget() as VisualViewport;
+    Object.defineProperties(visualViewport, {
+      height: { configurable: true, value: 544 },
+      offsetTop: { configurable: true, value: 0 },
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    act(() => {
+      visualViewport.dispatchEvent(new Event("resize"));
+    });
+    await user.keyboard("5");
+
+    const suggestions = screen.getByRole("group", {
+      name: /amount suggestions/i,
+    });
+
+    expect(suggestions).toHaveClass("fixed");
+    expect(suggestions).toHaveStyle({
+      bottom: "calc(256px + env(safe-area-inset-bottom) + 8px)",
+    });
   });
 
   it("renders the collapsed category chip row and expands then toggles active chip", async () => {
