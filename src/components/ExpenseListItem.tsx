@@ -24,18 +24,22 @@ import {
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon from "@/components/PaidByIcon";
-import QuickExpenseSheet from "@/components/QuickExpenseSheet";
 import VndSymbol from "@/components/VndSymbol";
 
-type ExpenseListItemData = {
+export type ExpenseListItemData = {
   id: number;
   date: string;
   amount: number;
   note: string;
   category: string;
   paidBy: string;
-  budgetId?: number | null;
-  budgetName?: string | null;
+  budgetId: number | null;
+  budgetName: string | null;
+};
+
+type ExpenseListItemProps = {
+  expense: ExpenseListItemData;
+  onEditExpense: (expense: ExpenseListItemData) => void;
 };
 
 const ACTION_WIDTH = 270;
@@ -44,9 +48,8 @@ const CLOSE_THRESHOLD = ACTION_WIDTH * 0.1;
 const VELOCITY_THRESHOLD = 600;
 const OPEN_EVENT_NAME = "expense-list-item-open";
 
-const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
+const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const deleteExpenseMutation = useDeleteExpenseMutation();
   const isDeleting = deleteExpenseMutation.isPending;
@@ -70,24 +73,6 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     }
     return "";
   }, [expense.budgetId, expense.budgetName]);
-  const initialExpense = useMemo(
-    () => ({
-      date: formattedDate,
-      amount: expense.amount,
-      note: expense.note,
-      category: expense.category,
-      paidBy: expense.paidBy,
-      budgetId: expense.budgetId ?? null,
-    }),
-    [
-      expense.amount,
-      expense.category,
-      expense.note,
-      expense.paidBy,
-      expense.budgetId,
-      formattedDate,
-    ]
-  );
 
   const handleDragEnd = (
     _: MouseEvent | TouchEvent | PointerEvent,
@@ -185,7 +170,7 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   };
 
   const openEditSheet = () => {
-    setEditOpen(true);
+    onEditExpense(expense);
     setIsOpen(false);
   };
 
@@ -327,19 +312,6 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
         </motion.div>
       </div>
 
-      <QuickExpenseSheet
-        mode="edit"
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        showTrigger={false}
-        transactionId={expense.id}
-        initialExpense={initialExpense}
-        onConfirmDelete={handleDelete}
-        onSuccess={() => {
-          setEditOpen(false);
-        }}
-      />
-
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="p-0 sm:max-w-md">
           <div className="bg-muted/40 flex items-start gap-4 border-b px-6 py-5">
@@ -410,4 +382,4 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   );
 };
 
-export default ExpenseListItem;
+export default React.memo(ExpenseListItem);

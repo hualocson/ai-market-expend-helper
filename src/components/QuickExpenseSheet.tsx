@@ -409,6 +409,7 @@ const QuickExpenseSheet = ({
       <SheetContent
         side="bottom"
         showCloseButton={false}
+        overlayClassName="quick-expense-sheet-overlay"
         className="quick-expense-sheet-morph h-full w-full gap-0 rounded-none p-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
@@ -521,7 +522,7 @@ const QuickExpenseSheet = ({
                 style={
                   anchorSuggestionsToKeyboard
                     ? {
-                        bottom: `calc(${keyboardOffset}px + 8px)`,
+                        bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom) + 8px)`,
                       }
                     : undefined
                 }

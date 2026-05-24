@@ -169,6 +169,18 @@ describe("QuickExpenseSheet — open/close", () => {
       "quick-expense-sheet-morph"
     );
   });
+
+  it("uses the quick expense overlay class for the full-screen sheet", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await screen.findByRole("dialog");
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toHaveClass(
+      "quick-expense-sheet-overlay"
+    );
+  });
 });
 
 describe("QuickExpenseSheet — fields", () => {

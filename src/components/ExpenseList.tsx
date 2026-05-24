@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 
@@ -18,6 +18,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { motion as m } from "motion/react";
 
+import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
 import ExpenseListItem from "@/components/ExpenseListItem";
 import VndSymbol from "@/components/VndSymbol";
 
@@ -76,6 +77,8 @@ const ExpenseList = ({
   const expenseListQuery = queries.expenses.list(params);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const [editingExpense, setEditingExpense] =
+    useState<ExpenseListItemData | null>(null);
   const {
     data,
     fetchNextPage,
@@ -124,6 +127,16 @@ const ExpenseList = ({
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
+  const handleEditExpense = useCallback((expense: ExpenseListItemData) => {
+    setEditingExpense(expense);
+  }, []);
+
+  const handleEditOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setEditingExpense(null);
+    }
+  }, []);
+
   if (!data || data.pages.length === 0) {
     return null;
   }
@@ -169,7 +182,11 @@ const ExpenseList = ({
               </Link>
               <div className="flex flex-col gap-3">
                 {group.items.map((expense) => (
-                  <ExpenseListItem key={expense.id} expense={expense} />
+                  <ExpenseListItem
+                    key={expense.id}
+                    expense={expense}
+                    onEditExpense={handleEditExpense}
+                  />
                 ))}
               </div>
             </div>
@@ -214,6 +231,11 @@ const ExpenseList = ({
           />
         )}
       </div>
+      <ExpenseEditSheetHost
+        expense={editingExpense}
+        open={Boolean(editingExpense)}
+        onOpenChange={handleEditOpenChange}
+      />
     </m.section>
   );
 };
