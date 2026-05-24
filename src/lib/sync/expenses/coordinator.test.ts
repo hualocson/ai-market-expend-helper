@@ -1,0 +1,663 @@
+import { queries } from "@/lib/queries";
+import {
+  clearSyncDb,
+  getSyncCursor,
+  listQueuedSyncOperations,
+  listSyncRecords,
+  putSyncOperation,
+  putSyncRecord,
+  setSyncCursor,
+} from "@/lib/sync/core/repository";
+import {
+  InfiniteQueryObserver,
+  QueryClient,
+  QueryObserver,
+} from "@tanstack/react-query";
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  flushExpenseOutbox,
+  hydrateExpenseSync,
+  pullExpenseChanges,
+} from "./coordinator";
+import { expenseSyncStore } from "./store";
+
+const expenseRecord = (
+  overrides: Partial<Parameters<typeof putSyncRecord>[0]> = {}
+): Parameters<typeof putSyncRecord>[0] => ({
+  entity: "expenses",
+  clientId: "client-1",
+  serverId: 10,
+  syncStatus: "synced",
+  lastError: null,
+  updatedAt: "2026-05-24T09:00:00.000Z",
+  serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+  payload: {
+    date: "2026-05-23",
+    amount: 45000,
+    note: "Coffee",
+    category: "Food",
+    paidBy: "Cubi",
+    budgetId: null,
+    budgetName: null,
+  },
+  ...overrides,
+});
+
+const outboxOperation = (
+  overrides: Partial<Parameters<typeof putSyncOperation>[0]> = {}
+): Parameters<typeof putSyncOperation>[0] => ({
+  operationId: "op-1",
+  entity: "expenses",
+  type: "create",
+  clientId: "client-1",
+  serverId: null,
+  payload: {
+    entity: "expenses",
+    clientId: "client-1",
+    serverId: null,
+    date: "2026-05-23",
+    amount: 45000,
+    note: "Coffee",
+    category: "Food",
+    paidBy: "Cubi",
+    budgetId: null,
+    budgetName: null,
+    syncStatus: "pending",
+    lastError: null,
+    updatedAt: "2026-05-24T09:00:00.000Z",
+    serverUpdatedAt: null,
+  },
+  createdAt: "2026-05-24T09:00:00.000Z",
+  attemptCount: 0,
+  lastAttemptAt: null,
+  lastError: null,
+  ...overrides,
+});
+
+const observeExpenseList = (queryClient: QueryClient) => {
+  const query = queries.expenses.list({ month: "2026-05", limit: 30 });
+  const observer = new QueryObserver(queryClient, {
+    queryKey: query.queryKey,
+    queryFn: query.queryFn,
+    enabled: false,
+  });
+  const unsubscribe = observer.subscribe(() => {});
+
+  return { query, unsubscribe };
+};
+
+const observeInfiniteExpenseList = (queryClient: QueryClient) => {
+  const query = queries.expenses.list({ month: "2026-05", limit: 30 });
+  const observer = new InfiniteQueryObserver(queryClient, {
+    queryKey: query.queryKey,
+    queryFn: query.queryFn,
+    enabled: false,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore
+        ? lastPage.pagination.offset + lastPage.pagination.limit
+        : undefined,
+  });
+  const unsubscribe = observer.subscribe(() => {});
+
+  return { query, unsubscribe };
+};
+
+beforeEach(async () => {
+  await clearSyncDb();
+  expenseSyncStore.getState().hydrate([]);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("expense sync coordinator", () => {
+  it("hydrates expense records into the store and active list caches", async () => {
+    await putSyncRecord(expenseRecord());
+    const queryClient = new QueryClient();
+    const { query, unsubscribe } = observeExpenseList(queryClient);
+
+    await hydrateExpenseSync(queryClient);
+
+    expect(expenseSyncStore.getState().expensesByClientId["client-1"]).toEqual(
+      expect.objectContaining({
+        clientId: "client-1",
+        note: "Coffee",
+        syncStatus: "synced",
+      })
+    );
+    expect(queryClient.getQueryData(query.queryKey)).toMatchObject({
+      rows: [
+        expect.objectContaining({
+          id: 10,
+          note: "Coffee",
+        }),
+      ],
+    });
+
+    unsubscribe();
+  });
+
+  it("seeds active infinite list caches before the first page loads", async () => {
+    await putSyncRecord(expenseRecord());
+    const queryClient = new QueryClient();
+    const { query, unsubscribe } = observeInfiniteExpenseList(queryClient);
+
+    await hydrateExpenseSync(queryClient);
+
+    expect(queryClient.getQueryData(query.queryKey)).toMatchObject({
+      pageParams: [0],
+      pages: [
+        {
+          rows: [
+            expect.objectContaining({
+              id: 10,
+              note: "Coffee",
+            }),
+          ],
+        },
+      ],
+    });
+
+    unsubscribe();
+  });
+
+  it("pulls server changes, reconciles deleted rows, and advances the cursor", async () => {
+    await setSyncCursor("expenses", "2026-05-24T09:00:00.000Z");
+    await putSyncRecord(expenseRecord({ clientId: "deleted-client" }));
+    const queryClient = new QueryClient();
+    const { query, unsubscribe } = observeExpenseList(queryClient);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          cursor: "2026-05-24T10:00:00.000Z",
+          changes: [
+            {
+              id: 11,
+              clientId: "server-client",
+              date: "2026-05-24",
+              amount: 50000,
+              note: "Lunch",
+              category: "Food",
+              paidBy: "Embe",
+              budgetId: 3,
+              budgetName: "Meals",
+              updatedAt: "2026-05-24T10:00:00.000Z",
+              deletedAt: null,
+              isDeleted: false,
+            },
+            {
+              id: 10,
+              clientId: "deleted-client",
+              date: "2026-05-23",
+              amount: 45000,
+              note: "Coffee",
+              category: "Food",
+              paidBy: "Cubi",
+              budgetId: null,
+              budgetName: null,
+              updatedAt: "2026-05-24T09:00:00.000Z",
+              deletedAt: "2026-05-24T10:00:00.000Z",
+              isDeleted: true,
+            },
+          ],
+        })
+      )
+    );
+
+    await pullExpenseChanges(queryClient);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses/sync?cursor=2026-05-24T09%3A00%3A00.000Z",
+      expect.objectContaining({ method: "GET", cache: "no-store" })
+    );
+    await expect(getSyncCursor("expenses")).resolves.toBe(
+      "2026-05-24T10:00:00.000Z"
+    );
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "deleted-client",
+        syncStatus: "deleted",
+        serverUpdatedAt: "2026-05-24T10:00:00.000Z",
+      },
+      {
+        clientId: "server-client",
+        serverId: 11,
+        syncStatus: "synced",
+      },
+    ]);
+    expect(queryClient.getQueryData(query.queryKey)).toMatchObject({
+      rows: [expect.objectContaining({ id: 11, note: "Lunch" })],
+    });
+
+    unsubscribe();
+  });
+
+  it("preserves dirty local rows when pulling older server changes", async () => {
+    await setSyncCursor("expenses", "2026-05-24T09:00:00.000Z");
+    await putSyncRecord(
+      expenseRecord({
+        syncStatus: "pending",
+        updatedAt: "2026-05-24T11:00:00.000Z",
+        payload: {
+          date: "2026-05-23",
+          amount: 60000,
+          note: "Local dinner edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      })
+    );
+    const queryClient = new QueryClient();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          cursor: "2026-05-24T10:00:00.000Z",
+          changes: [
+            {
+              id: 10,
+              clientId: "client-1",
+              date: "2026-05-23",
+              amount: 45000,
+              note: "Server coffee",
+              category: "Food",
+              paidBy: "Cubi",
+              budgetId: null,
+              budgetName: null,
+              updatedAt: "2026-05-24T10:00:00.000Z",
+              deletedAt: null,
+              isDeleted: false,
+            },
+          ],
+        })
+      )
+    );
+
+    await pullExpenseChanges(queryClient);
+
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "client-1",
+        syncStatus: "pending",
+        updatedAt: "2026-05-24T11:00:00.000Z",
+        payload: expect.objectContaining({
+          amount: 60000,
+          note: "Local dinner edit",
+        }),
+      },
+    ]);
+    await expect(getSyncCursor("expenses")).resolves.toBe(
+      "2026-05-24T10:00:00.000Z"
+    );
+  });
+
+  it("reconciles a successful create result into a synced local row", async () => {
+    await putSyncRecord(
+      expenseRecord({
+        serverId: null,
+        syncStatus: "pending",
+        serverUpdatedAt: null,
+      })
+    );
+    await putSyncOperation(outboxOperation());
+    const queryClient = new QueryClient();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              operationId: "op-1",
+              ok: true,
+              row: {
+                id: 10,
+                clientId: "client-1",
+                date: "2026-05-23",
+                amount: 45000,
+                note: "Coffee",
+                category: "Food",
+                paidBy: "Cubi",
+                budgetId: null,
+                budgetName: null,
+                updatedAt: "2026-05-24T10:00:00.000Z",
+                deletedAt: null,
+                isDeleted: false,
+              },
+            },
+          ],
+        })
+      )
+    );
+
+    await flushExpenseOutbox(queryClient);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses/sync",
+      expect.objectContaining({
+        method: "POST",
+        cache: "no-store",
+        body: JSON.stringify({
+          operations: [
+            {
+              operationId: "op-1",
+              type: "create",
+              clientId: "client-1",
+              serverId: null,
+              payload: {
+                clientId: "client-1",
+                date: "2026-05-23",
+                amount: 45000,
+                note: "Coffee",
+                category: "Food",
+                paidBy: "Cubi",
+                budgetId: null,
+              },
+            },
+          ],
+        }),
+      })
+    );
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        entity: "expenses",
+        clientId: "client-1",
+        serverId: 10,
+        syncStatus: "synced",
+        serverUpdatedAt: "2026-05-24T10:00:00.000Z",
+      },
+    ]);
+    await expect(listQueuedSyncOperations("expenses")).resolves.toEqual([]);
+    expect(expenseSyncStore.getState().expensesByClientId["client-1"]).toEqual(
+      expect.objectContaining({
+        serverId: 10,
+        syncStatus: "synced",
+      })
+    );
+  });
+
+  it("marks failed flush results on the outbox operation and local row", async () => {
+    await putSyncRecord(
+      expenseRecord({
+        serverId: null,
+        syncStatus: "pending",
+        serverUpdatedAt: null,
+      })
+    );
+    await putSyncOperation(outboxOperation());
+    const queryClient = new QueryClient();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              operationId: "op-1",
+              ok: false,
+              error: "Invalid payload",
+            },
+          ],
+        })
+      )
+    );
+
+    await flushExpenseOutbox(queryClient);
+
+    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
+      {
+        operationId: "op-1",
+        attemptCount: 1,
+        lastAttemptAt: expect.any(String),
+        lastError: "Invalid payload",
+      },
+    ]);
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "client-1",
+        syncStatus: "failed",
+        lastError: "Invalid payload",
+      },
+    ]);
+    expect(expenseSyncStore.getState().expensesByClientId["client-1"]).toEqual(
+      expect.objectContaining({
+        syncStatus: "failed",
+        lastError: "Invalid payload",
+      })
+    );
+  });
+
+  it("keeps the latest failed local row when mixed same-client results return", async () => {
+    await putSyncRecord(
+      expenseRecord({
+        syncStatus: "pending",
+        updatedAt: "2026-05-24T11:00:00.000Z",
+        payload: {
+          date: "2026-05-23",
+          amount: 60000,
+          note: "Latest local edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      })
+    );
+    await putSyncOperation(
+      outboxOperation({
+        operationId: "op-1",
+        type: "update",
+        serverId: 10,
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: 10,
+          date: "2026-05-23",
+          amount: 50000,
+          note: "Older local edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+          syncStatus: "pending",
+          lastError: null,
+          updatedAt: "2026-05-24T10:00:00.000Z",
+          serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+        },
+        createdAt: "2026-05-24T10:00:00.000Z",
+      })
+    );
+    await putSyncOperation(
+      outboxOperation({
+        operationId: "op-2",
+        type: "update",
+        serverId: 10,
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: 10,
+          date: "2026-05-23",
+          amount: 60000,
+          note: "Latest local edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+          syncStatus: "pending",
+          lastError: null,
+          updatedAt: "2026-05-24T11:00:00.000Z",
+          serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+        },
+        createdAt: "2026-05-24T11:00:00.000Z",
+      })
+    );
+    const queryClient = new QueryClient();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              operationId: "op-1",
+              ok: true,
+              row: {
+                id: 10,
+                clientId: "client-1",
+                date: "2026-05-23",
+                amount: 50000,
+                note: "Older local edit",
+                category: "Food",
+                paidBy: "Cubi",
+                budgetId: null,
+                budgetName: null,
+                updatedAt: "2026-05-24T10:30:00.000Z",
+                deletedAt: null,
+                isDeleted: false,
+              },
+            },
+            {
+              operationId: "op-2",
+              ok: false,
+              error: "Invalid payload",
+            },
+          ],
+        })
+      )
+    );
+
+    await flushExpenseOutbox(queryClient);
+
+    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
+      {
+        operationId: "op-2",
+        lastError: "Invalid payload",
+      },
+    ]);
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "client-1",
+        serverId: 10,
+        syncStatus: "failed",
+        lastError: "Invalid payload",
+        payload: expect.objectContaining({
+          amount: 60000,
+          note: "Latest local edit",
+        }),
+      },
+    ]);
+  });
+
+  it("drops older failed same-client operations when a later operation succeeds", async () => {
+    await putSyncRecord(
+      expenseRecord({
+        syncStatus: "pending",
+        updatedAt: "2026-05-24T11:00:00.000Z",
+        payload: {
+          date: "2026-05-23",
+          amount: 60000,
+          note: "Latest local edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      })
+    );
+    await putSyncOperation(
+      outboxOperation({
+        operationId: "op-1",
+        type: "update",
+        serverId: 10,
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: 10,
+          date: "2026-05-23",
+          amount: 50000,
+          note: "Older local edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+          syncStatus: "pending",
+          lastError: null,
+          updatedAt: "2026-05-24T10:00:00.000Z",
+          serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+        },
+        createdAt: "2026-05-24T10:00:00.000Z",
+      })
+    );
+    await putSyncOperation(
+      outboxOperation({
+        operationId: "op-2",
+        type: "update",
+        serverId: 10,
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: 10,
+          date: "2026-05-23",
+          amount: 60000,
+          note: "Latest local edit",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+          syncStatus: "pending",
+          lastError: null,
+          updatedAt: "2026-05-24T11:00:00.000Z",
+          serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+        },
+        createdAt: "2026-05-24T11:00:00.000Z",
+      })
+    );
+    const queryClient = new QueryClient();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              operationId: "op-1",
+              ok: false,
+              error: "Superseded payload",
+            },
+            {
+              operationId: "op-2",
+              ok: true,
+              row: {
+                id: 10,
+                clientId: "client-1",
+                date: "2026-05-23",
+                amount: 60000,
+                note: "Latest local edit",
+                category: "Food",
+                paidBy: "Cubi",
+                budgetId: null,
+                budgetName: null,
+                updatedAt: "2026-05-24T11:30:00.000Z",
+                deletedAt: null,
+                isDeleted: false,
+              },
+            },
+          ],
+        })
+      )
+    );
+
+    await flushExpenseOutbox(queryClient);
+
+    await expect(listQueuedSyncOperations("expenses")).resolves.toEqual([]);
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "client-1",
+        serverId: 10,
+        syncStatus: "synced",
+        lastError: null,
+        payload: expect.objectContaining({
+          amount: 60000,
+          note: "Latest local edit",
+        }),
+      },
+    ]);
+  });
+});
