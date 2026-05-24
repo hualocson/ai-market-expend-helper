@@ -1,6 +1,6 @@
 import React from "react";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -94,12 +94,41 @@ beforeEach(() => {
 });
 
 describe("ExpenseListItem edit flow", () => {
+  it("opens QuickExpenseSheet in edit mode when tapping the item", async () => {
+    const user = userEvent.setup();
+
+    render(renderItem());
+
+    await user.click(screen.getByText("Lunch"));
+
+    expect(screen.getByTestId("quick-expense-sheet")).toBeInTheDocument();
+    expect(quickExpenseSheetMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mode: "edit",
+        open: true,
+        transactionId: 1,
+      })
+    );
+  });
+
+  it("does not open edit from the drag click that follows a swipe", async () => {
+    const user = userEvent.setup();
+
+    render(renderItem());
+
+    const item = screen.getByRole("button", { name: /edit expense lunch/i });
+    fireEvent.dragStart(item);
+    await user.click(item);
+
+    expect(screen.queryByTestId("quick-expense-sheet")).not.toBeInTheDocument();
+  });
+
   it("opens QuickExpenseSheet in edit mode", async () => {
     const user = userEvent.setup();
 
     render(renderItem());
 
-    await user.click(screen.getAllByRole("button")[1]);
+    await user.click(screen.getByRole("button", { name: /edit expense$/i }));
 
     expect(screen.getByTestId("quick-expense-sheet")).toBeInTheDocument();
     expect(quickExpenseSheetMock).toHaveBeenLastCalledWith(
