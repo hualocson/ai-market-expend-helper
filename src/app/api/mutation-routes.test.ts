@@ -80,6 +80,28 @@ describe("REST mutation routes", () => {
     expect(mocks.createExpense).toHaveBeenCalledWith(payload);
   });
 
+  it("passes expense clientId through create payloads", async () => {
+    const payload = {
+      clientId: "expense-client-1",
+      date: "23/05/2026",
+      note: "Coffee",
+      amount: 45000,
+      category: "Food",
+      paidBy: "Cubi",
+      budgetId: null,
+    };
+    const created = { id: 1, ...payload };
+    mocks.createExpense.mockResolvedValue(created);
+
+    const response = await postExpense(
+      jsonRequest("http://localhost/api/expenses", payload)
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual(created);
+    expect(mocks.createExpense).toHaveBeenCalledWith(payload);
+  });
+
   it("returns 400 for an invalid expense payload", async () => {
     const response = await postExpense(
       jsonRequest("http://localhost/api/expenses", {

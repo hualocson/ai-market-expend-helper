@@ -50,6 +50,13 @@
       "when": 1769695361297,
       "tag": "0006_drop_old_weekly_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779629041478,
+      "tag": "0007_expense_client_id",
+      "breakpoints": true
     }
   ]
 }

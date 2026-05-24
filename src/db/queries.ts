@@ -1,5 +1,5 @@
 import dayjs from "@/configs/date";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { setExpenseBudget } from "./budget-queries";
 import { db } from "./index";
@@ -12,21 +12,31 @@ export const createExpense = async (input: CreateExpenseInput) => {
     throw new Error("Invalid date format");
   }
 
-  const [created] = await db
-    .insert(expenses)
-    .values({
-      date: parsedDate.toDate().toDateString(),
-      amount: input.amount,
-      note: input.note?.trim() || "",
-      category: input.category,
-      paidBy: input.paidBy,
-    })
-    .returning();
+  const values = {
+    clientId: input.clientId ?? null,
+    date: parsedDate.toDate().toDateString(),
+    amount: input.amount,
+    note: input.note?.trim() || "",
+    category: input.category,
+    paidBy: input.paidBy,
+  };
 
-  if (Number.isFinite(input.budgetId)) {
+  const [created] = input.clientId
+    ? await db
+        .insert(expenses)
+        .values(values)
+        .onConflictDoUpdate({
+          target: expenses.clientId,
+          targetWhere: sql`${expenses.clientId} is not null`,
+          set: values,
+        })
+        .returning()
+    : await db.insert(expenses).values(values).returning();
+
+  if (typeof input.budgetId !== "undefined") {
     await setExpenseBudget({
       expenseId: created.id,
-      budgetId: Number(input.budgetId),
+      budgetId: input.budgetId ?? null,
     });
   }
 
