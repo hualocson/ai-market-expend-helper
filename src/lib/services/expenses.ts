@@ -31,6 +31,7 @@ export type ExpenseListResult = {
     limit: number;
     offset: number;
     hasMore: boolean;
+    nextOffset?: number;
   };
   rows: ExpenseListItem[];
   trimmedSearch?: string;

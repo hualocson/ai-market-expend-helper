@@ -479,12 +479,6 @@ export const flushExpenseOutbox = async (
       }),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    await Promise.all(
-      operations.map((operation) =>
-        markOperationAndRecordFailed(operation, message)
-      )
-    );
     await refreshExpenseStoreAndActiveLists(queryClient);
     throw error;
   }

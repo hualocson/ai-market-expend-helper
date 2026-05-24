@@ -428,6 +428,43 @@ describe("expense sync coordinator", () => {
     );
   });
 
+  it("keeps pending rows pending when the outbox flush cannot reach the server", async () => {
+    await putSyncRecord(
+      expenseRecord({
+        serverId: null,
+        syncStatus: "pending",
+        serverUpdatedAt: null,
+      })
+    );
+    await putSyncOperation(outboxOperation());
+    const queryClient = new QueryClient();
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Offline"));
+
+    await expect(flushExpenseOutbox(queryClient)).rejects.toThrow("Offline");
+
+    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
+      {
+        operationId: "op-1",
+        attemptCount: 1,
+        lastAttemptAt: expect.any(String),
+        lastError: null,
+      },
+    ]);
+    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+      {
+        clientId: "client-1",
+        syncStatus: "pending",
+        lastError: null,
+      },
+    ]);
+    expect(expenseSyncStore.getState().expensesByClientId["client-1"]).toEqual(
+      expect.objectContaining({
+        syncStatus: "pending",
+        lastError: null,
+      })
+    );
+  });
+
   it("keeps the latest failed local row when mixed same-client results return", async () => {
     await putSyncRecord(
       expenseRecord({

@@ -166,13 +166,27 @@ const buildQuickExpensePayload = (
   draft: TExpenseDraft
 ): TQuickExpensePayload => ({
   clientId: draft.clientId,
-  date: draft.date,
+  date: normalizeSubmittedDate(draft.date),
   amount: draft.amount,
   note: draft.note,
   category: draft.category,
   paidBy: draft.paidBy,
   budgetId: draft.budgetId,
 });
+
+const normalizeSubmittedDate = (value: string): string => {
+  const displayDate = dayjs(value, "DD/MM/YYYY", true);
+  if (displayDate.isValid()) {
+    return displayDate.format("YYYY-MM-DD");
+  }
+
+  const isoDate = dayjs(value, "YYYY-MM-DD", true);
+  if (isoDate.isValid()) {
+    return isoDate.format("YYYY-MM-DD");
+  }
+
+  return dayjs().format("YYYY-MM-DD");
+};
 
 const formatDateLabel = (date: string) => {
   const parsed = dayjs(date, "DD/MM/YYYY", true);

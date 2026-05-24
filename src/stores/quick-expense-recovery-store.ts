@@ -1,3 +1,4 @@
+import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import type {
   ExpenseOutboxOperation,
@@ -106,6 +107,20 @@ const getOperationRecoveryStartedAt = (
 const getDismissedRecoveryKey = (entry: TQuickExpenseRecoveryEntry) =>
   `${entry.lastError}:${entry.createdAt}`;
 
+const formatRecoveryDraftDate = (value: string) => {
+  const isoDate = dayjs(value, "YYYY-MM-DD", true);
+  if (isoDate.isValid()) {
+    return isoDate.format("DD/MM/YYYY");
+  }
+
+  const displayDate = dayjs(value, "DD/MM/YYYY", true);
+  if (displayDate.isValid()) {
+    return displayDate.format("DD/MM/YYYY");
+  }
+
+  return value;
+};
+
 export const quickExpenseRecoveryEntryFromOutboxOperation = (
   operation: ExpenseOutboxOperation,
   now = Date.now()
@@ -126,7 +141,7 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
 
   const draft: TQuickExpenseDraft = {
     clientId: operation.clientId,
-    date: operation.payload.date,
+    date: formatRecoveryDraftDate(operation.payload.date),
     amount: operation.payload.amount,
     note: operation.payload.note,
     category,

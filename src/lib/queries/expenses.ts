@@ -27,6 +27,8 @@ export type ExpenseListQueryParams = {
 const isBrowserIndexedDbAvailable = () =>
   typeof window !== "undefined" && typeof indexedDB !== "undefined";
 
+const SERVER_FIRST_PAGE_AFTER_LOCAL_ONLY_OFFSET = -1;
+
 const localExpenseClientIdToListId = (clientId: string) => {
   const hash = [...clientId].reduce(
     (acc, character) => (acc * 31 + character.charCodeAt(0)) >>> 0,
@@ -240,13 +242,32 @@ const buildLocalExpenseListResult = (
   params: ExpenseListQueryParams
 ) => {
   const result = buildExpenseListResultFromLocalRows(rows, params);
+  const matchingLocalOnlyDirtyRows = rows.filter(
+    (row) =>
+      row.serverId === null &&
+      row.syncStatus !== "synced" &&
+      localExpenseMatchesParams(row, params)
+  );
+  const hasMatchingLocalOnlyDirtyRows = matchingLocalOnlyDirtyRows.length > 0;
 
   if ((params.offset ?? 0) === 0 && result.rows.length > 0) {
+    const usedIds = new Set<number>();
+    const pageRows = hasMatchingLocalOnlyDirtyRows
+      ? matchingLocalOnlyDirtyRows.map((row) =>
+          localExpenseToListItem(row, usedIds)
+        )
+      : result.rows;
+
     return {
       ...result,
+      groupedRows: groupExpenseRowsByDate(pageRows),
+      rows: pageRows,
       pagination: {
         ...result.pagination,
         hasMore: true,
+        ...(hasMatchingLocalOnlyDirtyRows
+          ? { nextOffset: SERVER_FIRST_PAGE_AFTER_LOCAL_ONLY_OFFSET }
+          : {}),
       },
     };
   }
@@ -271,7 +292,7 @@ const canServeExpenseListFromLocalRows = (
       localExpenseMatchesParams(row, params)
   );
   if (hasMatchingLocalOnlyDirtyRows) {
-    return false;
+    return result.rows.length > 0;
   }
 
   const serverBackedRowCount = result.rows.filter((row) =>
@@ -292,6 +313,8 @@ export const fetchExpenseList = async ({
   limit,
   offset,
 }: ExpenseListQueryParams = {}): Promise<ExpenseListResult> => {
+  const shouldFetchServerFirstPageAfterLocalOnly =
+    offset === SERVER_FIRST_PAGE_AFTER_LOCAL_ONLY_OFFSET;
   const query = new URLSearchParams();
 
   if (month !== undefined) {
@@ -310,14 +333,20 @@ export const fetchExpenseList = async ({
     query.set("limit", String(limit));
   }
   if (offset !== undefined) {
-    query.set("offset", String(offset));
+    query.set(
+      "offset",
+      String(shouldFetchServerFirstPageAfterLocalOnly ? 0 : offset)
+    );
   }
 
   const queryString = query.toString();
   const params = { month, q, mode, recentDays, limit, offset };
   let localRows: LocalExpense[] = [];
 
-  if (isBrowserIndexedDbAvailable()) {
+  if (
+    isBrowserIndexedDbAvailable() &&
+    !shouldFetchServerFirstPageAfterLocalOnly
+  ) {
     localRows = await getLocalExpenseRows();
     if (localRows.length > 0) {
       const localResult = buildLocalExpenseListResult(localRows, params);

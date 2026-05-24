@@ -362,6 +362,7 @@ describe("QuickExpenseSheet — submit", () => {
         expect.objectContaining({
           amount: 12000,
           note: "Retry lunch",
+          date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
           category: "Food",
           paidBy: expect.any(String),
           budgetId: null,
@@ -433,6 +434,7 @@ describe("QuickExpenseSheet — submit", () => {
       expect(mutationMocks.createMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           clientId: "expense-client-1",
+          date: "2026-05-20",
           amount: 45000,
           note: "Recovered lunch",
         })
@@ -567,7 +569,7 @@ describe("QuickExpenseSheet — edit mode", () => {
       expect(mutationMocks.updateMutateAsync).toHaveBeenCalledWith({
         id: 42,
         input: expect.objectContaining({
-          date: "20/05/2026",
+          date: "2026-05-20",
           amount: 150000,
           note: "Badminton court",
           category: "Badminton",

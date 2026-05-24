@@ -101,7 +101,8 @@ const ExpenseList = ({
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.hasMore
-        ? lastPage.pagination.offset + lastPage.pagination.limit
+        ? (lastPage.pagination.nextOffset ??
+          lastPage.pagination.offset + lastPage.pagination.limit)
         : undefined,
   });
 

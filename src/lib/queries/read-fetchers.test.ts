@@ -121,7 +121,7 @@ describe("read query fetchers", () => {
     );
   });
 
-  it("fetches the server page when local-only rows would consume a server page slot", async () => {
+  it("serves matching local-only dirty rows immediately on the first page", async () => {
     await putSyncRecord({
       entity: "expenses",
       clientId: "pending-create",
@@ -197,15 +197,23 @@ describe("read query fetchers", () => {
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 2 });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/expenses?month=2026-05&limit=2",
-      { method: "GET", cache: "no-store" }
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(result.rows).toMatchObject([
       { amount: 60000, note: "Offline coffee" },
-      { id: 1, note: "Server cached" },
-      { id: 2, note: "Server next" },
     ]);
+    expect(result.pagination.hasMore).toBe(true);
+    expect(result.pagination.nextOffset).toBe(-1);
+
+    await fetchExpenseList({
+      month: "2026-05",
+      limit: 2,
+      offset: result.pagination.nextOffset,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses?month=2026-05&limit=2&offset=0",
+      { method: "GET", cache: "no-store" }
+    );
   });
 
   it("keeps a full local first page open for infinite loading", async () => {
@@ -561,7 +569,7 @@ describe("read query fetchers", () => {
     expect(result.groupedRows).toEqual([]);
   });
 
-  it("keeps a pending local create visible when falling back to the network", async () => {
+  it("serves a matching pending local create immediately without waiting on the network", async () => {
     await putSyncRecord({
       entity: "expenses",
       clientId: "pending-create",
@@ -603,23 +611,32 @@ describe("read query fetchers", () => {
         },
       ],
     };
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(serverPage)
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockJsonResponse(serverPage));
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
 
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(result.rows).toMatchObject([
       {
         amount: 60000,
         note: "Offline coffee",
       },
-      {
-        id: 1,
-        amount: 45000,
-        note: "Server value",
-      },
     ]);
+    expect(result.pagination.hasMore).toBe(true);
+    expect(result.pagination.nextOffset).toBe(-1);
+
+    await fetchExpenseList({
+      month: "2026-05",
+      limit: 30,
+      offset: result.pagination.nextOffset,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses?month=2026-05&limit=30&offset=0",
+      { method: "GET", cache: "no-store" }
+    );
   });
 
   it("does not duplicate a pending local create on later network pages", async () => {
