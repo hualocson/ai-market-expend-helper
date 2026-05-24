@@ -480,7 +480,7 @@ const QuickExpenseSheet = ({
                 role="group"
                 aria-label="Amount suggestions"
                 className={cn(
-                  "flex flex-wrap gap-2",
+                  "no-scrollbar flex gap-2 overflow-x-auto flex-nowrap",
                   anchorSuggestionsToKeyboard &&
                     "fixed inset-x-0 z-60 mx-auto w-full max-w-md justify-start px-4 pt-2 pb-2"
                 )}
@@ -500,7 +500,11 @@ const QuickExpenseSheet = ({
                     size="sm"
                     className="rounded-full tabular-nums"
                     onPointerDown={(e) => e.preventDefault()}
-                    onClick={() => setField("amount", s)}
+                    onClick={() => {
+                      setField("amount", s);
+                      setAmountFocused(false);
+                      amountRef.current?.blur();
+                    }}
                   >
                     {formatVnd(s)}
                   </Button>

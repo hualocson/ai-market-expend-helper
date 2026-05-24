@@ -200,6 +200,36 @@ describe("QuickExpenseSheet — fields", () => {
     expect(amount.value).toMatch(/5[.,]?000/);
   });
 
+  it("hides amount suggestions after applying a suggestion", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
+    await user.click(amount);
+    await user.keyboard("5");
+    await user.click(screen.getByRole("button", { name: /5[.,]?000$/ }));
+
+    expect(amount.value).toMatch(/5[.,]?000/);
+    expect(amount).not.toHaveFocus();
+    expect(
+      screen.queryByRole("group", { name: /amount suggestions/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides amount suggestions when the amount input loses focus", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    await user.keyboard("5");
+    expect(
+      screen.getByRole("group", { name: /amount suggestions/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByPlaceholderText(/what did you spend on/i));
+
+    expect(
+      screen.queryByRole("group", { name: /amount suggestions/i })
+    ).not.toBeInTheDocument();
+  });
+
   it("positions amount suggestions above the software keyboard", async () => {
     const visualViewport = new EventTarget() as VisualViewport;
     Object.defineProperties(visualViewport, {
@@ -228,6 +258,11 @@ describe("QuickExpenseSheet — fields", () => {
     });
 
     expect(suggestions).toHaveClass("fixed");
+    expect(suggestions).toHaveClass(
+      "no-scrollbar",
+      "flex-nowrap",
+      "overflow-x-auto"
+    );
     expect(suggestions).toHaveStyle({
       bottom: "calc(256px + env(safe-area-inset-bottom) + 8px)",
     });
