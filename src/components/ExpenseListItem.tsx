@@ -47,9 +47,9 @@ const OPEN_EVENT_NAME = "expense-list-item-open";
 const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const deleteExpenseMutation = useDeleteExpenseMutation();
+  const isDeleting = deleteExpenseMutation.isPending;
   const containerRef = useRef<HTMLDivElement>(null);
 
   const formattedAmount = useMemo(
@@ -155,15 +155,12 @@ const ExpenseListItem = ({ expense }: { expense: ExpenseListItemData }) => {
     const loadingToastId = toast.loading("Deleting expense...");
 
     try {
-      setIsDeleting(true);
       await deleteExpenseMutation.mutateAsync(expense.id);
       toast.success("Expense deleted.", { id: loadingToastId });
       setIsOpen(false);
     } catch (error) {
       console.error(error);
       toast.error("Failed to delete expense.", { id: loadingToastId });
-    } finally {
-      setIsDeleting(false);
     }
   };
 

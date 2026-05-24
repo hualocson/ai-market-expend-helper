@@ -8,6 +8,7 @@ import ExpenseListItem from "./ExpenseListItem";
 
 const quickExpenseSheetMock = vi.hoisted(() => vi.fn());
 const deleteExpenseMutationMock = vi.hoisted(() => vi.fn());
+const deleteExpenseIsPendingMock = vi.hoisted(() => ({ value: false }));
 const toastMock = vi.hoisted(() => ({
   loading: vi.fn(),
   success: vi.fn(),
@@ -17,6 +18,7 @@ const toastMock = vi.hoisted(() => ({
 vi.mock("@/lib/mutations", () => ({
   useDeleteExpenseMutation: () => ({
     mutateAsync: deleteExpenseMutationMock,
+    isPending: deleteExpenseIsPendingMock.value,
   }),
 }));
 
@@ -86,6 +88,7 @@ const renderItem = () => <ExpenseListItem expense={expense} />;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  deleteExpenseIsPendingMock.value = false;
   deleteExpenseMutationMock.mockResolvedValue({ id: 1 });
   toastMock.loading.mockReturnValue("loading-toast");
 });
@@ -157,5 +160,19 @@ describe("ExpenseListItem delete flow", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("disables delete actions while the mutation is pending", async () => {
+    const user = userEvent.setup();
+    deleteExpenseIsPendingMock.value = true;
+
+    render(renderItem());
+
+    const actionDeleteButton = screen.getAllByRole("button")[2];
+    expect(actionDeleteButton).toBeDisabled();
+
+    await user.click(actionDeleteButton);
+    expect(deleteExpenseMutationMock).not.toHaveBeenCalled();
+    expect(toastMock.loading).not.toHaveBeenCalled();
   });
 });

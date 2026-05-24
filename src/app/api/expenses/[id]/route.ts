@@ -10,9 +10,10 @@ import {
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
-  const id = parsePositiveIntParam(params.id, "Invalid expense id");
+  const { id: expenseId } = await params;
+  const id = parsePositiveIntParam(expenseId, "Invalid expense id");
   if ("error" in id) {
     return NextResponse.json({ error: id.error }, { status: 400 });
   }
@@ -45,9 +46,10 @@ export const PATCH = async (
 
 export const DELETE = async (
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
-  const id = parsePositiveIntParam(params.id, "Invalid expense id");
+  const { id: expenseId } = await params;
+  const id = parsePositiveIntParam(expenseId, "Invalid expense id");
   if ("error" in id) {
     return NextResponse.json({ error: id.error }, { status: 400 });
   }
