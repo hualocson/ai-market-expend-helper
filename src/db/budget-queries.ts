@@ -5,8 +5,8 @@ import { getWeekRange } from "@/lib/week";
 import {
   BudgetCreateInput,
   BudgetListItem,
-  BudgetPeriod,
   BudgetOverviewReport,
+  BudgetPeriod,
   BudgetReport,
   BudgetTransactionsResponse,
   BudgetUpdateInput,
@@ -79,12 +79,18 @@ const normalizeBudgetDates = (
   };
 };
 
+const touchExpenseUpdatedAt = async (expenseId: number) => {
+  await db
+    .update(expenses)
+    .set({ updatedAt: new Date() })
+    .where(eq(expenses.id, expenseId));
+};
+
 export const getWeeklyBudgetReport = async (
   weekStartDate: string,
   searchQuery?: string
 ): Promise<BudgetReport> => {
-  const { weekStart, weekEnd, weekEndExclusive } =
-    getWeekBounds(weekStartDate);
+  const { weekStart, weekEnd, weekEndExclusive } = getWeekBounds(weekStartDate);
 
   const budgetRows = await db
     .select({
@@ -224,8 +230,7 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
       periodEndDate: budgets.periodEndDate,
-      spent:
-        sql<number>`coalesce(sum(${expenses.amount}), 0)`.mapWith(Number),
+      spent: sql<number>`coalesce(sum(${expenses.amount}), 0)`.mapWith(Number),
     })
     .from(budgets)
     .leftJoin(expenseBudgets, eq(expenseBudgets.budgetId, budgets.id))
@@ -303,8 +308,7 @@ export const getTransferCandidates = async (
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
       periodEndDate: budgets.periodEndDate,
-      spent:
-        sql<number>`coalesce(sum(${expenses.amount}), 0)`.mapWith(Number),
+      spent: sql<number>`coalesce(sum(${expenses.amount}), 0)`.mapWith(Number),
     })
     .from(budgets)
     .leftJoin(expenseBudgets, eq(expenseBudgets.budgetId, budgets.id))
@@ -320,12 +324,7 @@ export const getTransferCandidates = async (
         )
       )
     )
-    .where(
-      and(
-        ne(budgets.id, destinationBudgetId),
-        sql`${budgets.amount} > 0`
-      )
-    )
+    .where(and(ne(budgets.id, destinationBudgetId), sql`${budgets.amount} > 0`))
     .groupBy(
       budgets.id,
       budgets.name,
@@ -440,6 +439,18 @@ export const updateBudget = async (id: number, input: BudgetUpdateInput) => {
 };
 
 export const deleteBudget = async (id: number) => {
+  await db
+    .update(expenses)
+    .set({ updatedAt: new Date() })
+    .where(
+      sql`exists (
+        select 1
+        from ${expenseBudgets}
+        where ${expenseBudgets.expenseId} = ${expenses.id}
+          and ${expenseBudgets.budgetId} = ${id}
+      )`
+    );
+
   const [deleted] = await db
     .delete(budgets)
     .where(eq(budgets.id, id))
@@ -554,6 +565,7 @@ export const setExpenseBudget = async (input: ExpenseBudgetInput) => {
     await db
       .delete(expenseBudgets)
       .where(eq(expenseBudgets.expenseId, input.expenseId));
+    await touchExpenseUpdatedAt(input.expenseId);
     return { expenseId: input.expenseId, budgetId: null };
   }
 
@@ -600,6 +612,7 @@ export const setExpenseBudget = async (input: ExpenseBudgetInput) => {
       target: expenseBudgets.expenseId,
       set: { budgetId: input.budgetId, assignedAt },
     });
+  await touchExpenseUpdatedAt(input.expenseId);
 
   return { expenseId: input.expenseId, budgetId: input.budgetId };
 };

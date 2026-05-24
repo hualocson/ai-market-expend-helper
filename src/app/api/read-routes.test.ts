@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getBudgetTransferCandidates } from "./budgets/transfer-candidates/route";
 import { GET as getDashboardMonthlySummary } from "./dashboard/monthly-summary/route";
 import { GET as getExpenses } from "./expenses/route";
+import { GET as getExpenseSync } from "./expenses/sync/route";
 import { GET as getDailyReport } from "./reports/daily/route";
 import { GET as getMonthlyReport } from "./reports/monthly/route";
 
@@ -11,8 +12,10 @@ const mocks = vi.hoisted(() => ({
   getBudgetTransferCandidates: vi.fn(),
   getDashboardMonthlySummary: vi.fn(),
   getDailyReport: vi.fn(),
+  getExpenseChangesSince: vi.fn(),
   getExpenseList: vi.fn(),
   getMonthlyReport: vi.fn(),
+  pushExpenseOperations: vi.fn(),
 }));
 
 vi.mock("@/db/queries", () => ({
@@ -29,6 +32,11 @@ vi.mock("@/lib/services/dashboard", () => ({
 
 vi.mock("@/lib/services/expenses", () => ({
   getExpenseList: mocks.getExpenseList,
+}));
+
+vi.mock("@/lib/services/expense-sync", () => ({
+  getExpenseChangesSince: mocks.getExpenseChangesSince,
+  pushExpenseOperations: mocks.pushExpenseOperations,
 }));
 
 vi.mock("@/lib/services/reports", () => ({
@@ -69,6 +77,26 @@ describe("REST read routes", () => {
       limit: 30,
       offset: 60,
     });
+  });
+
+  it("pulls expense sync changes from a cursor", async () => {
+    const payload = {
+      cursor: "2026-05-24T10:00:00.000Z",
+      changes: [],
+    };
+    mocks.getExpenseChangesSince.mockResolvedValue(payload);
+
+    const response = await getExpenseSync(
+      new Request(
+        "http://localhost/api/expenses/sync?cursor=2026-05-24T09:00:00.000Z"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.getExpenseChangesSince).toHaveBeenCalledWith(
+      "2026-05-24T09:00:00.000Z"
+    );
   });
 
   it("returns budget transfer candidates for the destination budget", async () => {

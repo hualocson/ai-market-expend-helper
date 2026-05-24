@@ -6,6 +6,7 @@ import {
   PATCH as patchExpense,
 } from "./expenses/[id]/route";
 import { POST as postExpense } from "./expenses/route";
+import { POST as postExpenseSync } from "./expenses/sync/route";
 import { POST as postTransactionBudget } from "./transaction-budget/route";
 import {
   DELETE as deleteWeeklyBudget,
@@ -17,7 +18,9 @@ const mocks = vi.hoisted(() => ({
   createBudget: vi.fn(),
   createExpense: vi.fn(),
   deleteBudget: vi.fn(),
+  getExpenseChangesSince: vi.fn(),
   revalidatePath: vi.fn(),
+  pushExpenseOperations: vi.fn(),
   setExpenseBudget: vi.fn(),
   softDeleteExpense: vi.fn(),
   transferBudgetAmount: vi.fn(),
@@ -40,6 +43,11 @@ vi.mock("@/db/budget-queries", () => ({
 
 vi.mock("@/lib/services/budget-transfer", () => ({
   transferBudgetAmount: mocks.transferBudgetAmount,
+}));
+
+vi.mock("@/lib/services/expense-sync", () => ({
+  getExpenseChangesSince: mocks.getExpenseChangesSince,
+  pushExpenseOperations: mocks.pushExpenseOperations,
 }));
 
 vi.mock("next/cache", () => ({
@@ -100,6 +108,267 @@ describe("REST mutation routes", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual(created);
     expect(mocks.createExpense).toHaveBeenCalledWith(payload);
+  });
+
+  it("pushes queued expense sync operations", async () => {
+    const operations = [
+      {
+        operationId: "op-1",
+        type: "create",
+        clientId: "client-1",
+        serverId: null,
+        payload: {
+          clientId: "client-1",
+          date: "23/05/2026",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+        },
+      },
+    ];
+    const payload = { results: [] };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", { operations })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith(operations);
+  });
+
+  it("normalizes omitted expense sync update serverId to null", async () => {
+    const operation = {
+      operationId: "op-1",
+      type: "update",
+      clientId: "client-1",
+      payload: {
+        clientId: "client-1",
+        date: "23/05/2026",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+      },
+    };
+    const payload = {
+      results: [{ operationId: "op-1", ok: false, error: "Missing server id" }],
+    };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [operation],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
+      {
+        ...operation,
+        serverId: null,
+      },
+    ]);
+  });
+
+  it("normalizes omitted expense sync delete serverId to null", async () => {
+    const operation = {
+      operationId: "op-1",
+      type: "delete",
+      clientId: "client-1",
+      payload: null,
+    };
+    const payload = {
+      results: [{ operationId: "op-1", ok: false, error: "Missing server id" }],
+    };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [operation],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
+      {
+        ...operation,
+        serverId: null,
+      },
+    ]);
+  });
+
+  it("normalizes omitted expense sync delete payload to null", async () => {
+    const operation = {
+      operationId: "op-1",
+      type: "delete",
+      clientId: "client-1",
+      serverId: 5,
+    };
+    const payload = { results: [] };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [operation],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
+      {
+        ...operation,
+        payload: null,
+      },
+    ]);
+  });
+
+  it("passes omitted expense sync create payload to the service as null", async () => {
+    const operation = {
+      operationId: "op-1",
+      type: "create",
+      clientId: "client-1",
+      serverId: null,
+    };
+    const payload = {
+      results: [{ operationId: "op-1", ok: false, error: "Missing payload" }],
+    };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [operation],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
+      {
+        ...operation,
+        payload: null,
+      },
+    ]);
+  });
+
+  it("revalidates expense surfaces after a successful expense sync push", async () => {
+    const operations = [
+      {
+        operationId: "op-1",
+        type: "delete",
+        clientId: "client-1",
+        serverId: 5,
+        payload: null,
+      },
+    ];
+    const payload = {
+      results: [
+        {
+          operationId: "op-1",
+          ok: true,
+          row: {
+            id: 5,
+            clientId: "client-1",
+            date: "2026-05-23",
+            amount: 45000,
+            note: "Coffee",
+            category: "Food",
+            paidBy: "Cubi",
+            budgetId: null,
+            budgetName: null,
+            updatedAt: "2026-05-24T10:00:00.000Z",
+            deletedAt: "2026-05-24T10:00:00.000Z",
+            isDeleted: true,
+          },
+        },
+      ],
+    };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", { operations })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
+  });
+
+  it("does not revalidate expense surfaces when every sync operation fails", async () => {
+    const operations = [
+      {
+        operationId: "op-1",
+        type: "delete",
+        clientId: "client-1",
+        serverId: null,
+        payload: null,
+      },
+    ];
+    const payload = {
+      results: [{ operationId: "op-1", ok: false, error: "Missing server id" }],
+    };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", { operations })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for malformed expense sync JSON", async () => {
+    const response = await postExpenseSync(
+      new Request("http://localhost/api/expenses/sync", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid payload",
+    });
+    expect(mocks.pushExpenseOperations).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an expense sync create payload without a note", async () => {
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [
+          {
+            operationId: "op-1",
+            type: "create",
+            clientId: "client-1",
+            serverId: null,
+            payload: {
+              clientId: "client-1",
+              date: "23/05/2026",
+              amount: 45000,
+              category: "Food",
+              paidBy: "Cubi",
+              budgetId: null,
+            },
+          },
+        ],
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid payload",
+    });
+    expect(mocks.pushExpenseOperations).not.toHaveBeenCalled();
   });
 
   it("returns 400 for an invalid expense payload", async () => {
