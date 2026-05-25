@@ -185,6 +185,37 @@ describe("ExpenseList", () => {
     );
   });
 
+  it("deduplicates expenses that appear in overlapping infinite pages", () => {
+    globalThis.React = React;
+
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const duplicateExpense = {
+      ...firstExpense,
+      id: 30,
+      note: "Overlapping lunch",
+    };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0, 30],
+      pages: [buildPage([duplicateExpense]), buildPage([duplicateExpense])],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getAllByTestId("expense-item")).toHaveLength(1);
+    expect(screen.getByTestId("expense-item")).toHaveTextContent(
+      "Overlapping lunch"
+    );
+    expect(screen.getByText(/-120\.000/)).toBeInTheDocument();
+    expect(screen.queryByText(/-240\.000/)).not.toBeInTheDocument();
+  });
+
   it("fetches the next page when the bottom sentinel intersects", async () => {
     globalThis.React = React;
 

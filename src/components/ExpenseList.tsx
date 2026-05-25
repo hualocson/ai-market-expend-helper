@@ -59,6 +59,19 @@ const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
   }, []);
 };
 
+const dedupeRowsById = (rows: ExpenseListItemData[]): ExpenseListItemData[] => {
+  const seenIds = new Set<number>();
+
+  return rows.filter((expense) => {
+    if (seenIds.has(expense.id)) {
+      return false;
+    }
+
+    seenIds.add(expense.id);
+    return true;
+  });
+};
+
 const ExpenseList = ({
   selectedMonth,
   searchQuery,
@@ -143,7 +156,7 @@ const ExpenseList = ({
   }
 
   const firstPage = data.pages[0];
-  const rows = data.pages.flatMap((page) => page.rows);
+  const rows = dedupeRowsById(data.pages.flatMap((page) => page.rows));
   const groupedRows = groupRowsByDate(rows);
   const { effectiveRecentDays, isRecent, trimmedSearch } = firstPage;
   const isMonthFiltered = Boolean(selectedMonth);
