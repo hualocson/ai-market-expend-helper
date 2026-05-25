@@ -4,6 +4,7 @@ import React, { useState } from "react";
 
 import { PaidBy } from "@/enums";
 import { CheckIcon } from "lucide-react";
+import { flushSync } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,10 @@ export type TPaidByPickerSheetProps = {
   onOpenChange: (open: boolean) => void;
   value: PaidBy;
   onChange: (next: PaidBy) => void;
+  onCloseAutoFocus?: React.ComponentProps<
+    typeof SheetContent
+  >["onCloseAutoFocus"];
+  onRestoreFocusRequest?: () => void;
 };
 
 const PAID_BY_OPTIONS = [
@@ -34,6 +39,8 @@ const PaidByPickerSheet = ({
   onOpenChange,
   value,
   onChange,
+  onCloseAutoFocus,
+  onRestoreFocusRequest,
 }: TPaidByPickerSheetProps) => {
   const [pending, setPending] = useState<PaidBy>(value);
 
@@ -46,12 +53,32 @@ const PaidByPickerSheet = ({
 
   const handleDone = () => {
     onChange(pending);
-    onOpenChange(false);
+    flushSync(() => {
+      onOpenChange(false);
+    });
+    onRestoreFocusRequest?.();
+  };
+
+  const handleOverlayPointerDown: React.PointerEventHandler<HTMLDivElement> = (
+    event
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    flushSync(() => {
+      onOpenChange(false);
+    });
+    onRestoreFocusRequest?.();
   };
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="bottom" showCloseButton={false} className="rounded-t-3xl">
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        className="rounded-t-3xl"
+        onCloseAutoFocus={onCloseAutoFocus}
+        onOverlayPointerDown={handleOverlayPointerDown}
+      >
         <SheetHeader className="text-left">
           <SheetTitle>Paid by</SheetTitle>
           <SheetDescription>Choose who paid for this expense.</SheetDescription>

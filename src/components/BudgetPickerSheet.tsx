@@ -14,6 +14,7 @@ import { queries } from "@/lib/queries";
 import { cn, formatVndSigned } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { CheckIcon, Loader2 } from "lucide-react";
+import { flushSync } from "react-dom";
 
 import {
   Sheet,
@@ -31,6 +32,10 @@ export type TBudgetPickerSheetProps = {
   weekStart: string;
   targetDate?: string;
   isParentOpen?: boolean;
+  onCloseAutoFocus?: React.ComponentProps<
+    typeof SheetContent
+  >["onCloseAutoFocus"];
+  onRestoreFocusRequest?: () => void;
 };
 
 const BudgetPickerSheet = ({
@@ -41,6 +46,8 @@ const BudgetPickerSheet = ({
   weekStart,
   targetDate,
   isParentOpen = true,
+  onCloseAutoFocus,
+  onRestoreFocusRequest,
 }: TBudgetPickerSheetProps) => {
   const budgetOptionsQuery = queries.budgetWeekly.options(
     weekStart,
@@ -62,7 +69,21 @@ const BudgetPickerSheet = ({
 
   const handleSelect = (id: number | null) => {
     onChange(id);
-    onOpenChange(false);
+    flushSync(() => {
+      onOpenChange(false);
+    });
+    onRestoreFocusRequest?.();
+  };
+
+  const handleOverlayPointerDown: React.PointerEventHandler<HTMLDivElement> = (
+    event
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    flushSync(() => {
+      onOpenChange(false);
+    });
+    onRestoreFocusRequest?.();
   };
 
   return (
@@ -71,6 +92,8 @@ const BudgetPickerSheet = ({
         side="bottom"
         showCloseButton={false}
         className="rounded-t-3xl"
+        onCloseAutoFocus={onCloseAutoFocus}
+        onOverlayPointerDown={handleOverlayPointerDown}
       >
         <SheetHeader className="text-left">
           <SheetTitle>Budget</SheetTitle>

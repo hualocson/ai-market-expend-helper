@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { CheckIcon } from "lucide-react";
+import { flushSync } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
@@ -21,6 +22,10 @@ export type TDatePickerSheetProps = {
   onOpenChange: (open: boolean) => void;
   value: string;
   onChange: (nextDate: string) => void;
+  onCloseAutoFocus?: React.ComponentProps<
+    typeof SheetContent
+  >["onCloseAutoFocus"];
+  onRestoreFocusRequest?: () => void;
 };
 
 const DATE_FORMAT = "DD/MM/YYYY";
@@ -35,6 +40,8 @@ const DatePickerSheet = ({
   onOpenChange,
   value,
   onChange,
+  onCloseAutoFocus,
+  onRestoreFocusRequest,
 }: TDatePickerSheetProps) => {
   const [pendingDate, setPendingDate] = useState<Date>(() =>
     resolveDate(value)
@@ -55,7 +62,21 @@ const DatePickerSheet = ({
 
   const handleDone = () => {
     onChange(dayjs(pendingDate).format(DATE_FORMAT));
-    onOpenChange(false);
+    flushSync(() => {
+      onOpenChange(false);
+    });
+    onRestoreFocusRequest?.();
+  };
+
+  const handleOverlayPointerDown: React.PointerEventHandler<HTMLDivElement> = (
+    event
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    flushSync(() => {
+      onOpenChange(false);
+    });
+    onRestoreFocusRequest?.();
   };
 
   return (
@@ -64,6 +85,8 @@ const DatePickerSheet = ({
         side="bottom"
         showCloseButton={false}
         className="rounded-t-3xl"
+        onCloseAutoFocus={onCloseAutoFocus}
+        onOverlayPointerDown={handleOverlayPointerDown}
       >
         <SheetHeader className="text-left">
           <SheetTitle>Date</SheetTitle>

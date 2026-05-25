@@ -90,6 +90,7 @@ export type TQuickExpenseSheetInitialExpense = {
 };
 
 export type TExpenseDraft = TQuickExpenseDraft;
+type TRestorableInputFocus = "note" | "amount" | null;
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
@@ -306,6 +307,9 @@ const QuickExpenseSheet = ({
 
   const noteRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
+  const sheetOpenRef = useRef(sheetOpen);
+  const pendingDrawerFocusRestoreRef = useRef<TRestorableInputFocus>(null);
+  sheetOpenRef.current = sheetOpen;
   useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
 
   const setField = <K extends keyof TExpenseDraft>(
@@ -313,12 +317,72 @@ const QuickExpenseSheet = ({
     value: TExpenseDraft[K]
   ) => setDraft((prev) => ({ ...prev, [key]: value }));
 
+  const handleDrawerTriggerPointerDown = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    openDrawer: () => void
+  ) => {
+    event.preventDefault();
+    const activeElement = document.activeElement;
+    const inputToRestore =
+      activeElement === noteRef.current
+        ? "note"
+        : activeElement === amountRef.current
+          ? "amount"
+          : null;
+    pendingDrawerFocusRestoreRef.current = inputToRestore;
+    if (inputToRestore !== null && activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
+    openDrawer();
+  };
+
+  const restoreDrawerInputFocus = () => {
+    const inputToRestore = pendingDrawerFocusRestoreRef.current;
+    pendingDrawerFocusRestoreRef.current = null;
+    if (inputToRestore === null) {
+      return;
+    }
+
+    if (!sheetOpenRef.current) {
+      return;
+    }
+    if (inputToRestore === "note") {
+      noteRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    amountRef.current?.focus({ preventScroll: true });
+    amountRef.current?.select();
+  };
+
+  const handlePickerCloseAutoFocus: React.ComponentProps<
+    typeof SheetContent
+  >["onCloseAutoFocus"] = (event) => {
+    if (pendingDrawerFocusRestoreRef.current === null) {
+      return;
+    }
+    event.preventDefault();
+    restoreDrawerInputFocus();
+  };
+
+  const handleDateOpenChange = (next: boolean) => {
+    setDateOpen(next);
+  };
+
+  const handleBudgetOpenChange = (next: boolean) => {
+    setBudgetOpen(next);
+  };
+
+  const handlePaidByOpenChange = (next: boolean) => {
+    setPaidByOpen(next);
+  };
+
   const handleOpenChange = (next: boolean) => {
     if (typeof open !== "boolean") {
       setInternalOpen(next);
     }
     onOpenChange?.(next);
     if (!next) {
+      pendingDrawerFocusRestoreRef.current = null;
       setAmountFocused(false);
       setDeleteConfirmOpen(false);
       if (!isEditMode) {
@@ -478,6 +542,9 @@ const QuickExpenseSheet = ({
               size="sm"
               className="rounded-full"
               aria-label={`Date: ${formatDateLabel(draft.date)}`}
+              onPointerDown={(event) =>
+                handleDrawerTriggerPointerDown(event, () => setDateOpen(true))
+              }
               onClick={() => setDateOpen(true)}
             >
               <Calendar className="h-4 w-4" />
@@ -493,6 +560,9 @@ const QuickExpenseSheet = ({
                   "border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning"
               )}
               aria-label={`Budget: ${draft.budgetId === null ? "No budget" : "Selected"}`}
+              onPointerDown={(event) =>
+                handleDrawerTriggerPointerDown(event, () => setBudgetOpen(true))
+              }
               onClick={() => setBudgetOpen(true)}
             >
               <Wallet className="h-4 w-4" />
@@ -506,6 +576,9 @@ const QuickExpenseSheet = ({
               size="sm"
               className="rounded-full"
               aria-label={`Paid by: ${draft.paidBy}`}
+              onPointerDown={(event) =>
+                handleDrawerTriggerPointerDown(event, () => setPaidByOpen(true))
+              }
               onClick={() => setPaidByOpen(true)}
             >
               <UserRound className="h-4 w-4" />
@@ -625,14 +698,16 @@ const QuickExpenseSheet = ({
 
         <DatePickerSheet
           open={dateOpen}
-          onOpenChange={setDateOpen}
+          onOpenChange={handleDateOpenChange}
           value={draft.date}
           onChange={(next) => setField("date", next)}
+          onCloseAutoFocus={handlePickerCloseAutoFocus}
+          onRestoreFocusRequest={restoreDrawerInputFocus}
         />
 
         <BudgetPickerSheet
           open={budgetOpen}
-          onOpenChange={setBudgetOpen}
+          onOpenChange={handleBudgetOpenChange}
           value={draft.budgetId}
           onChange={(id) =>
             setDraft((prev) => ({
@@ -648,13 +723,17 @@ const QuickExpenseSheet = ({
           weekStart={weekStart}
           targetDate={targetDate}
           isParentOpen={sheetOpen}
+          onCloseAutoFocus={handlePickerCloseAutoFocus}
+          onRestoreFocusRequest={restoreDrawerInputFocus}
         />
 
         <PaidByPickerSheet
           open={paidByOpen}
-          onOpenChange={setPaidByOpen}
+          onOpenChange={handlePaidByOpenChange}
           value={draft.paidBy}
           onChange={(next) => setField("paidBy", next)}
+          onCloseAutoFocus={handlePickerCloseAutoFocus}
+          onRestoreFocusRequest={restoreDrawerInputFocus}
         />
 
         <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

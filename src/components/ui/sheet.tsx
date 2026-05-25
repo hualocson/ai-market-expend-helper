@@ -48,17 +48,22 @@ function SheetContent({
   className,
   children,
   overlayClassName,
+  onOverlayPointerDown,
   side = "right",
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   overlayClassName?: string;
+  onOverlayPointerDown?: React.PointerEventHandler<HTMLDivElement>;
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay className={overlayClassName} />
+      <SheetOverlay
+        className={overlayClassName}
+        onPointerDown={onOverlayPointerDown}
+      />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(

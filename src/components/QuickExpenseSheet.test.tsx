@@ -4,7 +4,14 @@ import { Category, PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -234,6 +241,58 @@ describe("QuickExpenseSheet — fields", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens picker drawers from canceled pointer down", async () => {
+    const user = await openSheet();
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    note.focus();
+
+    const dateDefaultWasNotPrevented = fireEvent.pointerDown(
+      screen.getByRole("button", { name: /^date:/i }),
+      { cancelable: true }
+    );
+    expect(dateDefaultWasNotPrevented).toBe(false);
+    expect(
+      await screen.findByRole("dialog", { name: /^date$/i })
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
+    note.focus();
+    const budgetDefaultWasNotPrevented = fireEvent.pointerDown(
+      screen.getByRole("button", { name: /^budget:/i }),
+      { cancelable: true }
+    );
+    expect(budgetDefaultWasNotPrevented).toBe(false);
+    expect(
+      await screen.findByRole("dialog", { name: /^budget$/i })
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
+
+    note.focus();
+    const paidByDefaultWasNotPrevented = fireEvent.pointerDown(
+      screen.getByRole("button", { name: /^paid by:/i }),
+      { cancelable: true }
+    );
+    expect(paidByDefaultWasNotPrevented).toBe(false);
+    expect(
+      await screen.findByRole("dialog", { name: /^paid by$/i })
+    ).toBeVisible();
+  });
+
+  it("blurs the active input while opening a picker drawer", async () => {
+    await openSheet();
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    note.focus();
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: /^date:/i }), {
+      cancelable: true,
+    });
+
+    expect(
+      await screen.findByRole("dialog", { name: /^date$/i })
+    ).toBeVisible();
+    expect(note).not.toHaveFocus();
+  });
+
   it("shows suggestion chips when amount > 0", async () => {
     const user = await openSheet();
     const amount = screen.getByPlaceholderText("0");
@@ -340,6 +399,41 @@ describe("QuickExpenseSheet — fields", () => {
     expect(
       screen.getByRole("button", { name: /transport/i, pressed: true })
     ).toBeInTheDocument();
+  });
+
+  it("restores note focus after closing the date picker opened from note focus", async () => {
+    const user = await openSheet();
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+
+    await user.click(note);
+    await user.click(screen.getByRole("button", { name: /^date:/i }));
+    await user.click(await screen.findByRole("button", { name: /done/i }));
+
+    await waitFor(() => expect(note).toHaveFocus());
+  });
+
+  it("restores amount focus after closing the budget picker opened from amount focus", async () => {
+    const user = await openSheet();
+    const amount = screen.getByPlaceholderText("0");
+
+    await user.click(amount);
+    await user.click(screen.getByRole("button", { name: /^budget:/i }));
+    await user.click(await screen.findByRole("button", { name: /no budget/i }));
+
+    await waitFor(() => expect(amount).toHaveFocus());
+  });
+
+  it("does not force note or amount focus when closing paid-by without a focused input", async () => {
+    const user = await openSheet();
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    const amount = screen.getByPlaceholderText("0");
+
+    note.blur();
+    await user.click(screen.getByRole("button", { name: /^paid by:/i }));
+    await user.click(await screen.findByRole("button", { name: /done/i }));
+
+    await waitFor(() => expect(note).not.toHaveFocus());
+    expect(amount).not.toHaveFocus();
   });
 });
 

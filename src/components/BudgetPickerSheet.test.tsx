@@ -2,7 +2,7 @@ import React from "react";
 
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -97,6 +97,32 @@ describe("BudgetPickerSheet", () => {
     await user.click(await screen.findByRole("button", { name: /Food week/i }));
     expect(onChange).toHaveBeenCalledWith(1);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("requests focus restoration from the budget selection click path", async () => {
+    const user = userEvent.setup();
+    const onRestoreFocusRequest = vi.fn();
+
+    renderSheet({ onRestoreFocusRequest });
+
+    await user.click(await screen.findByRole("button", { name: /Food week/i }));
+
+    expect(onRestoreFocusRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("requests focus restoration from outside pointer dismissal", () => {
+    const onRestoreFocusRequest = vi.fn();
+    const { onOpenChange } = renderSheet({ onRestoreFocusRequest });
+
+    fireEvent.pointerDown(
+      document.querySelector('[data-slot="sheet-overlay"]')!,
+      {
+        button: 0,
+      }
+    );
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onRestoreFocusRequest).toHaveBeenCalledTimes(1);
   });
 
   it("calls onChange(null) when 'No budget' is selected", async () => {

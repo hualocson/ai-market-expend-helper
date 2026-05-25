@@ -1,6 +1,6 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -62,6 +62,32 @@ describe("DatePickerSheet", () => {
 
     expect(onChange).toHaveBeenCalledWith("20/05/2026");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("requests focus restoration from the Done click path", async () => {
+    const user = userEvent.setup();
+    const onRestoreFocusRequest = vi.fn();
+
+    renderSheet({ onRestoreFocusRequest });
+
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
+    expect(onRestoreFocusRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("requests focus restoration from outside pointer dismissal", () => {
+    const onRestoreFocusRequest = vi.fn();
+    const { onOpenChange } = renderSheet({ onRestoreFocusRequest });
+
+    fireEvent.pointerDown(
+      document.querySelector('[data-slot="sheet-overlay"]')!,
+      {
+        button: 0,
+      }
+    );
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onRestoreFocusRequest).toHaveBeenCalledTimes(1);
   });
 
   it("resets the pending date from value when reopened", async () => {
