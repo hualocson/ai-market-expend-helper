@@ -3,7 +3,9 @@ import type { DBSchema } from "idb";
 
 import type { SyncEntityName, SyncOperation, SyncRecord } from "./types";
 
-export const SYNC_DB_NAME = "app-sync-v2";
+export const SYNC_DB_NAME = `spendly_databases_${
+  process.env.NODE_ENV ?? "development"
+}`;
 export const SYNC_DB_VERSION = 1;
 
 export const SYNC_RECORDS_STORE = "syncRecords";
