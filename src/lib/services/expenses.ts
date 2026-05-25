@@ -50,6 +50,7 @@ export const getExpenseList = async ({
   const rows = await db
     .select({
       id: expenses.id,
+      clientId: expenses.clientId,
       date: expenses.date,
       amount: expenses.amount,
       note: expenses.note,
@@ -68,6 +69,7 @@ export const getExpenseList = async ({
 
   const normalizedRows = rows.slice(0, pageLimit).map((expense) => ({
     id: Number(expense.id),
+    clientId: expense.clientId ?? null,
     date: String(expense.date),
     amount: Number(expense.amount ?? 0),
     note: expense.note ?? "",

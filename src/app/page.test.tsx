@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 describe("Home page", () => {
-  it("prefetches dashboard summary without hydrating expenses from the server", async () => {
+  it("prefetches dashboard summary and the first expense page", async () => {
     prefetchQueryMock.mockResolvedValue(undefined);
     prefetchInfiniteQueryMock.mockResolvedValue(undefined);
 
@@ -68,8 +68,21 @@ describe("Home page", () => {
         queryFn: expect.any(Function),
       })
     );
-    expect(prefetchInfiniteQueryMock).not.toHaveBeenCalled();
-    expect(getExpenseListMock).not.toHaveBeenCalled();
+    expect(prefetchInfiniteQueryMock).toHaveBeenCalledTimes(1);
+    expect(prefetchInfiniteQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: expect.arrayContaining(["expenses", "list"]),
+        queryFn: expect.any(Function),
+        initialPageParam: 0,
+      })
+    );
+
+    const prefetchOptions = prefetchInfiniteQueryMock.mock.calls[0]?.[0] as {
+      queryFn: (context: { pageParam: number }) => Promise<unknown>;
+    };
+    await prefetchOptions.queryFn({ pageParam: 0 });
+
+    expect(getExpenseListMock).toHaveBeenCalledWith({ limit: 30, offset: 0 });
     expect(screen.getByTestId("dashboard-header")).toBeInTheDocument();
     expect(screen.getByTestId("expense-list")).toBeInTheDocument();
   });
