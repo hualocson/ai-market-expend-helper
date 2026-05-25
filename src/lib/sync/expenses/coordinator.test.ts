@@ -242,6 +242,61 @@ describe("expense sync coordinator", () => {
     unsubscribe();
   });
 
+  it("refreshes active expense list caches from IndexedDB after pulling server changes", async () => {
+    const queryClient = new QueryClient();
+    const { query, unsubscribe } = observeInfiniteExpenseList(queryClient);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        successEnvelope({
+          cursor: "2026-05-24T10:00:00.000Z",
+          changes: [
+            {
+              id: 22,
+              clientId: "server-client",
+              date: "2026-05-24",
+              amount: 50000,
+              note: "Pulled lunch",
+              category: "Food",
+              paidBy: "Cubi",
+              budgetId: null,
+              budgetName: null,
+              updatedAt: "2026-05-24T10:00:00.000Z",
+              deletedAt: null,
+              isDeleted: false,
+            },
+          ],
+        })
+      )
+    );
+
+    await pullExpenseChanges(queryClient);
+
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
+      {
+        serverId: 22,
+        payload: expect.objectContaining({
+          note: "Pulled lunch",
+        }),
+      },
+    ]);
+    expect(queryClient.getQueryData(query.queryKey)).toMatchObject({
+      pages: [
+        {
+          rows: [
+            expect.objectContaining({
+              id: 22,
+              note: "Pulled lunch",
+            }),
+          ],
+        },
+      ],
+    });
+
+    unsubscribe();
+  });
+
   it("preserves dirty local rows when pulling older server changes", async () => {
     await syncRepository.metadata.setCursor(
       "expenses",
