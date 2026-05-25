@@ -17,7 +17,7 @@ const ExpenseSyncCoordinator = () => {
 
       const syncPromise = syncExpensesNow(queryClient)
         .catch((error: unknown) => {
-          console.error("Failed to sync expenses:", error);
+          console.warn("Failed to sync expenses:", error);
         })
         .finally(() => {
           if (syncPromiseRef.current === syncPromise) {
