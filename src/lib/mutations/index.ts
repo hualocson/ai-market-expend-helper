@@ -13,6 +13,7 @@ import {
   deleteLocalExpense,
   updateLocalExpense,
 } from "@/lib/sync/expenses/actions";
+import { requestExpenseSync } from "@/lib/sync/expenses/scheduler";
 import { expenseSyncStore } from "@/lib/sync/expenses/store";
 import type { LocalExpense } from "@/lib/sync/expenses/types";
 import type {
@@ -86,6 +87,10 @@ const invalidateExpenseMutationQueries = async (queryClient: QueryClient) => {
   await queryClient.invalidateQueries({
     queryKey: queries.budgetWeekly.options._def,
   });
+};
+
+const requestExpenseSyncAfterLocalWrite = (queryClient: QueryClient) => {
+  void requestExpenseSync(queryClient);
 };
 
 const invalidateBudgetMutationQueries = async (queryClient: QueryClient) => {
@@ -241,7 +246,10 @@ export const useCreateExpenseMutation = () => {
   return useMutation({
     mutationFn: (input: CreateExpenseInput) =>
       createLocalExpense(expenseSyncStore, input),
-    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
+    onSuccess: async () => {
+      await invalidateExpenseMutationQueries(queryClient);
+      requestExpenseSyncAfterLocalWrite(queryClient);
+    },
   });
 };
 
@@ -255,7 +263,10 @@ export const useUpdateExpenseMutation = () => {
         ensureLocalExpenseForUpdate(id, input),
         input
       ),
-    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
+    onSuccess: async () => {
+      await invalidateExpenseMutationQueries(queryClient);
+      requestExpenseSyncAfterLocalWrite(queryClient);
+    },
   });
 };
 
@@ -265,7 +276,10 @@ export const useDeleteExpenseMutation = () => {
   return useMutation({
     mutationFn: (id: number) =>
       deleteLocalExpense(expenseSyncStore, ensureLocalExpenseForDelete(id)),
-    onSuccess: () => invalidateExpenseMutationQueries(queryClient),
+    onSuccess: async () => {
+      await invalidateExpenseMutationQueries(queryClient);
+      requestExpenseSyncAfterLocalWrite(queryClient);
+    },
   });
 };
 

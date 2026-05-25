@@ -2,6 +2,7 @@ import React, { type PropsWithChildren } from "react";
 
 import { PaidBy } from "@/enums";
 import {
+  useAssignTransactionBudgetMutation,
   useCreateBudgetMutation,
   useCreateExpenseMutation,
   useDeleteBudgetMutation,
@@ -22,9 +23,15 @@ import {
   type QueryFunction,
   useInfiniteQuery,
 } from "@tanstack/react-query";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const requestExpenseSyncMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/sync/expenses/scheduler", () => ({
+  requestExpenseSync: requestExpenseSyncMock,
+}));
 
 const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), {
@@ -70,6 +77,7 @@ const syncedLocalExpense = (
 describe("mutation hooks", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    requestExpenseSyncMock.mockResolvedValue(undefined);
     await syncRepository.testing.clearSyncDb();
     expenseSyncStore.getState().hydrate([]);
   });
@@ -84,7 +92,7 @@ describe("mutation hooks", () => {
       .mockResolvedValue();
 
     await act(async () => {
-      result.current.mutate({
+      await result.current.mutateAsync({
         date: "20/05/2026",
         amount: 50000,
         note: "Lunch",
@@ -92,8 +100,8 @@ describe("mutation hooks", () => {
         paidBy: PaidBy.OTHER,
         budgetId: null,
       });
-      await vi.waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
     });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(fetchMock).not.toHaveBeenCalled();
     const records = await syncRepository.records.list("expenses");
@@ -129,6 +137,8 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly.options._def,
     });
+    expect(requestExpenseSyncMock).toHaveBeenCalledTimes(1);
+    expect(requestExpenseSyncMock).toHaveBeenCalledWith(queryClient);
   });
 
   it("updates and deletes expenses locally through the existing id-based API", async () => {
@@ -155,10 +165,12 @@ describe("mutation hooks", () => {
         },
       });
     });
+    await waitFor(() => expect(result.current.update.isSuccess).toBe(true));
 
     await act(async () => {
       await result.current.remove.mutateAsync(10);
     });
+    await waitFor(() => expect(result.current.remove.isSuccess).toBe(true));
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(
@@ -176,6 +188,9 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.expenses._def,
     });
+    expect(requestExpenseSyncMock).toHaveBeenCalledTimes(2);
+    expect(requestExpenseSyncMock).toHaveBeenNthCalledWith(1, queryClient);
+    expect(requestExpenseSyncMock).toHaveBeenNthCalledWith(2, queryClient);
   });
 
   it("updates budgets with the id route and invalidates budget query roots", async () => {
@@ -261,6 +276,82 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly._def,
     });
+  });
+
+  it("does not request expense sync for budget mutations", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+
+      if (url === "/api/weekly-budgets" && init?.method === "POST") {
+        return jsonResponse(successEnvelope({ id: 8 }), { status: 201 });
+      }
+
+      if (url === "/api/weekly-budgets/7" && init?.method === "PATCH") {
+        return jsonResponse(successEnvelope({ id: 7 }));
+      }
+
+      if (url === "/api/weekly-budgets/9" && init?.method === "DELETE") {
+        return jsonResponse(successEnvelope({ id: 9 }));
+      }
+
+      if (url === "/api/transaction-budget" && init?.method === "POST") {
+        return jsonResponse(successEnvelope({ expenseId: 10, budgetId: 7 }));
+      }
+
+      if (url === "/api/budgets/transfer" && init?.method === "POST") {
+        return jsonResponse(successEnvelope({ ok: true }));
+      }
+
+      return jsonResponse(
+        {
+          success: false,
+          error: {
+            code: "UNEXPECTED_REQUEST",
+            message: "Unexpected request",
+          },
+        },
+        { status: 500 }
+      );
+    });
+    const { result } = renderMutationHook(() => ({
+      assignTransaction: useAssignTransactionBudgetMutation(),
+      create: useCreateBudgetMutation(),
+      remove: useDeleteBudgetMutation(),
+      transfer: useTransferBudgetMutation(),
+      update: useUpdateBudgetMutation(),
+    }));
+
+    await act(async () => {
+      await result.current.create.mutateAsync({
+        name: "Dining",
+        amount: 200000,
+        period: "month",
+        periodStartDate: "2026-05-01",
+        periodEndDate: "2026-05-31",
+      });
+      await result.current.update.mutateAsync({
+        id: 7,
+        input: {
+          name: "Groceries",
+          amount: 750000,
+          period: "week",
+          periodStartDate: "2026-05-17",
+          periodEndDate: "2026-05-23",
+        },
+      });
+      await result.current.remove.mutateAsync(9);
+      await result.current.assignTransaction.mutateAsync({
+        expenseId: 10,
+        budgetId: 7,
+      });
+      await result.current.transfer.mutateAsync({
+        fromBudgetId: 2,
+        toBudgetId: 1,
+        amount: 100000,
+      });
+    });
+
+    expect(requestExpenseSyncMock).not.toHaveBeenCalled();
   });
 
   it("does not refetch deleted budget transactions after successful delete", async () => {

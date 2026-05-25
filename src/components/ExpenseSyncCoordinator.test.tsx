@@ -6,10 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseSyncCoordinator from "./ExpenseSyncCoordinator";
 
-const syncExpensesNowMock = vi.hoisted(() => vi.fn());
+const requestExpenseSyncMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/sync/expenses/coordinator", () => ({
-  syncExpensesNow: syncExpensesNowMock,
+vi.mock("@/lib/sync/expenses/scheduler", () => ({
+  requestExpenseSync: requestExpenseSyncMock,
 }));
 
 const renderCoordinator = () => {
@@ -32,11 +32,31 @@ describe("ExpenseSyncCoordinator", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    syncExpensesNowMock.mockRejectedValue(new Error("Failed to sync expenses"));
+    requestExpenseSyncMock.mockRejectedValue(
+      new Error("Failed to sync expenses")
+    );
 
     renderCoordinator();
 
-    await waitFor(() => expect(syncExpensesNowMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(requestExpenseSyncMock).toHaveBeenCalledTimes(1)
+    );
     await waitFor(() => expect(consoleError).not.toHaveBeenCalled());
+  });
+
+  it("requests queued sync on mount, online, and focus", async () => {
+    requestExpenseSyncMock.mockResolvedValue(undefined);
+
+    renderCoordinator();
+    await waitFor(() =>
+      expect(requestExpenseSyncMock).toHaveBeenCalledTimes(1)
+    );
+
+    window.dispatchEvent(new Event("online"));
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(() =>
+      expect(requestExpenseSyncMock).toHaveBeenCalledTimes(3)
+    );
   });
 });
