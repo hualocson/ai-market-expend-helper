@@ -117,6 +117,13 @@
   --sidebar-ring: #b8f34a;
 
   --radius: 0.75rem;
+  --digit-dur: 500ms;
+  --digit-distance: 8px;
+  --digit-stagger: 70ms;
+  --digit-blur: 2px;
+  --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --digit-dir-x: 0;
+  --digit-dir-y: 1;
 
   --shadow-2xs: 0 1px 2px 0 color-mix(in srgb, #030712 18%, transparent);
   --shadow-xs: 0 1px 3px 0 color-mix(in srgb, #030712 24%, transparent);
@@ -339,6 +346,21 @@
 }
 
 @layer components {
+  .t-digit-group {
+    display: inline-flex;
+    align-items: baseline;
+  }
+
+  .t-digit {
+    display: inline-block;
+    will-change: transform, opacity, filter;
+  }
+
+  .t-digit-group.is-animating .t-digit {
+    animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+    animation-delay: calc(var(--digit-stagger) * var(--digit-stagger-index, 0));
+  }
+
   .spending-header-gradient {
     isolation: isolate;
   }
@@ -495,6 +517,23 @@
   }
 }
 
+@keyframes t-digit-pop-in {
+  0% {
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+    transform: translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y))
+    );
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(0, 0);
+  }
+}
+
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -645,6 +684,13 @@ textarea:focus {
 
   .quick-expense-sheet-morph,
   .quick-expense-enter-group {
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .t-digit-group .t-digit {
+    animation: none !important;
+    filter: none !important;
     transform: none !important;
     will-change: auto;
   }

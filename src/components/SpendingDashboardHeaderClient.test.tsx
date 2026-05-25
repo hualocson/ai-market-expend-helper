@@ -9,9 +9,36 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import SpendingDashboardHeader from "./SpendingDashboardHeader";
 import SpendingDashboardHeaderClient from "./SpendingDashboardHeaderClient";
 
-vi.mock("motion/react", () => ({
-  useReducedMotion: () => true,
-}));
+vi.mock("motion/react", async () => {
+  const { default: React } = await import("react");
+
+  type MotionProps = React.HTMLAttributes<HTMLElement> & {
+    animate?: unknown;
+    initial?: unknown;
+    transition?: unknown;
+  };
+
+  const createMotionElement = (tagName: keyof React.JSX.IntrinsicElements) => {
+    const MotionElement = ({
+      animate: _animate,
+      initial: _initial,
+      transition: _transition,
+      ...props
+    }: MotionProps) => React.createElement(tagName, props);
+
+    MotionElement.displayName = `Motion.${String(tagName)}`;
+
+    return MotionElement;
+  };
+
+  return {
+    motion: {
+      div: createMotionElement("div"),
+      p: createMotionElement("p"),
+    },
+    useReducedMotion: () => true,
+  };
+});
 
 vi.mock("@/components/SpendingHeatmapChart", () => ({
   default: () => <div data-testid="heatmap-chart" />,
@@ -62,6 +89,39 @@ describe("SpendingDashboardHeaderClient", () => {
     expect(amountBlock).not.toHaveClass("ds-glass");
     expect(screen.getByTestId("heatmap-chart")).toBeInTheDocument();
     expect(screen.queryByText(/total spent/i)).not.toBeInTheDocument();
+  });
+
+  it("splits the formatted amount into staggered pop-in digits", () => {
+    globalThis.React = React;
+
+    render(
+      <SpendingDashboardHeaderClient
+        activeMonth="2026-03"
+        payerOptions={["All"]}
+        totalsByPayer={{
+          All: { total: 1_250_000, totals: [1_250_000] },
+        }}
+      />
+    );
+
+    const total = screen.getByLabelText("1.250.000 Vietnamese dong");
+    const digitGroup = total.querySelector(".t-digit-group");
+    const digits = digitGroup?.querySelectorAll(".t-digit");
+
+    expect(digitGroup).toHaveClass("is-animating");
+    expect(Array.from(digits ?? []).map((digit) => digit.textContent)).toEqual([
+      "1",
+      ".",
+      "2",
+      "5",
+      "0",
+      ".",
+      "0",
+      "0",
+      "0",
+    ]);
+    expect(digits?.[1]).toHaveAttribute("data-stagger", "1");
+    expect(digits?.[8]).toHaveAttribute("data-stagger", "8");
   });
 
   it("renders hydrated monthly summary data without an immediate fetch", () => {
