@@ -137,7 +137,7 @@ export const createLocalExpense = async (
     category: input.category,
     paidBy: input.paidBy,
     budgetId: input.budgetId ?? null,
-    budgetName: null,
+    budgetName: input.budgetName ?? null,
     syncStatus: "pending",
     lastError: null,
     updatedAt,
@@ -170,7 +170,13 @@ export const updateLocalExpense = async (
     category: input.category,
     paidBy: input.paidBy,
     budgetId: input.budgetId ?? null,
-    budgetName: existingExpense.budgetName,
+    budgetName:
+      input.budgetId === null
+        ? null
+        : (input.budgetName ??
+          (input.budgetId === existingExpense.budgetId
+            ? existingExpense.budgetName
+            : null)),
     syncStatus: "pending",
     lastError: null,
     updatedAt,

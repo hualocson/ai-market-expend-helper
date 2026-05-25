@@ -18,6 +18,7 @@ export type TQuickExpensePayload = {
   category: Category;
   paidBy: PaidBy;
   budgetId: number | null;
+  budgetName: string | null;
 };
 
 export type TQuickExpenseDraft = TQuickExpensePayload;
@@ -92,7 +93,8 @@ const isRecoverableExpense = (value: unknown): value is LocalExpense => {
     isCategory(value.category) &&
     typeof value.paidBy === "string" &&
     isPaidBy(value.paidBy) &&
-    (typeof value.budgetId === "number" || value.budgetId === null)
+    (typeof value.budgetId === "number" || value.budgetId === null) &&
+    (typeof value.budgetName === "string" || value.budgetName === null)
   );
 };
 
@@ -147,6 +149,7 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
     category,
     paidBy,
     budgetId: operation.payload.budgetId,
+    budgetName: operation.payload.budgetName,
   };
 
   const mode = operation.type === "update" ? "edit" : "create";

@@ -89,10 +89,15 @@ type ManualExpenseFormProps = {
     | (TExpense & {
         paidBy?: string;
         budgetId?: number | null;
+        budgetName?: string | null;
       })
     | null;
   onSubmit?: (
-    payload: TExpense & { paidBy: string; budgetId?: number | null }
+    payload: TExpense & {
+      paidBy: string;
+      budgetId?: number | null;
+      budgetName?: string | null;
+    }
   ) => Promise<void>;
   submitLabel?: string;
   loadingLabel?: string;
@@ -224,6 +229,11 @@ const ManualExpenseForm = forwardRef<
           category: expense.category || defaultExpense.category,
           paidBy: paidBy?.trim() || paidByOptions[0],
           budgetId: showBudgetSelect ? budgetId : null,
+          budgetName:
+            showBudgetSelect && budgetId !== null
+              ? (budgetOptions.find((budget) => budget.id === budgetId)?.name ??
+                null)
+              : null,
         };
         if (onSubmit) {
           await onSubmit(payload);

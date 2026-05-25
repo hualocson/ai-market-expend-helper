@@ -52,6 +52,7 @@ const ExpenseEditSheetHost = ({
         category: expense.category,
         paidBy: expense.paidBy,
         budgetId: expense.budgetId ?? null,
+        budgetName: expense.budgetName ?? null,
       };
     }, [expense]);
 

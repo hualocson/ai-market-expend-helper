@@ -76,6 +76,47 @@ describe("local-first expense actions", () => {
     );
   });
 
+  it("stores the selected budget name on pending local creates", async () => {
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "23/05/2026",
+      amount: 45000,
+      note: "Coffee",
+      category: "Food",
+      paidBy: "Cubi",
+      budgetId: 3,
+      budgetName: "Food week",
+    });
+
+    expect(store.getState().expensesByClientId[created.clientId]).toMatchObject(
+      {
+        budgetId: 3,
+        budgetName: "Food week",
+      }
+    );
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
+      {
+        payload: expect.objectContaining({
+          budgetId: 3,
+          budgetName: "Food week",
+        }),
+      },
+    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          payload: expect.objectContaining({
+            budgetId: 3,
+            budgetName: "Food week",
+          }),
+        },
+      ]
+    );
+  });
+
   it("updates an existing local expense and queues an update operation", async () => {
     const store = createExpenseSyncStore();
     store.getState().hydrate([existingExpense()]);

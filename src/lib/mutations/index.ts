@@ -166,7 +166,7 @@ const ensureLocalExpenseForUpdate = (
     category: input.category,
     paidBy: input.paidBy,
     budgetId: input.budgetId ?? null,
-    budgetName: null,
+    budgetName: input.budgetName ?? null,
     syncStatus: "synced",
     lastError: null,
     updatedAt: now,

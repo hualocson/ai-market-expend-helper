@@ -85,6 +85,7 @@ export type TQuickExpenseSheetInitialExpense = {
   note?: string | null;
   category: Category | string;
   budgetId?: number | null;
+  budgetName?: string | null;
   paidBy?: PaidBy | string;
 };
 
@@ -100,6 +101,7 @@ const buildDefaultDraft = (paidBy: PaidBy): TExpenseDraft => ({
   note: "",
   category: Category.FOOD,
   budgetId: null,
+  budgetName: null,
   paidBy,
 });
 
@@ -148,6 +150,7 @@ const buildDraftFromExpense = (
     note: initialExpense.note ?? "",
     category: normalizeCategory(initialExpense.category),
     budgetId: initialExpense.budgetId ?? null,
+    budgetName: initialExpense.budgetName ?? null,
     paidBy: normalizePaidBy(initialExpense.paidBy, fallbackPaidBy),
   };
 };
@@ -159,6 +162,7 @@ const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
   note: draft.note,
   category: draft.category,
   budgetId: draft.budgetId,
+  budgetName: draft.budgetName,
   paidBy: draft.paidBy,
 });
 
@@ -172,6 +176,7 @@ const buildQuickExpensePayload = (
   category: draft.category,
   paidBy: draft.paidBy,
   budgetId: draft.budgetId,
+  budgetName: draft.budgetName,
 });
 
 const normalizeSubmittedDate = (value: string): string => {
@@ -253,7 +258,17 @@ const QuickExpenseSheet = ({
     }
 
     setQueueing(true);
-    const submittedDraft = cloneExpenseDraft(draft);
+    const submittedDraft = cloneExpenseDraft({
+      ...draft,
+      budgetName:
+        draft.budgetId === null
+          ? null
+          : (budgetOptionsQuery.data?.find(
+              (budget) => budget.id === draft.budgetId
+            )?.name ??
+            draft.budgetName ??
+            null),
+    });
     const payload = buildQuickExpensePayload(submittedDraft);
     const submittedTransactionId = transactionId;
 
@@ -403,7 +418,7 @@ const QuickExpenseSheet = ({
     if (
       !budgetOptionsQuery.data.some((budget) => budget.id === draft.budgetId)
     ) {
-      setDraft((prev) => ({ ...prev, budgetId: null }));
+      setDraft((prev) => ({ ...prev, budgetId: null, budgetName: null }));
     }
   }, [draft.budgetId, budgetOptionsQuery.data, budgetOptionsQuery.isSuccess]);
 
@@ -632,7 +647,17 @@ const QuickExpenseSheet = ({
           open={budgetOpen}
           onOpenChange={setBudgetOpen}
           value={draft.budgetId}
-          onChange={(id) => setField("budgetId", id)}
+          onChange={(id) =>
+            setDraft((prev) => ({
+              ...prev,
+              budgetId: id,
+              budgetName:
+                id === null
+                  ? null
+                  : (budgetOptionsQuery.data?.find((budget) => budget.id === id)
+                      ?.name ?? null),
+            }))
+          }
           weekStart={weekStart}
           targetDate={targetDate}
           isParentOpen={sheetOpen}

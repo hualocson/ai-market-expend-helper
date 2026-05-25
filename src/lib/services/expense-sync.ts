@@ -1,3 +1,4 @@
+import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { createExpense, softDeleteExpense, updateExpense } from "@/db/queries";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
@@ -117,10 +118,20 @@ const getExpenseSyncRow = async (id: number): Promise<ExpenseSyncServerRow> => {
   return toExpenseSyncServerRow(row);
 };
 
+const normalizeExpenseMutationDate = (value: string) => {
+  const isoDate = dayjs(value, "YYYY-MM-DD", true);
+  if (isoDate.isValid()) {
+    return isoDate.format("DD/MM/YYYY");
+  }
+
+  return value;
+};
+
 const toExpenseInput = (
   payload: NonNullable<ExpenseSyncPushOperation["payload"]>
 ) => ({
   ...payload,
+  date: normalizeExpenseMutationDate(payload.date),
   paidBy: payload.paidBy as PaidBy,
 });
 

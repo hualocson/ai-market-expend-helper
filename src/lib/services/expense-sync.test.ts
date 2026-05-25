@@ -180,4 +180,48 @@ describe("expense sync service", () => {
       ],
     });
   });
+
+  it("normalizes ISO local dates before pushing creates to expense mutations", async () => {
+    expenseMutationMocks.createExpense.mockResolvedValue({ id: 7 });
+    mockSelectRows([
+      {
+        id: 7,
+        clientId: "client-1",
+        date: "2026-05-23",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+        updatedAt: new Date("2026-05-24T10:00:00.000Z"),
+        deletedAt: null,
+        isDeleted: false,
+      },
+    ]);
+
+    await pushExpenseOperations([
+      {
+        operationId: "op-1",
+        type: "create",
+        clientId: "client-1",
+        serverId: null,
+        payload: {
+          clientId: "client-1",
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+        },
+      },
+    ]);
+
+    expect(expenseMutationMocks.createExpense).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: "23/05/2026",
+      })
+    );
+  });
 });

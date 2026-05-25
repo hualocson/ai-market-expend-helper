@@ -10,4 +10,5 @@ export type CreateExpenseInput = Pick<
   note?: string;
   paidBy: PaidBy;
   budgetId?: number | null;
+  budgetName?: string | null;
 };

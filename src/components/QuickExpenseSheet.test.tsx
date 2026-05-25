@@ -374,6 +374,35 @@ describe("QuickExpenseSheet — submit", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("passes the selected budget name to the local-first create mutation", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 3, name: "Food week" }),
+    ]);
+    const user = await openSheet();
+
+    await user.click(screen.getByRole("button", { name: /^budget:/i }));
+    await user.click(await screen.findByRole("button", { name: /food week/i }));
+    await user.type(
+      screen.getByPlaceholderText(/what did you spend on/i),
+      "Budget lunch"
+    );
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 12000,
+          note: "Budget lunch",
+          budgetId: 3,
+          budgetName: "Food week",
+        })
+      )
+    );
+  });
+
   it("closes immediately after dispatching a local-first create", async () => {
     let resolveCreate: (value: { clientId: string }) => void = () => {};
     mutationMocks.createMutateAsync.mockReturnValue(
@@ -419,6 +448,7 @@ describe("QuickExpenseSheet — submit", () => {
         note: "Recovered lunch",
         category: Category.FOOD,
         budgetId: null,
+        budgetName: null,
         paidBy: PaidBy.OTHER,
       },
     });
