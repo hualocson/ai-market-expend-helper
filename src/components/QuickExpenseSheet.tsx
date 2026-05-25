@@ -573,7 +573,7 @@ const QuickExpenseSheet = ({
                 style={
                   anchorSuggestionsToKeyboard
                     ? {
-                        bottom: `calc(${keyboardOffset}px + 8px)`,
+                        bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom) + 8px)`,
                       }
                     : undefined
                 }

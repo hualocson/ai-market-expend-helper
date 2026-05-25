@@ -576,7 +576,7 @@
 }
 
 .quick-expense-sheet-morph[data-state="open"] {
-  animation: quick-expense-sheet-morph-in 260ms cubic-bezier(0.2, 0, 0, 1) both !important;
+  animation: quick-expense-sheet-morph-in 210ms cubic-bezier(0.2, 0, 0, 1) both !important;
 }
 
 .quick-expense-sheet-morph[data-state="closed"] {
@@ -588,23 +588,23 @@
 }
 
 .quick-expense-sheet-morph[data-state="open"] .quick-expense-enter-group {
-  animation: quick-expense-enter-group-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: quick-expense-enter-group-in 160ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .quick-expense-enter-delay-1 {
-  animation-delay: 60ms !important;
+  animation-delay: 30ms !important;
 }
 
 .quick-expense-enter-delay-2 {
-  animation-delay: 95ms !important;
+  animation-delay: 50ms !important;
 }
 
 .quick-expense-enter-delay-3 {
-  animation-delay: 125ms !important;
+  animation-delay: 70ms !important;
 }
 
 .quick-expense-enter-delay-4 {
-  animation-delay: 150ms !important;
+  animation-delay: 90ms !important;
 }
 
 @keyframes quick-expense-sheet-morph-in {
