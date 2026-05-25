@@ -216,6 +216,29 @@ describe("QuickExpenseRecoverySheetHost", () => {
     );
   });
 
+  it("does not open the edit sheet for failed delete recovery entries", () => {
+    activateRecovery(
+      buildOperation({
+        operationId: "delete-1",
+        type: "delete",
+        serverId: 42,
+        payload: {
+          ...localExpense,
+          serverId: 42,
+          syncStatus: "deleted",
+        },
+        lastError: "Delete failed",
+      })
+    );
+
+    renderHost();
+
+    expect(
+      screen.queryByPlaceholderText(/what did you spend on/i)
+    ).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("0")).not.toBeInTheDocument();
+  });
+
   it("renders nothing when active id is missing", () => {
     useQuickExpenseRecoveryStore.setState({
       entries: {},

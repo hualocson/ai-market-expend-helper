@@ -16,7 +16,11 @@ const QuickExpenseRecoverySheetHost = () => {
     ? entries[activeRecoveryOperationId]
     : undefined;
 
-  if (!entry || entry.status !== "failed") {
+  if (
+    !entry ||
+    entry.status !== "failed" ||
+    (entry.mode !== "create" && entry.mode !== "edit")
+  ) {
     return null;
   }
 
