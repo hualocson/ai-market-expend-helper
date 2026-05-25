@@ -289,7 +289,16 @@ describe("local-first expense actions", () => {
           type: "delete",
           clientId: "client-1",
           serverId: 10,
-          payload: null,
+          payload: expect.objectContaining({
+            entity: "expenses",
+            clientId: "client-1",
+            serverId: 10,
+            amount: 45000,
+            note: "Coffee",
+            category: "Food",
+            paidBy: "Cubi",
+            syncStatus: "deleted",
+          }),
         },
       ]
     );

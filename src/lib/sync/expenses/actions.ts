@@ -59,7 +59,7 @@ const toOutboxOperation = (
   type,
   clientId: expense.clientId,
   serverId: expense.serverId,
-  payload: type === "delete" ? null : expense,
+  payload: expense,
   createdAt,
   attemptCount: 0,
   lastAttemptAt: null,

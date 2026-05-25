@@ -447,6 +447,79 @@ describe("expense sync coordinator", () => {
     );
   });
 
+  it("serializes delete flush payloads as null even when the outbox preserves the local payload", async () => {
+    await syncRepository.outbox.put(
+      outboxOperation({
+        type: "delete",
+        serverId: 10,
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: 10,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+          syncStatus: "deleted",
+          lastError: null,
+          updatedAt: "2026-05-24T09:00:00.000Z",
+          serverUpdatedAt: "2026-05-24T09:00:00.000Z",
+        },
+      })
+    );
+    const queryClient = new QueryClient();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        successEnvelope({
+          results: [
+            {
+              operationId: "op-1",
+              ok: true,
+              row: {
+                id: 10,
+                clientId: "client-1",
+                date: "2026-05-23",
+                amount: 45000,
+                note: "Coffee",
+                category: "Food",
+                paidBy: "Cubi",
+                budgetId: null,
+                budgetName: null,
+                updatedAt: "2026-05-24T10:00:00.000Z",
+                deletedAt: "2026-05-24T10:00:00.000Z",
+                isDeleted: true,
+              },
+            },
+          ],
+        })
+      )
+    );
+
+    await flushExpenseOutbox(queryClient);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/expenses/sync",
+      expect.objectContaining({
+        method: "POST",
+        cache: "no-store",
+        body: JSON.stringify({
+          operations: [
+            {
+              operationId: "op-1",
+              type: "delete",
+              clientId: "client-1",
+              serverId: 10,
+              payload: null,
+            },
+          ],
+        }),
+      })
+    );
+  });
+
   it("marks failed flush results on the outbox operation and local row", async () => {
     await syncRepository.records.put(
       expenseRecord({
