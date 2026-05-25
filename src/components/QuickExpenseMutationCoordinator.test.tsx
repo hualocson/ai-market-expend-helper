@@ -2,6 +2,7 @@ import React, { type PropsWithChildren } from "react";
 
 import { Category, PaidBy } from "@/enums";
 import { syncRepository } from "@/lib/sync/core/repository";
+import { requestExpenseSync } from "@/lib/sync/expenses/scheduler";
 import type {
   ExpenseOutboxOperation,
   LocalExpense,
@@ -23,6 +24,10 @@ const toastMock = vi.hoisted(() => ({
 
 vi.mock("sonner", () => ({
   toast: toastMock,
+}));
+
+vi.mock("@/lib/sync/expenses/scheduler", () => ({
+  requestExpenseSync: vi.fn().mockResolvedValue(undefined),
 }));
 
 const createdAt = () => new Date().toISOString();
@@ -149,6 +154,54 @@ describe("QuickExpenseMutationCoordinator", () => {
       clientId: "expense-client-1",
       serverId: 42,
     });
+  });
+
+  it("shows a retry delete toast for failed delete outbox operations", async () => {
+    const operation = buildOperation({
+      operationId: "expense-op-delete",
+      type: "delete",
+      serverId: 42,
+      payload: {
+        ...localExpense,
+        serverId: 42,
+        syncStatus: "deleted",
+      },
+      lastError: "Delete failed",
+    });
+    await syncRepository.outbox.put(operation);
+
+    renderCoordinator();
+
+    await waitFor(() =>
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Delete failed",
+        expect.objectContaining({
+          duration: 9000,
+          action: expect.objectContaining({ label: "Retry delete" }),
+        })
+      )
+    );
+
+    expect(
+      useQuickExpenseRecoveryStore.getState().entries[operation.operationId]
+    ).toMatchObject({
+      mode: "delete",
+      clientId: "expense-client-1",
+      serverId: 42,
+      toastId: "toast-1",
+    });
+
+    const options = toastMock.error.mock.calls[0]?.[1] as {
+      action: { onClick: () => void };
+    };
+    act(() => {
+      options.action.onClick();
+    });
+
+    expect(
+      useQuickExpenseRecoveryStore.getState().entries[operation.operationId]
+    ).toBeUndefined();
+    expect(requestExpenseSync).toHaveBeenCalledTimes(1);
   });
 
   it("does not show duplicate toasts for the same failed outbox operation", async () => {

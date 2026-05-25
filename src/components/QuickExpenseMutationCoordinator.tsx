@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncOperation } from "@/lib/sync/core/types";
+import { requestExpenseSync } from "@/lib/sync/expenses/scheduler";
 import type { ExpenseOutboxOperation } from "@/lib/sync/expenses/types";
 import {
   QUICK_EXPENSE_RECOVERY_TTL_MS,
   useQuickExpenseRecoveryStore,
 } from "@/stores/quick-expense-recovery-store";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const RECOVERY_TOAST_DURATION_MS = 9000;
@@ -20,18 +22,22 @@ const isRecoverableFailedExpenseOperation = (
   const candidate = operation as Partial<ExpenseOutboxOperation>;
   return (
     candidate.entity === "expenses" &&
-    (candidate.type === "create" || candidate.type === "update") &&
+    (candidate.type === "create" ||
+      candidate.type === "update" ||
+      candidate.type === "delete") &&
     typeof candidate.lastError === "string" &&
     candidate.lastError.trim().length > 0
   );
 };
 
 export default function QuickExpenseMutationCoordinator() {
+  const queryClient = useQueryClient();
   const entries = useQuickExpenseRecoveryStore((state) => state.entries);
   const unnotifiedEntries = useMemo(
     () => useQuickExpenseRecoveryStore.getState().getUnnotifiedFailedEntries(),
     [entries]
   );
+  const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
   const syncFailedOutboxEntries = useQuickExpenseRecoveryStore(
     (state) => state.syncFailedOutboxEntries
   );
@@ -86,15 +92,30 @@ export default function QuickExpenseMutationCoordinator() {
 
       const toastId = toast.error(entry.lastError, {
         duration: RECOVERY_TOAST_DURATION_MS,
-        action: {
-          label: "Reopen",
-          onClick: () => setActiveRecovery(entry.operationId),
-        },
+        action:
+          entry.mode === "delete"
+            ? {
+                label: "Retry delete",
+                onClick: () => {
+                  clearRecovery(entry.operationId);
+                  void requestExpenseSync(queryClient);
+                },
+              }
+            : {
+                label: "Reopen",
+                onClick: () => setActiveRecovery(entry.operationId),
+              },
       });
 
       markNotified(entry.operationId, toastId);
     });
-  }, [markNotified, setActiveRecovery, unnotifiedEntries]);
+  }, [
+    clearRecovery,
+    markNotified,
+    queryClient,
+    setActiveRecovery,
+    unnotifiedEntries,
+  ]);
 
   return null;
 }
