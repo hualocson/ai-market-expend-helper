@@ -1,6 +1,6 @@
 import { syncRepository } from "@/lib/sync/core/repository";
 import "fake-indexeddb/auto";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createLocalExpense,
@@ -29,11 +29,78 @@ const existingExpense = (
   ...overrides,
 });
 
+const originalNodeEnv = process.env.NODE_ENV;
+
 beforeEach(async () => {
   await syncRepository.testing.clearSyncDb();
 });
 
+afterEach(() => {
+  process.env.NODE_ENV = originalNodeEnv;
+  vi.restoreAllMocks();
+});
+
 describe("local-first expense actions", () => {
+  it("creates dev-prefixed local ids with getRandomValues outside production", async () => {
+    process.env.NODE_ENV = "development";
+    const randomUUIDSpy = vi
+      .spyOn(crypto, "randomUUID")
+      .mockImplementation(() => {
+        throw new Error("randomUUID should not be used for dev ids");
+      });
+    const getRandomValuesSpy = vi
+      .spyOn(crypto, "getRandomValues")
+      .mockImplementation((array) => {
+        const bytes = array as Uint8Array;
+        bytes.fill(1);
+        return array;
+      });
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "23/05/2026",
+      amount: 45000,
+      note: "Coffee",
+      category: "Food",
+      paidBy: "Cubi",
+      budgetId: null,
+    });
+    const [operation] = await syncRepository.outbox.list("expenses");
+
+    expect(created.clientId).toMatch(/^dev-expense-/);
+    expect(operation?.operationId).toMatch(/^dev-expense-op-/);
+    expect(getRandomValuesSpy).toHaveBeenCalled();
+    expect(randomUUIDSpy).not.toHaveBeenCalled();
+  });
+
+  it("creates prod-prefixed local ids with randomUUID in production", async () => {
+    process.env.NODE_ENV = "production";
+    const randomUUIDSpy = vi
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValue("11111111-2222-4333-8444-555555555555");
+    const getRandomValuesSpy = vi.spyOn(crypto, "getRandomValues");
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "23/05/2026",
+      amount: 45000,
+      note: "Coffee",
+      category: "Food",
+      paidBy: "Cubi",
+      budgetId: null,
+    });
+    const [operation] = await syncRepository.outbox.list("expenses");
+
+    expect(created.clientId).toBe(
+      "prod-expense-11111111-2222-4333-8444-555555555555"
+    );
+    expect(operation?.operationId).toBe(
+      "prod-expense-op-11111111-2222-4333-8444-555555555555"
+    );
+    expect(randomUUIDSpy).toHaveBeenCalledTimes(2);
+    expect(getRandomValuesSpy).not.toHaveBeenCalled();
+  });
+
   it("creates a pending local expense and outbox operation", async () => {
     const store = createExpenseSyncStore();
 

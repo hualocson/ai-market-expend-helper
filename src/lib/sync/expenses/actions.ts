@@ -13,7 +13,22 @@ import {
 
 type ExpenseSyncStoreApi = StoreApi<ExpenseSyncState>;
 
-const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+const createDevelopmentIdEntropy = () => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
+};
+
+const createLocalId = (prefix: string) => {
+  if (process.env.NODE_ENV === "production") {
+    return `prod-${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `dev-${prefix}-${createDevelopmentIdEntropy()}`;
+};
 
 const getExistingExpense = (
   store: ExpenseSyncStoreApi,
