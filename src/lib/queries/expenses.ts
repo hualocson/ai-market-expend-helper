@@ -1,8 +1,9 @@
 import type {
   ExpenseListItem,
+  ExpenseListQueryParams,
   ExpenseListResult,
-} from "@/lib/services/expenses";
-import { groupExpenseRowsByDate } from "@/lib/services/expenses";
+} from "@/lib/expenses/list-model";
+import { groupExpenseRowsByDate } from "@/lib/expenses/list-model";
 import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncRecord } from "@/lib/sync/core/types";
 import { buildExpenseListResultFromLocalRows } from "@/lib/sync/expenses/list";
@@ -15,14 +16,7 @@ import { createQueryKeys } from "@lukemorales/query-key-factory";
 
 import { fetchJson } from "./http";
 
-export type ExpenseListQueryParams = {
-  month?: string;
-  q?: string;
-  mode?: "full" | "recent";
-  recentDays?: number;
-  limit?: number;
-  offset?: number;
-};
+export type { ExpenseListQueryParams } from "@/lib/expenses/list-model";
 
 const isBrowserIndexedDbAvailable = () =>
   typeof window !== "undefined" && typeof indexedDB !== "undefined";

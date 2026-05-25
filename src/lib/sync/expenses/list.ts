@@ -1,11 +1,11 @@
 import dayjs from "@/configs/date";
-import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import {
   type ExpenseListItem,
+  type ExpenseListQueryParams,
   type ExpenseListResult,
   groupExpenseRowsByDate,
   resolveExpenseListRange,
-} from "@/lib/services/expenses";
+} from "@/lib/expenses/list-model";
 
 import type { LocalExpense } from "./types";
 
