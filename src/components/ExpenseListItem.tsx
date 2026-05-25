@@ -77,7 +77,7 @@ const ExpenseSyncStatusDot = ({
       className={cn(
         "size-2 shrink-0 rounded-full",
         status === "pending" &&
-          "bg-warning shadow-[0_0_10px_color-mix(in_srgb,var(--warning)_55%,transparent)]",
+          "bg-slate-400 shadow-[0_0_10px_rgb(148_163_184_/_0.45)]",
         status === "failed" &&
           "bg-destructive shadow-[0_0_10px_color-mix(in_srgb,var(--destructive)_45%,transparent)]"
       )}

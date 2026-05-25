@@ -160,7 +160,7 @@ describe("ExpenseListItem sync status indicator", () => {
     const paidByIcon = screen.getByTestId("paid-by-icon");
 
     expect(indicator).toHaveAttribute("title", "Sync pending");
-    expect(indicator).toHaveClass("bg-warning");
+    expect(indicator).toHaveClass("bg-slate-400");
     expect(
       indicator.compareDocumentPosition(paidByIcon) &
         Node.DOCUMENT_POSITION_FOLLOWING
