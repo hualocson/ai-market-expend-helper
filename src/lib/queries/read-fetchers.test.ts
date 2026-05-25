@@ -1,6 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { syncRepository } from "@/lib/sync/core/repository";
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { budgetQueries, fetchBudgetTransferCandidates } from "./budgets";
+import {
+  budgetQueries,
+  fetchBudgetOverview,
+  fetchBudgetTransferCandidates,
+} from "./budgets";
 import { dashboardQueries, fetchDashboardMonthlySummary } from "./dashboard";
 import { expenseQueries, fetchExpenseList } from "./expenses";
 import { fetchDailyReport, fetchMonthlyReport, reportQueries } from "./reports";
@@ -11,38 +17,127 @@ const mockJsonResponse = (payload: unknown, init?: ResponseInit) =>
     ...init,
   });
 
-afterEach(() => {
+const successEnvelope = <T>(data: T) => ({ success: true, data });
+
+beforeEach(async () => {
+  await syncRepository.testing.clearSyncDb();
+});
+
+afterEach(async () => {
   vi.restoreAllMocks();
+  await syncRepository.testing.clearSyncDb();
 });
 
 describe("read query fetchers", () => {
-  it("fetches expense lists with query params", async () => {
-    const payload = {
-      activeMonth: "2026-05",
-      effectiveRecentDays: 14,
-      groupedRows: [],
-      isRecent: true,
-      rows: [],
-    };
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
+  it("builds expense list results from IndexedDB sync records without fetching /api/expenses", async () => {
+    await syncRepository.testing.clearSyncDb();
+    await syncRepository.records.put({
+      entity: "expenses",
+      clientId: "client-1",
+      serverId: 30,
+      syncStatus: "synced",
+      lastError: null,
+      updatedAt: "2026-05-24T10:00:00.000Z",
+      serverUpdatedAt: "2026-05-24T10:00:00.000Z",
+      payload: {
+        date: "2026-05-24",
+        amount: 50000,
+        note: "Lunch",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: null,
+        budgetName: null,
+      },
+    });
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    await expect(
-      fetchExpenseList({
-        month: "2026-05",
-        q: "coffee",
-        mode: "recent",
-        recentDays: 14,
-        limit: 30,
-        offset: 60,
-      })
-    ).resolves.toEqual(payload);
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "/api/expenses?month=2026-05&q=coffee&mode=recent&recentDays=14&limit=30&offset=60",
-      { method: "GET", cache: "no-store" }
-    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        id: 30,
+        note: "Lunch",
+      }),
+    ]);
+    expect(result.groupedRows).toEqual([
+      expect.objectContaining({
+        key: "2026-05-24",
+        totalAmount: 50000,
+      }),
+    ]);
+  });
+
+  it("returns an empty expense list when IndexedDB has no matching records", async () => {
+    await syncRepository.testing.clearSyncDb();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.rows).toEqual([]);
+    expect(result.groupedRows).toEqual([]);
+    expect(result.pagination).toMatchObject({
+      limit: 30,
+      offset: 0,
+      hasMore: false,
+    });
+  });
+
+  it("paginates expense list results from IndexedDB records", async () => {
+    await syncRepository.testing.clearSyncDb();
+    await syncRepository.records.putMany([
+      {
+        entity: "expenses",
+        clientId: "client-1",
+        serverId: 31,
+        syncStatus: "synced",
+        lastError: null,
+        updatedAt: "2026-05-24T10:00:00.000Z",
+        serverUpdatedAt: "2026-05-24T10:00:00.000Z",
+        payload: {
+          date: "2026-05-24",
+          amount: 50000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      },
+      {
+        entity: "expenses",
+        clientId: "client-2",
+        serverId: 30,
+        syncStatus: "synced",
+        lastError: null,
+        updatedAt: "2026-05-23T10:00:00.000Z",
+        serverUpdatedAt: "2026-05-23T10:00:00.000Z",
+        payload: {
+          date: "2026-05-23",
+          amount: 20000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      },
+    ]);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const firstPage = await fetchExpenseList({ month: "2026-05", limit: 1 });
+    const secondPage = await fetchExpenseList({
+      month: "2026-05",
+      limit: 1,
+      offset: 1,
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(firstPage.rows.map((row) => row.note)).toEqual(["Lunch"]);
+    expect(firstPage.pagination.hasMore).toBe(true);
+    expect(secondPage.rows.map((row) => row.note)).toEqual(["Coffee"]);
+    expect(secondPage.pagination.hasMore).toBe(false);
   });
 
   it("fetches budget transfer candidates", async () => {
@@ -60,7 +155,7 @@ describe("read query fetchers", () => {
     ];
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(payload)));
 
     await expect(fetchBudgetTransferCandidates(1)).resolves.toEqual(payload);
 
@@ -78,7 +173,7 @@ describe("read query fetchers", () => {
     };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(payload)));
 
     await expect(fetchDashboardMonthlySummary("2026-05")).resolves.toEqual(
       payload
@@ -95,8 +190,8 @@ describe("read query fetchers", () => {
     const dailyPayload = { activeDate: "2026-05-23" };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(mockJsonResponse(monthlyPayload))
-      .mockResolvedValueOnce(mockJsonResponse(dailyPayload));
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(monthlyPayload)))
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(dailyPayload)));
 
     await expect(fetchMonthlyReport("2026-05")).resolves.toEqual(
       monthlyPayload
@@ -117,11 +212,39 @@ describe("read query fetchers", () => {
 
   it("throws route error messages", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse({ error: "Invalid month" }, { status: 400 })
+      mockJsonResponse(
+        {
+          success: false,
+          error: {
+            code: "INVALID_MONTH",
+            message: "Invalid month",
+          },
+        },
+        { status: 400 }
+      )
     );
 
     await expect(fetchMonthlyReport("bad-month")).rejects.toThrow(
       "Invalid month"
+    );
+  });
+
+  it("throws the structured API error message from read fetchers", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(
+        {
+          success: false,
+          error: {
+            code: "FETCH_BUDGETS_FAILED",
+            message: "Failed to fetch budgets",
+          },
+        },
+        { status: 400 }
+      )
+    );
+
+    await expect(fetchBudgetOverview()).rejects.toThrow(
+      "Failed to fetch budgets"
     );
   });
 

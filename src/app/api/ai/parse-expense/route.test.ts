@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { POST } from "./route";
+
 const { parseExpenseWithOpenRouter } = vi.hoisted(() => ({
   parseExpenseWithOpenRouter: vi.fn(),
 }));
@@ -7,8 +9,6 @@ const { parseExpenseWithOpenRouter } = vi.hoisted(() => ({
 vi.mock("@/lib/ai/parse-expense", () => ({
   parseExpenseWithOpenRouter,
 }));
-
-import { POST } from "./route";
 
 describe("POST /api/ai/parse-expense", () => {
   afterEach(() => {
@@ -27,7 +27,11 @@ describe("POST /api/ai/parse-expense", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
   });
 
@@ -41,7 +45,11 @@ describe("POST /api/ai/parse-expense", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
   });
 
@@ -55,13 +63,17 @@ describe("POST /api/ai/parse-expense", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
   });
 
   it("returns parser success payload for valid input", async () => {
     process.env.OPENROUTER_API_KEY = "test-key";
-    parseExpenseWithOpenRouter.mockResolvedValue({
+    const expectedParseResult = {
       status: "success",
       originalInput: "Lunch 120k today",
       expense: {
@@ -70,7 +82,8 @@ describe("POST /api/ai/parse-expense", () => {
         note: "Lunch",
         category: "Food",
       },
-    });
+    };
+    parseExpenseWithOpenRouter.mockResolvedValue(expectedParseResult);
 
     const response = await POST(
       new Request("http://localhost/api/ai/parse-expense", {
@@ -80,8 +93,9 @@ describe("POST /api/ai/parse-expense", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      status: "success",
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: expectedParseResult,
     });
     expect(parseExpenseWithOpenRouter).toHaveBeenCalledWith({
       input: "Lunch 120k today",
@@ -112,13 +126,8 @@ describe("POST /api/ai/parse-expense", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      status: "fallback",
-      originalInput: "Taxi 85k",
-      prefill: {
-        note: "Taxi 85k",
-        amount: 85000,
-      },
-      reason: "schema_mismatch",
+      success: true,
+      data: fallbackPayload,
     });
   });
 
@@ -132,7 +141,34 @@ describe("POST /api/ai/parse-expense", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
-      error: "Missing OPENROUTER_API_KEY",
+      success: false,
+      error: {
+        code: "PARSE_EXPENSE_FAILED",
+        message: "Missing OPENROUTER_API_KEY",
+      },
+    });
+  });
+
+  it("returns 500 when parsing unexpectedly fails", async () => {
+    process.env.OPENROUTER_API_KEY = "test-key";
+    parseExpenseWithOpenRouter.mockRejectedValue(
+      new Error("OpenRouter failed")
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/parse-expense", {
+        method: "POST",
+        body: JSON.stringify({ input: "Lunch 120k today" }),
+      })
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "PARSE_EXPENSE_FAILED",
+        message: "Failed to parse expense",
+      },
     });
   });
 });

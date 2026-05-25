@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useState } from "react";
 
 import Link from "next/link";
 
 import { formatVnd } from "@/lib/utils";
 import { Sparkles } from "lucide-react";
 import { motion as m } from "motion/react";
-import { useReducedMotion } from "motion/react";
 
 import {
   Select,
@@ -20,63 +20,31 @@ import {
 import SpendingHeatmapChart from "@/components/SpendingHeatmapChart";
 import VndSymbol from "@/components/VndSymbol";
 
-const COUNTER_DURATION_MS = 500;
-
-const easeOutCubic = (progress: number) => {
-  return 1 - Math.pow(1 - progress, 3);
-};
-
 const AnimatedVndAmount = ({ amount }: { amount: number }) => {
-  const shouldReduceMotion = useReducedMotion();
-  const displayedAmountRef = useRef(0);
-  const [displayedAmount, setDisplayedAmount] = useState(0);
+  const formattedAmount = formatVnd(amount);
 
-  useEffect(() => {
-    if (shouldReduceMotion) {
-      displayedAmountRef.current = amount;
-      setDisplayedAmount(amount);
-      return;
-    }
-
-    const startAmount = displayedAmountRef.current;
-    const delta = amount - startAmount;
-
-    if (delta === 0) {
-      setDisplayedAmount(amount);
-      return;
-    }
-
-    let animationFrame = 0;
-    let startedAt: number | null = null;
-
-    const tick = (timestamp: number) => {
-      startedAt ??= timestamp;
-
-      const progress = Math.min(
-        (timestamp - startedAt) / COUNTER_DURATION_MS,
-        1
-      );
-      const nextAmount = Math.round(
-        startAmount + delta * easeOutCubic(progress)
-      );
-
-      displayedAmountRef.current = nextAmount;
-      setDisplayedAmount(nextAmount);
-
-      if (progress < 1) {
-        animationFrame = window.requestAnimationFrame(tick);
-      } else {
-        displayedAmountRef.current = amount;
-        setDisplayedAmount(amount);
-      }
-    };
-
-    animationFrame = window.requestAnimationFrame(tick);
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [amount, shouldReduceMotion]);
-
-  return <span aria-hidden="true">{formatVnd(displayedAmount)}</span>;
+  return (
+    <span
+      key={formattedAmount}
+      aria-hidden="true"
+      className="t-digit-group is-animating"
+    >
+      {Array.from(formattedAmount).map((digit, index) => (
+        <span
+          key={`${digit}-${index}`}
+          className="t-digit"
+          data-stagger={index}
+          style={
+            {
+              "--digit-stagger-index": index,
+            } as CSSProperties
+          }
+        >
+          {digit}
+        </span>
+      ))}
+    </span>
+  );
 };
 
 type SpendingDashboardHeaderClientProps = {
@@ -106,7 +74,7 @@ const SpendingDashboardHeaderClient = ({
           aria-label={`${formatVnd(activeTotal)} Vietnamese dong`}
           className="text-foreground flex max-w-full items-center gap-2 font-mono text-[clamp(2.65rem,12vw,4.75rem)] leading-none font-semibold tracking-[-0.08em] whitespace-nowrap tabular-nums"
         >
-          <AnimatedVndAmount amount={activeTotal} />
+          <AnimatedVndAmount key={activeTotal} amount={activeTotal} />
           <VndSymbol />
         </m.p>
 

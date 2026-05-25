@@ -123,6 +123,7 @@ describe("expense services", () => {
     dbMocks.offset.mockResolvedValue([
       {
         id: 3,
+        clientId: "server-client-3",
         date: "2026-05-23",
         amount: 300,
         note: "Dinner",
@@ -133,6 +134,7 @@ describe("expense services", () => {
       },
       {
         id: 2,
+        clientId: "server-client-2",
         date: "2026-05-22",
         amount: 200,
         note: "Lunch",
@@ -143,6 +145,7 @@ describe("expense services", () => {
       },
       {
         id: 1,
+        clientId: null,
         date: "2026-05-21",
         amount: 100,
         note: "Coffee",
@@ -162,6 +165,10 @@ describe("expense services", () => {
     expect(dbMocks.limit).toHaveBeenCalledWith(3);
     expect(dbMocks.offset).toHaveBeenCalledWith(4);
     expect(result.rows.map((row) => row.id)).toEqual([3, 2]);
+    expect(result.rows.map((row) => row.clientId)).toEqual([
+      "server-client-3",
+      "server-client-2",
+    ]);
     expect(result.pagination).toEqual({
       limit: 2,
       offset: 4,

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
 import { createBudget } from "@/db/budget-queries";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import {
   budgetCreatePayloadSchema,
   parseJsonPayload,
@@ -11,17 +11,14 @@ export const POST = async (request: Request) => {
   try {
     const payload = await parseJsonPayload(request, budgetCreatePayloadSchema);
     if ("error" in payload) {
-      return NextResponse.json({ error: payload.error }, { status: 400 });
+      return apiError("INVALID_PAYLOAD", payload.error, 400);
     }
 
     const created = await createBudget(payload.value);
     revalidatePath("/budgets");
-    return NextResponse.json(created, { status: 201 });
+    return apiSuccess(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create budget:", error);
-    return NextResponse.json(
-      { error: "Failed to create budget" },
-      { status: 400 }
-    );
+    return apiError("CREATE_BUDGET_FAILED", "Failed to create budget", 400);
   }
 };

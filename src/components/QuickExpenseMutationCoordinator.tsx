@@ -1,126 +1,120 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
-import {
-  useCreateExpenseMutation,
-  useUpdateExpenseMutation,
-} from "@/lib/mutations";
+import { syncRepository } from "@/lib/sync/core/repository";
+import type { SyncOperation } from "@/lib/sync/core/types";
+import { requestExpenseSync } from "@/lib/sync/expenses/scheduler";
+import type { ExpenseOutboxOperation } from "@/lib/sync/expenses/types";
 import {
   QUICK_EXPENSE_RECOVERY_TTL_MS,
   useQuickExpenseRecoveryStore,
 } from "@/stores/quick-expense-recovery-store";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-const getErrorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
-
 const RECOVERY_TOAST_DURATION_MS = 9000;
+const FAILED_OUTBOX_POLL_INTERVAL_MS = 2000;
+
+const isRecoverableFailedExpenseOperation = (
+  operation: SyncOperation
+): operation is ExpenseOutboxOperation => {
+  const candidate = operation as Partial<ExpenseOutboxOperation>;
+  return (
+    candidate.entity === "expenses" &&
+    (candidate.type === "create" ||
+      candidate.type === "update" ||
+      candidate.type === "delete") &&
+    typeof candidate.lastError === "string" &&
+    candidate.lastError.trim().length > 0
+  );
+};
 
 export default function QuickExpenseMutationCoordinator() {
-  const { mutateAsync: createExpense } = useCreateExpenseMutation();
-  const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
+  const queryClient = useQueryClient();
   const entries = useQuickExpenseRecoveryStore((state) => state.entries);
-  const queuedEntries = useMemo(
-    () => useQuickExpenseRecoveryStore.getState().getQueuedEntries(),
+  const unnotifiedEntries = useMemo(
+    () => useQuickExpenseRecoveryStore.getState().getUnnotifiedFailedEntries(),
     [entries]
   );
-  const markRunning = useQuickExpenseRecoveryStore((state) => state.markRunning);
-  const attachToastId = useQuickExpenseRecoveryStore(
-    (state) => state.attachToastId
+  const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
+  const syncFailedOutboxEntries = useQuickExpenseRecoveryStore(
+    (state) => state.syncFailedOutboxEntries
   );
-  const markFailed = useQuickExpenseRecoveryStore((state) => state.markFailed);
-  const clear = useQuickExpenseRecoveryStore((state) => state.clear);
+  const markNotified = useQuickExpenseRecoveryStore(
+    (state) => state.markNotified
+  );
   const pruneExpired = useQuickExpenseRecoveryStore(
     (state) => state.pruneExpired
   );
   const setActiveRecovery = useQuickExpenseRecoveryStore(
     (state) => state.setActiveRecovery
   );
-  const inFlightRef = useRef(new Set<string>());
+
+  const refreshFailedOutboxEntries = useCallback(async () => {
+    const operations = await syncRepository.outbox
+      .list("expenses")
+      .catch(() => null);
+    if (!operations) {
+      return;
+    }
+
+    const now = Date.now();
+
+    syncFailedOutboxEntries(
+      operations.filter(isRecoverableFailedExpenseOperation),
+      now
+    );
+    pruneExpired(now);
+  }, [pruneExpired, syncFailedOutboxEntries]);
 
   useEffect(() => {
-    const now = Date.now();
-    pruneExpired(now);
+    void refreshFailedOutboxEntries();
 
-    queuedEntries.forEach((entry) => {
-      const { operationId } = entry;
+    const interval = window.setInterval(
+      () => void refreshFailedOutboxEntries(),
+      FAILED_OUTBOX_POLL_INTERVAL_MS
+    );
+    const handleFocus = () => void refreshFailedOutboxEntries();
+    window.addEventListener("focus", handleFocus);
 
-      if (now - entry.createdAt > QUICK_EXPENSE_RECOVERY_TTL_MS) {
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [refreshFailedOutboxEntries]);
+
+  useEffect(() => {
+    unnotifiedEntries.forEach((entry) => {
+      if (Date.now() - entry.createdAt > QUICK_EXPENSE_RECOVERY_TTL_MS) {
         return;
       }
 
-      if (inFlightRef.current.has(operationId)) {
-        return;
-      }
-
-      inFlightRef.current.add(operationId);
-      markRunning(operationId);
-
-      const isEdit = entry.mode === "edit";
-      const loadingToastId = toast.loading(
-        isEdit ? "Updating expense..." : "Adding expense..."
-      );
-      attachToastId(operationId, loadingToastId);
-
-      const runMutation = async () => {
-        if (isEdit) {
-          if (typeof entry.transactionId !== "number") {
-            throw new Error("Failed to update expense");
-          }
-
-          await updateExpense({
-            id: entry.transactionId,
-            input: entry.payload,
-          });
-          return;
-        }
-
-        await createExpense(entry.payload);
-      };
-
-      runMutation()
-        .then(() => {
-          const latest =
-            useQuickExpenseRecoveryStore.getState().entries[operationId];
-          toast.success(isEdit ? "Expense updated" : "Expense added", {
-            id: latest?.toastId,
-          });
-          clear(operationId);
-        })
-        .catch((error: unknown) => {
-          const latest =
-            useQuickExpenseRecoveryStore.getState().entries[operationId];
-          markFailed(operationId);
-          toast.error(
-            getErrorMessage(
-              error,
-              isEdit ? "Failed to update expense" : "Failed to add expense"
-            ),
-            {
-              id: latest?.toastId,
-              duration: RECOVERY_TOAST_DURATION_MS,
-              action: {
+      const toastId = toast.error(entry.lastError, {
+        duration: RECOVERY_TOAST_DURATION_MS,
+        action:
+          entry.mode === "delete"
+            ? {
+                label: "Retry delete",
+                onClick: () => {
+                  clearRecovery(entry.operationId);
+                  void requestExpenseSync(queryClient);
+                },
+              }
+            : {
                 label: "Reopen",
-                onClick: () => setActiveRecovery(operationId),
+                onClick: () => setActiveRecovery(entry.operationId),
               },
-            }
-          );
-        })
-        .finally(() => {
-          inFlightRef.current.delete(operationId);
-        });
+      });
+
+      markNotified(entry.operationId, toastId);
     });
   }, [
-    attachToastId,
-    clear,
-    createExpense,
-    markFailed,
-    markRunning,
-    pruneExpired,
-    queuedEntries,
+    clearRecovery,
+    markNotified,
+    queryClient,
     setActiveRecovery,
-    updateExpense,
+    unnotifiedEntries,
   ]);
 
   return null;

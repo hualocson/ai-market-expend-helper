@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import AppMain from "@/components/AppMain";
 import BottomNav from "@/components/BottomNav";
 import CssPropertyRegistry from "@/components/CssPropertyRegistry";
+import ExpenseSyncCoordinator from "@/components/ExpenseSyncCoordinator";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import QuickExpenseMutationCoordinator from "@/components/QuickExpenseMutationCoordinator";
@@ -285,6 +286,7 @@ export default function RootLayout({
         )}
       >
         <ReactQueryProvider>
+          <ExpenseSyncCoordinator />
           <CssPropertyRegistry />
           <ThemeProvider
             attribute="class"

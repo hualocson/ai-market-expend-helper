@@ -2,10 +2,11 @@ import React from "react";
 
 import { Category, PaidBy } from "@/enums";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
-import {
-  type TQuickExpenseRecoveryEntry,
-  useQuickExpenseRecoveryStore,
-} from "@/stores/quick-expense-recovery-store";
+import type {
+  ExpenseOutboxOperation,
+  LocalExpense,
+} from "@/lib/sync/expenses/types";
+import { useQuickExpenseRecoveryStore } from "@/stores/quick-expense-recovery-store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -14,6 +15,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 
 import QuickExpenseRecoverySheetHost from "./QuickExpenseRecoverySheetHost";
+
+const mutationMocks = vi.hoisted(() => ({
+  createMutateAsync: vi.fn(),
+  updateMutateAsync: vi.fn(),
+}));
+
+vi.mock("@/lib/mutations", () => ({
+  useCreateExpenseMutation: () => ({
+    mutateAsync: mutationMocks.createMutateAsync,
+  }),
+  useUpdateExpenseMutation: () => ({
+    mutateAsync: mutationMocks.updateMutateAsync,
+  }),
+}));
 
 const weeklyBudgetOptionsMock = vi.hoisted(() =>
   vi
@@ -49,31 +64,47 @@ vi.mock("@/lib/queries", async () => {
 const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
   .React;
 
-const buildRecoveryEntry = (
-  override: Partial<TQuickExpenseRecoveryEntry> = {}
-): TQuickExpenseRecoveryEntry => ({
+const localExpense: LocalExpense = {
+  entity: "expenses",
+  clientId: "expense-client-1",
+  serverId: null,
+  date: "20/05/2026",
+  amount: 45000,
+  note: "Recovered lunch",
+  category: Category.FOOD,
+  budgetId: null,
+  budgetName: null,
+  paidBy: PaidBy.OTHER,
+  syncStatus: "failed",
+  lastError: "Invalid payload",
+  updatedAt: "2026-05-24T09:00:00.000Z",
+  serverUpdatedAt: null,
+};
+
+const buildOperation = (
+  override: Partial<ExpenseOutboxOperation> = {}
+): ExpenseOutboxOperation => ({
   operationId: "recovery-1",
-  mode: "create",
-  draft: {
-    date: "20/05/2026",
-    amount: 45000,
-    note: "Recovered lunch",
-    category: Category.FOOD,
-    budgetId: null,
-    paidBy: PaidBy.OTHER,
-  },
-  payload: {
-    date: "20/05/2026",
-    amount: 45000,
-    note: "Recovered lunch",
-    category: Category.FOOD,
-    budgetId: null,
-    paidBy: PaidBy.OTHER,
-  },
-  status: "failed",
-  createdAt: Date.now(),
+  entity: "expenses",
+  type: "create",
+  clientId: localExpense.clientId,
+  serverId: localExpense.serverId,
+  payload: localExpense,
+  createdAt: "2026-05-24T09:00:00.000Z",
+  attemptCount: 1,
+  lastAttemptAt: "2026-05-24T09:01:00.000Z",
+  lastError: "Invalid payload",
   ...override,
 });
+
+const activateRecovery = (operation: ExpenseOutboxOperation) => {
+  useQuickExpenseRecoveryStore
+    .getState()
+    .syncFailedOutboxEntries([operation], Date.parse(operation.createdAt));
+  useQuickExpenseRecoveryStore
+    .getState()
+    .setActiveRecovery(operation.operationId);
+};
 
 const renderHost = () => {
   (globalThis as unknown as Record<string, unknown>).React = React;
@@ -93,10 +124,17 @@ const renderHost = () => {
 describe("QuickExpenseRecoverySheetHost", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mutationMocks.createMutateAsync.mockResolvedValue({
+      clientId: "expense-client-1",
+    });
+    mutationMocks.updateMutateAsync.mockResolvedValue({
+      clientId: "expense-client-1",
+    });
     weeklyBudgetOptionsMock.mockResolvedValue([]);
     useQuickExpenseRecoveryStore.setState({
       entries: {},
       activeRecoveryOperationId: null,
+      dismissedErrorsByOperationId: {},
     });
   });
 
@@ -109,16 +147,8 @@ describe("QuickExpenseRecoverySheetHost", () => {
     }
   });
 
-  it("opens a failed create recovery with the submitted draft", async () => {
-    useQuickExpenseRecoveryStore.setState({
-      entries: {
-        "create-1": buildRecoveryEntry({
-          operationId: "create-1",
-          mode: "create",
-        }),
-      },
-      activeRecoveryOperationId: "create-1",
-    });
+  it("opens a failed create recovery with the failed outbox draft", async () => {
+    activateRecovery(buildOperation());
 
     renderHost();
 
@@ -133,32 +163,22 @@ describe("QuickExpenseRecoverySheetHost", () => {
 
   it("opens a failed edit recovery and preserves transaction id on submit", async () => {
     const user = userEvent.setup();
-    useQuickExpenseRecoveryStore.setState({
-      entries: {
-        "edit-1": buildRecoveryEntry({
-          operationId: "edit-1",
-          mode: "edit",
-          transactionId: 42,
-          draft: {
-            date: "21/05/2026",
-            amount: 90000,
-            note: "Recovered court",
-            category: Category.BADMINTON,
-            budgetId: null,
-            paidBy: PaidBy.EMBE,
-          },
-          payload: {
-            date: "21/05/2026",
-            amount: 90000,
-            note: "Recovered court",
-            category: Category.BADMINTON,
-            budgetId: null,
-            paidBy: PaidBy.EMBE,
-          },
-        }),
-      },
-      activeRecoveryOperationId: "edit-1",
-    });
+    activateRecovery(
+      buildOperation({
+        operationId: "edit-1",
+        type: "update",
+        serverId: 42,
+        payload: {
+          ...localExpense,
+          serverId: 42,
+          date: "21/05/2026",
+          amount: 90000,
+          note: "Recovered court",
+          category: Category.BADMINTON,
+          paidBy: PaidBy.EMBE,
+        },
+      })
+    );
 
     renderHost();
 
@@ -167,36 +187,23 @@ describe("QuickExpenseRecoverySheetHost", () => {
     ).toHaveValue("Recovered court");
     expect(screen.getByPlaceholderText("0")).toHaveValue("90.000");
 
-    await user.click(screen.getByRole("button", { name: /update expense/i }));
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
 
-    expect(
-      Object.values(useQuickExpenseRecoveryStore.getState().entries)
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          mode: "edit",
-          transactionId: 42,
-          status: "queued",
-          draft: expect.objectContaining({
-            amount: 90000,
-            note: "Recovered court",
-          }),
+    await waitFor(() =>
+      expect(mutationMocks.updateMutateAsync).toHaveBeenCalledWith({
+        id: 42,
+        input: expect.objectContaining({
+          clientId: "expense-client-1",
+          amount: 90000,
+          note: "Recovered court",
         }),
-      ])
+      })
     );
   });
 
   it("clears active recovery when the sheet closes", async () => {
     const user = userEvent.setup();
-    useQuickExpenseRecoveryStore.setState({
-      entries: {
-        "create-1": buildRecoveryEntry({
-          operationId: "create-1",
-          mode: "create",
-        }),
-      },
-      activeRecoveryOperationId: "create-1",
-    });
+    activateRecovery(buildOperation());
 
     renderHost();
 
@@ -209,28 +216,36 @@ describe("QuickExpenseRecoverySheetHost", () => {
     );
   });
 
-  it("renders nothing when active id is missing or entry is not failed", () => {
-    useQuickExpenseRecoveryStore.setState({
-      entries: {},
-      activeRecoveryOperationId: "missing",
-    });
+  it("does not open the edit sheet for failed delete recovery entries", () => {
+    activateRecovery(
+      buildOperation({
+        operationId: "delete-1",
+        type: "delete",
+        serverId: 42,
+        payload: {
+          ...localExpense,
+          serverId: 42,
+          syncStatus: "deleted",
+        },
+        lastError: "Delete failed",
+      })
+    );
 
-    const { unmount } = renderHost();
+    renderHost();
 
     expect(
       screen.queryByPlaceholderText(/what did you spend on/i)
     ).not.toBeInTheDocument();
-    unmount();
+    expect(screen.queryByPlaceholderText("0")).not.toBeInTheDocument();
+  });
 
+  it("renders nothing when active id is missing", () => {
     useQuickExpenseRecoveryStore.setState({
-      entries: {
-        "queued-1": buildRecoveryEntry({
-          operationId: "queued-1",
-          status: "queued",
-        }),
-      },
-      activeRecoveryOperationId: "queued-1",
+      entries: {},
+      activeRecoveryOperationId: "missing",
+      dismissedErrorsByOperationId: {},
     });
+
     renderHost();
 
     expect(

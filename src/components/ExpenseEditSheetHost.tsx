@@ -12,6 +12,7 @@ import QuickExpenseSheet, {
 
 export type ExpenseEditSheetHostExpense = {
   id: number;
+  clientId?: string | null;
   date: string;
   amount: number;
   note: string;
@@ -46,12 +47,14 @@ const ExpenseEditSheetHost = ({
       }
 
       return {
+        clientId: expense.clientId ?? undefined,
         date: formatInitialExpenseDate(expense.date),
         amount: expense.amount,
         note: expense.note,
         category: expense.category,
         paidBy: expense.paidBy,
         budgetId: expense.budgetId ?? null,
+        budgetName: expense.budgetName ?? null,
       };
     }, [expense]);
 
@@ -63,7 +66,10 @@ const ExpenseEditSheetHost = ({
     const loadingToastId = toast.loading("Deleting expense...");
 
     try {
-      await deleteExpenseMutation.mutateAsync(expense.id);
+      await deleteExpenseMutation.mutateAsync({
+        id: expense.id,
+        clientId: expense.clientId,
+      });
       toast.success("Expense deleted.", { id: loadingToastId });
       onOpenChange(false);
     } catch (error) {

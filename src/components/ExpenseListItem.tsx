@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
+import type { ExpenseListItemSyncStatus } from "@/lib/expenses/list-model";
 import { useDeleteExpenseMutation } from "@/lib/mutations";
 import { cn, formatVnd } from "@/lib/utils";
 import { Copy, NotebookIcon, Pencil, Trash2 } from "lucide-react";
@@ -28,6 +29,7 @@ import VndSymbol from "@/components/VndSymbol";
 
 export type ExpenseListItemData = {
   id: number;
+  clientId?: string | null;
   date: string;
   amount: number;
   note: string;
@@ -35,6 +37,7 @@ export type ExpenseListItemData = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  syncStatus?: ExpenseListItemSyncStatus;
 };
 
 type ExpenseListItemProps = {
@@ -47,6 +50,40 @@ const OPEN_THRESHOLD = ACTION_WIDTH * 0.3;
 const CLOSE_THRESHOLD = ACTION_WIDTH * 0.1;
 const VELOCITY_THRESHOLD = 600;
 const OPEN_EVENT_NAME = "expense-list-item-open";
+
+const EXPENSE_SYNC_DOT_LABEL: Record<
+  Exclude<ExpenseListItemSyncStatus, "synced">,
+  string
+> = {
+  pending: "Sync pending",
+  failed: "Sync failed",
+};
+
+const ExpenseSyncStatusDot = ({
+  status,
+}: {
+  status?: ExpenseListItemSyncStatus;
+}) => {
+  if (status !== "pending" && status !== "failed") {
+    return null;
+  }
+
+  const label = EXPENSE_SYNC_DOT_LABEL[status];
+
+  return (
+    <span
+      aria-label={label}
+      title={label}
+      className={cn(
+        "size-2 shrink-0 rounded-full",
+        status === "pending" &&
+          "bg-slate-400 shadow-[0_0_10px_rgb(148_163_184_/_0.45)]",
+        status === "failed" &&
+          "bg-destructive shadow-[0_0_10px_color-mix(in_srgb,var(--destructive)_45%,transparent)]"
+      )}
+    />
+  );
+};
 
 const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -145,7 +182,10 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
     const loadingToastId = toast.loading("Deleting expense...");
 
     try {
-      await deleteExpenseMutation.mutateAsync(expense.id);
+      await deleteExpenseMutation.mutateAsync({
+        id: expense.id,
+        clientId: expense.clientId,
+      });
       toast.success("Expense deleted.", { id: loadingToastId });
       setIsOpen(false);
     } catch (error) {
@@ -302,9 +342,12 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
               <p className="text-destructive text-right text-sm font-semibold">
                 -{formattedAmount} <VndSymbol />
               </p>
-              {expense.paidBy ? (
-                <div className="flex justify-end">
-                  <PaidByIcon paidBy={expense.paidBy} size="sm" />
+              {expense.paidBy || expense.syncStatus ? (
+                <div className="flex items-center justify-end gap-1.5">
+                  <ExpenseSyncStatusDot status={expense.syncStatus} />
+                  {expense.paidBy ? (
+                    <PaidByIcon paidBy={expense.paidBy} size="sm" />
+                  ) : null}
                 </div>
               ) : null}
             </div>

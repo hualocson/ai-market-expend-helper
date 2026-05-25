@@ -1,16 +1,12 @@
-import { NextResponse } from "next/server";
-
 import { getBudgetOverview } from "@/db/budget-queries";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 
 export const GET = async () => {
   try {
     const report = await getBudgetOverview();
-    return NextResponse.json(report);
+    return apiSuccess(report);
   } catch (error) {
     console.error("Failed to fetch budgets:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch budgets" },
-      { status: 400 }
-    );
+    return apiError("FETCH_BUDGETS_FAILED", "Failed to fetch budgets", 400);
   }
 };

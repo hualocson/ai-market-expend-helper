@@ -12,6 +12,8 @@ import type {
   ExpenseListItem as ExpenseListItemData,
   ExpenseListResult,
 } from "@/lib/services/expenses";
+import { syncRepository } from "@/lib/sync/core/repository";
+import { EXPENSE_SYNC_ENTITY } from "@/lib/sync/expenses/types";
 import { formatVnd } from "@/lib/utils";
 import type { InfiniteData, QueryFunction } from "@tanstack/react-query";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -59,6 +61,19 @@ const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
   }, []);
 };
 
+const dedupeRowsById = (rows: ExpenseListItemData[]): ExpenseListItemData[] => {
+  const seenIds = new Set<number>();
+
+  return rows.filter((expense) => {
+    if (seenIds.has(expense.id)) {
+      return false;
+    }
+
+    seenIds.add(expense.id);
+    return true;
+  });
+};
+
 const ExpenseList = ({
   selectedMonth,
   searchQuery,
@@ -79,6 +94,7 @@ const ExpenseList = ({
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [editingExpense, setEditingExpense] =
     useState<ExpenseListItemData | null>(null);
+  const [expenseSyncCursorReady, setExpenseSyncCursorReady] = useState(false);
   const {
     data,
     fetchNextPage,
@@ -101,13 +117,42 @@ const ExpenseList = ({
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.hasMore
-        ? lastPage.pagination.offset + lastPage.pagination.limit
+        ? (lastPage.pagination.nextOffset ??
+          lastPage.pagination.offset + lastPage.pagination.limit)
         : undefined,
   });
 
   useEffect(() => {
+    let active = true;
+
+    void syncRepository.metadata
+      .getCursor(EXPENSE_SYNC_ENTITY)
+      .then((cursor) => {
+        if (active) {
+          setExpenseSyncCursorReady(Boolean(cursor));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setExpenseSyncCursorReady(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [data]);
+
+  const isLoadMoreGated = Boolean(
+    hasNextPage &&
+    !expenseSyncCursorReady &&
+    !isFetchingNextPage &&
+    !isFetchNextPageError
+  );
+
+  useEffect(() => {
     const target = loadMoreRef.current;
-    if (!target || !hasNextPage || isFetchingNextPage) {
+    if (!target || !hasNextPage || isFetchingNextPage || isLoadMoreGated) {
       return;
     }
 
@@ -125,7 +170,7 @@ const ExpenseList = ({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isLoadMoreGated]);
 
   const handleEditExpense = useCallback((expense: ExpenseListItemData) => {
     setEditingExpense(expense);
@@ -142,7 +187,7 @@ const ExpenseList = ({
   }
 
   const firstPage = data.pages[0];
-  const rows = data.pages.flatMap((page) => page.rows);
+  const rows = dedupeRowsById(data.pages.flatMap((page) => page.rows));
   const groupedRows = groupRowsByDate(rows);
   const { effectiveRecentDays, isRecent, trimmedSearch } = firstPage;
   const isMonthFiltered = Boolean(selectedMonth);
@@ -204,7 +249,10 @@ const ExpenseList = ({
         )}
 
         {hasNextPage || isFetchingNextPage || isFetchNextPageError ? (
-          <div ref={loadMoreRef} className="flex justify-center py-3">
+          <div
+            ref={isLoadMoreGated ? undefined : loadMoreRef}
+            className="flex justify-center py-3"
+          >
             {isFetchNextPageError ? (
               <button
                 type="button"
@@ -217,6 +265,10 @@ const ExpenseList = ({
               <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading more
+              </span>
+            ) : isLoadMoreGated ? (
+              <span className="text-muted-foreground text-center text-xs">
+                Syncing all expenses before loading more.
               </span>
             ) : (
               <span className="sr-only">Loading more transactions</span>

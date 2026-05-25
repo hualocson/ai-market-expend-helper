@@ -10,6 +10,10 @@ import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
 } from "@/lib/expense-prefill";
+import {
+  useCreateExpenseMutation,
+  useUpdateExpenseMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
@@ -66,6 +70,7 @@ export type TQuickExpenseSheetProps = {
   onOpenChange?: (open: boolean) => void;
   initialExpense?: TQuickExpenseSheetInitialExpense | null;
   recoveryDraft?: TQuickExpenseDraft | null;
+  recoveryOperationId?: string;
   transactionId?: number;
   onSuccess?: () => void;
   onConfirmDelete?: () => void | Promise<void>;
@@ -74,11 +79,13 @@ export type TQuickExpenseSheetProps = {
 
 export type TQuickExpenseSheetInitialExpense = {
   id?: number;
+  clientId?: string;
   date: string;
   amount: number;
   note?: string | null;
   category: Category | string;
   budgetId?: number | null;
+  budgetName?: string | null;
   paidBy?: PaidBy | string;
 };
 
@@ -94,6 +101,7 @@ const buildDefaultDraft = (paidBy: PaidBy): TExpenseDraft => ({
   note: "",
   category: Category.FOOD,
   budgetId: null,
+  budgetName: null,
   paidBy,
 });
 
@@ -136,41 +144,53 @@ const buildDraftFromExpense = (
 
   const amount = Number(initialExpense.amount);
   return {
+    clientId: initialExpense.clientId,
     date: formatDraftDate(initialExpense.date),
     amount: Number.isFinite(amount) ? amount : 0,
     note: initialExpense.note ?? "",
     category: normalizeCategory(initialExpense.category),
     budgetId: initialExpense.budgetId ?? null,
+    budgetName: initialExpense.budgetName ?? null,
     paidBy: normalizePaidBy(initialExpense.paidBy, fallbackPaidBy),
   };
 };
 
 const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
+  clientId: draft.clientId,
   date: draft.date,
   amount: draft.amount,
   note: draft.note,
   category: draft.category,
   budgetId: draft.budgetId,
+  budgetName: draft.budgetName,
   paidBy: draft.paidBy,
 });
 
 const buildQuickExpensePayload = (
   draft: TExpenseDraft
 ): TQuickExpensePayload => ({
-  date: draft.date,
+  clientId: draft.clientId,
+  date: normalizeSubmittedDate(draft.date),
   amount: draft.amount,
   note: draft.note,
   category: draft.category,
   paidBy: draft.paidBy,
   budgetId: draft.budgetId,
+  budgetName: draft.budgetName,
 });
 
-const createOperationId = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+const normalizeSubmittedDate = (value: string): string => {
+  const displayDate = dayjs(value, "DD/MM/YYYY", true);
+  if (displayDate.isValid()) {
+    return displayDate.format("YYYY-MM-DD");
   }
 
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const isoDate = dayjs(value, "YYYY-MM-DD", true);
+  if (isoDate.isValid()) {
+    return isoDate.format("YYYY-MM-DD");
+  }
+
+  return dayjs().format("YYYY-MM-DD");
 };
 
 const formatDateLabel = (date: string) => {
@@ -195,15 +215,16 @@ const QuickExpenseSheet = ({
   onOpenChange,
   initialExpense = null,
   recoveryDraft = null,
+  recoveryOperationId,
   transactionId,
   onConfirmDelete,
   showTrigger,
 }: TQuickExpenseSheetProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
-  const enqueueRecovery = useQuickExpenseRecoveryStore(
-    (state) => state.enqueue
-  );
+  const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
+  const { mutateAsync: createExpense } = useCreateExpenseMutation();
+  const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -237,20 +258,50 @@ const QuickExpenseSheet = ({
     }
 
     setQueueing(true);
-    const submittedDraft = cloneExpenseDraft(draft);
-    const payload = buildQuickExpensePayload(submittedDraft);
-
-    enqueueRecovery({
-      operationId: createOperationId(),
-      mode,
-      transactionId,
-      draft: submittedDraft,
-      payload,
-      status: "queued",
-      createdAt: Date.now(),
+    const submittedDraft = cloneExpenseDraft({
+      ...draft,
+      budgetName:
+        draft.budgetId === null
+          ? null
+          : (budgetOptionsQuery.data?.find(
+              (budget) => budget.id === draft.budgetId
+            )?.name ??
+            draft.budgetName ??
+            null),
     });
-    handleOpenChange(false);
-    setQueueing(false);
+    const payload = buildQuickExpensePayload(submittedDraft);
+    const submittedTransactionId = transactionId;
+
+    try {
+      const localWrite = isEditMode
+        ? typeof submittedTransactionId === "number"
+          ? updateExpense({
+              id: submittedTransactionId,
+              input: payload,
+            })
+          : Promise.reject(new Error("Failed to update expense"))
+        : createExpense(payload);
+
+      if (recoveryOperationId) {
+        clearRecovery(recoveryOperationId);
+      }
+      handleOpenChange(false);
+
+      void localWrite
+        .catch(() => {
+          toast.error(
+            isEditMode ? "Failed to update expense" : "Failed to add expense"
+          );
+        })
+        .finally(() => {
+          setQueueing(false);
+        });
+    } catch {
+      toast.error(
+        isEditMode ? "Failed to update expense" : "Failed to add expense"
+      );
+      setQueueing(false);
+    }
   };
 
   const noteRef = useRef<HTMLInputElement>(null);
@@ -367,7 +418,7 @@ const QuickExpenseSheet = ({
     if (
       !budgetOptionsQuery.data.some((budget) => budget.id === draft.budgetId)
     ) {
-      setDraft((prev) => ({ ...prev, budgetId: null }));
+      setDraft((prev) => ({ ...prev, budgetId: null, budgetName: null }));
     }
   }, [draft.budgetId, budgetOptionsQuery.data, budgetOptionsQuery.isSuccess]);
 
@@ -596,7 +647,17 @@ const QuickExpenseSheet = ({
           open={budgetOpen}
           onOpenChange={setBudgetOpen}
           value={draft.budgetId}
-          onChange={(id) => setField("budgetId", id)}
+          onChange={(id) =>
+            setDraft((prev) => ({
+              ...prev,
+              budgetId: id,
+              budgetName:
+                id === null
+                  ? null
+                  : (budgetOptionsQuery.data?.find((budget) => budget.id === id)
+                      ?.name ?? null),
+            }))
+          }
           weekStart={weekStart}
           targetDate={targetDate}
           isParentOpen={sheetOpen}

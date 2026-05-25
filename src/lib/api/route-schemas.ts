@@ -34,6 +34,7 @@ export const positiveIntParamSchema = z.number().int().positive();
 
 export const expenseMutationPayloadSchema: z.ZodType<CreateExpenseInput> =
   z.object({
+    clientId: z.string().min(1).nullable().optional(),
     date: z.string().min(1),
     note: z.string().optional().default(""),
     amount: z.number().finite(),

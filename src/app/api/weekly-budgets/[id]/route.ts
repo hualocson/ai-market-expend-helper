@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
 import { deleteBudget, updateBudget } from "@/db/budget-queries";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import {
   budgetUpdatePayloadSchema,
   parseJsonPayload,
@@ -14,39 +14,33 @@ export const PATCH = async (
 ) => {
   const id = parsePositiveIntParam(params.id, "Invalid budget id");
   if ("error" in id) {
-    return NextResponse.json({ error: id.error }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", id.error, 400);
   }
 
   try {
     const payload = await parseJsonPayload(request, budgetUpdatePayloadSchema);
     if ("error" in payload) {
-      return NextResponse.json({ error: payload.error }, { status: 400 });
+      return apiError("INVALID_PAYLOAD", payload.error, 400);
     }
 
     if (!Object.keys(payload.value).length) {
-      return NextResponse.json(
-        { error: "No fields provided for update" },
-        { status: 400 }
-      );
+      return apiError("INVALID_PAYLOAD", "No fields provided for update", 400);
     }
 
     const updated = await updateBudget(id.value, payload.value);
     if (!updated) {
-      return NextResponse.json({ error: "Budget not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Budget not found", 404);
     }
 
     revalidatePath("/budgets");
-    return NextResponse.json(updated);
+    return apiSuccess(updated);
   } catch (error) {
     if (error instanceof Error && error.message === "Budget not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return apiError("NOT_FOUND", error.message, 404);
     }
 
     console.error("Failed to update budget:", error);
-    return NextResponse.json(
-      { error: "Failed to update budget" },
-      { status: 400 }
-    );
+    return apiError("UPDATE_BUDGET_FAILED", "Failed to update budget", 400);
   }
 };
 
@@ -56,22 +50,19 @@ export const DELETE = async (
 ) => {
   const id = parsePositiveIntParam(params.id, "Invalid budget id");
   if ("error" in id) {
-    return NextResponse.json({ error: id.error }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", id.error, 400);
   }
 
   try {
     const deleted = await deleteBudget(id.value);
     if (!deleted) {
-      return NextResponse.json({ error: "Budget not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Budget not found", 404);
     }
 
     revalidatePath("/budgets");
-    return NextResponse.json(deleted);
+    return apiSuccess(deleted);
   } catch (error) {
     console.error("Failed to delete budget:", error);
-    return NextResponse.json(
-      { error: "Failed to delete budget" },
-      { status: 400 }
-    );
+    return apiError("DELETE_BUDGET_FAILED", "Failed to delete budget", 400);
   }
 };

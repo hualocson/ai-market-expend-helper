@@ -11,12 +11,14 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const expenses = pgTable(
   "expenses",
   {
     id: serial("id").primaryKey(),
+    clientId: text("client_id"),
     date: date("date").notNull(),
     amount: integer("amount").notNull(),
     note: text("note").notNull(),
@@ -47,6 +49,9 @@ export const expenses = pgTable(
       "gin",
       sql`to_tsvector('simple', f_unaccent(${t.note}) || ' ' || f_unaccent(${t.category}))`
     ),
+    uniqueIndex("expenses_client_id_unique_idx")
+      .on(t.clientId)
+      .where(sql`${t.clientId} is not null`),
   ]
 );
 

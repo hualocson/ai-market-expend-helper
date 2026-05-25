@@ -1,9 +1,9 @@
 import React from "react";
+
+import { Category } from "@/enums";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { Category } from "@/enums";
 
 import AIInput from "./AIInput";
 
@@ -14,7 +14,9 @@ vi.mock("./ManualExpenseForm", () => ({
     isSheetOpen,
   }: {
     initialExpense?: TExpense | null;
-    prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
+    prefillExpense?: Partial<
+      Pick<TExpense, "amount" | "note" | "category">
+    > | null;
     isSheetOpen?: boolean;
   }) => (
     <div
@@ -115,13 +117,16 @@ describe("AIInput", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "success",
-        originalInput: "Lunch with team 120k today",
-        expense: {
-          date: "12/04/2026",
-          amount: 120000,
-          note: "Lunch with team",
-          category: Category.FOOD,
+        success: true,
+        data: {
+          status: "success",
+          originalInput: "Lunch with team 120k today",
+          expense: {
+            date: "12/04/2026",
+            amount: 120000,
+            note: "Lunch with team",
+            category: Category.FOOD,
+          },
         },
       })
     );
@@ -136,9 +141,7 @@ describe("AIInput", () => {
 
     expectParseExpenseRequest("Lunch with team 120k today");
 
-    expect(
-      await screen.findByText(/review ai suggestion/i)
-    ).toBeVisible();
+    expect(await screen.findByText(/review ai suggestion/i)).toBeVisible();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /continue to form/i })
@@ -164,12 +167,15 @@ describe("AIInput", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "fallback",
-        originalInput: "Taxi 45k home",
-        reason: "schema_mismatch",
-        prefill: {
-          note: "Taxi home",
-          amount: 45000,
+        success: true,
+        data: {
+          status: "fallback",
+          originalInput: "Taxi 45k home",
+          reason: "schema_mismatch",
+          prefill: {
+            note: "Taxi home",
+            amount: 45000,
+          },
         },
       })
     );
@@ -199,10 +205,19 @@ describe("AIInput", () => {
 
   it("shows a retryable error for non-ok responses and keeps the form closed", async () => {
     const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse(
-        { error: "Failed to parse expense" },
+        {
+          success: false,
+          error: {
+            code: "PARSE_EXPENSE_FAILED",
+            message: "Failed to parse expense",
+          },
+        },
         { status: 500 }
       )
     );
@@ -220,6 +235,13 @@ describe("AIInput", () => {
         /could not parse expense right now[\s\S]*try again/i
       )
     ).toBeVisible();
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "PARSE_EXPENSE_FAILED",
+        message: "Failed to parse expense",
+        status: 500,
+      })
+    );
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
     expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
   });

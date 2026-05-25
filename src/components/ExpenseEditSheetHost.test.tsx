@@ -34,6 +34,7 @@ vi.mock("sonner", () => ({
 
 const expense = {
   id: 7,
+  clientId: "pending-client-1",
   date: "2026-05-23",
   amount: 120000,
   note: "Coffee beans",
@@ -69,12 +70,14 @@ describe("ExpenseEditSheetHost", () => {
         showTrigger: false,
         transactionId: expense.id,
         initialExpense: {
+          clientId: "pending-client-1",
           date: "23/05/2026",
           amount: 120000,
           note: "Coffee beans",
           category: "Groceries",
           paidBy: "Loc",
           budgetId: 3,
+          budgetName: "Home food",
         },
         onOpenChange,
         onConfirmDelete: expect.any(Function),
@@ -96,7 +99,10 @@ describe("ExpenseEditSheetHost", () => {
     });
 
     expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
-    expect(deleteExpenseMutationMock).toHaveBeenCalledWith(expense.id);
+    expect(deleteExpenseMutationMock).toHaveBeenCalledWith({
+      id: expense.id,
+      clientId: "pending-client-1",
+    });
     expect(toastMock.success).toHaveBeenCalledWith("Expense deleted.", {
       id: "loading-toast",
     });

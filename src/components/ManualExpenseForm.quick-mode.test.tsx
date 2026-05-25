@@ -1,13 +1,14 @@
 import React from "react";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 
 import ManualExpenseForm from "./ManualExpenseForm";
 
@@ -29,7 +30,7 @@ const restoreReactGlobal = () => {
 const createFetchResponse = (payload: unknown = { budgets: [] }) =>
   ({
     ok: true,
-    json: vi.fn().mockResolvedValue(payload),
+    json: vi.fn().mockResolvedValue({ success: true, data: payload }),
   }) as unknown as Response;
 
 const renderManualExpenseFormTree = ({
@@ -41,7 +42,9 @@ const renderManualExpenseFormTree = ({
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
-  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
+  prefillExpense?: Partial<
+    Pick<TExpense, "amount" | "note" | "category">
+  > | null;
 }) => (
   <QueryClientProvider
     client={
@@ -80,7 +83,9 @@ const renderManualExpenseForm = async ({
   initialMode?: QuickAddMode;
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
-  prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
+  prefillExpense?: Partial<
+    Pick<TExpense, "amount" | "note" | "category">
+  > | null;
   budgetPayload?: unknown;
 } = {}) => {
   ensureReactGlobal();
@@ -382,7 +387,9 @@ describe("ManualExpenseForm budget drawer", () => {
 
     const positiveRow = screen.getByRole("button", { name: /week groceries/i });
     const negativeRow = screen.getByRole("button", { name: /week transport/i });
-    const zeroSpentRow = screen.getByRole("button", { name: /monthly essentials/i });
+    const zeroSpentRow = screen.getByRole("button", {
+      name: /monthly essentials/i,
+    });
 
     const positiveRemaining = within(positiveRow).getByText("380.000");
     const negativeRemaining = within(negativeRow).getByText("-50.000");

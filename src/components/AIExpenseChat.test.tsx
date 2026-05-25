@@ -1,9 +1,9 @@
 import React from "react";
+
+import { Category } from "@/enums";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { Category } from "@/enums";
 
 import AIExpenseChat from "./AIExpenseChat";
 
@@ -15,7 +15,9 @@ vi.mock("./ManualExpenseForm", () => ({
   }: {
     initialMode?: string;
     initialExpense?: TExpense | null;
-    prefillExpense?: Partial<Pick<TExpense, "amount" | "note" | "category">> | null;
+    prefillExpense?: Partial<
+      Pick<TExpense, "amount" | "note" | "category">
+    > | null;
   }) => (
     <div
       data-testid="manual-expense-form"
@@ -100,9 +102,7 @@ describe("AIExpenseChat", () => {
     expect(timeline).toBeInTheDocument();
     expect(timeline).toHaveAttribute("aria-live", "polite");
     expect(timeline).toHaveAttribute("aria-relevant", "additions text");
-    expect(
-      screen.getByText(/tell me what you spent/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/tell me what you spent/i)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /lunch with team 120k today/i })
     ).toBeInTheDocument();
@@ -113,13 +113,16 @@ describe("AIExpenseChat", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "success",
-        originalInput: "Lunch with team 120k today",
-        expense: {
-          date: "24/04/2026",
-          amount: 120000,
-          note: "Lunch with team",
-          category: Category.FOOD,
+        success: true,
+        data: {
+          status: "success",
+          originalInput: "Lunch with team 120k today",
+          expense: {
+            date: "24/04/2026",
+            amount: 120000,
+            note: "Lunch with team",
+            category: Category.FOOD,
+          },
         },
       })
     );
@@ -159,12 +162,15 @@ describe("AIExpenseChat", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "fallback",
-        originalInput: "Coffee 45k",
-        reason: "schema_mismatch",
-        prefill: {
-          note: "Coffee 45k",
-          amount: 45000,
+        success: true,
+        data: {
+          status: "fallback",
+          originalInput: "Coffee 45k",
+          reason: "schema_mismatch",
+          prefill: {
+            note: "Coffee 45k",
+            amount: 45000,
+          },
         },
       })
     );
@@ -177,7 +183,9 @@ describe("AIExpenseChat", () => {
     );
 
     expectParseExpenseRequest("Coffee 45k");
-    expect(await screen.findByTestId("manual-expense-form")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("manual-expense-form")
+    ).toBeInTheDocument();
     expect(screen.getByText("Coffee 45k")).toBeInTheDocument();
   });
 
@@ -186,11 +194,14 @@ describe("AIExpenseChat", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "fallback",
-        originalInput: "Coffee 45k",
-        reason: "schema_mismatch",
-        prefill: {
-          note: "Coffee 45k",
+        success: true,
+        data: {
+          status: "fallback",
+          originalInput: "Coffee 45k",
+          reason: "schema_mismatch",
+          prefill: {
+            note: "Coffee 45k",
+          },
         },
       })
     );
@@ -211,10 +222,13 @@ describe("AIExpenseChat", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "fallback",
-        originalInput: "",
-        reason: "schema_mismatch",
-        prefill: {},
+        success: true,
+        data: {
+          status: "fallback",
+          originalInput: "",
+          reason: "schema_mismatch",
+          prefill: {},
+        },
       })
     );
 
@@ -225,7 +239,9 @@ describe("AIExpenseChat", () => {
     await user.type(composer, "   ");
     await user.keyboard("{Enter}");
 
-    expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /send message/i })
+    ).toBeDisabled();
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
@@ -234,19 +250,25 @@ describe("AIExpenseChat", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "fallback",
-        originalInput: "Taxi 45k home",
-        reason: "schema_mismatch",
-        prefill: {
-          note: "Taxi 45k home",
-          amount: 45000,
+        success: true,
+        data: {
+          status: "fallback",
+          originalInput: "Taxi 45k home",
+          reason: "schema_mismatch",
+          prefill: {
+            note: "Taxi 45k home",
+            amount: 45000,
+          },
         },
       })
     );
 
     render(<AIExpenseChat />);
 
-    await user.type(screen.getByLabelText(/message spendly ai/i), "Taxi 45k home");
+    await user.type(
+      screen.getByLabelText(/message spendly ai/i),
+      "Taxi 45k home"
+    );
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     expectParseExpenseRequest("Taxi 45k home");
@@ -266,17 +288,32 @@ describe("AIExpenseChat", () => {
 
   it("retries the failed input from the assistant error action", async () => {
     const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         createJsonResponse(
-          { error: "Missing OPENROUTER_API_KEY" },
+          {
+            success: false,
+            error: {
+              code: "PARSE_EXPENSE_FAILED",
+              message: "Failed to parse expense",
+            },
+          },
           { status: 500 }
         )
       )
       .mockResolvedValueOnce(
         createJsonResponse(
-          { error: "Missing OPENROUTER_API_KEY" },
+          {
+            success: false,
+            error: {
+              code: "PARSE_EXPENSE_FAILED",
+              message: "Failed to parse expense",
+            },
+          },
           { status: 500 }
         )
       );
@@ -292,12 +329,20 @@ describe("AIExpenseChat", () => {
     expect(
       await screen.findByText(/could not parse that expense/i)
     ).toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "PARSE_EXPENSE_FAILED",
+        message: "Failed to parse expense",
+        status: 500,
+      })
+    );
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /try again/i }));
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     expectParseExpenseRequestAtCall(1, "Dinner");
+    expect(consoleError).toHaveBeenCalledTimes(2);
     expect(composer).toHaveValue("");
   });
 
@@ -306,13 +351,16 @@ describe("AIExpenseChat", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createJsonResponse({
-        status: "success",
-        originalInput: "Lunch with team 120k today",
-        expense: {
-          date: "24/04/2026",
-          amount: 120000,
-          note: "Lunch with team",
-          category: Category.FOOD,
+        success: true,
+        data: {
+          status: "success",
+          originalInput: "Lunch with team 120k today",
+          expense: {
+            date: "24/04/2026",
+            amount: 120000,
+            note: "Lunch with team",
+            category: Category.FOOD,
+          },
         },
       })
     );

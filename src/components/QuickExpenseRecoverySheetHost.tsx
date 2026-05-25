@@ -16,7 +16,11 @@ const QuickExpenseRecoverySheetHost = () => {
     ? entries[activeRecoveryOperationId]
     : undefined;
 
-  if (!entry || entry.status !== "failed") {
+  if (
+    !entry ||
+    entry.status !== "failed" ||
+    (entry.mode !== "create" && entry.mode !== "edit")
+  ) {
     return null;
   }
 
@@ -31,6 +35,7 @@ const QuickExpenseRecoverySheetHost = () => {
       }}
       showTrigger={false}
       transactionId={entry.transactionId}
+      recoveryOperationId={entry.operationId}
       recoveryDraft={entry.draft}
     />
   );
