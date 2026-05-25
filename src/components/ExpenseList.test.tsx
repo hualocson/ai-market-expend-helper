@@ -2,10 +2,12 @@ import React from "react";
 
 import { queries } from "@/lib/queries";
 import type { ExpenseListResult } from "@/lib/services/expenses";
+import { syncRepository } from "@/lib/sync/core/repository";
 import type { InfiniteData } from "@tanstack/react-query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseList from "./ExpenseList";
@@ -218,6 +220,27 @@ describe("ExpenseList", () => {
 
   it("fetches the next page when the bottom sentinel intersects", async () => {
     globalThis.React = React;
+    await syncRepository.testing.clearSyncDb();
+    await syncRepository.records.putMany(
+      Array.from({ length: 31 }, (_, index) => ({
+        entity: "expenses",
+        clientId: `client-${index}`,
+        serverId: 100 + index,
+        syncStatus: "synced",
+        lastError: null,
+        updatedAt: "2026-05-24T10:00:00.000Z",
+        serverUpdatedAt: "2026-05-24T10:00:00.000Z",
+        payload: {
+          date: "2026-05-24",
+          amount: 50000 + index,
+          note: `Local expense ${index}`,
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      }))
+    );
 
     let observerCallback:
       | ((entries: IntersectionObserverEntry[]) => void)
@@ -248,27 +271,11 @@ describe("ExpenseList", () => {
         hasMore: true,
       },
     };
-    const secondPage: ExpenseListResult = {
-      activeMonth: "2026-05",
-      effectiveRecentDays: 7,
-      groupedRows: [],
-      isRecent: false,
-      pagination: {
-        limit: 30,
-        offset: 30,
-        hasMore: false,
-      },
-      rows: [],
-    };
     queryClient.setQueryData<InfiniteData<ExpenseListResult, number>>(
       queries.expenses.list(params).queryKey,
       { pageParams: [0], pages: [firstPage] }
     );
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify(secondPage), {
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
     try {
       render(
@@ -283,13 +290,27 @@ describe("ExpenseList", () => {
       ]);
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith(
-          "/api/expenses?limit=30&offset=30",
-          { method: "GET", cache: "no-store" }
-        );
+        const cachedData = queryClient.getQueryData<
+          InfiniteData<ExpenseListResult, number>
+        >(queries.expenses.list(params).queryKey);
+
+        expect(cachedData?.pages).toHaveLength(2);
+        expect(cachedData?.pages[1]?.pagination).toMatchObject({
+          limit: 30,
+          offset: 30,
+          hasMore: false,
+        });
+        expect(cachedData?.pages[1]?.rows).toEqual([
+          expect.objectContaining({
+            id: 100,
+            note: "Local expense 0",
+          }),
+        ]);
       });
+      expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       globalThis.IntersectionObserver = originalIntersectionObserver;
+      await syncRepository.testing.clearSyncDb();
     }
   });
 });
