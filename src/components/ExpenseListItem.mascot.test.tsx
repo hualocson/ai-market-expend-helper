@@ -77,9 +77,18 @@ const expense = {
   budgetName: null,
 };
 
-const renderItem = (onEditExpense = vi.fn()) => {
-  render(<ExpenseListItem expense={expense} onEditExpense={onEditExpense} />);
-  return { onEditExpense };
+type ExpenseFixture = typeof expense & {
+  syncStatus?: "synced" | "pending" | "failed";
+};
+
+const renderItem = (
+  onEditExpense = vi.fn(),
+  overrides: Partial<ExpenseFixture> = {}
+) => {
+  const item = { ...expense, ...overrides };
+
+  render(<ExpenseListItem expense={item} onEditExpense={onEditExpense} />);
+  return { expense: item, onEditExpense };
 };
 
 beforeEach(() => {
@@ -119,6 +128,57 @@ describe("ExpenseListItem edit flow", () => {
 
     expect(onEditExpense).toHaveBeenCalledTimes(1);
     expect(onEditExpense).toHaveBeenCalledWith(expense);
+  });
+});
+
+describe("ExpenseListItem sync status indicator", () => {
+  it("does not render a sync dot for synced or missing status", () => {
+    const onEditExpense = vi.fn();
+    const { rerender } = render(
+      <ExpenseListItem
+        expense={{ ...expense, syncStatus: "synced" }}
+        onEditExpense={onEditExpense}
+      />
+    );
+
+    expect(screen.queryByLabelText(/sync/i)).not.toBeInTheDocument();
+
+    rerender(
+      <ExpenseListItem
+        expense={{ ...expense, syncStatus: undefined }}
+        onEditExpense={onEditExpense}
+      />
+    );
+
+    expect(screen.queryByLabelText(/sync/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the pending sync dot before the paid-by icon", () => {
+    renderItem(vi.fn(), { syncStatus: "pending" });
+
+    const indicator = screen.getByLabelText("Sync pending");
+    const paidByIcon = screen.getByTestId("paid-by-icon");
+
+    expect(indicator).toHaveAttribute("title", "Sync pending");
+    expect(indicator).toHaveClass("bg-warning");
+    expect(
+      indicator.compareDocumentPosition(paidByIcon) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("renders the failed sync dot before the paid-by icon", () => {
+    renderItem(vi.fn(), { syncStatus: "failed" });
+
+    const indicator = screen.getByLabelText("Sync failed");
+    const paidByIcon = screen.getByTestId("paid-by-icon");
+
+    expect(indicator).toHaveAttribute("title", "Sync failed");
+    expect(indicator).toHaveClass("bg-destructive");
+    expect(
+      indicator.compareDocumentPosition(paidByIcon) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });
 
