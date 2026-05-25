@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
-
-import type { ParseExpenseRequest } from "@/lib/ai/parse-expense-contract";
 import { parseExpenseWithOpenRouter } from "@/lib/ai/parse-expense";
+import type { ParseExpenseRequest } from "@/lib/ai/parse-expense-contract";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 
 const invalidPayloadResponse = () =>
-  NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  apiError("INVALID_PAYLOAD", "Invalid payload", 400);
 
 const readTrimmedInput = (payload: unknown) => {
   if (typeof payload !== "object" || payload === null) {
@@ -38,9 +37,10 @@ export const POST = async (request: Request) => {
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "Missing OPENROUTER_API_KEY" },
-        { status: 500 }
+      return apiError(
+        "PARSE_EXPENSE_FAILED",
+        "Missing OPENROUTER_API_KEY",
+        500
       );
     }
 
@@ -49,12 +49,9 @@ export const POST = async (request: Request) => {
       apiKey,
     });
 
-    return NextResponse.json(result);
+    return apiSuccess(result);
   } catch (error) {
     console.error("Failed to parse expense with OpenRouter:", error);
-    return NextResponse.json(
-      { error: "Failed to parse expense" },
-      { status: 500 }
-    );
+    return apiError("PARSE_EXPENSE_FAILED", "Failed to parse expense", 500);
   }
 };

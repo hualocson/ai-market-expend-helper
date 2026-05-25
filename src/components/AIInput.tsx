@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
+import { unwrapApiResponse } from "@/lib/api/api-response";
 import { Loader2, Plus, Send, X } from "lucide-react";
 
 import AIExpensePreviewCard from "./AIExpensePreviewCard";
@@ -18,9 +19,9 @@ const AIInput = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewExpense, setPreviewExpense] = useState<TExpense | null>(null);
-  const [prefillExpense, setPrefillExpense] = useState<
-    Partial<Pick<TExpense, "amount" | "note" | "category">> | null
-  >(null);
+  const [prefillExpense, setPrefillExpense] = useState<Partial<
+    Pick<TExpense, "amount" | "note" | "category">
+  > | null>(null);
   const [showManualForm, setShowManualForm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const examples = [
@@ -36,7 +37,8 @@ const AIInput = () => {
       const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = "auto";
       textarea.style.height = `${nextHeight}px`;
-      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+      textarea.style.overflowY =
+        textarea.scrollHeight > maxHeight ? "auto" : "hidden";
     }
   }, [input]);
 
@@ -65,11 +67,10 @@ const AIInput = () => {
         body: JSON.stringify({ input: trimmedInput }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Parse request failed with status ${response.status}`);
-      }
-
-      const data = (await response.json()) as ParseExpenseResponse;
+      const data = unwrapApiResponse<ParseExpenseResponse>(
+        await response.json(),
+        response.status
+      );
 
       if (data.status === "success") {
         setPreviewExpense(data.expense);

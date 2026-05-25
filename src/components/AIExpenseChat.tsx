@@ -8,6 +8,7 @@ import type {
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "@/lib/ai/parse-expense-contract";
+import { unwrapApiResponse } from "@/lib/api/api-response";
 import { formatVnd } from "@/lib/utils";
 import { ArrowUp, Loader2, PencilLine, RefreshCw } from "lucide-react";
 
@@ -149,11 +150,10 @@ const AIExpenseChat = () => {
         body: JSON.stringify({ input }),
       });
 
-      if (!response.ok) {
-        throw new Error("Parse request failed");
-      }
-
-      const payload = (await response.json()) as ParseExpenseResponse;
+      const payload = unwrapApiResponse<ParseExpenseResponse>(
+        await response.json(),
+        response.status
+      );
 
       if (payload.status === "success") {
         replaceMessage(assistantId, {
@@ -171,7 +171,8 @@ const AIExpenseChat = () => {
         variant: "fallback",
         prefill: payload.prefill,
       });
-    } catch {
+    } catch (requestError) {
+      console.error(requestError);
       replaceMessage(assistantId, {
         id: assistantId,
         role: "assistant",
