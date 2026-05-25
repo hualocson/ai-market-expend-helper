@@ -218,9 +218,76 @@ describe("ExpenseList", () => {
     expect(screen.queryByText(/-240\.000/)).not.toBeInTheDocument();
   });
 
+  it("gates load more while the initial expense sync cursor is missing", async () => {
+    globalThis.React = React;
+    await syncRepository.testing.clearSyncDb();
+
+    let observerCallback:
+      | ((entries: IntersectionObserverEntry[]) => void)
+      | undefined;
+    const observe = vi.fn();
+    const originalIntersectionObserver = globalThis.IntersectionObserver;
+    globalThis.IntersectionObserver = vi.fn((callback) => {
+      observerCallback = callback;
+      return {
+        observe,
+        unobserve: vi.fn(),
+        disconnect: vi.fn(),
+        root: null,
+        rootMargin: "",
+        thresholds: [],
+        takeRecords: () => [],
+      };
+    }) as unknown as typeof IntersectionObserver;
+
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const firstPage: ExpenseListResult = {
+      ...buildPage(),
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: true,
+      },
+    };
+    queryClient.setQueryData<InfiniteData<ExpenseListResult, number>>(
+      queries.expenses.list(params).queryKey,
+      { pageParams: [0], pages: [firstPage] }
+    );
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ExpenseList />
+        </QueryClientProvider>
+      );
+
+      expect(
+        await screen.findByText("Syncing all expenses before loading more.")
+      ).toBeInTheDocument();
+      expect(observe).not.toHaveBeenCalled();
+
+      observerCallback?.([
+        { isIntersecting: true } as IntersectionObserverEntry,
+      ]);
+
+      const cachedData = queryClient.getQueryData<
+        InfiniteData<ExpenseListResult, number>
+      >(queries.expenses.list(params).queryKey);
+      expect(cachedData?.pages).toHaveLength(1);
+    } finally {
+      globalThis.IntersectionObserver = originalIntersectionObserver;
+      await syncRepository.testing.clearSyncDb();
+    }
+  });
+
   it("fetches the next page when the bottom sentinel intersects", async () => {
     globalThis.React = React;
     await syncRepository.testing.clearSyncDb();
+    await syncRepository.metadata.setCursor(
+      "expenses",
+      "2026-05-24T10:00:00.000Z"
+    );
     await syncRepository.records.putMany(
       Array.from({ length: 31 }, (_, index) => ({
         entity: "expenses",
@@ -284,7 +351,9 @@ describe("ExpenseList", () => {
         </QueryClientProvider>
       );
 
-      expect(observe).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(observe).toHaveBeenCalled();
+      });
       observerCallback?.([
         { isIntersecting: true } as IntersectionObserverEntry,
       ]);
