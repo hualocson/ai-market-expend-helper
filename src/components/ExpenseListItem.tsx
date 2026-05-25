@@ -28,6 +28,7 @@ import VndSymbol from "@/components/VndSymbol";
 
 export type ExpenseListItemData = {
   id: number;
+  clientId?: string | null;
   date: string;
   amount: number;
   note: string;
@@ -145,7 +146,10 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
     const loadingToastId = toast.loading("Deleting expense...");
 
     try {
-      await deleteExpenseMutation.mutateAsync(expense.id);
+      await deleteExpenseMutation.mutateAsync({
+        id: expense.id,
+        clientId: expense.clientId,
+      });
       toast.success("Expense deleted.", { id: loadingToastId });
       setIsOpen(false);
     } catch (error) {

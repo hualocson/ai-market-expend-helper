@@ -61,6 +61,7 @@ const localExpenseToListItem = (
   usedIds: Set<number>
 ): ExpenseListItem => ({
   id: reserveLocalExpenseListId(row, usedIds),
+  clientId: row.clientId,
   date: row.date,
   amount: row.amount,
   note: row.note,

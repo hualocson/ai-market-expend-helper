@@ -193,6 +193,100 @@ describe("mutation hooks", () => {
     expect(requestExpenseSyncMock).toHaveBeenNthCalledWith(2, queryClient);
   });
 
+  it("updates and deletes pending local expenses by client id when the list id is fabricated", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const pendingExpense = syncedLocalExpense({
+      clientId: "pending-client-1",
+      serverId: null,
+      syncStatus: "pending",
+      note: "Pending coffee",
+      serverUpdatedAt: null,
+    });
+    expenseSyncStore.getState().hydrate([pendingExpense]);
+    await syncRepository.records.put({
+      entity: "expenses",
+      clientId: pendingExpense.clientId,
+      serverId: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: pendingExpense.updatedAt,
+      serverUpdatedAt: null,
+      payload: {
+        date: pendingExpense.date,
+        amount: pendingExpense.amount,
+        note: pendingExpense.note,
+        category: pendingExpense.category,
+        paidBy: pendingExpense.paidBy,
+        budgetId: pendingExpense.budgetId,
+        budgetName: pendingExpense.budgetName,
+      },
+    });
+    await syncRepository.outbox.put({
+      operationId: "create-pending-client-1",
+      entity: "expenses",
+      type: "create",
+      clientId: pendingExpense.clientId,
+      serverId: null,
+      payload: { ...pendingExpense, entity: "expenses" },
+      createdAt: pendingExpense.updatedAt,
+      attemptCount: 0,
+      lastAttemptAt: null,
+      lastError: null,
+    });
+    const fabricatedListId = -12345;
+    const { result } = renderMutationHook(() => ({
+      update: useUpdateExpenseMutation(),
+      remove: useDeleteExpenseMutation(),
+    }));
+
+    await act(async () => {
+      await result.current.update.mutateAsync({
+        id: fabricatedListId,
+        input: {
+          clientId: pendingExpense.clientId,
+          date: "24/05/2026",
+          amount: 88000,
+          note: "Updated pending coffee",
+          category: "Food",
+          paidBy: PaidBy.EMBE,
+          budgetId: null,
+        },
+      });
+    });
+    await waitFor(() => expect(result.current.update.isSuccess).toBe(true));
+
+    expect(
+      expenseSyncStore.getState().expensesByClientId[pendingExpense.clientId]
+    ).toMatchObject({
+      note: "Updated pending coffee",
+      amount: 88000,
+    });
+    expect(
+      expenseSyncStore.getState().expensesByClientId[
+        `server-${fabricatedListId}`
+      ]
+    ).toBeUndefined();
+
+    await act(async () => {
+      await result.current.remove.mutateAsync({
+        id: fabricatedListId,
+        clientId: pendingExpense.clientId,
+      });
+    });
+    await waitFor(() => expect(result.current.remove.isSuccess).toBe(true));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      expenseSyncStore.getState().expensesByClientId[pendingExpense.clientId]
+    ).toBeUndefined();
+    expect(
+      expenseSyncStore.getState().expensesByClientId[
+        `server-${fabricatedListId}`
+      ]
+    ).toBeUndefined();
+    await expect(syncRepository.outbox.list("expenses")).resolves.toEqual([]);
+  });
+
   it("updates budgets with the id route and invalidates budget query roots", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")

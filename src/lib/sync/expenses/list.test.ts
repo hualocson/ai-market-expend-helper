@@ -60,6 +60,21 @@ describe("local expense list builder", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("carries client ids through rows and groups for pending local identity", () => {
+    const result = buildExpenseListResultFromLocalRows(
+      [row({ clientId: "pending-client", serverId: null })],
+      { limit: 30 }
+    );
+
+    expect(result.rows[0]).toMatchObject({
+      clientId: "pending-client",
+      id: expect.any(Number),
+    });
+    expect(result.groupedRows[0]?.items[0]).toMatchObject({
+      clientId: "pending-client",
+    });
+  });
+
   it("reports hasMore when pagination leaves additional local rows", () => {
     const result = buildExpenseListResultFromLocalRows(
       [

@@ -67,6 +67,7 @@ vi.mock("@/components/PaidByIcon", () => ({
 
 const expense = {
   id: 1,
+  clientId: "pending-client-1",
   date: "2026-04-01",
   amount: 125000,
   note: "Lunch",
@@ -131,7 +132,10 @@ describe("ExpenseListItem delete flow", () => {
     await user.click(screen.getByRole("button", { name: "Delete expense" }));
 
     expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
-    expect(deleteExpenseMutationMock).toHaveBeenCalledWith(1);
+    expect(deleteExpenseMutationMock).toHaveBeenCalledWith({
+      id: 1,
+      clientId: "pending-client-1",
+    });
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith("Expense deleted.", {
         id: "loading-toast",

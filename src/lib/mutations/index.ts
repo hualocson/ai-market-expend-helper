@@ -29,6 +29,13 @@ type UpdateExpenseVariables = {
   input: CreateExpenseInput;
 };
 
+type DeleteExpenseVariables =
+  | number
+  | {
+      id: number;
+      clientId?: string | null;
+    };
+
 type UpdateBudgetVariables = {
   id: number;
   input: BudgetUpdateInput;
@@ -154,6 +161,13 @@ const ensureLocalExpenseForUpdate = (
   serverId: number,
   input: CreateExpenseInput
 ) => {
+  if (
+    input.clientId &&
+    expenseSyncStore.getState().expensesByClientId[input.clientId]
+  ) {
+    return input.clientId;
+  }
+
   const existingClientId = findExpenseClientIdByServerId(serverId);
   if (existingClientId) {
     return existingClientId;
@@ -183,7 +197,21 @@ const ensureLocalExpenseForUpdate = (
   return clientId;
 };
 
-const ensureLocalExpenseForDelete = (serverId: number) => {
+const normalizeDeleteExpenseVariables = (variables: DeleteExpenseVariables) => {
+  if (typeof variables === "number") {
+    return { id: variables, clientId: null };
+  }
+
+  return variables;
+};
+
+const ensureLocalExpenseForDelete = (variables: DeleteExpenseVariables) => {
+  const { id: serverId, clientId: providedClientId } =
+    normalizeDeleteExpenseVariables(variables);
+  if (providedClientId) {
+    return providedClientId;
+  }
+
   const existingClientId = findExpenseClientIdByServerId(serverId);
   if (existingClientId) {
     return existingClientId;
@@ -274,8 +302,11 @@ export const useDeleteExpenseMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) =>
-      deleteLocalExpense(expenseSyncStore, ensureLocalExpenseForDelete(id)),
+    mutationFn: (variables: DeleteExpenseVariables) =>
+      deleteLocalExpense(
+        expenseSyncStore,
+        ensureLocalExpenseForDelete(variables)
+      ),
     onSuccess: async () => {
       await invalidateExpenseMutationQueries(queryClient);
       requestExpenseSyncAfterLocalWrite(queryClient);

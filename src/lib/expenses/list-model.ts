@@ -11,6 +11,7 @@ export type ExpenseListQueryParams = {
 
 export type ExpenseListItem = {
   id: number;
+  clientId?: string | null;
   date: string;
   amount: number;
   note: string;
