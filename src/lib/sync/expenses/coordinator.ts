@@ -1,4 +1,5 @@
 import { ApiResponseError, unwrapApiResponse } from "@/lib/api/api-response";
+import type { ExpenseListResult } from "@/lib/expenses/list-model";
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import { syncRepository } from "@/lib/sync/core/repository";
@@ -106,6 +107,54 @@ const localExpenseToSyncRecord = (
     budgetName: expense.budgetName,
   },
 });
+
+const buildServerListClientId = (serverId: number) =>
+  `expense-server-${serverId}`;
+
+const findExistingRecordForExpenseListItem = (
+  row: ExpenseListResult["rows"][number],
+  records: SyncRecord<unknown>[]
+) => {
+  const rowClientId = row.clientId ?? null;
+  if (rowClientId) {
+    const byClientId = records.find(
+      (record) => record.clientId === rowClientId
+    );
+    if (byClientId) {
+      return byClientId;
+    }
+  }
+
+  return records.find((record) => record.serverId === row.id);
+};
+
+const expenseListItemToSyncedRecord = (
+  row: ExpenseListResult["rows"][number],
+  now: string
+): SyncRecord<ExpensePayload> | null => {
+  if (!Number.isFinite(row.id) || row.id <= 0) {
+    return null;
+  }
+
+  return {
+    entity: EXPENSE_SYNC_ENTITY,
+    clientId: row.clientId ?? buildServerListClientId(row.id),
+    serverId: row.id,
+    syncStatus: "synced",
+    lastError: null,
+    updatedAt: now,
+    serverUpdatedAt: now,
+    payload: {
+      date: row.date,
+      amount: row.amount,
+      note: row.note,
+      category: row.category,
+      paidBy: row.paidBy,
+      budgetId: row.budgetId,
+      budgetName: row.budgetName,
+    },
+  };
+};
 
 const getLocalExpensesFromRecords = async (): Promise<LocalExpense[]> =>
   (await syncRepository.records.list(EXPENSE_SYNC_ENTITY)).flatMap((record) => {
@@ -398,6 +447,34 @@ const markOperationAndRecordFailed = async (
       lastError: error,
     })
   );
+};
+
+export const seedExpenseListResultInSyncStorage = async (
+  result: ExpenseListResult,
+  now = new Date().toISOString()
+): Promise<void> => {
+  if (result.rows.length === 0) {
+    return;
+  }
+
+  const existingRecords =
+    await syncRepository.records.list(EXPENSE_SYNC_ENTITY);
+  const records = result.rows.flatMap((row) => {
+    const existingRecord = findExistingRecordForExpenseListItem(
+      row,
+      existingRecords
+    );
+    if (existingRecord && existingRecord.syncStatus !== "synced") {
+      return [];
+    }
+
+    const record = expenseListItemToSyncedRecord(row, now);
+    return record ? [record] : [];
+  });
+
+  if (records.length > 0) {
+    await syncRepository.records.putMany(records);
+  }
 };
 
 export const invalidateExpenseDerivedQueries = async (

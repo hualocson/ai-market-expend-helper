@@ -2,25 +2,59 @@
 
 import { useEffect } from "react";
 
+import type { ExpenseListResult } from "@/lib/expenses/list-model";
+import { queries } from "@/lib/queries";
+import { seedExpenseListResultInSyncStorage } from "@/lib/sync/expenses/coordinator";
 import { requestExpenseSync } from "@/lib/sync/expenses/scheduler";
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  type QueryClient,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+const HOME_EXPENSE_LIST_PARAMS = { limit: 30 };
+
+const seedHydratedHomeExpenseList = async (queryClient: QueryClient) => {
+  const data = queryClient.getQueryData<
+    InfiniteData<ExpenseListResult, number>
+  >(queries.expenses.list(HOME_EXPENSE_LIST_PARAMS).queryKey);
+  const firstPage = data?.pages[0];
+  if (!firstPage) {
+    return;
+  }
+
+  await seedExpenseListResultInSyncStorage(firstPage);
+};
 
 const ExpenseSyncCoordinator = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const runSync = () => {
-      void requestExpenseSync(queryClient);
+    let active = true;
+    const requestSyncIfActive = () => {
+      if (active) {
+        void requestExpenseSync(queryClient);
+      }
     };
 
-    runSync();
+    const runBootstrapSync = async () => {
+      try {
+        await seedHydratedHomeExpenseList(queryClient);
+      } catch {
+        // Normal sync still owns reconciliation and should run even if bootstrap seeding fails.
+      }
+      requestSyncIfActive();
+    };
 
-    window.addEventListener("online", runSync);
-    window.addEventListener("focus", runSync);
+    void runBootstrapSync();
+
+    window.addEventListener("online", requestSyncIfActive);
+    window.addEventListener("focus", requestSyncIfActive);
 
     return () => {
-      window.removeEventListener("online", runSync);
-      window.removeEventListener("focus", runSync);
+      active = false;
+      window.removeEventListener("online", requestSyncIfActive);
+      window.removeEventListener("focus", requestSyncIfActive);
     };
   }, [queryClient]);
 

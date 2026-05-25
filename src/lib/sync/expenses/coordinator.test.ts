@@ -1,3 +1,4 @@
+import type { ExpenseListResult } from "@/lib/expenses/list-model";
 import { queries } from "@/lib/queries";
 import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncOperation, SyncRecord } from "@/lib/sync/core/types";
@@ -14,6 +15,7 @@ import {
   flushExpenseOutbox,
   hydrateExpenseSync,
   pullExpenseChanges,
+  seedExpenseListResultInSyncStorage,
 } from "./coordinator";
 import { expenseSyncStore } from "./store";
 
@@ -76,6 +78,21 @@ const outboxOperation = (
   ...overrides,
 });
 
+const expenseListResult = (
+  rows: ExpenseListResult["rows"]
+): ExpenseListResult => ({
+  activeMonth: "2026-05",
+  effectiveRecentDays: 7,
+  groupedRows: [],
+  isRecent: false,
+  pagination: {
+    limit: 30,
+    offset: 0,
+    hasMore: false,
+  },
+  rows,
+});
+
 const observeExpenseList = (queryClient: QueryClient) => {
   const query = queries.expenses.list({ month: "2026-05", limit: 30 });
   const observer = new QueryObserver(queryClient, {
@@ -119,6 +136,123 @@ afterEach(() => {
 });
 
 describe("expense sync coordinator", () => {
+  it("seeds a fallback client id for list rows without client ids", async () => {
+    await seedExpenseListResultInSyncStorage(
+      expenseListResult([
+        {
+          id: 42,
+          clientId: null,
+          date: "2026-05-24",
+          amount: 125000,
+          note: "Server row",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ]),
+      "2026-05-24T10:00:00.000Z"
+    );
+
+    await expect(syncRepository.records.list("expenses")).resolves.toEqual([
+      expect.objectContaining({
+        clientId: "expense-server-42",
+        serverId: 42,
+        syncStatus: "synced",
+      }),
+    ]);
+  });
+
+  it("skips hydrated list rows with non-finite or non-positive server ids", async () => {
+    await seedExpenseListResultInSyncStorage(
+      expenseListResult([
+        {
+          id: Number.NaN,
+          clientId: "nan-id",
+          date: "2026-05-24",
+          amount: 125000,
+          note: "Bad row",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+        {
+          id: Number.POSITIVE_INFINITY,
+          clientId: "infinite-id",
+          date: "2026-05-24",
+          amount: 125000,
+          note: "Bad row",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+        {
+          id: 0,
+          clientId: "zero-id",
+          date: "2026-05-24",
+          amount: 125000,
+          note: "Bad row",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ]),
+      "2026-05-24T10:00:00.000Z"
+    );
+
+    await expect(syncRepository.records.list("expenses")).resolves.toEqual([]);
+  });
+
+  it("preserves existing dirty records when seeding hydrated list rows", async () => {
+    await syncRepository.records.put(
+      expenseRecord({
+        clientId: "dirty-client",
+        serverId: 42,
+        syncStatus: "pending",
+        payload: {
+          date: "2026-05-24",
+          amount: 90000,
+          note: "Local dirty",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      })
+    );
+
+    await seedExpenseListResultInSyncStorage(
+      expenseListResult([
+        {
+          id: 42,
+          clientId: "dirty-client",
+          date: "2026-05-24",
+          amount: 125000,
+          note: "Server row",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+        },
+      ]),
+      "2026-05-24T10:00:00.000Z"
+    );
+
+    await expect(syncRepository.records.list("expenses")).resolves.toEqual([
+      expect.objectContaining({
+        clientId: "dirty-client",
+        syncStatus: "pending",
+        payload: expect.objectContaining({
+          amount: 90000,
+          note: "Local dirty",
+        }),
+      }),
+    ]);
+  });
+
   it("hydrates expense records into the store and active list caches", async () => {
     await syncRepository.records.put(expenseRecord());
     const queryClient = new QueryClient();
