@@ -11,11 +11,7 @@ import {
   useUpdateExpenseMutation,
 } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
-import {
-  clearSyncDb,
-  listQueuedSyncOperations,
-  listSyncRecords,
-} from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import { expenseSyncStore } from "@/lib/sync/expenses/store";
 import type { LocalExpense } from "@/lib/sync/expenses/types";
 import type { BudgetTransactionsResponse } from "@/types/budget-weekly";
@@ -72,7 +68,7 @@ const syncedLocalExpense = (
 describe("mutation hooks", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
-    await clearSyncDb();
+    await syncRepository.testing.clearSyncDb();
     expenseSyncStore.getState().hydrate([]);
   });
 
@@ -98,7 +94,7 @@ describe("mutation hooks", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
-    const records = await listSyncRecords("expenses");
+    const records = await syncRepository.records.list("expenses");
     expect(records).toMatchObject([
       {
         entity: "expenses",
@@ -107,13 +103,15 @@ describe("mutation hooks", () => {
         payload: expect.objectContaining({ note: "Lunch" }),
       },
     ]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        entity: "expenses",
-        type: "create",
-        clientId: records[0]?.clientId,
-      },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          entity: "expenses",
+          type: "create",
+          clientId: records[0]?.clientId,
+        },
+      ]
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.expenses._def,
     });
@@ -167,10 +165,12 @@ describe("mutation hooks", () => {
       note: "Dinner",
       syncStatus: "deleted",
     });
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      { entity: "expenses", type: "update", clientId: "client-1" },
-      { entity: "expenses", type: "delete", clientId: "client-1" },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        { entity: "expenses", type: "update", clientId: "client-1" },
+        { entity: "expenses", type: "delete", clientId: "client-1" },
+      ]
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.expenses._def,
     });

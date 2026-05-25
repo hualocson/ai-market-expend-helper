@@ -1,7 +1,7 @@
 import React, { type PropsWithChildren } from "react";
 
 import { Category, PaidBy } from "@/enums";
-import * as syncRepository from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import type {
   ExpenseOutboxOperation,
   LocalExpense,
@@ -75,7 +75,7 @@ describe("QuickExpenseMutationCoordinator", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     toastMock.error.mockReturnValue("toast-1");
-    await syncRepository.clearSyncDb();
+    await syncRepository.testing.clearSyncDb();
     useQuickExpenseRecoveryStore.setState({
       entries: {},
       activeRecoveryOperationId: null,
@@ -85,7 +85,7 @@ describe("QuickExpenseMutationCoordinator", () => {
 
   it("shows a failed create outbox toast and wires Reopen to recovery", async () => {
     const operation = buildOperation();
-    await syncRepository.putSyncOperation(operation);
+    await syncRepository.outbox.put(operation);
 
     renderCoordinator();
 
@@ -131,7 +131,7 @@ describe("QuickExpenseMutationCoordinator", () => {
       },
       lastError: "Budget is invalid",
     });
-    await syncRepository.putSyncOperation(operation);
+    await syncRepository.outbox.put(operation);
 
     renderCoordinator();
 
@@ -152,7 +152,7 @@ describe("QuickExpenseMutationCoordinator", () => {
   });
 
   it("does not show duplicate toasts for the same failed outbox operation", async () => {
-    await syncRepository.putSyncOperation(buildOperation());
+    await syncRepository.outbox.put(buildOperation());
 
     const { rerender } = renderCoordinator();
 
@@ -172,7 +172,7 @@ describe("QuickExpenseMutationCoordinator", () => {
       .getState()
       .setActiveRecovery(operation.operationId);
     const listSpy = vi
-      .spyOn(syncRepository, "listQueuedSyncOperations")
+      .spyOn(syncRepository.outbox, "list")
       .mockRejectedValueOnce(new Error("IDB unavailable"));
 
     renderCoordinator();
@@ -187,7 +187,7 @@ describe("QuickExpenseMutationCoordinator", () => {
   });
 
   it("shows recovery for an old queued operation when the failed attempt is recent", async () => {
-    await syncRepository.putSyncOperation(
+    await syncRepository.outbox.put(
       buildOperation({
         createdAt: new Date(
           Date.now() - QUICK_EXPENSE_RECOVERY_TTL_MS - 60_000
@@ -206,7 +206,7 @@ describe("QuickExpenseMutationCoordinator", () => {
       Date.now() - QUICK_EXPENSE_RECOVERY_TTL_MS - 1
     ).toISOString();
 
-    await syncRepository.putSyncOperation(
+    await syncRepository.outbox.put(
       buildOperation({
         createdAt: expiredAt,
         lastAttemptAt: expiredAt,

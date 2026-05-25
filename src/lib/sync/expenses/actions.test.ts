@@ -1,8 +1,4 @@
-import {
-  clearSyncDb,
-  listQueuedSyncOperations,
-  listSyncRecords,
-} from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -34,7 +30,7 @@ const existingExpense = (
 });
 
 beforeEach(async () => {
-  await clearSyncDb();
+  await syncRepository.testing.clearSyncDb();
 });
 
 describe("local-first expense actions", () => {
@@ -57,7 +53,9 @@ describe("local-first expense actions", () => {
         serverId: null,
       }
     );
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         entity: "expenses",
         clientId: created.clientId,
@@ -66,14 +64,16 @@ describe("local-first expense actions", () => {
         payload: expect.objectContaining({ note: "Coffee" }),
       },
     ]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        entity: "expenses",
-        type: "create",
-        clientId: created.clientId,
-        payload: expect.objectContaining({ note: "Coffee" }),
-      },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          entity: "expenses",
+          type: "create",
+          clientId: created.clientId,
+          payload: expect.objectContaining({ note: "Coffee" }),
+        },
+      ]
+    );
   });
 
   it("updates an existing local expense and queues an update operation", async () => {
@@ -102,7 +102,9 @@ describe("local-first expense actions", () => {
       budgetId: 3,
       syncStatus: "pending",
     });
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         entity: "expenses",
         clientId: "client-1",
@@ -111,15 +113,17 @@ describe("local-first expense actions", () => {
         payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
       },
     ]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        entity: "expenses",
-        type: "update",
-        clientId: "client-1",
-        serverId: 10,
-        payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
-      },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          entity: "expenses",
+          type: "update",
+          clientId: "client-1",
+          serverId: 10,
+          payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
+        },
+      ]
+    );
   });
 
   it("coalesces updates for an unsynced create into the create operation", async () => {
@@ -133,7 +137,7 @@ describe("local-first expense actions", () => {
       paidBy: "Cubi",
       budgetId: null,
     });
-    const [createOperation] = await listQueuedSyncOperations("expenses");
+    const [createOperation] = await syncRepository.outbox.list("expenses");
 
     await updateLocalExpense(store, created.clientId, {
       date: "24/05/2026",
@@ -144,7 +148,9 @@ describe("local-first expense actions", () => {
       budgetId: 3,
     });
 
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         entity: "expenses",
         clientId: created.clientId,
@@ -153,16 +159,18 @@ describe("local-first expense actions", () => {
         payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
       },
     ]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        operationId: createOperation?.operationId,
-        entity: "expenses",
-        type: "create",
-        clientId: created.clientId,
-        serverId: null,
-        payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
-      },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          operationId: createOperation?.operationId,
+          entity: "expenses",
+          type: "create",
+          clientId: created.clientId,
+          serverId: null,
+          payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
+        },
+      ]
+    );
   });
 
   it("coalesces repeated creates with the same client id into one create operation", async () => {
@@ -177,7 +185,7 @@ describe("local-first expense actions", () => {
       paidBy: "Cubi",
       budgetId: null,
     });
-    const [createOperation] = await listQueuedSyncOperations("expenses");
+    const [createOperation] = await syncRepository.outbox.list("expenses");
 
     await createLocalExpense(store, {
       clientId: "same-client",
@@ -189,16 +197,18 @@ describe("local-first expense actions", () => {
       budgetId: 3,
     });
 
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        operationId: createOperation?.operationId,
-        entity: "expenses",
-        type: "create",
-        clientId: "same-client",
-        serverId: null,
-        payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
-      },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          operationId: createOperation?.operationId,
+          entity: "expenses",
+          type: "create",
+          clientId: "same-client",
+          serverId: null,
+          payload: expect.objectContaining({ note: "Dinner", budgetId: 3 }),
+        },
+      ]
+    );
     expect(store.getState().expensesByClientId["same-client"]).toMatchObject({
       note: "Dinner",
       amount: 50000,
@@ -221,7 +231,9 @@ describe("local-first expense actions", () => {
     expect(store.getState().expensesByClientId["client-1"]).toMatchObject({
       syncStatus: "deleted",
     });
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         entity: "expenses",
         clientId: "client-1",
@@ -229,15 +241,17 @@ describe("local-first expense actions", () => {
         syncStatus: "deleted",
       },
     ]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        entity: "expenses",
-        type: "delete",
-        clientId: "client-1",
-        serverId: 10,
-        payload: null,
-      },
-    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          entity: "expenses",
+          type: "delete",
+          clientId: "client-1",
+          serverId: 10,
+          payload: null,
+        },
+      ]
+    );
   });
 
   it("cancels an unsynced create when deleting it before flush", async () => {
@@ -262,8 +276,8 @@ describe("local-first expense actions", () => {
     expect(
       store.getState().expensesByClientId[created.clientId]
     ).toBeUndefined();
-    await expect(listSyncRecords("expenses")).resolves.toEqual([]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toEqual([]);
+    await expect(syncRepository.records.list("expenses")).resolves.toEqual([]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toEqual([]);
   });
 
   it("cancels every pending create for a repeated explicit client id", async () => {
@@ -290,7 +304,7 @@ describe("local-first expense actions", () => {
 
     await deleteLocalExpense(store, "same-client");
 
-    await expect(listSyncRecords("expenses")).resolves.toEqual([]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toEqual([]);
+    await expect(syncRepository.records.list("expenses")).resolves.toEqual([]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toEqual([]);
   });
 });

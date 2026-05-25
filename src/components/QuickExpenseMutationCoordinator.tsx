@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 
-import { listQueuedSyncOperations } from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncOperation } from "@/lib/sync/core/types";
 import type { ExpenseOutboxOperation } from "@/lib/sync/expenses/types";
 import {
@@ -46,9 +46,9 @@ export default function QuickExpenseMutationCoordinator() {
   );
 
   const refreshFailedOutboxEntries = useCallback(async () => {
-    const operations = await listQueuedSyncOperations("expenses").catch(
-      () => null
-    );
+    const operations = await syncRepository.outbox
+      .list("expenses")
+      .catch(() => null);
     if (!operations) {
       return;
     }

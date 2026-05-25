@@ -1,8 +1,4 @@
-import {
-  clearSyncDb,
-  listSyncRecords,
-  putSyncRecord,
-} from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,18 +14,18 @@ const mockJsonResponse = (payload: unknown, init?: ResponseInit) =>
   });
 
 beforeEach(async () => {
-  await clearSyncDb();
+  await syncRepository.testing.clearSyncDb();
 });
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await clearSyncDb();
+  await syncRepository.testing.clearSyncDb();
 });
 
 describe("read query fetchers", () => {
   it("returns local expense IndexedDB rows before fetching the network", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -56,7 +52,7 @@ describe("read query fetchers", () => {
   });
 
   it("fetches the server page when local rows only partially fill the first page", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -122,7 +118,7 @@ describe("read query fetchers", () => {
   });
 
   it("serves matching local-only dirty rows immediately on the first page", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "pending-create",
       serverId: null,
@@ -140,7 +136,7 @@ describe("read query fetchers", () => {
         budgetName: null,
       },
     });
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "server-1",
       serverId: 1,
@@ -217,7 +213,7 @@ describe("read query fetchers", () => {
   });
 
   it("keeps a full local first page open for infinite loading", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -272,7 +268,7 @@ describe("read query fetchers", () => {
   });
 
   it("falls back to the network when local rows do not match the requested month", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "may-client",
       serverId: 1,
@@ -391,11 +387,13 @@ describe("read query fetchers", () => {
       "/api/expenses?month=2026-05&limit=1&offset=1",
       { method: "GET", cache: "no-store" }
     );
-    await expect(listSyncRecords("expenses")).resolves.toHaveLength(2);
+    await expect(syncRepository.records.list("expenses")).resolves.toHaveLength(
+      2
+    );
   });
 
   it("does not duplicate or overwrite a dirty local row when seeding the same server id", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -452,7 +450,9 @@ describe("read query fetchers", () => {
         note: "Local edit",
       },
     ]);
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "client-1",
         serverId: 1,
@@ -466,7 +466,7 @@ describe("read query fetchers", () => {
   });
 
   it("does not return a stale network row hidden by a dirty local delete", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -518,7 +518,7 @@ describe("read query fetchers", () => {
   });
 
   it("does not return a dirty network overlay when the local edit no longer matches the requested month", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -570,7 +570,7 @@ describe("read query fetchers", () => {
   });
 
   it("serves a matching pending local create immediately without waiting on the network", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "pending-create",
       serverId: null,
@@ -640,7 +640,7 @@ describe("read query fetchers", () => {
   });
 
   it("does not duplicate a pending local create on later network pages", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "pending-create",
       serverId: null,
@@ -700,7 +700,7 @@ describe("read query fetchers", () => {
   });
 
   it("fetches nonzero server pages when a matching local-only row shifts local ordering", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "pending-create",
       serverId: null,
@@ -718,7 +718,7 @@ describe("read query fetchers", () => {
         budgetName: null,
       },
     });
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "server-1",
       serverId: 1,
@@ -736,7 +736,7 @@ describe("read query fetchers", () => {
         budgetName: null,
       },
     });
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "server-2",
       serverId: 2,
@@ -800,7 +800,7 @@ describe("read query fetchers", () => {
   });
 
   it("fetches nonzero server pages even when local cache has a full synced page", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "server-1",
       serverId: 1,
@@ -818,7 +818,7 @@ describe("read query fetchers", () => {
         budgetName: null,
       },
     });
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "server-2",
       serverId: 2,
@@ -874,7 +874,7 @@ describe("read query fetchers", () => {
   });
 
   it("assigns unique ids to colliding pending local rows after network fallback", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "Aa",
       serverId: null,
@@ -892,7 +892,7 @@ describe("read query fetchers", () => {
         budgetName: null,
       },
     });
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "BB",
       serverId: null,
@@ -944,7 +944,7 @@ describe("read query fetchers", () => {
   });
 
   it("keeps a dirty local row moved into the requested month visible after network fallback", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-1",
       serverId: 1,
@@ -990,7 +990,7 @@ describe("read query fetchers", () => {
   });
 
   it("does not duplicate a moved-in dirty server-backed row on later pages", async () => {
-    await putSyncRecord({
+    await syncRepository.records.put({
       entity: "expenses",
       clientId: "client-60",
       serverId: 60,

@@ -1,11 +1,5 @@
 import type { CreateExpenseInput } from "@/db/type";
-import {
-  deleteSyncOperation,
-  deleteSyncRecord,
-  listQueuedSyncOperations,
-  putSyncOperation,
-  putSyncRecord,
-} from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncRecord } from "@/lib/sync/core/types";
 import type { StoreApi } from "zustand/vanilla";
 
@@ -77,22 +71,26 @@ const persistLocalExpense = async (
   expense: LocalExpense,
   type: ExpenseOutboxOperation["type"]
 ) => {
-  await putSyncRecord(toSyncRecord(expense));
-  await putSyncOperation(toOutboxOperation(expense, type, expense.updatedAt));
+  await syncRepository.records.put(toSyncRecord(expense));
+  await syncRepository.outbox.put(
+    toOutboxOperation(expense, type, expense.updatedAt)
+  );
   store.getState().upsertExpense(expense);
 
   return expense;
 };
 
 const listPendingCreateOperations = async (clientId: string) =>
-  (await listQueuedSyncOperations(EXPENSE_SYNC_ENTITY)).filter(
+  (await syncRepository.outbox.list(EXPENSE_SYNC_ENTITY)).filter(
     (operation) =>
       operation.clientId === clientId && operation.type === "create"
   ) as ExpenseOutboxOperation[];
 
 const deleteExtraOperations = async (operations: ExpenseOutboxOperation[]) => {
   await Promise.all(
-    operations.map((operation) => deleteSyncOperation(operation.operationId))
+    operations.map((operation) =>
+      syncRepository.outbox.delete(operation.operationId)
+    )
   );
 };
 
@@ -108,8 +106,8 @@ const coalescePendingCreate = async (
     return null;
   }
 
-  await putSyncRecord(toSyncRecord(expense));
-  await putSyncOperation(
+  await syncRepository.records.put(toSyncRecord(expense));
+  await syncRepository.outbox.put(
     toOutboxOperation(
       expense,
       "create",
@@ -208,7 +206,7 @@ export const deleteLocalExpense = async (
   if (existingExpense.serverId === null) {
     const pendingCreateOperations = await listPendingCreateOperations(clientId);
     if (pendingCreateOperations.length > 0) {
-      await deleteSyncRecord(EXPENSE_SYNC_ENTITY, clientId);
+      await syncRepository.records.delete(EXPENSE_SYNC_ENTITY, clientId);
       await deleteExtraOperations(pendingCreateOperations);
       store.getState().removeExpense(clientId);
 

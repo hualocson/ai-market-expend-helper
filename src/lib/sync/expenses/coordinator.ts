@@ -1,16 +1,6 @@
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
-import {
-  deleteSyncOperation,
-  getSyncCursor,
-  listQueuedSyncOperations,
-  listSyncRecords,
-  markSyncOperationAttempted,
-  markSyncOperationFailed,
-  putSyncRecord,
-  putSyncRecords,
-  setSyncCursor,
-} from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncOperation, SyncRecord } from "@/lib/sync/core/types";
 import type { InfiniteData, Query, QueryClient } from "@tanstack/react-query";
 
@@ -117,7 +107,7 @@ const localExpenseToSyncRecord = (
 });
 
 const getLocalExpensesFromRecords = async (): Promise<LocalExpense[]> =>
-  (await listSyncRecords(EXPENSE_SYNC_ENTITY)).flatMap((record) => {
+  (await syncRepository.records.list(EXPENSE_SYNC_ENTITY)).flatMap((record) => {
     const expense = syncRecordToLocalExpense(record);
     return expense ? [expense] : [];
   });
@@ -375,7 +365,7 @@ const reconcileServerRows = async (
   });
 
   if (records.length > 0) {
-    await putSyncRecords(records);
+    await syncRepository.records.putMany(records);
   }
 };
 
@@ -383,11 +373,11 @@ const markOperationAndRecordFailed = async (
   operation: SyncOperation<unknown>,
   error: string
 ) => {
-  await markSyncOperationFailed(operation.operationId, error);
+  await syncRepository.outbox.markFailed(operation.operationId, error);
 
-  const [record] = (await listSyncRecords(EXPENSE_SYNC_ENTITY)).filter(
-    (candidate) => candidate.clientId === operation.clientId
-  );
+  const [record] = (
+    await syncRepository.records.list(EXPENSE_SYNC_ENTITY)
+  ).filter((candidate) => candidate.clientId === operation.clientId);
   const expense = record ? syncRecordToLocalExpense(record) : null;
   if (!expense) {
     return;
@@ -405,7 +395,7 @@ const markOperationAndRecordFailed = async (
   });
   const failedExpense = operationExpense ?? expense;
 
-  await putSyncRecord(
+  await syncRepository.records.put(
     localExpenseToSyncRecord({
       ...failedExpense,
       serverId: failedExpense.serverId ?? expense.serverId,
@@ -436,7 +426,7 @@ export const hydrateExpenseSync = async (
 export const pullExpenseChanges = async (
   queryClient: QueryClient
 ): Promise<void> => {
-  const cursor = await getSyncCursor(EXPENSE_SYNC_ENTITY);
+  const cursor = await syncRepository.metadata.getCursor(EXPENSE_SYNC_ENTITY);
   const query = new URLSearchParams();
   if (cursor) {
     query.set("cursor", cursor);
@@ -449,7 +439,7 @@ export const pullExpenseChanges = async (
   );
 
   await reconcileServerRows(result.changes, { preserveDirty: true });
-  await setSyncCursor(EXPENSE_SYNC_ENTITY, result.cursor);
+  await syncRepository.metadata.setCursor(EXPENSE_SYNC_ENTITY, result.cursor);
   await refreshExpenseStoreAndActiveLists(queryClient);
   await invalidateExpenseDerivedQueries(queryClient);
 };
@@ -457,7 +447,7 @@ export const pullExpenseChanges = async (
 export const flushExpenseOutbox = async (
   queryClient: QueryClient
 ): Promise<void> => {
-  const operations = await listQueuedSyncOperations(EXPENSE_SYNC_ENTITY);
+  const operations = await syncRepository.outbox.list(EXPENSE_SYNC_ENTITY);
   if (operations.length === 0) {
     return;
   }
@@ -465,7 +455,7 @@ export const flushExpenseOutbox = async (
   const attemptedAt = new Date().toISOString();
   await Promise.all(
     operations.map((operation) =>
-      markSyncOperationAttempted(operation.operationId, attemptedAt)
+      syncRepository.outbox.markAttempted(operation.operationId, attemptedAt)
     )
   );
 
@@ -518,11 +508,12 @@ export const flushExpenseOutbox = async (
     await reconcileServerRows([operationResult.row]);
     await Promise.all(
       (failedOperationsByClientId.get(operation.clientId) ?? []).map(
-        (failedOperation) => deleteSyncOperation(failedOperation.operationId)
+        (failedOperation) =>
+          syncRepository.outbox.delete(failedOperation.operationId)
       )
     );
     failedOperationsByClientId.delete(operation.clientId);
-    await deleteSyncOperation(operation.operationId);
+    await syncRepository.outbox.delete(operation.operationId);
   }
 
   await refreshExpenseStoreAndActiveLists(queryClient);

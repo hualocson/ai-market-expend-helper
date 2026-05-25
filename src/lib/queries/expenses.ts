@@ -3,7 +3,7 @@ import type {
   ExpenseListResult,
 } from "@/lib/services/expenses";
 import { groupExpenseRowsByDate } from "@/lib/services/expenses";
-import { listSyncRecords, putSyncRecords } from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncRecord } from "@/lib/sync/core/types";
 import { buildExpenseListResultFromLocalRows } from "@/lib/sync/expenses/list";
 import {
@@ -75,7 +75,7 @@ const syncRecordToLocalExpense = (
 };
 
 const getLocalExpenseRows = async (): Promise<LocalExpense[]> =>
-  (await listSyncRecords(EXPENSE_SYNC_ENTITY)).flatMap((record) => {
+  (await syncRepository.records.list(EXPENSE_SYNC_ENTITY)).flatMap((record) => {
     const expense = syncRecordToLocalExpense(record);
     return expense ? [expense] : [];
   });
@@ -111,7 +111,8 @@ const seedLocalExpenseRows = async (
   }
 
   const updatedAt = new Date().toISOString();
-  const existingRecords = await listSyncRecords(EXPENSE_SYNC_ENTITY);
+  const existingRecords =
+    await syncRepository.records.list(EXPENSE_SYNC_ENTITY);
   const records = result.rows.flatMap((row) => {
     const existingRecord = existingRecords.find(
       (record) => record.serverId === row.id
@@ -125,7 +126,7 @@ const seedLocalExpenseRows = async (
   });
 
   if (records.length > 0) {
-    await putSyncRecords(records);
+    await syncRepository.records.putMany(records);
   }
 };
 

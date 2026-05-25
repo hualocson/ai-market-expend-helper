@@ -1,13 +1,6 @@
 import { queries } from "@/lib/queries";
-import {
-  clearSyncDb,
-  getSyncCursor,
-  listQueuedSyncOperations,
-  listSyncRecords,
-  putSyncOperation,
-  putSyncRecord,
-  setSyncCursor,
-} from "@/lib/sync/core/repository";
+import { syncRepository } from "@/lib/sync/core/repository";
+import type { SyncOperation, SyncRecord } from "@/lib/sync/core/types";
 import {
   InfiniteQueryObserver,
   QueryClient,
@@ -23,9 +16,7 @@ import {
 } from "./coordinator";
 import { expenseSyncStore } from "./store";
 
-const expenseRecord = (
-  overrides: Partial<Parameters<typeof putSyncRecord>[0]> = {}
-): Parameters<typeof putSyncRecord>[0] => ({
+const expenseRecord = (overrides: Partial<SyncRecord> = {}): SyncRecord => ({
   entity: "expenses",
   clientId: "client-1",
   serverId: 10,
@@ -46,8 +37,8 @@ const expenseRecord = (
 });
 
 const outboxOperation = (
-  overrides: Partial<Parameters<typeof putSyncOperation>[0]> = {}
-): Parameters<typeof putSyncOperation>[0] => ({
+  overrides: Partial<SyncOperation> = {}
+): SyncOperation => ({
   operationId: "op-1",
   entity: "expenses",
   type: "create",
@@ -106,7 +97,7 @@ const observeInfiniteExpenseList = (queryClient: QueryClient) => {
 };
 
 beforeEach(async () => {
-  await clearSyncDb();
+  await syncRepository.testing.clearSyncDb();
   expenseSyncStore.getState().hydrate([]);
 });
 
@@ -116,7 +107,7 @@ afterEach(() => {
 
 describe("expense sync coordinator", () => {
   it("hydrates expense records into the store and active list caches", async () => {
-    await putSyncRecord(expenseRecord());
+    await syncRepository.records.put(expenseRecord());
     const queryClient = new QueryClient();
     const { query, unsubscribe } = observeExpenseList(queryClient);
 
@@ -142,7 +133,7 @@ describe("expense sync coordinator", () => {
   });
 
   it("seeds active infinite list caches before the first page loads", async () => {
-    await putSyncRecord(expenseRecord());
+    await syncRepository.records.put(expenseRecord());
     const queryClient = new QueryClient();
     const { query, unsubscribe } = observeInfiniteExpenseList(queryClient);
 
@@ -166,8 +157,13 @@ describe("expense sync coordinator", () => {
   });
 
   it("pulls server changes, reconciles deleted rows, and advances the cursor", async () => {
-    await setSyncCursor("expenses", "2026-05-24T09:00:00.000Z");
-    await putSyncRecord(expenseRecord({ clientId: "deleted-client" }));
+    await syncRepository.metadata.setCursor(
+      "expenses",
+      "2026-05-24T09:00:00.000Z"
+    );
+    await syncRepository.records.put(
+      expenseRecord({ clientId: "deleted-client" })
+    );
     const queryClient = new QueryClient();
     const { query, unsubscribe } = observeExpenseList(queryClient);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -214,10 +210,12 @@ describe("expense sync coordinator", () => {
       "/api/expenses/sync?cursor=2026-05-24T09%3A00%3A00.000Z",
       expect.objectContaining({ method: "GET", cache: "no-store" })
     );
-    await expect(getSyncCursor("expenses")).resolves.toBe(
+    await expect(syncRepository.metadata.getCursor("expenses")).resolves.toBe(
       "2026-05-24T10:00:00.000Z"
     );
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "deleted-client",
         syncStatus: "deleted",
@@ -237,8 +235,11 @@ describe("expense sync coordinator", () => {
   });
 
   it("preserves dirty local rows when pulling older server changes", async () => {
-    await setSyncCursor("expenses", "2026-05-24T09:00:00.000Z");
-    await putSyncRecord(
+    await syncRepository.metadata.setCursor(
+      "expenses",
+      "2026-05-24T09:00:00.000Z"
+    );
+    await syncRepository.records.put(
       expenseRecord({
         syncStatus: "pending",
         updatedAt: "2026-05-24T11:00:00.000Z",
@@ -280,7 +281,9 @@ describe("expense sync coordinator", () => {
 
     await pullExpenseChanges(queryClient);
 
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "client-1",
         syncStatus: "pending",
@@ -291,20 +294,20 @@ describe("expense sync coordinator", () => {
         }),
       },
     ]);
-    await expect(getSyncCursor("expenses")).resolves.toBe(
+    await expect(syncRepository.metadata.getCursor("expenses")).resolves.toBe(
       "2026-05-24T10:00:00.000Z"
     );
   });
 
   it("reconciles a successful create result into a synced local row", async () => {
-    await putSyncRecord(
+    await syncRepository.records.put(
       expenseRecord({
         serverId: null,
         syncStatus: "pending",
         serverUpdatedAt: null,
       })
     );
-    await putSyncOperation(outboxOperation());
+    await syncRepository.outbox.put(outboxOperation());
     const queryClient = new QueryClient();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -361,7 +364,9 @@ describe("expense sync coordinator", () => {
         }),
       })
     );
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         entity: "expenses",
         clientId: "client-1",
@@ -370,7 +375,7 @@ describe("expense sync coordinator", () => {
         serverUpdatedAt: "2026-05-24T10:00:00.000Z",
       },
     ]);
-    await expect(listQueuedSyncOperations("expenses")).resolves.toEqual([]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toEqual([]);
     expect(expenseSyncStore.getState().expensesByClientId["client-1"]).toEqual(
       expect.objectContaining({
         serverId: 10,
@@ -380,14 +385,14 @@ describe("expense sync coordinator", () => {
   });
 
   it("marks failed flush results on the outbox operation and local row", async () => {
-    await putSyncRecord(
+    await syncRepository.records.put(
       expenseRecord({
         serverId: null,
         syncStatus: "pending",
         serverUpdatedAt: null,
       })
     );
-    await putSyncOperation(outboxOperation());
+    await syncRepository.outbox.put(outboxOperation());
     const queryClient = new QueryClient();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -405,15 +410,19 @@ describe("expense sync coordinator", () => {
 
     await flushExpenseOutbox(queryClient);
 
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        operationId: "op-1",
-        attemptCount: 1,
-        lastAttemptAt: expect.any(String),
-        lastError: "Invalid payload",
-      },
-    ]);
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          operationId: "op-1",
+          attemptCount: 1,
+          lastAttemptAt: expect.any(String),
+          lastError: "Invalid payload",
+        },
+      ]
+    );
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "client-1",
         syncStatus: "failed",
@@ -429,28 +438,32 @@ describe("expense sync coordinator", () => {
   });
 
   it("keeps pending rows pending when the outbox flush cannot reach the server", async () => {
-    await putSyncRecord(
+    await syncRepository.records.put(
       expenseRecord({
         serverId: null,
         syncStatus: "pending",
         serverUpdatedAt: null,
       })
     );
-    await putSyncOperation(outboxOperation());
+    await syncRepository.outbox.put(outboxOperation());
     const queryClient = new QueryClient();
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Offline"));
 
     await expect(flushExpenseOutbox(queryClient)).rejects.toThrow("Offline");
 
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        operationId: "op-1",
-        attemptCount: 1,
-        lastAttemptAt: expect.any(String),
-        lastError: null,
-      },
-    ]);
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          operationId: "op-1",
+          attemptCount: 1,
+          lastAttemptAt: expect.any(String),
+          lastError: null,
+        },
+      ]
+    );
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "client-1",
         syncStatus: "pending",
@@ -466,7 +479,7 @@ describe("expense sync coordinator", () => {
   });
 
   it("keeps the latest failed local row when mixed same-client results return", async () => {
-    await putSyncRecord(
+    await syncRepository.records.put(
       expenseRecord({
         syncStatus: "pending",
         updatedAt: "2026-05-24T11:00:00.000Z",
@@ -481,7 +494,7 @@ describe("expense sync coordinator", () => {
         },
       })
     );
-    await putSyncOperation(
+    await syncRepository.outbox.put(
       outboxOperation({
         operationId: "op-1",
         type: "update",
@@ -505,7 +518,7 @@ describe("expense sync coordinator", () => {
         createdAt: "2026-05-24T10:00:00.000Z",
       })
     );
-    await putSyncOperation(
+    await syncRepository.outbox.put(
       outboxOperation({
         operationId: "op-2",
         type: "update",
@@ -564,13 +577,17 @@ describe("expense sync coordinator", () => {
 
     await flushExpenseOutbox(queryClient);
 
-    await expect(listQueuedSyncOperations("expenses")).resolves.toMatchObject([
-      {
-        operationId: "op-2",
-        lastError: "Invalid payload",
-      },
-    ]);
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          operationId: "op-2",
+          lastError: "Invalid payload",
+        },
+      ]
+    );
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "client-1",
         serverId: 10,
@@ -585,7 +602,7 @@ describe("expense sync coordinator", () => {
   });
 
   it("drops older failed same-client operations when a later operation succeeds", async () => {
-    await putSyncRecord(
+    await syncRepository.records.put(
       expenseRecord({
         syncStatus: "pending",
         updatedAt: "2026-05-24T11:00:00.000Z",
@@ -600,7 +617,7 @@ describe("expense sync coordinator", () => {
         },
       })
     );
-    await putSyncOperation(
+    await syncRepository.outbox.put(
       outboxOperation({
         operationId: "op-1",
         type: "update",
@@ -624,7 +641,7 @@ describe("expense sync coordinator", () => {
         createdAt: "2026-05-24T10:00:00.000Z",
       })
     );
-    await putSyncOperation(
+    await syncRepository.outbox.put(
       outboxOperation({
         operationId: "op-2",
         type: "update",
@@ -683,8 +700,10 @@ describe("expense sync coordinator", () => {
 
     await flushExpenseOutbox(queryClient);
 
-    await expect(listQueuedSyncOperations("expenses")).resolves.toEqual([]);
-    await expect(listSyncRecords("expenses")).resolves.toMatchObject([
+    await expect(syncRepository.outbox.list("expenses")).resolves.toEqual([]);
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
       {
         clientId: "client-1",
         serverId: 10,
