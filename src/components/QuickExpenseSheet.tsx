@@ -306,12 +306,7 @@ const QuickExpenseSheet = ({
 
   const noteRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
-  const keyboardPrimerRef = useRef<HTMLInputElement>(null);
   useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
-
-  const primeKeyboard = () => {
-    keyboardPrimerRef.current?.focus();
-  };
 
   const setField = <K extends keyof TExpenseDraft>(
     key: K,
@@ -435,18 +430,11 @@ const QuickExpenseSheet = ({
 
   return (
     <Sheet open={sheetOpen} onOpenChange={handleOpenChange} modal>
-      <input
-        ref={keyboardPrimerRef}
-        aria-hidden
-        tabIndex={-1}
-        className="pointer-events-none fixed top-0 left-0 h-px w-px opacity-0"
-      />
       {shouldShowTrigger ? (
         <SheetTrigger asChild>
           <Button
             size={compact ? "icon-lg" : "default"}
             aria-label={compact ? "Add expense" : undefined}
-            onPointerDown={primeKeyboard}
             className={cn(
               "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
               compact && "size-12"
@@ -527,7 +515,6 @@ const QuickExpenseSheet = ({
 
           <div className="flex flex-1 flex-col justify-center gap-4 px-4">
             <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2">
-              {" "}
               <input
                 ref={noteRef}
                 value={draft.note}

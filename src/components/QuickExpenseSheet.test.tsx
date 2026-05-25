@@ -179,6 +179,18 @@ describe("QuickExpenseSheet — open/close", () => {
     await waitFor(() => expect(note).toHaveFocus());
   });
 
+  it("does not render a hidden keyboard primer input", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(
+      document.querySelector('input[aria-hidden="true"][tabindex="-1"]')
+    ).not.toBeInTheDocument();
+  });
+
   it("uses the quick expense morph entrance surface", async () => {
     const user = userEvent.setup();
     renderSheet();
