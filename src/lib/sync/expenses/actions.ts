@@ -1,3 +1,4 @@
+import dayjs from "@/configs/date";
 import type { CreateExpenseInput } from "@/db/type";
 import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncRecord } from "@/lib/sync/core/types";
@@ -28,6 +29,20 @@ const createLocalId = (prefix: string) => {
   }
 
   return `dev-${prefix}-${createDevelopmentIdEntropy()}`;
+};
+
+const normalizeLocalExpenseDate = (value: string): string => {
+  const displayDate = dayjs(value, "DD/MM/YYYY", true);
+  if (displayDate.isValid()) {
+    return displayDate.format("YYYY-MM-DD");
+  }
+
+  const isoDate = dayjs(value, "YYYY-MM-DD", true);
+  if (isoDate.isValid()) {
+    return isoDate.format("YYYY-MM-DD");
+  }
+
+  return dayjs().format("YYYY-MM-DD");
 };
 
 const getExistingExpense = (
@@ -146,7 +161,7 @@ export const createLocalExpense = async (
     entity: EXPENSE_SYNC_ENTITY,
     clientId,
     serverId: null,
-    date: input.date,
+    date: normalizeLocalExpenseDate(input.date),
     amount: input.amount,
     note: input.note?.trim() ?? "",
     category: input.category,
@@ -179,7 +194,7 @@ export const updateLocalExpense = async (
   const updatedAt = new Date().toISOString();
   const expense: LocalExpense = {
     ...existingExpense,
-    date: input.date,
+    date: normalizeLocalExpenseDate(input.date),
     amount: input.amount,
     note: input.note?.trim() ?? "",
     category: input.category,

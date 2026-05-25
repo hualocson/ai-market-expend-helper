@@ -4,6 +4,7 @@ import type { SyncOperation, SyncRecord } from "@/lib/sync/core/types";
 import {
   InfiniteQueryObserver,
   QueryClient,
+  type QueryFunction,
   QueryObserver,
 } from "@tanstack/react-query";
 import "fake-indexeddb/auto";
@@ -91,7 +92,11 @@ const observeInfiniteExpenseList = (queryClient: QueryClient) => {
   const query = queries.expenses.list({ month: "2026-05", limit: 30 });
   const observer = new InfiniteQueryObserver(queryClient, {
     queryKey: query.queryKey,
-    queryFn: query.queryFn,
+    queryFn: query.queryFn as QueryFunction<
+      Awaited<ReturnType<typeof query.queryFn>>,
+      typeof query.queryKey,
+      number
+    >,
     enabled: false,
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>

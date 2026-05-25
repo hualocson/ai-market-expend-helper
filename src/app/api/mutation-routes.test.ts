@@ -61,6 +61,8 @@ const jsonRequest = (url: string, payload: unknown) =>
     headers: { "content-type": "application/json" },
   });
 
+const routeParams = (id: string) => ({ params: Promise.resolve({ id }) });
+
 afterEach(() => {
   vi.restoreAllMocks();
   Object.values(mocks).forEach((mock) => mock.mockReset());
@@ -441,7 +443,7 @@ describe("REST mutation routes", () => {
 
     const response = await patchExpense(
       jsonRequest("http://localhost/api/expenses/5", payload),
-      { params: { id: "5" } }
+      routeParams("5")
     );
 
     expect(response.status).toBe(200);
@@ -464,7 +466,7 @@ describe("REST mutation routes", () => {
         paidBy: "Embe",
         budgetId: null,
       }),
-      { params: { id: "0" } }
+      routeParams("0")
     );
 
     expect(response.status).toBe(400);
@@ -490,7 +492,7 @@ describe("REST mutation routes", () => {
         paidBy: "Embe",
         budgetId: null,
       }),
-      { params: { id: "5" } }
+      routeParams("5")
     );
 
     expect(response.status).toBe(404);
@@ -509,7 +511,7 @@ describe("REST mutation routes", () => {
 
     const response = await deleteExpense(
       new Request("http://localhost/api/expenses/5", { method: "DELETE" }),
-      { params: { id: "5" } }
+      routeParams("5")
     );
 
     expect(response.status).toBe(200);
@@ -527,7 +529,7 @@ describe("REST mutation routes", () => {
 
     const response = await deleteExpense(
       new Request("http://localhost/api/expenses/5", { method: "DELETE" }),
-      { params: { id: "5" } }
+      routeParams("5")
     );
 
     expect(response.status).toBe(404);
@@ -545,7 +547,7 @@ describe("REST mutation routes", () => {
 
     const response = await deleteExpense(
       new Request("http://localhost/api/expenses/5", { method: "DELETE" }),
-      { params: { id: "5" } }
+      routeParams("5")
     );
 
     expect(response.status).toBe(404);

@@ -67,7 +67,7 @@ const getSuggestionsList = (amount: number) => {
     .filter((s) => s > 0);
 };
 
-const paidByOptions: string[] = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
+const paidByOptions = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
 const paidByWheelOptions = paidByOptions.map((option) => ({
   value: option,
   label: option,
@@ -94,7 +94,7 @@ type ManualExpenseFormProps = {
     | null;
   onSubmit?: (
     payload: TExpense & {
-      paidBy: string;
+      paidBy: PaidBy;
       budgetId?: number | null;
       budgetName?: string | null;
     }
@@ -156,14 +156,13 @@ const ManualExpenseForm = forwardRef<
     );
     const hasManualPaidBy = useRef(false);
     const normalizePaidBy = useCallback(
-      (value?: string) => {
+      (value?: string): PaidBy => {
         const fallback = PaidBy.OTHER;
-        if (value) {
-          return paidByOptions.includes(value) ? value : fallback;
-        }
-        return paidByOptions.includes(settingsPaidBy)
-          ? settingsPaidBy
-          : fallback;
+        return (
+          paidByOptions.find((option) => option === value) ??
+          paidByOptions.find((option) => option === settingsPaidBy) ??
+          fallback
+        );
       },
       [settingsPaidBy]
     );
@@ -227,7 +226,7 @@ const ManualExpenseForm = forwardRef<
           ...expense,
           date: expense.date || defaultExpense.date,
           category: expense.category || defaultExpense.category,
-          paidBy: paidBy?.trim() || paidByOptions[0],
+          paidBy,
           budgetId: showBudgetSelect ? budgetId : null,
           budgetName:
             showBudgetSelect && budgetId !== null
@@ -390,10 +389,13 @@ const ManualExpenseForm = forwardRef<
         [field]: value,
       }));
     };
-    const handlePaidByChange = useCallback((value: string) => {
-      hasManualPaidBy.current = true;
-      setPaidBy(value);
-    }, []);
+    const handlePaidByChange = useCallback(
+      (value: string) => {
+        hasManualPaidBy.current = true;
+        setPaidBy(normalizePaidBy(value));
+      },
+      [normalizePaidBy]
+    );
     const handleBudgetChange = useCallback((value: number | null) => {
       setBudgetId(value);
     }, []);

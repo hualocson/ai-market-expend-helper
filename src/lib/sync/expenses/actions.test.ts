@@ -1,3 +1,4 @@
+import { PaidBy } from "@/enums";
 import { syncRepository } from "@/lib/sync/core/repository";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +8,7 @@ import {
   deleteLocalExpense,
   updateLocalExpense,
 } from "./actions";
+import { buildExpenseListResultFromLocalRows } from "./list";
 import { createExpenseSyncStore } from "./store";
 import type { LocalExpense } from "./types";
 
@@ -19,7 +21,7 @@ const existingExpense = (
   amount: 45000,
   note: "Coffee",
   category: "Food",
-  paidBy: "Cubi",
+  paidBy: PaidBy.CUBI,
   budgetId: null,
   budgetName: null,
   syncStatus: "synced",
@@ -29,20 +31,18 @@ const existingExpense = (
   ...overrides,
 });
 
-const originalNodeEnv = process.env.NODE_ENV;
-
 beforeEach(async () => {
   await syncRepository.testing.clearSyncDb();
 });
 
 afterEach(() => {
-  process.env.NODE_ENV = originalNodeEnv;
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
 describe("local-first expense actions", () => {
   it("creates dev-prefixed local ids with getRandomValues outside production", async () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     const randomUUIDSpy = vi
       .spyOn(crypto, "randomUUID")
       .mockImplementation(() => {
@@ -62,7 +62,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
     const [operation] = await syncRepository.outbox.list("expenses");
@@ -74,7 +74,7 @@ describe("local-first expense actions", () => {
   });
 
   it("creates prod-prefixed local ids with randomUUID in production", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     const randomUUIDSpy = vi
       .spyOn(crypto, "randomUUID")
       .mockReturnValue("11111111-2222-4333-8444-555555555555");
@@ -86,7 +86,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
     const [operation] = await syncRepository.outbox.list("expenses");
@@ -109,7 +109,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
 
@@ -143,6 +143,41 @@ describe("local-first expense actions", () => {
     );
   });
 
+  it("normalizes display dates from manual submissions before local list filtering", async () => {
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "23/05/2026",
+      amount: 45000,
+      note: "Coffee",
+      category: "Food",
+      paidBy: PaidBy.CUBI,
+      budgetId: null,
+    });
+    const result = buildExpenseListResultFromLocalRows([created], {
+      month: "2026-05",
+      limit: 30,
+    });
+
+    expect(created.date).toBe("2026-05-23");
+    expect(result.rows).toHaveLength(1);
+    expect(result.groupedRows[0]?.key).toBe("2026-05-23");
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
+      {
+        payload: expect.objectContaining({ date: "2026-05-23" }),
+      },
+    ]);
+    await expect(syncRepository.outbox.list("expenses")).resolves.toMatchObject(
+      [
+        {
+          payload: expect.objectContaining({ date: "2026-05-23" }),
+        },
+      ]
+    );
+  });
+
   it("stores the selected budget name on pending local creates", async () => {
     const store = createExpenseSyncStore();
 
@@ -151,7 +186,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: 3,
       budgetName: "Food week",
     });
@@ -193,7 +228,7 @@ describe("local-first expense actions", () => {
       amount: 50000,
       note: "Dinner",
       category: "Food",
-      paidBy: "Embe",
+      paidBy: PaidBy.EMBE,
       budgetId: 3,
     });
 
@@ -242,7 +277,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
     const [createOperation] = await syncRepository.outbox.list("expenses");
@@ -252,7 +287,7 @@ describe("local-first expense actions", () => {
       amount: 50000,
       note: "Dinner",
       category: "Food",
-      paidBy: "Embe",
+      paidBy: PaidBy.EMBE,
       budgetId: 3,
     });
 
@@ -290,7 +325,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
     const [createOperation] = await syncRepository.outbox.list("expenses");
@@ -301,7 +336,7 @@ describe("local-first expense actions", () => {
       amount: 50000,
       note: "Dinner",
       category: "Food",
-      paidBy: "Embe",
+      paidBy: PaidBy.EMBE,
       budgetId: 3,
     });
 
@@ -363,7 +398,7 @@ describe("local-first expense actions", () => {
             amount: 45000,
             note: "Coffee",
             category: "Food",
-            paidBy: "Cubi",
+            paidBy: PaidBy.CUBI,
             syncStatus: "deleted",
           }),
         },
@@ -379,7 +414,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
 
@@ -406,7 +441,7 @@ describe("local-first expense actions", () => {
       amount: 45000,
       note: "Coffee",
       category: "Food",
-      paidBy: "Cubi",
+      paidBy: PaidBy.CUBI,
       budgetId: null,
     });
     await createLocalExpense(store, {
@@ -415,7 +450,7 @@ describe("local-first expense actions", () => {
       amount: 50000,
       note: "Dinner",
       category: "Food",
-      paidBy: "Embe",
+      paidBy: PaidBy.EMBE,
       budgetId: 3,
     });
 

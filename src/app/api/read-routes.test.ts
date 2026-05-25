@@ -179,9 +179,7 @@ describe("REST read routes", () => {
     };
     mocks.getBudgetOverview.mockResolvedValue(payload);
 
-    const response = await getBudgets(
-      new Request("http://localhost/api/budgets")
-    );
+    const response = await getBudgets();
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -197,9 +195,7 @@ describe("REST read routes", () => {
       new Error("database unavailable")
     );
 
-    const response = await getBudgets(
-      new Request("http://localhost/api/budgets")
-    );
+    const response = await getBudgets();
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
