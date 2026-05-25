@@ -9,6 +9,8 @@ export type ExpenseListQueryParams = {
   offset?: number;
 };
 
+export type ExpenseListItemSyncStatus = "synced" | "pending" | "failed";
+
 export type ExpenseListItem = {
   id: number;
   clientId?: string | null;
@@ -19,6 +21,7 @@ export type ExpenseListItem = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  syncStatus?: ExpenseListItemSyncStatus;
 };
 
 export type ExpenseListGroup = {

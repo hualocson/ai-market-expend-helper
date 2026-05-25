@@ -75,6 +75,44 @@ describe("local expense list builder", () => {
     });
   });
 
+  it("carries sync status through rows and grouped items", () => {
+    const result = buildExpenseListResultFromLocalRows(
+      [
+        row({
+          clientId: "pending-client",
+          serverId: null,
+          note: "Pending coffee",
+          syncStatus: "pending",
+          updatedAt: "2026-05-24T10:00:00.000Z",
+        }),
+        row({
+          clientId: "failed-client",
+          serverId: 2,
+          note: "Failed lunch",
+          syncStatus: "failed",
+          updatedAt: "2026-05-24T09:00:00.000Z",
+        }),
+        row({
+          clientId: "synced-client",
+          serverId: 1,
+          note: "Synced tea",
+          syncStatus: "synced",
+          updatedAt: "2026-05-24T08:00:00.000Z",
+        }),
+      ],
+      { limit: 30 }
+    );
+
+    expect(result.rows.map((expense) => expense.syncStatus)).toEqual([
+      "pending",
+      "failed",
+      "synced",
+    ]);
+    expect(
+      result.groupedRows[0]?.items.map((expense) => expense.syncStatus)
+    ).toEqual(["pending", "failed", "synced"]);
+  });
+
   it("reports hasMore when pagination leaves additional local rows", () => {
     const result = buildExpenseListResultFromLocalRows(
       [

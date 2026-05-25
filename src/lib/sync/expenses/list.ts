@@ -69,6 +69,7 @@ const localExpenseToListItem = (
   paidBy: row.paidBy,
   budgetId: row.budgetId,
   budgetName: row.budgetName,
+  syncStatus: row.syncStatus === "deleted" ? undefined : row.syncStatus,
 });
 
 const compareNullableServerIds = (a: LocalExpense, b: LocalExpense) => {
