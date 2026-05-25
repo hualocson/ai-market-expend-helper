@@ -117,6 +117,38 @@ describe("quick expense recovery store", () => {
     });
   });
 
+  it("maps failed delete outbox operations to delete recovery entries", () => {
+    const operation = buildFailedOperation({
+      operationId: "expense-op-delete",
+      type: "delete",
+      serverId: 42,
+      payload: {
+        ...localExpense,
+        serverId: 42,
+        syncStatus: "deleted",
+      },
+      lastError: "Failed to delete expense",
+    });
+    const store = syncFailedEntries([operation]);
+
+    expect(store.getState().entries[operation.operationId]).toMatchObject({
+      mode: "delete",
+      operationId: "expense-op-delete",
+      clientId: "expense-client-1",
+      serverId: 42,
+      transactionId: 42,
+      status: "failed",
+      lastError: "Failed to delete expense",
+      draft: expect.objectContaining({
+        clientId: "expense-client-1",
+        amount: 34000,
+        note: "Retry lunch",
+        category: Category.FOOD,
+        paidBy: PaidBy.CUBI,
+      }),
+    });
+  });
+
   it("ages recovery entries from the failed sync attempt instead of the original queue time", () => {
     const operation = buildFailedOperation({
       createdAt: "2026-05-24T08:00:00.000Z",

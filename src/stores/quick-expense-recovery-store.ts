@@ -27,7 +27,7 @@ export type TQuickExpenseRecoveryStatus = "failed";
 
 export type TQuickExpenseRecoveryEntry = {
   operationId: string;
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "delete";
   clientId: string;
   serverId: number | null;
   transactionId?: number;
@@ -130,7 +130,6 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
   if (
     operation.entity !== "expenses" ||
     operation.lastError === null ||
-    operation.type === "delete" ||
     !isRecoverableExpense(operation.payload)
   ) {
     return null;
@@ -152,7 +151,12 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
     budgetName: operation.payload.budgetName,
   };
 
-  const mode = operation.type === "update" ? "edit" : "create";
+  const mode =
+    operation.type === "update"
+      ? "edit"
+      : operation.type === "delete"
+        ? "delete"
+        : "create";
   const serverId = operation.serverId ?? operation.payload.serverId;
 
   return {
@@ -160,7 +164,10 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
     mode,
     clientId: operation.clientId,
     serverId,
-    transactionId: mode === "edit" && serverId !== null ? serverId : undefined,
+    transactionId:
+      (mode === "edit" || mode === "delete") && serverId !== null
+        ? serverId
+        : undefined,
     draft,
     payload: draft,
     status: "failed",
