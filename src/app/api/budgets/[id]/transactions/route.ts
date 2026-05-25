@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { getBudgetTransactions } from "@/db/budget-queries";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import {
   parsePaginationParams,
   parsePositiveIntParam,
@@ -16,7 +15,7 @@ export const GET = async (
   const { id } = await params;
   const budgetId = parsePositiveIntParam(id, "Invalid budget id");
   if ("error" in budgetId) {
-    return NextResponse.json({ error: budgetId.error }, { status: 400 });
+    return apiError("INVALID_PARAMS", budgetId.error, 400);
   }
 
   const { searchParams } = new URL(request.url);
@@ -25,7 +24,7 @@ export const GET = async (
     maxLimit: MAX_LIMIT,
   });
   if ("error" in pagination) {
-    return NextResponse.json({ error: pagination.error }, { status: 400 });
+    return apiError("INVALID_PARAMS", pagination.error, 400);
   }
 
   try {
@@ -33,16 +32,17 @@ export const GET = async (
       budgetId.value,
       pagination.value
     );
-    return NextResponse.json(report);
+    return apiSuccess(report);
   } catch (error) {
     if (error instanceof Error && error.message === "Budget not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return apiError("FETCH_BUDGETS_FAILED", error.message, 404);
     }
 
     console.error("Failed to fetch budget transactions:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch budget transactions" },
-      { status: 400 }
+    return apiError(
+      "FETCH_BUDGETS_FAILED",
+      "Failed to fetch budget transactions",
+      400
     );
   }
 };

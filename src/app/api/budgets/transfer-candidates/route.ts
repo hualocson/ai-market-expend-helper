@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { getTransferCandidates } from "@/db/budget-queries";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import { parsePositiveIntParam } from "@/lib/api/route-schemas";
 
 export const GET = async (request: Request) => {
@@ -11,17 +10,18 @@ export const GET = async (request: Request) => {
   );
 
   if ("error" in destinationId) {
-    return NextResponse.json({ error: destinationId.error }, { status: 400 });
+    return apiError("INVALID_PARAMS", destinationId.error, 400);
   }
 
   try {
     const candidates = await getTransferCandidates(destinationId.value);
-    return NextResponse.json(candidates);
+    return apiSuccess(candidates);
   } catch (error) {
     console.error("Failed to fetch budget transfer candidates:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch budget transfer candidates" },
-      { status: 400 }
+    return apiError(
+      "FETCH_BUDGETS_FAILED",
+      "Failed to fetch budget transfer candidates",
+      400
     );
   }
 };

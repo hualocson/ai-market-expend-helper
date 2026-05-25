@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { PaidBy } from "@/enums";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import {
   getExpenseChangesSince,
   pushExpenseOperations,
@@ -41,17 +42,14 @@ export const GET = async (request: Request) => {
   const cursor = searchParams.get("cursor");
   const parsedCursor = expenseSyncCursorSchema.safeParse(cursor);
   if (!parsedCursor.success) {
-    return NextResponse.json({ error: "Invalid cursor" }, { status: 400 });
+    return apiError("INVALID_CURSOR", "Invalid cursor", 400);
   }
 
   try {
-    return NextResponse.json(await getExpenseChangesSince(parsedCursor.data));
+    return apiSuccess(await getExpenseChangesSince(parsedCursor.data));
   } catch (error) {
     console.error("Failed to pull expense sync changes:", error);
-    return NextResponse.json(
-      { error: "Failed to sync expenses" },
-      { status: 400 }
-    );
+    return apiError("SYNC_EXPENSES_FAILED", "Failed to sync expenses", 400);
   }
 };
 
