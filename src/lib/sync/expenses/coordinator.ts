@@ -1,3 +1,4 @@
+import { ApiResponseError, unwrapApiResponse } from "@/lib/api/api-response";
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import { syncRepository } from "@/lib/sync/core/repository";
@@ -289,23 +290,16 @@ const fetchSyncJson = async <T>(
     ...init,
     cache: "no-store",
   });
+  const payload = await response.json().catch(() => null);
 
-  if (!response.ok) {
-    let message = "Failed to sync expenses";
-
-    try {
-      const body = (await response.json()) as { error?: unknown };
-      if (typeof body.error === "string" && body.error.trim()) {
-        message = body.error;
-      }
-    } catch {
-      // Keep the generic sync error when the server did not return JSON.
+  try {
+    return unwrapApiResponse<T>(payload, response.status);
+  } catch (error) {
+    if (error instanceof ApiResponseError) {
+      throw new Error(error.message);
     }
-
-    throw new Error(message);
+    throw error;
   }
-
-  return response.json() as Promise<T>;
 };
 
 const toPushOperationPayload = (operation: SyncOperation<unknown>) => {

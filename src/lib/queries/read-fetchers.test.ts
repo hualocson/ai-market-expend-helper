@@ -2,7 +2,11 @@ import { syncRepository } from "@/lib/sync/core/repository";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { budgetQueries, fetchBudgetTransferCandidates } from "./budgets";
+import {
+  budgetQueries,
+  fetchBudgetOverview,
+  fetchBudgetTransferCandidates,
+} from "./budgets";
 import { dashboardQueries, fetchDashboardMonthlySummary } from "./dashboard";
 import { expenseQueries, fetchExpenseList } from "./expenses";
 import { fetchDailyReport, fetchMonthlyReport, reportQueries } from "./reports";
@@ -12,6 +16,8 @@ const mockJsonResponse = (payload: unknown, init?: ResponseInit) =>
     headers: { "Content-Type": "application/json" },
     ...init,
   });
+
+const successEnvelope = <T>(data: T) => ({ success: true, data });
 
 beforeEach(async () => {
   await syncRepository.testing.clearSyncDb();
@@ -105,7 +111,7 @@ describe("read query fetchers", () => {
     };
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(serverPage));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(serverPage)));
 
     await expect(
       fetchExpenseList({ month: "2026-05", limit: 30 })
@@ -189,7 +195,7 @@ describe("read query fetchers", () => {
     };
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(serverPage));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(serverPage)));
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 2 });
 
@@ -248,7 +254,7 @@ describe("read query fetchers", () => {
     };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(payload)));
 
     await expect(
       fetchExpenseList({
@@ -311,7 +317,7 @@ describe("read query fetchers", () => {
     };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(junePayload));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(junePayload)));
 
     await expect(fetchExpenseList({ month: "2026-06" })).resolves.toEqual(
       junePayload
@@ -372,8 +378,8 @@ describe("read query fetchers", () => {
     };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(mockJsonResponse(firstPage))
-      .mockResolvedValueOnce(mockJsonResponse(secondPage));
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(firstPage)))
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(secondPage)));
 
     await expect(
       fetchExpenseList({ month: "2026-05", limit: 1 })
@@ -435,7 +441,7 @@ describe("read query fetchers", () => {
       ],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(serverPage)
+      mockJsonResponse(successEnvelope(serverPage))
     );
 
     const result = await fetchExpenseList({
@@ -508,7 +514,7 @@ describe("read query fetchers", () => {
       ],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(serverPage)
+      mockJsonResponse(successEnvelope(serverPage))
     );
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
@@ -560,7 +566,7 @@ describe("read query fetchers", () => {
       ],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(serverPage)
+      mockJsonResponse(successEnvelope(serverPage))
     );
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
@@ -613,7 +619,7 @@ describe("read query fetchers", () => {
     };
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(serverPage));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(serverPage)));
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
 
@@ -682,7 +688,7 @@ describe("read query fetchers", () => {
       ],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(secondPage)
+      mockJsonResponse(successEnvelope(secondPage))
     );
 
     const result = await fetchExpenseList({
@@ -779,7 +785,7 @@ describe("read query fetchers", () => {
     };
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(secondPage));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(secondPage)));
 
     const result = await fetchExpenseList({
       month: "2026-05",
@@ -861,7 +867,7 @@ describe("read query fetchers", () => {
     };
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(secondPage));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(secondPage)));
 
     await expect(
       fetchExpenseList({ month: "2026-05", limit: 1, offset: 1 })
@@ -934,7 +940,7 @@ describe("read query fetchers", () => {
       ],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(serverPage)
+      mockJsonResponse(successEnvelope(serverPage))
     );
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
@@ -975,7 +981,7 @@ describe("read query fetchers", () => {
       rows: [],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse(serverPage)
+      mockJsonResponse(successEnvelope(serverPage))
     );
 
     const result = await fetchExpenseList({ month: "2026-05", limit: 30 });
@@ -1044,8 +1050,8 @@ describe("read query fetchers", () => {
       ],
     };
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(mockJsonResponse(firstPage))
-      .mockResolvedValueOnce(mockJsonResponse(laterPage));
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(firstPage)))
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(laterPage)));
 
     const firstResult = await fetchExpenseList({
       month: "2026-05",
@@ -1081,7 +1087,7 @@ describe("read query fetchers", () => {
     ];
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(payload)));
 
     await expect(fetchBudgetTransferCandidates(1)).resolves.toEqual(payload);
 
@@ -1099,7 +1105,7 @@ describe("read query fetchers", () => {
     };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(mockJsonResponse(payload));
+      .mockResolvedValue(mockJsonResponse(successEnvelope(payload)));
 
     await expect(fetchDashboardMonthlySummary("2026-05")).resolves.toEqual(
       payload
@@ -1116,8 +1122,8 @@ describe("read query fetchers", () => {
     const dailyPayload = { activeDate: "2026-05-23" };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(mockJsonResponse(monthlyPayload))
-      .mockResolvedValueOnce(mockJsonResponse(dailyPayload));
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(monthlyPayload)))
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(dailyPayload)));
 
     await expect(fetchMonthlyReport("2026-05")).resolves.toEqual(
       monthlyPayload
@@ -1138,11 +1144,39 @@ describe("read query fetchers", () => {
 
   it("throws route error messages", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      mockJsonResponse({ error: "Invalid month" }, { status: 400 })
+      mockJsonResponse(
+        {
+          success: false,
+          error: {
+            code: "INVALID_MONTH",
+            message: "Invalid month",
+          },
+        },
+        { status: 400 }
+      )
     );
 
     await expect(fetchMonthlyReport("bad-month")).rejects.toThrow(
       "Invalid month"
+    );
+  });
+
+  it("throws the structured API error message from read fetchers", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      mockJsonResponse(
+        {
+          success: false,
+          error: {
+            code: "FETCH_BUDGETS_FAILED",
+            message: "Failed to fetch budgets",
+          },
+        },
+        { status: 400 }
+      )
+    );
+
+    await expect(fetchBudgetOverview()).rejects.toThrow(
+      "Failed to fetch budgets"
     );
   });
 

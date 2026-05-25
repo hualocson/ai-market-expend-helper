@@ -3,6 +3,8 @@ import type { BudgetPeriod } from "@/types/budget-weekly";
 import { createQueryKeys } from "@lukemorales/query-key-factory";
 import { QueryClient } from "@tanstack/react-query";
 
+import { fetchJson } from "./http";
+
 type BudgetWeeklyOptionsResponse = {
   budgets?: Array<{
     id: number;
@@ -31,16 +33,14 @@ export const fetchWeeklyBudgetOptions = async (
   weekStart: string,
   targetDate?: string
 ): Promise<BudgetWeeklyOption[]> => {
-  const response = await fetch(`/api/budget-weekly?weekStart=${weekStart}`, {
-    method: "GET",
-    cache: "no-store",
-  });
+  const data = await fetchJson<BudgetWeeklyOptionsResponse>(
+    `/api/budget-weekly?weekStart=${weekStart}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
 
-  if (!response.ok) {
-    throw new Error("Failed to load budgets");
-  }
-
-  const data = (await response.json()) as BudgetWeeklyOptionsResponse;
   if (!Array.isArray(data.budgets)) {
     return [];
   }

@@ -16,6 +16,14 @@ import {
 } from "./coordinator";
 import { expenseSyncStore } from "./store";
 
+const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
+  new Response(JSON.stringify(body), {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+
+const successEnvelope = <T>(data: T) => ({ success: true, data });
+
 const expenseRecord = (overrides: Partial<SyncRecord> = {}): SyncRecord => ({
   entity: "expenses",
   clientId: "client-1",
@@ -167,8 +175,8 @@ describe("expense sync coordinator", () => {
     const queryClient = new QueryClient();
     const { query, unsubscribe } = observeExpenseList(queryClient);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
+      jsonResponse(
+        successEnvelope({
           cursor: "2026-05-24T10:00:00.000Z",
           changes: [
             {
@@ -256,8 +264,8 @@ describe("expense sync coordinator", () => {
     );
     const queryClient = new QueryClient();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
+      jsonResponse(
+        successEnvelope({
           cursor: "2026-05-24T10:00:00.000Z",
           changes: [
             {
@@ -310,8 +318,8 @@ describe("expense sync coordinator", () => {
     await syncRepository.outbox.put(outboxOperation());
     const queryClient = new QueryClient();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
+      jsonResponse(
+        successEnvelope({
           results: [
             {
               operationId: "op-1",
@@ -395,8 +403,8 @@ describe("expense sync coordinator", () => {
     await syncRepository.outbox.put(outboxOperation());
     const queryClient = new QueryClient();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
+      jsonResponse(
+        successEnvelope({
           results: [
             {
               operationId: "op-1",
@@ -544,8 +552,8 @@ describe("expense sync coordinator", () => {
     );
     const queryClient = new QueryClient();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
+      jsonResponse(
+        successEnvelope({
           results: [
             {
               operationId: "op-1",
@@ -667,8 +675,8 @@ describe("expense sync coordinator", () => {
     );
     const queryClient = new QueryClient();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
+      jsonResponse(
+        successEnvelope({
           results: [
             {
               operationId: "op-1",

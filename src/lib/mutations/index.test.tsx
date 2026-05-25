@@ -32,6 +32,8 @@ const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
     ...init,
   });
 
+const successEnvelope = <T,>(data: T) => ({ success: true, data });
+
 const renderMutationHook = <TResult,>(
   hook: () => TResult
 ): { result: { current: TResult }; queryClient: QueryClient } => {
@@ -179,7 +181,7 @@ describe("mutation hooks", () => {
   it("updates budgets with the id route and invalidates budget query roots", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(jsonResponse({ id: 7 }));
+      .mockResolvedValue(jsonResponse(successEnvelope({ id: 7 })));
     const { result, queryClient } = renderMutationHook(() =>
       useUpdateBudgetMutation()
     );
@@ -222,7 +224,9 @@ describe("mutation hooks", () => {
   it("creates budgets through the weekly budgets route and invalidates budget query roots", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(jsonResponse({ id: 8 }, { status: 201 }));
+      .mockResolvedValue(
+        jsonResponse(successEnvelope({ id: 8 }), { status: 201 })
+      );
     const { result, queryClient } = renderMutationHook(() =>
       useCreateBudgetMutation()
     );
@@ -266,19 +270,30 @@ describe("mutation hooks", () => {
         const url = String(input);
 
         if (url.startsWith("/api/budgets/9/transactions")) {
-          return jsonResponse({
-            budgetId: 9,
-            summary: { count: 0, totalSpent: 0 },
-            items: [],
-            pagination: { limit: 20, offset: 0, hasMore: false },
-          });
+          return jsonResponse(
+            successEnvelope({
+              budgetId: 9,
+              summary: { count: 0, totalSpent: 0 },
+              items: [],
+              pagination: { limit: 20, offset: 0, hasMore: false },
+            })
+          );
         }
 
         if (url === "/api/weekly-budgets/9" && init?.method === "DELETE") {
-          return jsonResponse({ id: 9 });
+          return jsonResponse(successEnvelope({ id: 9 }));
         }
 
-        return jsonResponse({ error: "Unexpected request" }, { status: 500 });
+        return jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "UNEXPECTED_REQUEST",
+              message: "Unexpected request",
+            },
+          },
+          { status: 500 }
+        );
       });
     const { result, queryClient } = renderMutationHook(() => {
       const detailQuery = queries.budgets.transactions(9);
@@ -341,7 +356,13 @@ describe("mutation hooks", () => {
   it("maps known transfer HTTP errors back to the existing transfer result shape", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(
-        { error: "Insufficient source budget amount" },
+        {
+          success: false,
+          error: {
+            code: "BUDGET_TRANSFER_FAILED",
+            message: "Insufficient source budget amount",
+          },
+        },
         { status: 400 }
       )
     );

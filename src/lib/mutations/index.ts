@@ -2,6 +2,7 @@
 
 import type { TBudget } from "@/db/schema";
 import type { CreateExpenseInput } from "@/db/type";
+import { ApiResponseError, unwrapApiResponse } from "@/lib/api/api-response";
 import { queries } from "@/lib/queries";
 import type {
   TransferBudgetInput,
@@ -22,10 +23,6 @@ import type {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 
-type JsonErrorPayload = {
-  error?: string;
-};
-
 type UpdateExpenseVariables = {
   id: number;
   input: CreateExpenseInput;
@@ -41,10 +38,17 @@ const jsonHeaders = {
 };
 
 const readJsonError = async (response: Response, fallback: string) => {
-  const payload = (await response
-    .json()
-    .catch(() => null)) as JsonErrorPayload | null;
-  return payload?.error ?? fallback;
+  const payload = await response.json().catch(() => null);
+
+  try {
+    unwrapApiResponse<never>(payload, response.status);
+  } catch (error) {
+    if (error instanceof ApiResponseError) {
+      return error.message;
+    }
+  }
+
+  return fallback;
 };
 
 const fetchJsonMutation = async <TResponse, TInput>(
@@ -69,7 +73,7 @@ const fetchJsonMutation = async <TResponse, TInput>(
     throw new Error(await readJsonError(response, fallbackError));
   }
 
-  return (await response.json()) as TResponse;
+  return unwrapApiResponse<TResponse>(await response.json(), response.status);
 };
 
 const invalidateExpenseMutationQueries = async (queryClient: QueryClient) => {
@@ -225,7 +229,10 @@ const postBudgetTransfer = async (
     throw new Error(message);
   }
 
-  return (await response.json()) as TransferBudgetResult;
+  return unwrapApiResponse<TransferBudgetResult>(
+    await response.json(),
+    response.status
+  );
 };
 
 export const useCreateExpenseMutation = () => {

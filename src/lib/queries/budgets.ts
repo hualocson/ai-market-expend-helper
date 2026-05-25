@@ -7,21 +7,11 @@ import { createQueryKeys } from "@lukemorales/query-key-factory";
 
 import { fetchJson } from "./http";
 
-export const fetchBudgetOverview = async (): Promise<BudgetOverviewReport> => {
-  const response = await fetch("/api/budgets", {
+export const fetchBudgetOverview = async (): Promise<BudgetOverviewReport> =>
+  fetchJson<BudgetOverviewReport>("/api/budgets", {
     method: "GET",
     cache: "no-store",
   });
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      error?: string;
-    } | null;
-    throw new Error(payload?.error ?? "Failed to fetch budgets");
-  }
-
-  return (await response.json()) as BudgetOverviewReport;
-};
 
 export const fetchBudgetTransactions = async (
   budgetId: number,
@@ -38,22 +28,13 @@ export const fetchBudgetTransactions = async (
     offset: String(offset),
   });
 
-  const response = await fetch(
+  return fetchJson<BudgetTransactionsResponse>(
     `/api/budgets/${budgetId}/transactions?${query}`,
     {
       method: "GET",
       cache: "no-store",
     }
   );
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      error?: string;
-    } | null;
-    throw new Error(payload?.error ?? "Failed to fetch budget transactions");
-  }
-
-  return (await response.json()) as BudgetTransactionsResponse;
 };
 
 export const fetchBudgetTransferCandidates = async (
