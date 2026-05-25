@@ -1,5 +1,4 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
 import { createExpense } from "@/db/queries";
 import { parseExpenseListParams } from "@/lib/api/read-route-params";
@@ -33,18 +32,15 @@ export const POST = async (request: Request) => {
       expenseMutationPayloadSchema
     );
     if ("error" in payload) {
-      return NextResponse.json({ error: payload.error }, { status: 400 });
+      return apiError("INVALID_PAYLOAD", payload.error, 400);
     }
 
     const created = await createExpense(payload.value);
     revalidatePath("/");
     revalidatePath("/budgets");
-    return NextResponse.json(created, { status: 201 });
+    return apiSuccess(created, { status: 201 });
   } catch (error) {
     console.error("Failed to create expense:", error);
-    return NextResponse.json(
-      { error: "Failed to create expense" },
-      { status: 400 }
-    );
+    return apiError("CREATE_EXPENSE_FAILED", "Failed to create expense", 400);
   }
 };

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
 import { softDeleteExpense, updateExpense } from "@/db/queries";
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import {
   expenseMutationPayloadSchema,
   parseJsonPayload,
@@ -15,7 +15,7 @@ export const PATCH = async (
   const { id: expenseId } = await params;
   const id = parsePositiveIntParam(expenseId, "Invalid expense id");
   if ("error" in id) {
-    return NextResponse.json({ error: id.error }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", id.error, 400);
   }
 
   try {
@@ -24,23 +24,20 @@ export const PATCH = async (
       expenseMutationPayloadSchema
     );
     if ("error" in payload) {
-      return NextResponse.json({ error: payload.error }, { status: 400 });
+      return apiError("INVALID_PAYLOAD", payload.error, 400);
     }
 
     const updated = await updateExpense(id.value, payload.value);
     revalidatePath("/");
     revalidatePath("/budgets");
-    return NextResponse.json(updated);
+    return apiSuccess(updated);
   } catch (error) {
     if (error instanceof Error && error.message === "Expense not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return apiError("NOT_FOUND", error.message, 404);
     }
 
     console.error("Failed to update expense:", error);
-    return NextResponse.json(
-      { error: "Failed to update expense" },
-      { status: 400 }
-    );
+    return apiError("UPDATE_EXPENSE_FAILED", "Failed to update expense", 400);
   }
 };
 
@@ -51,23 +48,20 @@ export const DELETE = async (
   const { id: expenseId } = await params;
   const id = parsePositiveIntParam(expenseId, "Invalid expense id");
   if ("error" in id) {
-    return NextResponse.json({ error: id.error }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", id.error, 400);
   }
 
   try {
     const deleted = await softDeleteExpense(id.value);
     if (!deleted) {
-      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Expense not found", 404);
     }
 
     revalidatePath("/");
     revalidatePath("/budgets");
-    return NextResponse.json(deleted);
+    return apiSuccess(deleted);
   } catch (error) {
     console.error("Failed to delete expense:", error);
-    return NextResponse.json(
-      { error: "Failed to delete expense" },
-      { status: 400 }
-    );
+    return apiError("DELETE_EXPENSE_FAILED", "Failed to delete expense", 400);
   }
 };

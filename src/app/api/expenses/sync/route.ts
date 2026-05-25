@@ -1,5 +1,4 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
 import { PaidBy } from "@/enums";
 import { apiError, apiSuccess } from "@/lib/api/route-response";
@@ -59,12 +58,12 @@ export const POST = async (request: Request) => {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", "Invalid payload", 400);
   }
 
   const payload = expenseSyncPushSchema.safeParse(body);
   if (!payload.success) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", "Invalid payload", 400);
   }
 
   try {
@@ -74,12 +73,9 @@ export const POST = async (request: Request) => {
       revalidatePath("/budgets");
     }
 
-    return NextResponse.json(result);
+    return apiSuccess(result);
   } catch (error) {
     console.error("Failed to push expense sync operations:", error);
-    return NextResponse.json(
-      { error: "Failed to sync expenses" },
-      { status: 400 }
-    );
+    return apiError("SYNC_EXPENSES_FAILED", "Failed to sync expenses", 400);
   }
 };

@@ -84,7 +84,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual(created);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: created,
+    });
     expect(mocks.createExpense).toHaveBeenCalledWith(payload);
   });
 
@@ -106,7 +109,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual(created);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: created,
+    });
     expect(mocks.createExpense).toHaveBeenCalledWith(payload);
   });
 
@@ -136,7 +142,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.pushExpenseOperations).toHaveBeenCalledWith(operations);
   });
 
@@ -167,7 +176,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
       {
         ...operation,
@@ -195,7 +207,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
       {
         ...operation,
@@ -221,7 +236,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
       {
         ...operation,
@@ -249,7 +267,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([
       {
         ...operation,
@@ -297,7 +318,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
   });
@@ -322,7 +346,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
@@ -337,7 +364,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
     expect(mocks.pushExpenseOperations).not.toHaveBeenCalled();
   });
@@ -366,7 +397,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
     expect(mocks.pushExpenseOperations).not.toHaveBeenCalled();
   });
@@ -383,7 +418,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
     expect(mocks.createExpense).not.toHaveBeenCalled();
   });
@@ -406,7 +445,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(updated);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: updated,
+    });
     expect(mocks.updateExpense).toHaveBeenCalledWith(5, payload);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
@@ -427,7 +469,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid expense id",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid expense id",
+      },
     });
     expect(mocks.updateExpense).not.toHaveBeenCalled();
   });
@@ -449,7 +495,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
-      error: "Expense not found",
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Expense not found",
+      },
     });
   });
 
@@ -463,7 +513,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(deleted);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: deleted,
+    });
     expect(mocks.softDeleteExpense).toHaveBeenCalledWith(5);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
@@ -479,7 +532,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
-      error: "Expense not found",
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Expense not found",
+      },
     });
   });
 
@@ -493,7 +550,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
-      error: "Expense not found",
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Expense not found",
+      },
     });
   });
 
@@ -513,7 +574,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual(created);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: created,
+    });
     expect(mocks.createBudget).toHaveBeenCalledWith(payload);
   });
 
@@ -529,7 +593,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
     expect(mocks.createBudget).not.toHaveBeenCalled();
   });
@@ -545,7 +613,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(updated);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: updated,
+    });
     expect(mocks.updateBudget).toHaveBeenCalledWith(10, payload);
   });
 
@@ -557,7 +628,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid budget id",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid budget id",
+      },
     });
     expect(mocks.updateBudget).not.toHaveBeenCalled();
   });
@@ -574,7 +649,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
-      error: "Budget not found",
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Budget not found",
+      },
     });
   });
 
@@ -587,7 +666,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(payload);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: payload,
+    });
     expect(mocks.setExpenseBudget).toHaveBeenCalledWith(payload);
   });
 
@@ -600,7 +682,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
     expect(mocks.setExpenseBudget).not.toHaveBeenCalled();
   });
@@ -614,7 +700,10 @@ describe("REST mutation routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true });
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: { ok: true },
+    });
     expect(mocks.transferBudgetAmount).toHaveBeenCalledWith(payload);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
   });
@@ -630,7 +719,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Invalid payload",
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
     });
     expect(mocks.transferBudgetAmount).not.toHaveBeenCalled();
   });
@@ -651,7 +744,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
-      error: "Budget not found",
+      success: false,
+      error: {
+        code: "BUDGET_TRANSFER_FAILED",
+        message: "Budget not found",
+      },
     });
   });
 
@@ -671,7 +768,11 @@ describe("REST mutation routes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Insufficient source budget amount",
+      success: false,
+      error: {
+        code: "BUDGET_TRANSFER_FAILED",
+        message: "Insufficient source budget amount",
+      },
     });
   });
 });

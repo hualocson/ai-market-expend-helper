@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
+import { apiError, apiSuccess } from "@/lib/api/route-response";
 import {
   budgetTransferPayloadSchema,
   parseJsonPayload,
@@ -14,31 +14,30 @@ export const POST = async (request: Request) => {
       budgetTransferPayloadSchema
     );
     if ("error" in payload) {
-      return NextResponse.json({ error: payload.error }, { status: 400 });
+      return apiError("INVALID_PAYLOAD", payload.error, 400);
     }
 
     const result = await transferBudgetAmount(payload.value);
     if (!result.ok) {
       if (result.code === "NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Budget not found" },
-          { status: 404 }
-        );
+        return apiError("BUDGET_TRANSFER_FAILED", "Budget not found", 404);
       }
 
-      return NextResponse.json(
-        { error: "Insufficient source budget amount" },
-        { status: 400 }
+      return apiError(
+        "BUDGET_TRANSFER_FAILED",
+        "Insufficient source budget amount",
+        400
       );
     }
 
     revalidatePath("/budgets");
-    return NextResponse.json(result);
+    return apiSuccess(result);
   } catch (error) {
     console.error("Failed to transfer budget amount:", error);
-    return NextResponse.json(
-      { error: "Failed to transfer budget amount" },
-      { status: 400 }
+    return apiError(
+      "BUDGET_TRANSFER_FAILED",
+      "Failed to transfer budget amount",
+      400
     );
   }
 };
