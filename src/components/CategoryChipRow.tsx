@@ -38,6 +38,12 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
     setExpanded(false);
   };
 
+  const handleChipPointerDown = (
+    event: React.PointerEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+  };
+
   return (
     <div
       className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto pt-1"
@@ -53,6 +59,7 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
               layout
               key={category}
               type="button"
+              onPointerDown={handleChipPointerDown}
               onClick={() => handleChipClick(category)}
               aria-pressed={isActive}
               initial={{ opacity: 0, x: -12, filter: "blur(2px)" }}

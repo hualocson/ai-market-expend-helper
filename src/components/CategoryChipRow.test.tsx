@@ -1,9 +1,10 @@
 import React from "react";
-import userEvent from "@testing-library/user-event";
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 
 import { Category } from "@/enums";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
 import CategoryChipRow from "./CategoryChipRow";
 
 describe("CategoryChipRow", () => {
@@ -63,5 +64,25 @@ describe("CategoryChipRow", () => {
         screen.queryByRole("button", { name: /transport/i })
       ).not.toBeInTheDocument()
     );
+  });
+
+  it("keeps the active input focused when a category chip is pressed", () => {
+    render(
+      <>
+        <input aria-label="Amount" />
+        <CategoryChipRow value={Category.FOOD} onChange={vi.fn()} />
+      </>
+    );
+
+    const amount = screen.getByLabelText("Amount");
+    amount.focus();
+
+    const defaultWasNotPrevented = fireEvent.pointerDown(
+      screen.getByRole("button", { name: /food/i }),
+      { cancelable: true }
+    );
+
+    expect(defaultWasNotPrevented).toBe(false);
+    expect(amount).toHaveFocus();
   });
 });
