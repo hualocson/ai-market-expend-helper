@@ -1,4 +1,9 @@
 import { PaidBy } from "@/enums";
+import {
+  type BudgetColorId,
+  DEFAULT_BUDGET_COLOR,
+  DEFAULT_BUDGET_ICON,
+} from "@/lib/budget-appearance";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -71,6 +76,11 @@ export const budgets = pgTable(
 
     name: text("name").notNull(),
     amount: integer("amount").notNull(),
+    icon: text("icon").notNull().default(DEFAULT_BUDGET_ICON),
+    color: text("color")
+      .$type<BudgetColorId>()
+      .notNull()
+      .default(DEFAULT_BUDGET_COLOR),
 
     period: budgetPeriod("period").notNull(),
 
