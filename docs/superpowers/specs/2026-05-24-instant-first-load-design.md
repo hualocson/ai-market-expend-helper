@@ -27,7 +27,7 @@ In scope:
 
 - Returning-user perceived first load of `/`.
 - A pre-hydration, inert app shell that appears before the real app subtree is ready.
-- Tiny persisted presentation hints, such as theme and last-known formatted total text.
+- Tiny persisted presentation hints, such as last-known formatted total text.
 - Keeping the existing `/` server prefetch exactly as the canonical first real content path.
 - Making `src/app/loading.tsx` server-renderable and CSS-only.
 - Removing or reducing expensive blur-filter startup animation on first-screen surfaces.
@@ -67,7 +67,7 @@ The returning-user load path should be:
 
 ```txt
 Browser receives HTML
--> tiny shell script applies stored theme/presentation hints
+-> tiny shell script applies stored presentation hints
 -> inert Spendly shell paints
 -> existing / server prefetch continues unchanged
 -> React hydrates provider/app subtree
@@ -94,11 +94,12 @@ The shell may show a last-known formatted total string because it is presentatio
 
 ## Shell Persistence
 
-Use a small namespaced localStorage key, for example:
+Spendly is a dark-mode-only app. The instant shell must not persist, infer, or switch themes. It should render with the same dark tokens as the real app and treat dark as the only valid visual mode.
+
+Use a small namespaced localStorage key for display hints only, for example:
 
 ```ts
 type InstantShellSnapshot = {
-  theme: "dark" | "light";
   totalText: string | null;
   updatedAt: number;
 };
@@ -108,7 +109,6 @@ Rules:
 
 - The snapshot is optional.
 - Invalid JSON or invalid shapes are ignored.
-- The default theme remains dark.
 - `totalText` is a display hint only. It should be formatted text, not raw dashboard state.
 - The shell script must catch all errors because storage can be blocked.
 
@@ -119,7 +119,7 @@ The real dashboard component can update this snapshot after it successfully rend
 Add three small pieces:
 
 - `InstantAppShell`: server-rendered inert shell markup.
-- `instantShellScript`: tiny inline script that runs before hydration and applies safe shell hints.
+- `instantShellScript`: tiny inline script that runs before hydration and applies safe display hints.
 - `InstantShellBridge`: client component that marks hydration complete and persists current shell presentation hints when live data becomes available.
 
 `InstantAppShell` should render before the provider-heavy app subtree in `src/app/layout.tsx`.
@@ -196,7 +196,7 @@ No Server Actions should be added.
 
 ## Failure Behavior
 
-If `localStorage` is blocked, the shell paints with default dark styling and no total text.
+If `localStorage` is blocked, the shell paints with dark styling and no total text.
 
 If the inline shell script fails, it should fail closed and allow the server-rendered shell CSS to paint.
 
@@ -211,7 +211,7 @@ If the server prefetch fails, existing route/query error behavior should own the
 Automated tests:
 
 - shell snapshot parser accepts valid snapshots and rejects invalid ones
-- shell script applies default dark state when storage is missing or invalid
+- shell script applies display hints when storage is valid and leaves dark styling unchanged when storage is missing or invalid
 - shell bridge marks the document hydrated
 - shell bridge hides the inert shell after hydration
 - dashboard render writes only presentation-safe shell data
