@@ -20,6 +20,10 @@ If token is missing or invalid:
 - `401 { "error": "Missing internal token" }`
 - `401 { "error": "Invalid internal token" }`
 
+## Response Format
+
+Internal APIs intentionally return raw domain payloads on success and `{ "error": string }` on failure. They do not use the app-owned public API response envelope.
+
 ## Reference Data: Category and PaidBy
 
 Source of truth: `src/enums/index.ts`.
@@ -63,6 +67,42 @@ Allowed `period` values:
 - `week`
 - `month`
 - `custom`
+
+## Reference Data: Budget Appearance
+
+Source of truth: `src/lib/budget-appearance.ts`.
+
+Every budget item includes visual appearance fields:
+
+- `icon` (string): emoji/text icon used for budget badges
+- `color` (enum): fixed palette id used for budget badges
+
+Allowed `color` values:
+
+- `lime`
+- `sky`
+- `violet`
+- `rose`
+- `amber`
+- `emerald`
+- `cyan`
+- `fuchsia`
+- `orange`
+- `teal`
+- `indigo`
+- `slate`
+
+Defaults:
+
+- `icon`: `💰`
+- `color`: `lime`
+
+Validation:
+
+- `icon` must be a non-empty trimmed string with a maximum length of 8 JavaScript string code units.
+- `color` must be one of the allowed palette ids.
+- Budget create requests may omit `icon` and `color`; the route applies the defaults above.
+- Budget update requests may include either field.
 
 ## Endpoint: Create Transaction
 
@@ -267,6 +307,23 @@ curl -X DELETE "http://localhost:3000/api/internal/transactions/12" \
 - `200`: budget overview object or weekly budget report object
 - `400 { "error": "Failed to fetch budgets" }`
 
+Budget item shape:
+
+```json
+{
+  "id": 12,
+  "name": "Groceries",
+  "icon": "🛒",
+  "color": "emerald",
+  "amount": 2000000,
+  "spent": 650000,
+  "remaining": 1350000,
+  "period": "month",
+  "periodStartDate": "2026-03-01",
+  "periodEndDate": "2026-03-31"
+}
+```
+
 ### cURL examples
 
 Budget overview:
@@ -294,6 +351,8 @@ curl "http://localhost:3000/api/internal/budgets?weekStart=2026-03-02&q=food" \
 ```json
 {
   "name": "Groceries",
+  "icon": "🛒",
+  "color": "emerald",
   "amount": 2000000,
   "period": "month",
   "periodStartDate": "2026-03-01",
@@ -304,6 +363,8 @@ curl "http://localhost:3000/api/internal/budgets?weekStart=2026-03-02&q=food" \
 Fields:
 
 - `name` (required, string)
+- `icon` (optional, string): defaults to `💰`
+- `color` (optional, enum): values listed in `Budget Appearance`; defaults to `lime`
 - `amount` (required, number)
 - `period` (required, enum): `week | month | custom`
 - `periodStartDate` (required, string): format `YYYY-MM-DD`
@@ -323,6 +384,8 @@ curl -X POST "http://localhost:3000/api/internal/budgets" \
   -H "x-internal-token: $INTERNAL_API_TOKEN" \
   -d '{
     "name":"Groceries",
+    "icon":"🛒",
+    "color":"emerald",
     "amount":2000000,
     "period":"month",
     "periodStartDate":"2026-03-01"
@@ -344,6 +407,8 @@ curl -X POST "http://localhost:3000/api/internal/budgets" \
 Any subset of:
 
 - `name` (string)
+- `icon` (string)
+- `color` (`lime | sky | violet | rose | amber | emerald | cyan | fuchsia | orange | teal | indigo | slate`)
 - `amount` (number)
 - `period` (`week | month | custom`)
 - `periodStartDate` (string, `YYYY-MM-DD`)
@@ -366,6 +431,8 @@ curl -X PATCH "http://localhost:3000/api/internal/budgets/12" \
   -H "x-internal-token: $INTERNAL_API_TOKEN" \
   -d '{
     "amount":2500000,
+    "icon":"🏠",
+    "color":"sky",
     "name":"Groceries + household"
   }'
 ```
