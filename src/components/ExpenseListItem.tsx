@@ -289,7 +289,7 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
   return (
     <>
       <div
-        className="bg-surface-2/85 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
+        className="bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
         ref={containerRef}
         data-expense-list-item
       >
