@@ -248,6 +248,42 @@ const QuickExpenseSheet = ({
 
   const canSubmit = draft.amount > 0 && !queueing;
 
+  const handleOpenChange = (next: boolean) => {
+    if (typeof open !== "boolean") {
+      setInternalOpen(next);
+    }
+    onOpenChange?.(next);
+    if (!next) {
+      pendingDrawerFocusRestoreRef.current = null;
+      setAmountFocused(false);
+      setDeleteConfirmOpen(false);
+      if (!isEditMode) {
+        setDraft(buildDefaultDraft(fallbackPaidBy));
+      }
+      return;
+    }
+    setDraft(buildDraftForOpen());
+  };
+
+  const targetDate = useMemo(() => {
+    const parsed = dayjs(draft.date, "DD/MM/YYYY", true);
+    const resolved = parsed.isValid() ? parsed : dayjs();
+    return resolved.format("YYYY-MM-DD");
+  }, [draft.date]);
+
+  const weekStart = useMemo(() => {
+    const parsed = dayjs(targetDate, "YYYY-MM-DD", true);
+    return getWeekRange(parsed).weekStartDate.format("YYYY-MM-DD");
+  }, [targetDate]);
+
+  const budgetOptionsQuery = useQuery({
+    ...queries.budgetWeekly.options(weekStart, targetDate),
+    enabled: sheetOpen && Boolean(weekStart),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: false,
+  });
+
   const handleSubmit = () => {
     if (!canSubmit) {
       return;
@@ -375,23 +411,6 @@ const QuickExpenseSheet = ({
     setPaidByOpen(next);
   };
 
-  const handleOpenChange = (next: boolean) => {
-    if (typeof open !== "boolean") {
-      setInternalOpen(next);
-    }
-    onOpenChange?.(next);
-    if (!next) {
-      pendingDrawerFocusRestoreRef.current = null;
-      setAmountFocused(false);
-      setDeleteConfirmOpen(false);
-      if (!isEditMode) {
-        setDraft(buildDefaultDraft(fallbackPaidBy));
-      }
-      return;
-    }
-    setDraft(buildDraftForOpen());
-  };
-
   const handleConfirmDelete = () => {
     if (!onConfirmDelete) {
       return;
@@ -441,24 +460,6 @@ const QuickExpenseSheet = ({
     return () => window.removeEventListener(EXPENSE_PREFILL_EVENT, handle);
   }, [isEditMode, onOpenChange, open]);
 
-  const targetDate = useMemo(() => {
-    const parsed = dayjs(draft.date, "DD/MM/YYYY", true);
-    const resolved = parsed.isValid() ? parsed : dayjs();
-    return resolved.format("YYYY-MM-DD");
-  }, [draft.date]);
-
-  const weekStart = useMemo(() => {
-    const parsed = dayjs(targetDate, "YYYY-MM-DD", true);
-    return getWeekRange(parsed).weekStartDate.format("YYYY-MM-DD");
-  }, [targetDate]);
-
-  const budgetOptionsQuery = useQuery({
-    ...queries.budgetWeekly.options(weekStart, targetDate),
-    enabled: sheetOpen && Boolean(weekStart),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    retry: false,
-  });
   const selectedBudgetName = useMemo(() => {
     if (draft.budgetId === null) {
       return null;
@@ -594,7 +595,9 @@ const QuickExpenseSheet = ({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    amountRef.current?.focus();
+                    amountRef.current?.focus({
+                      preventScroll: true,
+                    });
                   }
                 }}
                 placeholder="What did you spend on?"
