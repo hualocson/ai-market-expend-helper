@@ -55,11 +55,16 @@ function DrawerContent({
   className,
   children,
   onOpenAutoFocus,
+  hideIndicator = false,
+  overlayClassName = "",
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+}: React.ComponentProps<typeof DrawerPrimitive.Content> & {
+  hideIndicator?: boolean;
+  overlayClassName?: string;
+}) {
   return (
     <DrawerPortal data-slot="drawer-portal">
-      <DrawerOverlay />
+      <DrawerOverlay className={overlayClassName} />
       <DrawerPrimitive.Content
         data-slot="drawer-content"
         className={cn(
@@ -78,7 +83,9 @@ function DrawerContent({
         }}
         {...props}
       >
-        <DrawerPrimitive.Handle className="bg-muted! mt-4 h-2! w-[100px]! group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
+        {!hideIndicator && (
+          <DrawerPrimitive.Handle className="bg-muted! mt-4 h-2! w-[100px]! group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
+        )}
         {children}
       </DrawerPrimitive.Content>
     </DrawerPortal>

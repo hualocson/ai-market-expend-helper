@@ -1,4 +1,9 @@
 import dayjs from "@/configs/date";
+import {
+  type BudgetColorId,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import type { BudgetPeriod } from "@/types/budget-weekly";
 import { createQueryKeys } from "@lukemorales/query-key-factory";
 import { QueryClient } from "@tanstack/react-query";
@@ -9,6 +14,8 @@ type BudgetWeeklyOptionsResponse = {
   budgets?: Array<{
     id: number;
     name: string;
+    icon?: string;
+    color?: string | null;
     period?: BudgetPeriod;
     periodStartDate?: string;
     periodEndDate?: string | null;
@@ -21,6 +28,8 @@ type BudgetWeeklyOptionsResponse = {
 export type BudgetWeeklyOption = {
   id: number;
   name: string;
+  icon: string;
+  color: BudgetColorId;
   period: BudgetPeriod;
   periodStartDate: string | null;
   periodEndDate: string | null;
@@ -77,6 +86,8 @@ export const fetchWeeklyBudgetOptions = async (
     .map((budget) => ({
       id: Number(budget.id),
       name: String(budget.name),
+      icon: normalizeBudgetIcon(budget.icon),
+      color: normalizeBudgetColor(budget.color),
       period:
         budget.period === "week" ||
         budget.period === "month" ||

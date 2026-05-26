@@ -1,3 +1,5 @@
+import type { BudgetColorId } from "@/lib/budget-appearance";
+
 export type BudgetPeriod = "week" | "month" | "custom";
 
 export type BudgetSummary = {
@@ -10,6 +12,8 @@ export type BudgetSummary = {
 export type BudgetListItem = {
   id: number;
   name: string;
+  icon: string;
+  color: BudgetColorId;
   amount: number;
   spent: number;
   remaining: number;
@@ -26,6 +30,8 @@ export type BudgetTransaction = {
   category: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
 };
 
 export type BudgetReport = {
@@ -50,6 +56,8 @@ export type BudgetOverviewReport = {
 
 export type BudgetCreateInput = {
   name: string;
+  icon: string;
+  color: BudgetColorId;
   amount: number;
   period: BudgetPeriod;
   periodStartDate: string;
@@ -58,6 +66,8 @@ export type BudgetCreateInput = {
 
 export type BudgetUpdateInput = {
   name?: string;
+  icon?: string;
+  color?: BudgetColorId;
   amount?: number;
   period?: BudgetPeriod;
   periodStartDate?: string;

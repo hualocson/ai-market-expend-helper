@@ -219,6 +219,73 @@ describe("local-first expense actions", () => {
     );
   });
 
+  it("persists budget appearance snapshots for local creates", async () => {
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "2026-05-26",
+      amount: 120000,
+      note: "Lunch",
+      category: "Food",
+      paidBy: PaidBy.CUBI,
+      budgetId: 10,
+      budgetName: "Meals",
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+
+    expect(created).toMatchObject({
+      budgetId: 10,
+      budgetName: "Meals",
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+  });
+
+  it("clears budget appearance snapshots for unassigned local creates", async () => {
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "2026-05-26",
+      amount: 120000,
+      note: "Lunch",
+      category: "Food",
+      paidBy: PaidBy.CUBI,
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+
+    expect(created).toMatchObject({
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
+    });
+  });
+
+  it("clears budget appearance snapshots when local creates omit budget id", async () => {
+    const store = createExpenseSyncStore();
+
+    const created = await createLocalExpense(store, {
+      date: "2026-05-26",
+      amount: 120000,
+      note: "Lunch",
+      category: "Food",
+      paidBy: PaidBy.CUBI,
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+
+    expect(created).toMatchObject({
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
+    });
+  });
+
   it("updates an existing local expense and queues an update operation", async () => {
     const store = createExpenseSyncStore();
     store.getState().hydrate([existingExpense()]);
@@ -267,6 +334,192 @@ describe("local-first expense actions", () => {
         },
       ]
     );
+  });
+
+  it("updates budget appearance snapshots when explicit snapshots are provided", async () => {
+    const store = createExpenseSyncStore();
+    store.getState().hydrate([
+      existingExpense({
+        budgetId: 3,
+        budgetName: "Food week",
+        budgetIcon: "🍱",
+        budgetColor: "sky",
+      }),
+    ]);
+
+    const updated = await updateLocalExpense(store, "client-1", {
+      date: "24/05/2026",
+      amount: 50000,
+      note: "Dinner",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+      budgetId: 4,
+      budgetName: "Meals",
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+
+    expect(updated).toMatchObject({
+      budgetId: 4,
+      budgetName: "Meals",
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
+      {
+        payload: expect.objectContaining({
+          budgetId: 4,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        }),
+      },
+    ]);
+  });
+
+  it("normalizes provided budget appearance snapshots for local updates", async () => {
+    const store = createExpenseSyncStore();
+    store.getState().hydrate([
+      existingExpense({
+        budgetId: 3,
+        budgetName: "Food week",
+        budgetIcon: "🍱",
+        budgetColor: "sky",
+      }),
+    ]);
+
+    const updated = await updateLocalExpense(store, "client-1", {
+      date: "24/05/2026",
+      amount: 50000,
+      note: "Dinner",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+      budgetId: 4,
+      budgetName: "Meals",
+      budgetIcon: "   ",
+      budgetColor: "rose",
+    });
+
+    expect(updated).toMatchObject({
+      budgetId: 4,
+      budgetName: "Meals",
+      budgetIcon: "💰",
+      budgetColor: "rose",
+    });
+  });
+
+  it("clears budget appearance snapshots when budget assignment is cleared", async () => {
+    const store = createExpenseSyncStore();
+    store.getState().hydrate([
+      existingExpense({
+        budgetId: 3,
+        budgetName: "Food week",
+        budgetIcon: "🍱",
+        budgetColor: "sky",
+      }),
+    ]);
+
+    const updated = await updateLocalExpense(store, "client-1", {
+      date: "24/05/2026",
+      amount: 50000,
+      note: "Dinner",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+      budgetId: null,
+    });
+
+    expect(updated).toMatchObject({
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
+    });
+  });
+
+  it("clears existing budget appearance snapshots when local updates omit budget id", async () => {
+    const store = createExpenseSyncStore();
+    store.getState().hydrate([
+      existingExpense({
+        budgetId: 3,
+        budgetName: "Food week",
+        budgetIcon: "🍱",
+        budgetColor: "sky",
+      }),
+    ]);
+
+    const updated = await updateLocalExpense(store, "client-1", {
+      date: "24/05/2026",
+      amount: 50000,
+      note: "Dinner",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+    });
+
+    expect(updated).toMatchObject({
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
+    });
+  });
+
+  it("preserves existing budget appearance snapshots when updating an assigned budget without snapshots", async () => {
+    const store = createExpenseSyncStore();
+    store.getState().hydrate([
+      existingExpense({
+        budgetId: 3,
+        budgetName: "Food week",
+        budgetIcon: "🍱",
+        budgetColor: "sky",
+      }),
+    ]);
+
+    const updated = await updateLocalExpense(store, "client-1", {
+      date: "24/05/2026",
+      amount: 50000,
+      note: "Dinner",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+      budgetId: 3,
+    });
+
+    expect(updated).toMatchObject({
+      budgetId: 3,
+      budgetName: "Food week",
+      budgetIcon: "🍱",
+      budgetColor: "sky",
+    });
+  });
+
+  it("does not preserve existing budget appearance snapshots when changing budgets without snapshots", async () => {
+    const store = createExpenseSyncStore();
+    store.getState().hydrate([
+      existingExpense({
+        budgetId: 3,
+        budgetName: "Food week",
+        budgetIcon: "🍱",
+        budgetColor: "sky",
+      }),
+    ]);
+
+    const updated = await updateLocalExpense(store, "client-1", {
+      date: "24/05/2026",
+      amount: 50000,
+      note: "Dinner",
+      category: "Food",
+      paidBy: PaidBy.EMBE,
+      budgetId: 4,
+      budgetName: "Meals",
+    });
+
+    expect(updated).toMatchObject({
+      budgetId: 4,
+      budgetName: "Meals",
+      budgetIcon: null,
+      budgetColor: null,
+    });
   });
 
   it("coalesces updates for an unsynced create into the create operation", async () => {

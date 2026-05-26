@@ -1,3 +1,7 @@
+import {
+  DEFAULT_BUDGET_COLOR,
+  DEFAULT_BUDGET_ICON,
+} from "@/lib/budget-appearance";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST as postBudgetTransfer } from "./budgets/transfer/route";
@@ -133,6 +137,9 @@ describe("REST mutation routes", () => {
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       },
     ];
@@ -186,8 +193,46 @@ describe("REST mutation routes", () => {
       {
         ...operation,
         serverId: null,
+        payload: {
+          ...operation.payload,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
+        },
       },
     ]);
+  });
+
+  it("passes expense sync budget appearance snapshots to the service", async () => {
+    const operation = {
+      operationId: "op-appearance",
+      type: "create",
+      clientId: "client-1",
+      serverId: null,
+      payload: {
+        clientId: "client-1",
+        date: "23/05/2026",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
+    };
+    const payload = { results: [] };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [operation],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([operation]);
   });
 
   it("normalizes omitted expense sync delete serverId to null", async () => {
@@ -563,6 +608,8 @@ describe("REST mutation routes", () => {
   it("creates a weekly budget with a validated payload", async () => {
     const payload = {
       name: "Groceries",
+      icon: "🛒",
+      color: "emerald",
       amount: 1000000,
       period: "week",
       periodStartDate: "2026-05-18",
@@ -581,6 +628,34 @@ describe("REST mutation routes", () => {
       data: created,
     });
     expect(mocks.createBudget).toHaveBeenCalledWith(payload);
+  });
+
+  it("defaults omitted weekly budget appearance for backwards-compatible creates", async () => {
+    const payload = {
+      name: "Groceries",
+      amount: 1000000,
+      period: "week",
+      periodStartDate: "2026-05-18",
+      periodEndDate: null,
+    };
+    const expectedPayload = {
+      ...payload,
+      icon: DEFAULT_BUDGET_ICON,
+      color: DEFAULT_BUDGET_COLOR,
+    };
+    const created = { id: 10, ...expectedPayload };
+    mocks.createBudget.mockResolvedValue(created);
+
+    const response = await postWeeklyBudget(
+      jsonRequest("http://localhost/api/weekly-budgets", payload)
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: created,
+    });
+    expect(mocks.createBudget).toHaveBeenCalledWith(expectedPayload);
   });
 
   it("returns 400 for an invalid weekly budget payload", async () => {
@@ -604,8 +679,31 @@ describe("REST mutation routes", () => {
     expect(mocks.createBudget).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for an invalid weekly budget color", async () => {
+    const response = await postWeeklyBudget(
+      jsonRequest("http://localhost/api/weekly-budgets", {
+        name: "Groceries",
+        icon: "🛒",
+        color: "custom-purple",
+        amount: 1000000,
+        period: "week",
+        periodStartDate: "2026-05-18",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
+    });
+    expect(mocks.createBudget).not.toHaveBeenCalled();
+  });
+
   it("updates a weekly budget with a validated payload", async () => {
-    const payload = { amount: 900000 };
+    const payload = { icon: "🍜", color: "rose", amount: 900000 };
     const updated = { id: 10, name: "Groceries", ...payload };
     mocks.updateBudget.mockResolvedValue(updated);
 

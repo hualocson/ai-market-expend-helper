@@ -1,3 +1,7 @@
+import {
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import type {
   ExpenseListQueryParams,
   ExpenseListResult,
@@ -23,6 +27,14 @@ const isExpensePayload = (payload: unknown): payload is ExpensePayload => {
   }
 
   const candidate = payload as Partial<ExpensePayload>;
+  const hasValidOptionalBudgetAppearance =
+    (typeof candidate.budgetIcon === "string" ||
+      candidate.budgetIcon === null ||
+      typeof candidate.budgetIcon === "undefined") &&
+    (typeof candidate.budgetColor === "string" ||
+      candidate.budgetColor === null ||
+      typeof candidate.budgetColor === "undefined");
+
   return (
     typeof candidate.date === "string" &&
     typeof candidate.amount === "number" &&
@@ -30,7 +42,9 @@ const isExpensePayload = (payload: unknown): payload is ExpensePayload => {
     typeof candidate.category === "string" &&
     typeof candidate.paidBy === "string" &&
     (typeof candidate.budgetId === "number" || candidate.budgetId === null) &&
-    (typeof candidate.budgetName === "string" || candidate.budgetName === null)
+    (typeof candidate.budgetName === "string" ||
+      candidate.budgetName === null) &&
+    hasValidOptionalBudgetAppearance
   );
 };
 
@@ -41,6 +55,19 @@ const syncRecordToLocalExpense = (
     return null;
   }
 
+  const budgetIcon =
+    record.payload.budgetId === null
+      ? null
+      : record.payload.budgetIcon
+        ? normalizeBudgetIcon(record.payload.budgetIcon)
+        : null;
+  const budgetColor =
+    record.payload.budgetId === null
+      ? null
+      : record.payload.budgetColor
+        ? normalizeBudgetColor(record.payload.budgetColor)
+        : null;
+
   return {
     entity: EXPENSE_SYNC_ENTITY,
     clientId: record.clientId,
@@ -50,6 +77,8 @@ const syncRecordToLocalExpense = (
     updatedAt: record.updatedAt,
     serverUpdatedAt: record.serverUpdatedAt,
     ...record.payload,
+    budgetIcon,
+    budgetColor,
   };
 };
 

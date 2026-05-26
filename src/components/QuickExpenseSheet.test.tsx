@@ -112,6 +112,8 @@ const budgetOption = (
 ): BudgetWeeklyOption => ({
   id: 1,
   name: "Food week",
+  icon: "🍜",
+  color: "rose",
   period: "week",
   periodStartDate: "2026-05-17",
   periodEndDate: "2026-05-23",
@@ -504,6 +506,8 @@ describe("QuickExpenseSheet — submit", () => {
           note: "Budget lunch",
           budgetId: 3,
           budgetName: "Food week",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
         })
       )
     );
@@ -555,6 +559,8 @@ describe("QuickExpenseSheet — submit", () => {
         category: Category.FOOD,
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
         paidBy: PaidBy.OTHER,
       },
     });

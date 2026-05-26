@@ -36,6 +36,8 @@ const makeBudget = (overrides: Partial<BudgetListItem>): BudgetListItem => ({
   amount: 500_000,
   spent: 100_000,
   remaining: 400_000,
+  icon: "💰",
+  color: "lime",
   period: "week",
   periodStartDate: "2026-05-10",
   periodEndDate: "2026-05-16",
@@ -544,8 +546,12 @@ describe("BudgetTransferDrawer", () => {
     await user.type(screen.getByLabelText(/search source budgets/i), "lun");
 
     expect(screen.getByRole("button", { name: /Lunch/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Dinner/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Budget: Coffee/i })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Budget: Dinner/i })
+    ).toBeNull();
   });
 
   it("matches Vietnamese names whether the query or the data is accented", async () => {
@@ -568,7 +574,9 @@ describe("BudgetTransferDrawer", () => {
     // Plain ASCII query should still match the accented budget name.
     await user.type(screen.getByLabelText(/search source budgets/i), "an toi");
     expect(screen.getByRole("button", { name: /Ăn tối/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Budget: Coffee/i })
+    ).toBeNull();
   });
 
   it("matches Vietnamese đ as plain d in either direction", async () => {
@@ -593,7 +601,9 @@ describe("BudgetTransferDrawer", () => {
     expect(
       screen.getByRole("button", { name: /Đậu phụng/i })
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Budget: Coffee/i })
+    ).toBeNull();
   });
 
   it("shows a no-match card with a clear button when nothing matches", async () => {
@@ -615,11 +625,13 @@ describe("BudgetTransferDrawer", () => {
     await user.type(screen.getByLabelText(/search source budgets/i), "xyz");
 
     expect(screen.getByText(/no budgets match "xyz"/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Coffee/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Budget: Coffee/i })
+    ).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /^clear$/i }));
     expect(
-      screen.getByRole("button", { name: /^Coffee/i })
+      screen.getByRole("button", { name: /^Budget: Coffee/i })
     ).toBeInTheDocument();
   });
 

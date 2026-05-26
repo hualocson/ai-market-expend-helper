@@ -1,4 +1,8 @@
 import { ApiResponseError, unwrapApiResponse } from "@/lib/api/api-response";
+import {
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import type { ExpenseListResult } from "@/lib/expenses/list-model";
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
@@ -24,6 +28,8 @@ type ExpenseSyncServerRow = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: string | null;
   updatedAt: string;
   deletedAt: string | null;
   isDeleted: boolean;
@@ -57,6 +63,14 @@ const isRecordPayload = (payload: unknown): payload is ExpensePayload => {
   }
 
   const candidate = payload as Partial<ExpensePayload>;
+  const hasValidOptionalBudgetAppearance =
+    (typeof candidate.budgetIcon === "string" ||
+      candidate.budgetIcon === null ||
+      typeof candidate.budgetIcon === "undefined") &&
+    (typeof candidate.budgetColor === "string" ||
+      candidate.budgetColor === null ||
+      typeof candidate.budgetColor === "undefined");
+
   return (
     typeof candidate.date === "string" &&
     typeof candidate.amount === "number" &&
@@ -64,7 +78,9 @@ const isRecordPayload = (payload: unknown): payload is ExpensePayload => {
     typeof candidate.category === "string" &&
     typeof candidate.paidBy === "string" &&
     (typeof candidate.budgetId === "number" || candidate.budgetId === null) &&
-    (typeof candidate.budgetName === "string" || candidate.budgetName === null)
+    (typeof candidate.budgetName === "string" ||
+      candidate.budgetName === null) &&
+    hasValidOptionalBudgetAppearance
   );
 };
 
@@ -75,6 +91,19 @@ const syncRecordToLocalExpense = (
     return null;
   }
 
+  const budgetIcon =
+    record.payload.budgetId === null
+      ? null
+      : record.payload.budgetIcon
+        ? normalizeBudgetIcon(record.payload.budgetIcon)
+        : null;
+  const budgetColor =
+    record.payload.budgetId === null
+      ? null
+      : record.payload.budgetColor
+        ? normalizeBudgetColor(record.payload.budgetColor)
+        : null;
+
   return {
     entity: EXPENSE_SYNC_ENTITY,
     clientId: record.clientId,
@@ -84,6 +113,8 @@ const syncRecordToLocalExpense = (
     updatedAt: record.updatedAt,
     serverUpdatedAt: record.serverUpdatedAt,
     ...record.payload,
+    budgetIcon,
+    budgetColor,
   };
 };
 
@@ -105,6 +136,8 @@ const localExpenseToSyncRecord = (
     paidBy: expense.paidBy,
     budgetId: expense.budgetId,
     budgetName: expense.budgetName,
+    budgetIcon: expense.budgetIcon ?? null,
+    budgetColor: expense.budgetColor ?? null,
   },
 });
 
@@ -152,6 +185,8 @@ const expenseListItemToSyncedRecord = (
       paidBy: row.paidBy,
       budgetId: row.budgetId,
       budgetName: row.budgetName,
+      budgetIcon: row.budgetIcon ?? null,
+      budgetColor: row.budgetColor ?? null,
     },
   };
 };
@@ -201,6 +236,10 @@ const serverRowToLocalExpense = (
     paidBy: row.paidBy,
     budgetId: row.budgetId,
     budgetName: row.budgetName,
+    budgetIcon:
+      row.budgetId === null ? null : normalizeBudgetIcon(row.budgetIcon),
+    budgetColor:
+      row.budgetId === null ? null : normalizeBudgetColor(row.budgetColor),
     syncStatus: row.isDeleted ? "deleted" : "synced",
     lastError: null,
     updatedAt: row.isDeleted ? deletedAt : row.updatedAt,
@@ -379,6 +418,9 @@ const toPushOperationPayload = (operation: SyncOperation<unknown>) => {
             category: payload.category,
             paidBy: payload.paidBy,
             budgetId: payload.budgetId,
+            budgetName: payload.budgetName,
+            budgetIcon: payload.budgetIcon ?? null,
+            budgetColor: payload.budgetColor ?? null,
           },
   };
 };

@@ -117,6 +117,85 @@ describe("quick expense recovery store", () => {
     });
   });
 
+  it("restores budget appearance snapshots from failed outbox operations", () => {
+    const store = createQuickExpenseRecoveryStore();
+
+    store.getState().syncFailedOutboxEntries([
+      {
+        entity: "expenses",
+        operationId: "op-appearance",
+        type: "create",
+        clientId: "client-1",
+        serverId: null,
+        payload: {
+          ...localExpense,
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        },
+        createdAt: new Date().toISOString(),
+        lastAttemptAt: null,
+        lastError: "Network failed",
+        attemptCount: 1,
+      },
+    ]);
+
+    expect(store.getState().entries["op-appearance"]?.draft).toMatchObject({
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+  });
+
+  it("normalizes invalid budget appearance snapshots from failed outbox operations", () => {
+    const store = createQuickExpenseRecoveryStore();
+    const malformedOperation = {
+      ...buildFailedOperation({
+        operationId: "op-invalid-appearance",
+      }),
+      payload: {
+        ...localExpense,
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "   ",
+        budgetColor: "custom",
+      },
+    } as unknown as ExpenseOutboxOperation;
+
+    store.getState().syncFailedOutboxEntries([malformedOperation]);
+
+    expect(
+      store.getState().entries["op-invalid-appearance"]?.draft
+    ).toMatchObject({
+      budgetIcon: "💰",
+      budgetColor: "lime",
+    });
+  });
+
+  it("clears budget appearance snapshots for failed outbox operations without a budget", () => {
+    const store = createQuickExpenseRecoveryStore();
+
+    store.getState().syncFailedOutboxEntries([
+      buildFailedOperation({
+        operationId: "op-unassigned-appearance",
+        payload: {
+          ...localExpense,
+          budgetId: null,
+          budgetName: null,
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        },
+      }),
+    ]);
+
+    expect(
+      store.getState().entries["op-unassigned-appearance"]?.draft
+    ).toMatchObject({
+      budgetIcon: null,
+      budgetColor: null,
+    });
+  });
+
   it("maps failed delete outbox operations to delete recovery entries", () => {
     const operation = buildFailedOperation({
       operationId: "expense-op-delete",

@@ -43,6 +43,8 @@ const expenseRecord = (overrides: Partial<SyncRecord> = {}): SyncRecord => ({
     paidBy: "Cubi",
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
   },
   ...overrides,
 });
@@ -66,6 +68,8 @@ const outboxOperation = (
     paidBy: "Cubi",
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
     syncStatus: "pending",
     lastError: null,
     updatedAt: "2026-05-24T09:00:00.000Z",
@@ -149,6 +153,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ]),
       "2026-05-24T10:00:00.000Z"
@@ -159,6 +165,37 @@ describe("expense sync coordinator", () => {
         clientId: "expense-server-42",
         serverId: 42,
         syncStatus: "synced",
+      }),
+    ]);
+  });
+
+  it("seeds budget appearance snapshots from list rows", async () => {
+    await seedExpenseListResultInSyncStorage(
+      expenseListResult([
+        {
+          id: 42,
+          clientId: "client-appearance",
+          date: "2026-05-24",
+          amount: 125000,
+          note: "Server row",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        },
+      ]),
+      "2026-05-24T10:00:00.000Z"
+    );
+
+    await expect(syncRepository.records.list("expenses")).resolves.toEqual([
+      expect.objectContaining({
+        clientId: "client-appearance",
+        payload: expect.objectContaining({
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        }),
       }),
     ]);
   });
@@ -176,6 +213,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
         {
           id: Number.POSITIVE_INFINITY,
@@ -187,6 +226,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
         {
           id: 0,
@@ -198,6 +239,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ]),
       "2026-05-24T10:00:00.000Z"
@@ -220,6 +263,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       })
     );
@@ -236,6 +281,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ]),
       "2026-05-24T10:00:00.000Z"
@@ -328,6 +375,8 @@ describe("expense sync coordinator", () => {
               paidBy: "Embe",
               budgetId: 3,
               budgetName: "Meals",
+              budgetIcon: null,
+              budgetColor: null,
               updatedAt: "2026-05-24T10:00:00.000Z",
               deletedAt: null,
               isDeleted: false,
@@ -342,6 +391,8 @@ describe("expense sync coordinator", () => {
               paidBy: "Cubi",
               budgetId: null,
               budgetName: null,
+              budgetIcon: null,
+              budgetColor: null,
               updatedAt: "2026-05-24T09:00:00.000Z",
               deletedAt: "2026-05-24T10:00:00.000Z",
               isDeleted: true,
@@ -399,6 +450,8 @@ describe("expense sync coordinator", () => {
               paidBy: "Cubi",
               budgetId: null,
               budgetName: null,
+              budgetIcon: null,
+              budgetColor: null,
               updatedAt: "2026-05-24T10:00:00.000Z",
               deletedAt: null,
               isDeleted: false,
@@ -436,6 +489,49 @@ describe("expense sync coordinator", () => {
     unsubscribe();
   });
 
+  it("normalizes server row budget appearance before writing local sync records", async () => {
+    const queryClient = new QueryClient();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        successEnvelope({
+          cursor: "2026-05-24T10:00:00.000Z",
+          changes: [
+            {
+              id: 23,
+              clientId: "server-appearance",
+              date: "2026-05-24",
+              amount: 50000,
+              note: "Pulled lunch",
+              category: "Food",
+              paidBy: "Cubi",
+              budgetId: 10,
+              budgetName: "Meals",
+              budgetIcon: "   ",
+              budgetColor: "custom",
+              updatedAt: "2026-05-24T10:00:00.000Z",
+              deletedAt: null,
+              isDeleted: false,
+            },
+          ],
+        })
+      )
+    );
+
+    await pullExpenseChanges(queryClient);
+
+    await expect(
+      syncRepository.records.list("expenses")
+    ).resolves.toMatchObject([
+      {
+        serverId: 23,
+        payload: expect.objectContaining({
+          budgetIcon: "💰",
+          budgetColor: "lime",
+        }),
+      },
+    ]);
+  });
+
   it("preserves dirty local rows when pulling older server changes", async () => {
     await syncRepository.metadata.setCursor(
       "expenses",
@@ -453,6 +549,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       })
     );
@@ -472,6 +570,8 @@ describe("expense sync coordinator", () => {
               paidBy: "Cubi",
               budgetId: null,
               budgetName: null,
+              budgetIcon: null,
+              budgetColor: null,
               updatedAt: "2026-05-24T10:00:00.000Z",
               deletedAt: null,
               isDeleted: false,
@@ -507,9 +607,41 @@ describe("expense sync coordinator", () => {
         serverId: null,
         syncStatus: "pending",
         serverUpdatedAt: null,
+        payload: {
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        },
       })
     );
-    await syncRepository.outbox.put(outboxOperation());
+    await syncRepository.outbox.put(
+      outboxOperation({
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: null,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+          syncStatus: "pending",
+          lastError: null,
+          updatedAt: "2026-05-24T09:00:00.000Z",
+          serverUpdatedAt: null,
+        },
+      })
+    );
     const queryClient = new QueryClient();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(
@@ -528,6 +660,8 @@ describe("expense sync coordinator", () => {
                 paidBy: "Cubi",
                 budgetId: null,
                 budgetName: null,
+                budgetIcon: null,
+                budgetColor: null,
                 updatedAt: "2026-05-24T10:00:00.000Z",
                 deletedAt: null,
                 isDeleted: false,
@@ -559,7 +693,10 @@ describe("expense sync coordinator", () => {
                 note: "Coffee",
                 category: "Food",
                 paidBy: "Cubi",
-                budgetId: null,
+                budgetId: 10,
+                budgetName: "Meals",
+                budgetIcon: "🍜",
+                budgetColor: "rose",
               },
             },
           ],
@@ -602,6 +739,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
           syncStatus: "deleted",
           lastError: null,
           updatedAt: "2026-05-24T09:00:00.000Z",
@@ -627,6 +766,8 @@ describe("expense sync coordinator", () => {
                 paidBy: "Cubi",
                 budgetId: null,
                 budgetName: null,
+                budgetIcon: null,
+                budgetColor: null,
                 updatedAt: "2026-05-24T10:00:00.000Z",
                 deletedAt: "2026-05-24T10:00:00.000Z",
                 isDeleted: true,
@@ -766,6 +907,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       })
     );
@@ -785,6 +928,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
           syncStatus: "pending",
           lastError: null,
           updatedAt: "2026-05-24T10:00:00.000Z",
@@ -809,6 +954,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
           syncStatus: "pending",
           lastError: null,
           updatedAt: "2026-05-24T11:00:00.000Z",
@@ -835,6 +982,8 @@ describe("expense sync coordinator", () => {
                 paidBy: "Cubi",
                 budgetId: null,
                 budgetName: null,
+                budgetIcon: null,
+                budgetColor: null,
                 updatedAt: "2026-05-24T10:30:00.000Z",
                 deletedAt: null,
                 isDeleted: false,
@@ -889,6 +1038,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       })
     );
@@ -908,6 +1059,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
           syncStatus: "pending",
           lastError: null,
           updatedAt: "2026-05-24T10:00:00.000Z",
@@ -932,6 +1085,8 @@ describe("expense sync coordinator", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
           syncStatus: "pending",
           lastError: null,
           updatedAt: "2026-05-24T11:00:00.000Z",
@@ -963,6 +1118,8 @@ describe("expense sync coordinator", () => {
                 paidBy: "Cubi",
                 budgetId: null,
                 budgetName: null,
+                budgetIcon: null,
+                budgetColor: null,
                 updatedAt: "2026-05-24T11:30:00.000Z",
                 deletedAt: null,
                 isDeleted: false,

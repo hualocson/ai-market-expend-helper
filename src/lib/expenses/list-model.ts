@@ -1,4 +1,5 @@
 import dayjs from "@/configs/date";
+import type { BudgetColorId } from "@/lib/budget-appearance";
 
 export type ExpenseListQueryParams = {
   month?: string;
@@ -21,6 +22,8 @@ export type ExpenseListItem = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
   syncStatus?: ExpenseListItemSyncStatus;
 };
 

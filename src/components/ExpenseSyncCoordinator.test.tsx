@@ -52,6 +52,8 @@ describe("ExpenseSyncCoordinator", () => {
             paidBy: "Cubi",
             budgetId: 7,
             budgetName: "Meals",
+            budgetIcon: "🍜",
+            budgetColor: "rose",
           },
         ],
       },
@@ -73,6 +75,8 @@ describe("ExpenseSyncCoordinator", () => {
         paidBy: "Cubi",
         budgetId: 7,
         budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
       },
     ],
   });

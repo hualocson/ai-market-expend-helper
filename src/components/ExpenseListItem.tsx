@@ -5,6 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import {
+  type BudgetColorId,
+  getBudgetColorOption,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { ExpenseListItemSyncStatus } from "@/lib/expenses/list-model";
 import { useDeleteExpenseMutation } from "@/lib/mutations";
@@ -37,6 +43,8 @@ export type ExpenseListItemData = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
   syncStatus?: ExpenseListItemSyncStatus;
 };
 
@@ -84,6 +92,52 @@ const ExpenseSyncStatusDot = ({
     />
   );
 };
+
+const CategoryBadge = ({ category }: { category: string }) => (
+  <span
+    aria-label={`Category: ${category}`}
+    className="bg-muted text-muted-foreground inline-flex max-w-[150px] min-w-0 items-center gap-1.5 rounded-2xl py-0.5 pr-2 pl-0.5 text-sm"
+  >
+    <ExpenseItemIcon
+      category={category as Category}
+      size="sm"
+      className="size-5 shrink-0"
+    />
+    <span className="min-w-0 truncate">{category}</span>
+  </span>
+);
+
+const BudgetIcon = ({
+  icon,
+  color,
+}: {
+  icon: string | null;
+  color: BudgetColorId | null;
+}) => {
+  const normalizedIcon = normalizeBudgetIcon(icon);
+  const colorOption = getBudgetColorOption(normalizeBudgetColor(color));
+
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex size-12 shrink-0 items-center justify-center rounded-full text-xl font-medium",
+        colorOption.chipClassName
+      )}
+    >
+      {normalizedIcon}
+    </span>
+  );
+};
+
+const BudgetName = ({ name }: { name: string }) => (
+  <span
+    aria-label={`Budget: ${name}`}
+    className="text-muted-foreground max-w-[160px] min-w-0 truncate text-sm"
+  >
+    {name}
+  </span>
+);
 
 const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -235,7 +289,7 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
   return (
     <>
       <div
-        className="bg-surface-2/85 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
+        className="bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
         ref={containerRef}
         data-expense-list-item
       >
@@ -314,25 +368,28 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
           transition={{ duration: 0.3 }}
         >
           <div className="flex flex-wrap items-center gap-4">
-            <ExpenseItemIcon
-              category={expense.category as Category}
-              className={cn(
-                "shrink-0",
-                !expense.note && "bg-warning/15 text-warning"
-              )}
-            />
+            {expense.budgetId ? (
+              <BudgetIcon
+                icon={expense.budgetIcon ?? null}
+                color={expense.budgetColor ?? null}
+              />
+            ) : (
+              <ExpenseItemIcon
+                category={expense.category as Category}
+                className={cn(
+                  "shrink-0",
+                  !expense.note && "bg-warning/15 text-warning"
+                )}
+              />
+            )}
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-foreground/90 truncate font-semibold">
                 {expense.note || "<No note>"}
               </p>
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <p className="bg-muted text-muted-foreground max-w-[140px] truncate rounded-2xl px-3 text-sm">
-                  {expense.category}
-                </p>
+                <CategoryBadge category={expense.category} />
                 {expense.budgetId ? (
-                  <p className="bg-success/10 text-success max-w-[160px] truncate rounded-2xl px-3 text-sm">
-                    {budgetBadgeLabel}
-                  </p>
+                  <BudgetName name={budgetBadgeLabel} />
                 ) : (
                   <span className="bg-warning size-2 rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--warning)_55%,transparent)]" />
                 )}

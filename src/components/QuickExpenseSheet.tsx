@@ -6,6 +6,7 @@ import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import {
   EXPENSE_PREFILL_EVENT,
   type ExpensePrefillPayload,
@@ -86,6 +87,8 @@ export type TQuickExpenseSheetInitialExpense = {
   category: Category | string;
   budgetId?: number | null;
   budgetName?: string | null;
+  budgetIcon?: string | null;
+  budgetColor?: BudgetColorId | null;
   paidBy?: PaidBy | string;
 };
 
@@ -103,6 +106,8 @@ const buildDefaultDraft = (paidBy: PaidBy): TExpenseDraft => ({
   category: Category.FOOD,
   budgetId: null,
   budgetName: null,
+  budgetIcon: null,
+  budgetColor: null,
   paidBy,
 });
 
@@ -152,6 +157,8 @@ const buildDraftFromExpense = (
     category: normalizeCategory(initialExpense.category),
     budgetId: initialExpense.budgetId ?? null,
     budgetName: initialExpense.budgetName ?? null,
+    budgetIcon: initialExpense.budgetIcon ?? null,
+    budgetColor: initialExpense.budgetColor ?? null,
     paidBy: normalizePaidBy(initialExpense.paidBy, fallbackPaidBy),
   };
 };
@@ -164,6 +171,8 @@ const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
   category: draft.category,
   budgetId: draft.budgetId,
   budgetName: draft.budgetName,
+  budgetIcon: draft.budgetIcon ?? null,
+  budgetColor: draft.budgetColor ?? null,
   paidBy: draft.paidBy,
 });
 
@@ -178,6 +187,8 @@ const buildQuickExpensePayload = (
   paidBy: draft.paidBy,
   budgetId: draft.budgetId,
   budgetName: draft.budgetName,
+  budgetIcon: draft.budgetIcon ?? null,
+  budgetColor: draft.budgetColor ?? null,
 });
 
 const normalizeSubmittedDate = (value: string): string => {
@@ -295,16 +306,26 @@ const QuickExpenseSheet = ({
     }
 
     setQueueing(true);
+    const selectedBudget =
+      draft.budgetId === null
+        ? null
+        : (budgetOptionsQuery.data?.find(
+            (budget) => budget.id === draft.budgetId
+          ) ?? null);
     const submittedDraft = cloneExpenseDraft({
       ...draft,
       budgetName:
         draft.budgetId === null
           ? null
-          : (budgetOptionsQuery.data?.find(
-              (budget) => budget.id === draft.budgetId
-            )?.name ??
-            draft.budgetName ??
-            null),
+          : (selectedBudget?.name ?? draft.budgetName ?? null),
+      budgetIcon:
+        draft.budgetId === null
+          ? null
+          : (selectedBudget?.icon ?? draft.budgetIcon ?? null),
+      budgetColor:
+        draft.budgetId === null
+          ? null
+          : (selectedBudget?.color ?? draft.budgetColor ?? null),
     });
     const payload = buildQuickExpensePayload(submittedDraft);
     const submittedTransactionId = transactionId;
@@ -466,9 +487,10 @@ const QuickExpenseSheet = ({
     }
     return (
       budgetOptionsQuery.data?.find((b) => b.id === draft.budgetId)?.name ??
+      draft.budgetName ??
       "Budget"
     );
-  }, [draft.budgetId, budgetOptionsQuery.data]);
+  }, [draft.budgetId, draft.budgetName, budgetOptionsQuery.data]);
 
   useEffect(() => {
     if (draft.budgetId === null || !budgetOptionsQuery.isSuccess) {
@@ -477,7 +499,13 @@ const QuickExpenseSheet = ({
     if (
       !budgetOptionsQuery.data.some((budget) => budget.id === draft.budgetId)
     ) {
-      setDraft((prev) => ({ ...prev, budgetId: null, budgetName: null }));
+      setDraft((prev) => ({
+        ...prev,
+        budgetId: null,
+        budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
+      }));
     }
   }, [draft.budgetId, budgetOptionsQuery.data, budgetOptionsQuery.isSuccess]);
 
@@ -709,17 +737,18 @@ const QuickExpenseSheet = ({
           open={budgetOpen}
           onOpenChange={handleBudgetOpenChange}
           value={draft.budgetId}
-          onChange={(id) =>
+          onChange={(id) => {
+            const selected = budgetOptionsQuery.data?.find(
+              (budget) => budget.id === id
+            );
             setDraft((prev) => ({
               ...prev,
               budgetId: id,
-              budgetName:
-                id === null
-                  ? null
-                  : (budgetOptionsQuery.data?.find((budget) => budget.id === id)
-                      ?.name ?? null),
-            }))
-          }
+              budgetName: id === null ? null : (selected?.name ?? null),
+              budgetIcon: id === null ? null : (selected?.icon ?? null),
+              budgetColor: id === null ? null : (selected?.color ?? null),
+            }));
+          }}
           weekStart={weekStart}
           targetDate={targetDate}
           isParentOpen={sheetOpen}

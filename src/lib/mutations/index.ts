@@ -100,9 +100,30 @@ const requestExpenseSyncAfterLocalWrite = (queryClient: QueryClient) => {
   void requestExpenseSync(queryClient);
 };
 
+const requestExpenseSyncAfterBudgetMetadataChange = (
+  queryClient: QueryClient,
+  input: BudgetUpdateInput
+) => {
+  if (
+    typeof input.name === "string" ||
+    typeof input.icon === "string" ||
+    typeof input.color === "string"
+  ) {
+    void requestExpenseSync(queryClient);
+  }
+};
+
 const invalidateBudgetMutationQueries = async (queryClient: QueryClient) => {
   await queryClient.invalidateQueries({ queryKey: queries.budgets._def });
   await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
+};
+
+const invalidateBudgetUpdateMutationQueries = async (
+  queryClient: QueryClient
+) => {
+  await invalidateBudgetMutationQueries(queryClient);
+  await queryClient.invalidateQueries({ queryKey: queries.expenses._def });
+  await queryClient.invalidateQueries({ queryKey: queries.reports._def });
 };
 
 const invalidateBudgetDeleteMutationQueries = async (
@@ -119,6 +140,8 @@ const invalidateBudgetDeleteMutationQueries = async (
     queryKey: queries.budgets.transferCandidates._def,
   });
   await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
+  await queryClient.invalidateQueries({ queryKey: queries.expenses._def });
+  await queryClient.invalidateQueries({ queryKey: queries.reports._def });
 };
 
 const invalidateTransactionBudgetMutationQueries = async (
@@ -186,6 +209,8 @@ const ensureLocalExpenseForUpdate = (
     paidBy: input.paidBy,
     budgetId: input.budgetId ?? null,
     budgetName: input.budgetName ?? null,
+    budgetIcon: input.budgetIcon ?? null,
+    budgetColor: input.budgetColor ?? null,
     syncStatus: "synced",
     lastError: null,
     updatedAt: now,
@@ -230,6 +255,8 @@ const ensureLocalExpenseForDelete = (variables: DeleteExpenseVariables) => {
     paidBy: "",
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
     syncStatus: "synced",
     lastError: null,
     updatedAt: now,
@@ -341,7 +368,10 @@ export const useUpdateBudgetMutation = () => {
           fallbackError: "Failed to update budget",
         }
       ),
-    onSuccess: () => invalidateBudgetMutationQueries(queryClient),
+    onSuccess: async (_updated, variables) => {
+      await invalidateBudgetUpdateMutationQueries(queryClient);
+      requestExpenseSyncAfterBudgetMetadataChange(queryClient, variables.input);
+    },
   });
 };
 
@@ -356,6 +386,7 @@ export const useDeleteBudgetMutation = () => {
       }),
     onSuccess: async (_deleted, id) => {
       await invalidateBudgetDeleteMutationQueries(queryClient, id);
+      void requestExpenseSync(queryClient);
     },
   });
 };

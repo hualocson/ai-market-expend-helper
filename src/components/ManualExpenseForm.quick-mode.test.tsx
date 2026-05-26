@@ -35,16 +35,22 @@ const createFetchResponse = (payload: unknown = { budgets: [] }) =>
 
 const renderManualExpenseFormTree = ({
   initialMode,
+  initialExpense,
   showBudgetSelect = false,
   isSheetOpen = true,
   prefillExpense = null,
+  onSubmit,
 }: {
   initialMode?: QuickAddMode;
+  initialExpense?: React.ComponentProps<
+    typeof ManualExpenseForm
+  >["initialExpense"];
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
   prefillExpense?: Partial<
     Pick<TExpense, "amount" | "note" | "category">
   > | null;
+  onSubmit?: React.ComponentProps<typeof ManualExpenseForm>["onSubmit"];
 }) => (
   <QueryClientProvider
     client={
@@ -60,9 +66,11 @@ const renderManualExpenseFormTree = ({
     <SettingsStoreProvider>
       <ManualExpenseForm
         {...(typeof initialMode !== "undefined" ? { initialMode } : {})}
+        initialExpense={initialExpense}
         prefillExpense={prefillExpense}
         showBudgetSelect={showBudgetSelect}
         isSheetOpen={isSheetOpen}
+        onSubmit={onSubmit}
       />
     </SettingsStoreProvider>
   </QueryClientProvider>
@@ -75,18 +83,24 @@ afterEach(() => {
 
 const renderManualExpenseForm = async ({
   initialMode,
+  initialExpense,
   showBudgetSelect = false,
   isSheetOpen = true,
   prefillExpense = null,
   budgetPayload = { budgets: [] },
+  onSubmit,
 }: {
   initialMode?: QuickAddMode;
+  initialExpense?: React.ComponentProps<
+    typeof ManualExpenseForm
+  >["initialExpense"];
   showBudgetSelect?: boolean;
   isSheetOpen?: boolean;
   prefillExpense?: Partial<
     Pick<TExpense, "amount" | "note" | "category">
   > | null;
   budgetPayload?: unknown;
+  onSubmit?: React.ComponentProps<typeof ManualExpenseForm>["onSubmit"];
 } = {}) => {
   ensureReactGlobal();
 
@@ -99,9 +113,11 @@ const renderManualExpenseForm = async ({
     renderResult = render(
       renderManualExpenseFormTree({
         initialMode,
+        initialExpense,
         showBudgetSelect,
         isSheetOpen,
         prefillExpense,
+        onSubmit,
       })
     );
   });
@@ -315,6 +331,85 @@ describe("ManualExpenseForm quick mode", () => {
 });
 
 describe("ManualExpenseForm budget drawer", () => {
+  it("submits the selected budget appearance snapshot", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      onSubmit,
+      budgetPayload: {
+        budgets: [
+          {
+            id: 11,
+            name: "Meals",
+            icon: "🍜",
+            color: "rose",
+            period: "week",
+            periodStartDate: dayjs().startOf("week").format("YYYY-MM-DD"),
+            periodEndDate: dayjs().endOf("week").format("YYYY-MM-DD"),
+            amount: 500000,
+            spent: 120000,
+            remaining: 380000,
+          },
+        ],
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: /budget/i }));
+    await user.click(await screen.findByRole("button", { name: /meals/i }));
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("120000");
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 120000,
+          budgetId: 11,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        })
+      )
+    );
+  });
+
+  it("submits the existing budget name snapshot when budget options are unavailable", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      isSheetOpen: false,
+      onSubmit,
+      initialExpense: {
+        date: "23/05/2026",
+        amount: 45000,
+        note: "Coffee",
+        category: Category.FOOD,
+        paidBy: "Cubi",
+        budgetId: 11,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          budgetId: 11,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        })
+      )
+    );
+  });
+
   it("groups budget options by weekly and monthly periods", async () => {
     const user = userEvent.setup();
     const today = dayjs();

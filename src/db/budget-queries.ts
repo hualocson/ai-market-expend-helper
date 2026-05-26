@@ -1,6 +1,10 @@
 import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
+import {
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import { getWeekRange } from "@/lib/week";
 import {
   BudgetCreateInput,
@@ -86,6 +90,20 @@ const touchExpenseUpdatedAt = async (expenseId: number) => {
     .where(eq(expenses.id, expenseId));
 };
 
+const touchExpensesForBudget = async (budgetId: number) => {
+  await db
+    .update(expenses)
+    .set({ updatedAt: new Date() })
+    .where(
+      sql`exists (
+        select 1
+        from ${expenseBudgets}
+        where ${expenseBudgets.expenseId} = ${expenses.id}
+          and ${expenseBudgets.budgetId} = ${budgetId}
+      )`
+    );
+};
+
 export const getWeeklyBudgetReport = async (
   weekStartDate: string,
   searchQuery?: string
@@ -96,6 +114,8 @@ export const getWeeklyBudgetReport = async (
     .select({
       id: budgets.id,
       name: budgets.name,
+      icon: budgets.icon,
+      color: budgets.color,
       amount: budgets.amount,
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
@@ -128,6 +148,8 @@ export const getWeeklyBudgetReport = async (
         category: expenses.category,
         budgetId: expenseBudgets.budgetId,
         budgetName: budgets.name,
+        budgetIcon: budgets.icon,
+        budgetColor: budgets.color,
       })
       .from(expenses)
       .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
@@ -179,6 +201,10 @@ export const getWeeklyBudgetReport = async (
       category: row.category ?? "",
       budgetId,
       budgetName: row.budgetName ?? null,
+      budgetIcon:
+        budgetId === null ? null : normalizeBudgetIcon(row.budgetIcon),
+      budgetColor:
+        budgetId === null ? null : normalizeBudgetColor(row.budgetColor),
     };
   });
 
@@ -192,6 +218,8 @@ export const getWeeklyBudgetReport = async (
     return {
       id: budget.id,
       name: budget.name,
+      icon: normalizeBudgetIcon(budget.icon),
+      color: normalizeBudgetColor(budget.color),
       amount,
       spent,
       remaining: amount - spent,
@@ -226,6 +254,8 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
     .select({
       id: budgets.id,
       name: budgets.name,
+      icon: budgets.icon,
+      color: budgets.color,
       amount: budgets.amount,
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
@@ -249,6 +279,8 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
     .groupBy(
       budgets.id,
       budgets.name,
+      budgets.icon,
+      budgets.color,
       budgets.amount,
       budgets.period,
       budgets.periodStartDate,
@@ -266,6 +298,8 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
     return {
       id: budget.id,
       name: budget.name,
+      icon: normalizeBudgetIcon(budget.icon),
+      color: normalizeBudgetColor(budget.color),
       amount,
       spent,
       remaining: amount - spent,
@@ -304,6 +338,8 @@ export const getTransferCandidates = async (
     .select({
       id: budgets.id,
       name: budgets.name,
+      icon: budgets.icon,
+      color: budgets.color,
       amount: budgets.amount,
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
@@ -328,6 +364,8 @@ export const getTransferCandidates = async (
     .groupBy(
       budgets.id,
       budgets.name,
+      budgets.icon,
+      budgets.color,
       budgets.amount,
       budgets.period,
       budgets.periodStartDate,
@@ -342,6 +380,8 @@ export const getTransferCandidates = async (
     return {
       id: budget.id,
       name: budget.name,
+      icon: normalizeBudgetIcon(budget.icon),
+      color: normalizeBudgetColor(budget.color),
       amount,
       spent,
       remaining: amount - spent,
@@ -364,6 +404,8 @@ export const createBudget = async (input: BudgetCreateInput) => {
     .insert(budgets)
     .values({
       name: input.name.trim(),
+      icon: normalizeBudgetIcon(input.icon),
+      color: normalizeBudgetColor(input.color),
       amount: input.amount,
       period: input.period,
       periodStartDate: normalized.periodStartDate,
@@ -375,10 +417,20 @@ export const createBudget = async (input: BudgetCreateInput) => {
 };
 
 export const updateBudget = async (id: number, input: BudgetUpdateInput) => {
-  const updates: Partial<BudgetUpdateInput> = {};
+  const updates: Partial<typeof budgets.$inferInsert> = {};
+  const updatesLinkedExpenseMetadata =
+    typeof input.name === "string" ||
+    typeof input.icon === "string" ||
+    typeof input.color === "string";
 
   if (typeof input.name === "string") {
     updates.name = input.name.trim();
+  }
+  if (typeof input.icon === "string") {
+    updates.icon = normalizeBudgetIcon(input.icon);
+  }
+  if (typeof input.color === "string") {
+    updates.color = normalizeBudgetColor(input.color);
   }
   if (typeof input.amount === "number") {
     updates.amount = input.amount;
@@ -435,21 +487,15 @@ export const updateBudget = async (id: number, input: BudgetUpdateInput) => {
     .where(eq(budgets.id, id))
     .returning();
 
+  if (updated && updatesLinkedExpenseMetadata) {
+    await touchExpensesForBudget(id);
+  }
+
   return updated;
 };
 
 export const deleteBudget = async (id: number) => {
-  await db
-    .update(expenses)
-    .set({ updatedAt: new Date() })
-    .where(
-      sql`exists (
-        select 1
-        from ${expenseBudgets}
-        where ${expenseBudgets.expenseId} = ${expenses.id}
-          and ${expenseBudgets.budgetId} = ${id}
-      )`
-    );
+  await touchExpensesForBudget(id);
 
   const [deleted] = await db
     .delete(budgets)

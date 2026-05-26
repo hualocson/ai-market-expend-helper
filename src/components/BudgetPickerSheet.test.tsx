@@ -22,6 +22,8 @@ const weeklyBudgetOptionsMock = vi.hoisted(() =>
         amount: 100,
         spent: 0,
         remaining: 100,
+        icon: "🍜",
+        color: "rose",
       },
       {
         id: 2,
@@ -32,6 +34,8 @@ const weeklyBudgetOptionsMock = vi.hoisted(() =>
         amount: 500,
         spent: 200,
         remaining: 300,
+        icon: "🏠",
+        color: "sky",
       },
     ]
   )
@@ -88,6 +92,10 @@ describe("BudgetPickerSheet", () => {
   it("renders week and month groups for fetched budgets", async () => {
     renderSheet();
     expect(await screen.findByText("Food week")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Budget: Food week")
+    ).toBeInTheDocument();
+    expect(screen.getByText("🍜")).toBeInTheDocument();
     expect(screen.getByText("Rent month")).toBeInTheDocument();
   });
 

@@ -16,6 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckIcon, Loader2 } from "lucide-react";
 import { flushSync } from "react-dom";
 
+import BudgetBadge from "@/components/BudgetBadge";
+
 import {
   Sheet,
   SheetContent,
@@ -178,10 +180,14 @@ const BudgetPickerSheet = ({
                                         : "bg-foreground/40"
                                     )}
                                   />
-                                  <span className="flex min-w-0 flex-col">
-                                    <span className="truncate text-sm font-medium">
-                                      {budget.name}
-                                    </span>
+                                  <span className="flex min-w-0 flex-col gap-1">
+                                    <BudgetBadge
+                                      icon={budget.icon}
+                                      color={budget.color}
+                                      name={budget.name}
+                                      className="max-w-full border-0 bg-transparent px-0 py-0"
+                                      nameClassName="text-sm font-medium"
+                                    />
                                     <span className="text-muted-foreground text-xs">
                                       {formatBudgetRange(budget)}
                                     </span>

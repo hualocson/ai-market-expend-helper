@@ -2,6 +2,11 @@ import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { getWeeklyBudgetReport } from "@/db/budget-queries";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
+import {
+  type BudgetColorId,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import { getWeekRange } from "@/lib/week";
 import { and, desc, eq, gte, lt, lte, sql } from "drizzle-orm";
 
@@ -36,6 +41,8 @@ export type DailyReportExpense = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
 };
 
 export type DailyReport = {
@@ -178,6 +185,8 @@ export const getDailyReport = async (date: string): Promise<DailyReport> => {
       paidBy: expenses.paidBy,
       budgetId: expenseBudgets.budgetId,
       budgetName: budgets.name,
+      budgetIcon: budgets.icon,
+      budgetColor: budgets.color,
     })
     .from(expenses)
     .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
@@ -194,6 +203,14 @@ export const getDailyReport = async (date: string): Promise<DailyReport> => {
     paidBy: expense.paidBy ?? "",
     budgetId: expense.budgetId === null ? null : Number(expense.budgetId),
     budgetName: expense.budgetName ?? null,
+    budgetIcon:
+      expense.budgetId === null
+        ? null
+        : normalizeBudgetIcon(expense.budgetIcon),
+    budgetColor:
+      expense.budgetId === null
+        ? null
+        : normalizeBudgetColor(expense.budgetColor),
   }));
 
   const totalSpentToday = normalizedDailyExpenses.reduce(

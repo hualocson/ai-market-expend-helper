@@ -1,5 +1,10 @@
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
+import {
+  type BudgetColorId,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import type {
   ExpenseOutboxOperation,
   LocalExpense,
@@ -19,6 +24,8 @@ export type TQuickExpensePayload = {
   paidBy: PaidBy;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon?: string | null;
+  budgetColor?: BudgetColorId | null;
 };
 
 export type TQuickExpenseDraft = TQuickExpensePayload;
@@ -81,6 +88,14 @@ const isRecoverableExpense = (value: unknown): value is LocalExpense => {
     return false;
   }
 
+  const hasValidBudgetAppearance =
+    (typeof value.budgetIcon === "string" ||
+      value.budgetIcon === null ||
+      typeof value.budgetIcon === "undefined") &&
+    (typeof value.budgetColor === "string" ||
+      value.budgetColor === null ||
+      typeof value.budgetColor === "undefined");
+
   return (
     value.entity === "expenses" &&
     typeof value.clientId === "string" &&
@@ -94,7 +109,8 @@ const isRecoverableExpense = (value: unknown): value is LocalExpense => {
     typeof value.paidBy === "string" &&
     isPaidBy(value.paidBy) &&
     (typeof value.budgetId === "number" || value.budgetId === null) &&
-    (typeof value.budgetName === "string" || value.budgetName === null)
+    (typeof value.budgetName === "string" || value.budgetName === null) &&
+    hasValidBudgetAppearance
   );
 };
 
@@ -123,6 +139,26 @@ const formatRecoveryDraftDate = (value: string) => {
   return value;
 };
 
+const getRecoveryBudgetAppearance = (
+  payload: LocalExpense
+): Pick<TQuickExpenseDraft, "budgetIcon" | "budgetColor"> => {
+  if (payload.budgetId === null) {
+    return {
+      budgetIcon: null,
+      budgetColor: null,
+    };
+  }
+
+  return {
+    budgetIcon: payload.budgetIcon
+      ? normalizeBudgetIcon(payload.budgetIcon)
+      : null,
+    budgetColor: payload.budgetColor
+      ? normalizeBudgetColor(payload.budgetColor)
+      : null,
+  };
+};
+
 export const quickExpenseRecoveryEntryFromOutboxOperation = (
   operation: ExpenseOutboxOperation,
   now = Date.now()
@@ -139,6 +175,7 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
   if (!isCategory(category) || !isPaidBy(paidBy)) {
     return null;
   }
+  const budgetAppearance = getRecoveryBudgetAppearance(operation.payload);
 
   const draft: TQuickExpenseDraft = {
     clientId: operation.clientId,
@@ -149,6 +186,8 @@ export const quickExpenseRecoveryEntryFromOutboxOperation = (
     paidBy,
     budgetId: operation.payload.budgetId,
     budgetName: operation.payload.budgetName,
+    budgetIcon: budgetAppearance.budgetIcon,
+    budgetColor: budgetAppearance.budgetColor,
   };
 
   const mode =

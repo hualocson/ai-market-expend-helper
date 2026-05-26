@@ -113,6 +113,22 @@ describe("local expense list builder", () => {
     ).toEqual(["pending", "failed", "synced"]);
   });
 
+  it("maps budget appearance snapshots into local list rows", () => {
+    const result = buildExpenseListResultFromLocalRows([
+      row({
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      }),
+    ]);
+
+    expect(result.rows[0]).toMatchObject({
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+  });
+
   it("reports hasMore when pagination leaves additional local rows", () => {
     const result = buildExpenseListResultFromLocalRows(
       [

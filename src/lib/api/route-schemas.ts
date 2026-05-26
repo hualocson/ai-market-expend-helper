@@ -1,6 +1,11 @@
 import dayjs from "@/configs/date";
 import type { CreateExpenseInput } from "@/db/type";
 import { PaidBy } from "@/enums";
+import {
+  BUDGET_COLOR_IDS,
+  DEFAULT_BUDGET_COLOR,
+  DEFAULT_BUDGET_ICON,
+} from "@/lib/budget-appearance";
 import type {
   BudgetCreateInput,
   BudgetUpdateInput,
@@ -44,10 +49,14 @@ export const expenseMutationPayloadSchema: z.ZodType<CreateExpenseInput> =
   });
 
 export const budgetPeriodSchema = z.enum(["week", "month", "custom"]);
+const budgetIconSchema = z.string().trim().min(1).max(8);
+const budgetColorSchema = z.enum(BUDGET_COLOR_IDS);
 
 export const budgetCreatePayloadSchema: z.ZodType<BudgetCreateInput> = z
   .object({
     name: z.string().min(1),
+    icon: budgetIconSchema.default(DEFAULT_BUDGET_ICON),
+    color: budgetColorSchema.default(DEFAULT_BUDGET_COLOR),
     amount: z.number().finite(),
     period: budgetPeriodSchema,
     periodStartDate: isoDateSchema,
@@ -60,6 +69,8 @@ export const budgetCreatePayloadSchema: z.ZodType<BudgetCreateInput> = z
 export const budgetUpdatePayloadSchema: z.ZodType<BudgetUpdateInput> = z.object(
   {
     name: z.string().min(1).optional(),
+    icon: budgetIconSchema.optional(),
+    color: budgetColorSchema.optional(),
     amount: z.number().finite().optional(),
     period: budgetPeriodSchema.optional(),
     periodStartDate: isoDateSchema.optional(),

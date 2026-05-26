@@ -122,8 +122,10 @@ describe("expense sync service", () => {
         note: "Coffee",
         category: "Food",
         paidBy: "Cubi",
-        budgetId: null,
-        budgetName: null,
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
         updatedAt: new Date("2026-05-24T10:00:00.000Z"),
         deletedAt: null,
         isDeleted: false,
@@ -144,6 +146,9 @@ describe("expense sync service", () => {
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       },
     ]);
@@ -156,6 +161,9 @@ describe("expense sync service", () => {
       category: "Food",
       paidBy: "Cubi",
       budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
     });
     expect(result).toEqual({
       results: [
@@ -170,8 +178,10 @@ describe("expense sync service", () => {
             note: "Coffee",
             category: "Food",
             paidBy: "Cubi",
-            budgetId: null,
-            budgetName: null,
+            budgetId: 10,
+            budgetName: "Meals",
+            budgetIcon: "🍜",
+            budgetColor: "rose",
             updatedAt: "2026-05-24T10:00:00.000Z",
             deletedAt: null,
             isDeleted: false,
@@ -194,13 +204,15 @@ describe("expense sync service", () => {
         paidBy: "Cubi",
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
         updatedAt: new Date("2026-05-24T10:00:00.000Z"),
         deletedAt: null,
         isDeleted: false,
       },
     ]);
 
-    await pushExpenseOperations([
+    const result = await pushExpenseOperations([
       {
         operationId: "op-1",
         type: "create",
@@ -214,6 +226,9 @@ describe("expense sync service", () => {
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       },
     ]);
@@ -223,5 +238,16 @@ describe("expense sync service", () => {
         date: "23/05/2026",
       })
     );
+    expect(result.results).toMatchObject([
+      {
+        ok: true,
+        row: {
+          budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
+        },
+      },
+    ]);
   });
 });

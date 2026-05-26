@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 
 import dayjs from "@/configs/date";
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import { useDeleteExpenseMutation } from "@/lib/mutations";
 import { toast } from "sonner";
 
@@ -20,6 +21,8 @@ export type ExpenseEditSheetHostExpense = {
   paidBy: string;
   budgetId?: number | null;
   budgetName?: string | null;
+  budgetIcon?: string | null;
+  budgetColor?: BudgetColorId | null;
 };
 
 type ExpenseEditSheetHostProps = {
@@ -55,6 +58,8 @@ const ExpenseEditSheetHost = ({
         paidBy: expense.paidBy,
         budgetId: expense.budgetId ?? null,
         budgetName: expense.budgetName ?? null,
+        budgetIcon: expense.budgetIcon ?? null,
+        budgetColor: expense.budgetColor ?? null,
       };
     }, [expense]);
 

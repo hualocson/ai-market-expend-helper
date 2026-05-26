@@ -13,6 +13,7 @@ import {
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import { groupBudgetOptions, pickDefaultBudget } from "@/lib/budget-options";
 import { useCreateExpenseMutation } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
@@ -90,6 +91,8 @@ type ManualExpenseFormProps = {
         paidBy?: string;
         budgetId?: number | null;
         budgetName?: string | null;
+        budgetIcon?: string | null;
+        budgetColor?: BudgetColorId | null;
       })
     | null;
   onSubmit?: (
@@ -97,6 +100,8 @@ type ManualExpenseFormProps = {
       paidBy: PaidBy;
       budgetId?: number | null;
       budgetName?: string | null;
+      budgetIcon?: string | null;
+      budgetColor?: BudgetColorId | null;
     }
   ) => Promise<void>;
   submitLabel?: string;
@@ -172,6 +177,15 @@ const ManualExpenseForm = forwardRef<
     const [budgetId, setBudgetId] = useState<number | null>(
       initialExpense?.budgetId ?? null
     );
+    const [budgetName, setBudgetName] = useState<string | null>(
+      initialExpense?.budgetName ?? null
+    );
+    const [budgetIcon, setBudgetIcon] = useState<string | null>(
+      initialExpense?.budgetIcon ?? null
+    );
+    const [budgetColor, setBudgetColor] = useState<BudgetColorId | null>(
+      initialExpense?.budgetColor ?? null
+    );
     const [loading, setLoading] = useState(false);
     const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
     const [paidByDrawerOpen, setPaidByDrawerOpen] = useState(false);
@@ -202,6 +216,9 @@ const ManualExpenseForm = forwardRef<
       setPaidBy(normalizePaidBy(initialExpense?.paidBy));
       if (showBudgetSelect) {
         setBudgetId(initialExpense?.budgetId ?? null);
+        setBudgetName(initialExpense?.budgetName ?? null);
+        setBudgetIcon(initialExpense?.budgetIcon ?? null);
+        setBudgetColor(initialExpense?.budgetColor ?? null);
       }
       hasManualPaidBy.current = false;
     }, [initialExpense, normalizePaidBy, showBudgetSelect]);
@@ -213,61 +230,6 @@ const ManualExpenseForm = forwardRef<
     const canSubmit = useMemo(() => {
       return Boolean(expense.amount > 0);
     }, [expense.amount]);
-
-    const handleSubmit = useCallback(async () => {
-      if (!canSubmit || loading) {
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const payload = {
-          ...defaultExpense,
-          ...expense,
-          date: expense.date || defaultExpense.date,
-          category: expense.category || defaultExpense.category,
-          paidBy,
-          budgetId: showBudgetSelect ? budgetId : null,
-          budgetName:
-            showBudgetSelect && budgetId !== null
-              ? (budgetOptions.find((budget) => budget.id === budgetId)?.name ??
-                null)
-              : null,
-        };
-        if (onSubmit) {
-          await onSubmit(payload);
-        } else {
-          await createExpenseMutation.mutateAsync(payload);
-        }
-        toast.success(successMessage);
-        onSuccess?.();
-      } catch (error) {
-        console.error(error);
-        toast.error(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    }, [
-      canSubmit,
-      errorMessage,
-      expense,
-      loading,
-      onSubmit,
-      onSuccess,
-      paidBy,
-      budgetId,
-      createExpenseMutation,
-      showBudgetSelect,
-      successMessage,
-    ]);
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        submit: handleSubmit,
-      }),
-      [handleSubmit]
-    );
 
     useEffect(() => {
       onStateChange?.({ canSubmit, loading, mode });
@@ -338,6 +300,76 @@ const ManualExpenseForm = forwardRef<
       [budgetOptions]
     );
 
+    const handleSubmit = useCallback(async () => {
+      if (!canSubmit || loading) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const selectedBudget =
+          showBudgetSelect && budgetId !== null
+            ? budgetOptions.find((budget) => budget.id === budgetId)
+            : null;
+        const payload = {
+          ...defaultExpense,
+          ...expense,
+          date: expense.date || defaultExpense.date,
+          category: expense.category || defaultExpense.category,
+          paidBy,
+          budgetId: showBudgetSelect ? budgetId : null,
+          budgetName:
+            showBudgetSelect && budgetId !== null
+              ? (selectedBudget?.name ?? budgetName ?? null)
+              : null,
+          budgetIcon:
+            showBudgetSelect && budgetId !== null
+              ? (selectedBudget?.icon ?? budgetIcon ?? null)
+              : null,
+          budgetColor:
+            showBudgetSelect && budgetId !== null
+              ? (selectedBudget?.color ?? budgetColor ?? null)
+              : null,
+        };
+        if (onSubmit) {
+          await onSubmit(payload);
+        } else {
+          await createExpenseMutation.mutateAsync(payload);
+        }
+        toast.success(successMessage);
+        onSuccess?.();
+      } catch (error) {
+        console.error(error);
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    }, [
+      canSubmit,
+      errorMessage,
+      expense,
+      loading,
+      onSubmit,
+      onSuccess,
+      paidBy,
+      budgetId,
+      budgetName,
+      budgetIcon,
+      budgetColor,
+      budgetOptions,
+      createExpenseMutation,
+      showBudgetSelect,
+      successMessage,
+    ]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        submit: handleSubmit,
+      }),
+      [handleSubmit]
+    );
+
     useEffect(() => {
       if (!showBudgetSelect) {
         return;
@@ -347,6 +379,9 @@ const ManualExpenseForm = forwardRef<
       }
       if (!budgetOptions.some((budget) => budget.id === budgetId)) {
         setBudgetId(null);
+        setBudgetName(null);
+        setBudgetIcon(null);
+        setBudgetColor(null);
       }
     }, [budgetId, budgetLoaded, budgetOptions, showBudgetSelect]);
 
@@ -360,6 +395,9 @@ const ManualExpenseForm = forwardRef<
       const next = pickDefaultBudget(budgetGroups);
       if (next) {
         setBudgetId(next.id);
+        setBudgetName(next.name ?? null);
+        setBudgetIcon(next.icon ?? null);
+        setBudgetColor(next.color ?? null);
       }
     }, [
       autoSelectDefaultBudget,
@@ -377,8 +415,8 @@ const ManualExpenseForm = forwardRef<
         return "No budget";
       }
       const matched = budgetOptions.find((budget) => budget.id === budgetId);
-      return matched?.name ?? "No budget";
-    }, [budgetId, budgetOptions, showBudgetSelect]);
+      return matched?.name ?? budgetName ?? "Budget";
+    }, [budgetId, budgetName, budgetOptions, showBudgetSelect]);
 
     const handleExpenseChange = (
       field: keyof TExpense,
@@ -396,9 +434,16 @@ const ManualExpenseForm = forwardRef<
       },
       [normalizePaidBy]
     );
-    const handleBudgetChange = useCallback((value: number | null) => {
-      setBudgetId(value);
-    }, []);
+    const handleBudgetChange = useCallback(
+      (value: number | null) => {
+        const selected = budgetOptions.find((budget) => budget.id === value);
+        setBudgetId(value);
+        setBudgetName(value === null ? null : (selected?.name ?? null));
+        setBudgetIcon(value === null ? null : (selected?.icon ?? null));
+        setBudgetColor(value === null ? null : (selected?.color ?? null));
+      },
+      [budgetOptions]
+    );
 
     useEffect(() => {
       amountRef.current?.focus();

@@ -69,6 +69,8 @@ describe("expense services", () => {
         paidBy: "Cubi",
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
       },
       {
         id: 1,
@@ -79,6 +81,8 @@ describe("expense services", () => {
         paidBy: "Embe",
         budgetId: 10,
         budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose" as const,
       },
       {
         id: 3,
@@ -89,6 +93,8 @@ describe("expense services", () => {
         paidBy: "Cubi",
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
       },
     ];
 
@@ -131,6 +137,8 @@ describe("expense services", () => {
         paidBy: "Cubi",
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
       },
       {
         id: 2,
@@ -140,8 +148,10 @@ describe("expense services", () => {
         note: "Lunch",
         category: "Food",
         paidBy: "Embe",
-        budgetId: null,
-        budgetName: null,
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
       },
       {
         id: 1,
@@ -153,6 +163,8 @@ describe("expense services", () => {
         paidBy: "Cubi",
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
       },
     ]);
 
@@ -168,6 +180,20 @@ describe("expense services", () => {
     expect(result.rows.map((row) => row.clientId)).toEqual([
       "server-client-3",
       "server-client-2",
+    ]);
+    expect(result.rows).toMatchObject([
+      {
+        budgetId: null,
+        budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
+      },
+      {
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
     ]);
     expect(result.pagination).toEqual({
       limit: 2,
