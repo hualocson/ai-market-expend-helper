@@ -16,15 +16,15 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerNested,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
-type BudgetEmojiPickerDrawerProps = {
+type BudgetEmojiPickerSheetProps = {
   value: string;
   onSelect: (emoji: string) => void;
   triggerLabel?: string;
@@ -35,11 +35,11 @@ const EmojiPicker = dynamic<EmojiPickerProps>(
   { ssr: false }
 );
 
-const BudgetEmojiPickerDrawer = ({
+const BudgetEmojiPickerSheet = ({
   value,
   onSelect,
   triggerLabel = "Choose budget emoji",
-}: BudgetEmojiPickerDrawerProps) => {
+}: BudgetEmojiPickerSheetProps) => {
   const [open, setOpen] = useState(false);
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -48,8 +48,8 @@ const BudgetEmojiPickerDrawer = ({
   };
 
   return (
-    <DrawerNested open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
         <Button
           type="button"
           size="icon"
@@ -62,22 +62,23 @@ const BudgetEmojiPickerDrawer = ({
         >
           <Plus className="size-4" />
         </Button>
-      </DrawerTrigger>
-      <DrawerContent
-        hideIndicator
+      </SheetTrigger>
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
         className={cn(
-          "max-h-[82svh] rounded-t-3xl! border-t-0!",
+          "max-h-[82svh] gap-0 rounded-t-3xl! border-t-0! p-0",
           "!bg-transparent"
         )}
         overlayClassName="backdrop-blur-none bg-background/15"
-        autoFocus={false}
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
-        <DrawerHeader className="sr-only gap-1 pb-3">
-          <DrawerTitle>Choose emoji</DrawerTitle>
-          <DrawerDescription>
+        <SheetHeader className="sr-only gap-1 pb-3">
+          <SheetTitle>Choose emoji</SheetTitle>
+          <SheetDescription>
             Select an emoji for the budget icon. Current emoji is {value}.
-          </DrawerDescription>
-        </DrawerHeader>
+          </SheetDescription>
+        </SheetHeader>
         <div className="standalone:pb-[calc(env(safe-area-inset-bottom)+12px)]">
           <EmojiPicker
             theme={Theme.DARK}
@@ -92,9 +93,9 @@ const BudgetEmojiPickerDrawer = ({
             className="overflow-hidden !rounded-t-3xl !rounded-b-none border-none [--epr-bg-color:var(--card)] [--epr-category-label-bg-color:var(--card)] [--epr-category-label-text-color:var(--muted-foreground)] [--epr-dark-bg-color:var(--card)] [--epr-dark-category-label-bg-color:var(--card)] [--epr-dark-category-label-text-color:var(--muted-foreground)] [--epr-dark-hover-bg-color:color-mix(in_srgb,var(--primary)_12%,transparent)] [--epr-dark-picker-border-color:color-mix(in_srgb,var(--border)_55%,transparent)] [--epr-dark-search-input-bg-color-active:color-mix(in_srgb,var(--background)_55%,transparent)] [--epr-dark-search-input-bg-color:color-mix(in_srgb,var(--background)_55%,transparent)] [--epr-dark-text-color:var(--foreground)] [--epr-emoji-padding:4px] [--epr-emoji-size:24px] [--epr-highlight-color:var(--primary)] [--epr-horizontal-padding:10px] [--epr-picker-border-color:color-mix(in_srgb,var(--border)_55%,transparent)] [--epr-picker-border-radius:1rem] [--epr-search-border-color-active:var(--primary)] [--epr-search-border-color:color-mix(in_srgb,var(--border)_55%,transparent)]"
           />
         </div>
-      </DrawerContent>
-    </DrawerNested>
+      </SheetContent>
+    </Sheet>
   );
 };
 
-export default BudgetEmojiPickerDrawer;
+export default BudgetEmojiPickerSheet;

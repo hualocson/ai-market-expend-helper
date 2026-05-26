@@ -22,6 +22,8 @@ export type TDatePickerSheetProps = {
   onOpenChange: (open: boolean) => void;
   value: string;
   onChange: (nextDate: string) => void;
+  title?: string;
+  description?: string;
   onCloseAutoFocus?: React.ComponentProps<
     typeof SheetContent
   >["onCloseAutoFocus"];
@@ -40,6 +42,8 @@ const DatePickerSheet = ({
   onOpenChange,
   value,
   onChange,
+  title = "Date",
+  description = "Pick the expense date.",
   onCloseAutoFocus,
   onRestoreFocusRequest,
 }: TDatePickerSheetProps) => {
@@ -89,8 +93,8 @@ const DatePickerSheet = ({
         onOverlayPointerDown={handleOverlayPointerDown}
       >
         <SheetHeader className="text-left">
-          <SheetTitle>Date</SheetTitle>
-          <SheetDescription>Pick the expense date.</SheetDescription>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-4 sm:px-6">
           <DatePicker

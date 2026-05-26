@@ -35,9 +35,9 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import {
-  AlertCircle,
   ArrowDown,
   ArrowLeftIcon,
+  Calendar,
   Loader2,
   Plus,
   SaveIcon,
@@ -64,12 +64,12 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
 
 import BudgetBadge from "@/components/BudgetBadge";
 import BudgetColorList from "@/components/BudgetColorList";
-import BudgetEmojiPickerDrawer from "@/components/BudgetEmojiPickerDrawer";
+import BudgetEmojiPickerSheet from "@/components/BudgetEmojiPickerSheet";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
+import DatePickerSheet from "@/components/DatePickerSheet";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
@@ -207,6 +207,23 @@ const resolvePeriodStart = (periodValue: BudgetPeriod, dateValue: string) => {
   return base.format("YYYY-MM-DD");
 };
 
+const formatDatePickerValue = (dateValue: string) => {
+  const parsed = dayjs(dateValue, "YYYY-MM-DD", true);
+  return parsed.isValid()
+    ? parsed.format("DD/MM/YYYY")
+    : dayjs().format("DD/MM/YYYY");
+};
+
+const parseDatePickerValue = (dateValue: string) => {
+  const parsed = dayjs(dateValue, "DD/MM/YYYY", true);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : dateValue;
+};
+
+const formatStartDateLabel = (dateValue: string) => {
+  const parsed = dayjs(dateValue, "YYYY-MM-DD", true);
+  return parsed.isValid() ? parsed.format("DD/MM/YYYY") : "Pick date";
+};
+
 const getBudgetStatus = (budget: BudgetListItem): BudgetStatus => {
   const spentRate = budget.amount > 0 ? budget.spent / budget.amount : 0;
   const percentSpent = Math.max(Math.round(spentRate * 100), 0);
@@ -290,6 +307,8 @@ const BudgetWeeklyBudgetsClient = ({
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
   const [transferDestination, setTransferDestination] =
     useState<BudgetListItem | null>(null);
 
@@ -303,6 +322,7 @@ const BudgetWeeklyBudgetsClient = ({
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(0);
+  const amountRef = useRef<HTMLInputElement>(null);
   const [period, setPeriod] = useState<BudgetPeriod>("week");
   const [periodStartDate, setPeriodStartDate] = useState(weekStartDate);
   const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
@@ -390,19 +410,6 @@ const BudgetWeeklyBudgetsClient = ({
     const { weekStartDate: startDate, weekEndDate } = getWeekRange(start);
     return `${startDate.format("DD MMM YYYY")} - ${weekEndDate.format("DD MMM YYYY")}`;
   }, [period, periodEndDate, periodStartDate]);
-
-  const validationMessage = useMemo(() => {
-    if (!trimmedName.length) {
-      return "Budget name is required.";
-    }
-    if (amount <= 0) {
-      return "Amount must be greater than 0 VND.";
-    }
-    if (!hasValidPeriod) {
-      return "End date must be on or after start date for custom budgets.";
-    }
-    return null;
-  }, [amount, hasValidPeriod, trimmedName]);
 
   const monthKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -1364,7 +1371,7 @@ const BudgetWeeklyBudgetsClient = ({
                 className="placeholder:text-muted-foreground inline-flex min-h-12 w-full overflow-hidden border-none bg-transparent px-0 py-2 text-xl font-semibold whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
                 tabIndex={0}
               />
-              <BudgetEmojiPickerDrawer
+              <BudgetEmojiPickerSheet
                 value={icon}
                 onSelect={(nextIcon) => setIcon(normalizeBudgetIcon(nextIcon))}
               />
@@ -1381,31 +1388,26 @@ const BudgetWeeklyBudgetsClient = ({
             </div>
 
             <div>
-              <label
-                htmlFor="budget-amount-input"
-                className="text-foreground text-sm font-medium"
-              >
+              <label htmlFor="budget-amount-input" className="sr-only">
                 Amount
               </label>
-              <div className="relative mt-2">
-                <Input
+              <div className="flex items-baseline gap-1 py-1">
+                <VndSymbol className="text-muted-foreground text-4xl font-semibold tracking-tight" />
+                <input
+                  ref={amountRef}
                   id="budget-amount-input"
-                  type="text"
                   inputMode="numeric"
                   value={amount ? formatVnd(amount) : ""}
                   onChange={(event) =>
                     setAmount(parseVndInput(event.target.value))
                   }
                   placeholder="0"
-                  className="h-11 pr-14 text-right text-lg font-semibold"
+                  className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
+                  onFocus={() => {
+                    amountRef.current?.select();
+                  }}
                 />
-                <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-xs font-medium">
-                  <VndSymbol />
-                </span>
               </div>
-              <p className="text-muted-foreground mt-2 text-[11px]">
-                Use the total amount you plan to spend in this period.
-              </p>
               {activeBudget ? (
                 <button
                   type="button"
@@ -1427,7 +1429,7 @@ const BudgetWeeklyBudgetsClient = ({
               <label className="text-foreground text-sm font-medium">
                 Period
               </label>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="mt-2 grid grid-cols-3 gap-2">
                 {PERIOD_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
@@ -1437,26 +1439,13 @@ const BudgetWeeklyBudgetsClient = ({
                     onClick={() => handlePeriodChange(option.value)}
                     aria-pressed={period === option.value}
                     className={cn(
-                      "h-auto min-h-13 w-full rounded-xl px-2.5 py-2 text-left text-xs font-medium",
-                      option.value === "custom"
-                        ? "col-span-2 sm:col-span-1"
-                        : "",
+                      "h-9 w-full rounded-full px-3 text-xs font-medium",
                       period === option.value
                         ? "bg-primary text-primary-foreground shadow-[0_8px_20px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
                         : "text-muted-foreground bg-muted/35 hover:bg-muted/55"
                     )}
                   >
-                    <span className="block leading-none">{option.label}</span>
-                    <span
-                      className={cn(
-                        "mt-1 hidden text-[10px] leading-tight sm:block",
-                        period === option.value
-                          ? "text-primary-foreground/85"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {option.hint}
-                    </span>
+                    {option.label}
                   </Button>
                 ))}
               </div>
@@ -1465,39 +1454,45 @@ const BudgetWeeklyBudgetsClient = ({
             <div>
               <div className="grid w-full gap-3 sm:grid-cols-2">
                 <div className="flex w-full flex-col gap-2">
-                  <label
-                    htmlFor="budget-start-date-input"
-                    className="text-foreground text-sm font-medium"
-                  >
+                  <span className="text-foreground text-sm font-medium">
                     Start date
-                  </label>
-                  <Input
-                    id="budget-start-date-input"
-                    type="date"
-                    value={periodStartDate || ""}
-                    onChange={(event) =>
-                      handleStartDateChange(event.target.value)
-                    }
-                    className="max-w-auto h-11 w-auto"
-                  />
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 justify-start rounded-xl px-3 text-sm font-medium"
+                    aria-label={`Start date: ${formatStartDateLabel(periodStartDate)}`}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      setStartDateOpen(true);
+                    }}
+                    onClick={() => setStartDateOpen(true)}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    <span>{formatStartDateLabel(periodStartDate)}</span>
+                  </Button>
                 </div>
                 {period === "custom" ? (
                   <div className="flex min-w-0 flex-col gap-2">
-                    <label
-                      htmlFor="budget-end-date-input"
-                      className="text-foreground text-sm font-medium"
-                    >
+                    <span className="text-foreground text-sm font-medium">
                       End date
-                    </label>
-                    <Input
-                      id="budget-end-date-input"
-                      type="date"
-                      value={periodEndDate || ""}
-                      onChange={(event) =>
-                        handleEndDateChange(event.target.value)
-                      }
-                      className="h-11 w-full max-w-full min-w-0"
-                    />
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 justify-start rounded-xl px-3 text-sm font-medium"
+                      aria-label={`End date: ${formatStartDateLabel(periodEndDate ?? periodStartDate)}`}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        setEndDateOpen(true);
+                      }}
+                      onClick={() => setEndDateOpen(true)}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        {formatStartDateLabel(periodEndDate ?? periodStartDate)}
+                      </span>
+                    </Button>
                   </div>
                 ) : null}
               </div>
@@ -1510,13 +1505,6 @@ const BudgetWeeklyBudgetsClient = ({
                 {periodRangeLabel}
               </p>
             </div>
-
-            {validationMessage ? (
-              <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs font-medium">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <p>{validationMessage}</p>
-              </div>
-            ) : null}
           </div>
           <DrawerFooter className="border-border/45 gap-2 border-t">
             <Button
@@ -1534,6 +1522,26 @@ const BudgetWeeklyBudgetsClient = ({
             </Button>
           </DrawerFooter>
         </DrawerContent>
+        <DatePickerSheet
+          open={startDateOpen}
+          onOpenChange={setStartDateOpen}
+          value={formatDatePickerValue(periodStartDate)}
+          onChange={(nextDate) =>
+            handleStartDateChange(parseDatePickerValue(nextDate))
+          }
+          title="Start date"
+          description="Pick the budget start date."
+        />
+        <DatePickerSheet
+          open={endDateOpen}
+          onOpenChange={setEndDateOpen}
+          value={formatDatePickerValue(periodEndDate ?? periodStartDate)}
+          onChange={(nextDate) =>
+            handleEndDateChange(parseDatePickerValue(nextDate))
+          }
+          title="End date"
+          description="Pick the budget end date."
+        />
       </Drawer>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

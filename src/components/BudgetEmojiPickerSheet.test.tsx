@@ -5,7 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import BudgetEmojiPickerDrawer from "./BudgetEmojiPickerDrawer";
+import BudgetEmojiPickerSheet from "./BudgetEmojiPickerSheet";
 
 vi.mock("next/dynamic", () => ({
   default: () =>
@@ -24,6 +24,7 @@ vi.mock("next/dynamic", () => ({
 
 vi.mock("emoji-picker-react", () => ({
   EmojiStyle: {
+    APPLE: "apple",
     NATIVE: "native",
   },
   Theme: {
@@ -32,13 +33,13 @@ vi.mock("emoji-picker-react", () => ({
   default: () => null,
 }));
 
-vi.mock("@/components/ui/drawer", () => {
-  const DrawerContext = React.createContext<{
+vi.mock("@/components/ui/sheet", () => {
+  const SheetContext = React.createContext<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
   } | null>(null);
 
-  const DrawerNested = ({
+  const Sheet = ({
     children,
     open: controlledOpen,
     onOpenChange,
@@ -52,14 +53,14 @@ vi.mock("@/components/ui/drawer", () => {
     const setOpen = onOpenChange ?? setUncontrolledOpen;
 
     return (
-      <DrawerContext.Provider value={{ open, onOpenChange: setOpen }}>
+      <SheetContext.Provider value={{ open, onOpenChange: setOpen }}>
         <div>{children}</div>
-      </DrawerContext.Provider>
+      </SheetContext.Provider>
     );
   };
 
-  const DrawerTrigger = ({ children }: { children: ReactNode }) => {
-    const drawer = React.useContext(DrawerContext);
+  const SheetTrigger = ({ children }: { children: ReactNode }) => {
+    const sheet = React.useContext(SheetContext);
 
     if (!React.isValidElement(children)) {
       return null;
@@ -72,15 +73,15 @@ vi.mock("@/components/ui/drawer", () => {
     return React.cloneElement(child, {
       onClick: (event: React.MouseEvent<HTMLElement>) => {
         child.props.onClick?.(event);
-        drawer?.onOpenChange(true);
+        sheet?.onOpenChange(true);
       },
     } as Partial<React.HTMLAttributes<HTMLElement>>);
   };
 
-  const DrawerContent = ({ children }: { children: ReactNode }) => {
-    const drawer = React.useContext(DrawerContext);
+  const SheetContent = ({ children }: { children: ReactNode }) => {
+    const sheet = React.useContext(SheetContext);
 
-    if (!drawer?.open) {
+    if (!sheet?.open) {
       return null;
     }
 
@@ -96,21 +97,21 @@ vi.mock("@/components/ui/drawer", () => {
   };
 
   return {
-    DrawerNested,
-    DrawerTrigger,
-    DrawerContent,
-    DrawerDescription: wrap("div"),
-    DrawerHeader: wrap("div"),
-    DrawerTitle: wrap("h2"),
+    Sheet,
+    SheetTrigger,
+    SheetContent,
+    SheetDescription: wrap("div"),
+    SheetHeader: wrap("div"),
+    SheetTitle: wrap("h2"),
   };
 });
 
-describe("BudgetEmojiPickerDrawer", () => {
-  it("opens the nested picker drawer and selects an emoji", async () => {
+describe("BudgetEmojiPickerSheet", () => {
+  it("opens the picker sheet and selects an emoji", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
-    render(<BudgetEmojiPickerDrawer value="💰" onSelect={onSelect} />);
+    render(<BudgetEmojiPickerSheet value="💰" onSelect={onSelect} />);
 
     await user.click(
       screen.getByRole("button", { name: /choose budget emoji/i })
