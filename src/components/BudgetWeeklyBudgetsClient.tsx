@@ -1342,7 +1342,7 @@ const BudgetWeeklyBudgetsClient = ({
         <DrawerContent hideIndicator className="rounded-t-3xl! border-t-0!">
           <DrawerHeader>
             <div className="flex items-center justify-between gap-2">
-              <DrawerTitle>{formTitle}</DrawerTitle>
+              <DrawerTitle className="text-2xl">{formTitle}</DrawerTitle>
               <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
                 <XIcon className="size-4" />
                 <span className="sr-only">Close</span>
@@ -1353,49 +1353,25 @@ const BudgetWeeklyBudgetsClient = ({
             </DrawerDescription>
           </DrawerHeader>
           <div className="no-scrollbar flex max-h-[98svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label
-                  htmlFor="budget-name-input"
-                  className="text-foreground text-sm font-medium"
-                >
-                  Budget name
-                </label>
-                <span className="text-muted-foreground text-[11px]">
-                  {trimmedName.length}/36
-                </span>
-              </div>
-              <Input
+            <div className="flex items-center justify-between gap-2">
+              <input
                 id="budget-name-input"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Groceries"
+                placeholder="Budget name"
                 maxLength={36}
-                aria-invalid={trimmedName.length === 0}
-                className="h-11"
+                className="placeholder:text-muted-foreground inline-flex min-h-12 w-full overflow-hidden border-none bg-transparent px-0 py-2 text-xl font-semibold whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
                 tabIndex={0}
               />
-              <p className="text-muted-foreground mt-2 text-[11px]">
-                Keep it short so it stays readable in budget cards.
-              </p>
+              <BudgetBadge
+                icon={icon}
+                color={color}
+                name={trimmedName || "Budget"}
+                className="shrink-0"
+              />
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-foreground text-sm font-medium">
-                    Appearance
-                  </h3>
-                  <p className="text-muted-foreground mt-1 text-[11px]">
-                    Pick an emoji and color for budget badges.
-                  </p>
-                </div>
-                <BudgetBadge
-                  icon={icon}
-                  color={color}
-                  name={trimmedName || "Budget"}
-                />
-              </div>
               <div className="space-y-2">
                 <label
                   htmlFor="budget-icon-input"
