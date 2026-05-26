@@ -105,6 +105,14 @@ const invalidateBudgetMutationQueries = async (queryClient: QueryClient) => {
   await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
 };
 
+const invalidateBudgetUpdateMutationQueries = async (
+  queryClient: QueryClient
+) => {
+  await invalidateBudgetMutationQueries(queryClient);
+  await queryClient.invalidateQueries({ queryKey: queries.expenses._def });
+  await queryClient.invalidateQueries({ queryKey: queries.reports._def });
+};
+
 const invalidateBudgetDeleteMutationQueries = async (
   queryClient: QueryClient,
   deletedBudgetId: number
@@ -119,6 +127,8 @@ const invalidateBudgetDeleteMutationQueries = async (
     queryKey: queries.budgets.transferCandidates._def,
   });
   await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
+  await queryClient.invalidateQueries({ queryKey: queries.expenses._def });
+  await queryClient.invalidateQueries({ queryKey: queries.reports._def });
 };
 
 const invalidateTransactionBudgetMutationQueries = async (
@@ -345,7 +355,7 @@ export const useUpdateBudgetMutation = () => {
           fallbackError: "Failed to update budget",
         }
       ),
-    onSuccess: () => invalidateBudgetMutationQueries(queryClient),
+    onSuccess: () => invalidateBudgetUpdateMutationQueries(queryClient),
   });
 };
 

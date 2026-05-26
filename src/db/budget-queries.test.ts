@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deleteBudget, setExpenseBudget } from "./budget-queries";
+import { deleteBudget, setExpenseBudget, updateBudget } from "./budget-queries";
 
 const dbMocks = vi.hoisted(() => ({
   deleteReturning: vi.fn(),
@@ -75,5 +75,36 @@ describe("deleteBudget", () => {
     expect(updateWhere).toHaveBeenCalled();
     expect(dbMocks.deleteWhere).toHaveBeenCalled();
     expect(dbMocks.deleteReturning).toHaveBeenCalled();
+  });
+});
+
+describe("updateBudget", () => {
+  it("touches linked expense timestamps when updating appearance metadata", async () => {
+    const touchWhere = vi.fn();
+    const budgetWhere = vi.fn();
+    const budgetReturning = vi.fn().mockResolvedValue([{ id: 10 }]);
+    dbMocks.updateSet
+      .mockReturnValueOnce({
+        where: budgetWhere,
+      })
+      .mockReturnValueOnce({
+        where: touchWhere,
+      });
+    budgetWhere.mockReturnValue({
+      returning: budgetReturning,
+    });
+
+    await updateBudget(10, { icon: "🍜", color: "rose" });
+
+    expect(dbMocks.updateSet).toHaveBeenNthCalledWith(1, {
+      icon: "🍜",
+      color: "rose",
+    });
+    expect(budgetWhere).toHaveBeenCalled();
+    expect(budgetReturning).toHaveBeenCalled();
+    expect(dbMocks.updateSet).toHaveBeenNthCalledWith(2, {
+      updatedAt: expect.any(Date),
+    });
+    expect(touchWhere).toHaveBeenCalled();
   });
 });

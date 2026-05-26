@@ -90,6 +90,20 @@ const touchExpenseUpdatedAt = async (expenseId: number) => {
     .where(eq(expenses.id, expenseId));
 };
 
+const touchExpensesForBudget = async (budgetId: number) => {
+  await db
+    .update(expenses)
+    .set({ updatedAt: new Date() })
+    .where(
+      sql`exists (
+        select 1
+        from ${expenseBudgets}
+        where ${expenseBudgets.expenseId} = ${expenses.id}
+          and ${expenseBudgets.budgetId} = ${budgetId}
+      )`
+    );
+};
+
 export const getWeeklyBudgetReport = async (
   weekStartDate: string,
   searchQuery?: string
@@ -398,6 +412,10 @@ export const createBudget = async (input: BudgetCreateInput) => {
 
 export const updateBudget = async (id: number, input: BudgetUpdateInput) => {
   const updates: Partial<typeof budgets.$inferInsert> = {};
+  const updatesLinkedExpenseMetadata =
+    typeof input.name === "string" ||
+    typeof input.icon === "string" ||
+    typeof input.color === "string";
 
   if (typeof input.name === "string") {
     updates.name = input.name.trim();
@@ -463,21 +481,15 @@ export const updateBudget = async (id: number, input: BudgetUpdateInput) => {
     .where(eq(budgets.id, id))
     .returning();
 
+  if (updated && updatesLinkedExpenseMetadata) {
+    await touchExpensesForBudget(id);
+  }
+
   return updated;
 };
 
 export const deleteBudget = async (id: number) => {
-  await db
-    .update(expenses)
-    .set({ updatedAt: new Date() })
-    .where(
-      sql`exists (
-        select 1
-        from ${expenseBudgets}
-        where ${expenseBudgets.expenseId} = ${expenses.id}
-          and ${expenseBudgets.budgetId} = ${id}
-      )`
-    );
+  await touchExpensesForBudget(id);
 
   const [deleted] = await db
     .delete(budgets)

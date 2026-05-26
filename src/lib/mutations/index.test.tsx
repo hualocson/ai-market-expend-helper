@@ -363,6 +363,12 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly._def,
     });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.expenses._def,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.reports._def,
+    });
   });
 
   it("creates budgets through the weekly budgets route and invalidates budget query roots", async () => {
@@ -573,6 +579,12 @@ describe("mutation hooks", () => {
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgets.transferCandidates._def,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.expenses._def,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.reports._def,
     });
     expect(cancelSpy).toHaveBeenCalledWith({
       queryKey: queries.budgets.transactions(9).queryKey,
