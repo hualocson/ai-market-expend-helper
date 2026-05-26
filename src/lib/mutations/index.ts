@@ -100,6 +100,19 @@ const requestExpenseSyncAfterLocalWrite = (queryClient: QueryClient) => {
   void requestExpenseSync(queryClient);
 };
 
+const requestExpenseSyncAfterBudgetMetadataChange = (
+  queryClient: QueryClient,
+  input: BudgetUpdateInput
+) => {
+  if (
+    typeof input.name === "string" ||
+    typeof input.icon === "string" ||
+    typeof input.color === "string"
+  ) {
+    void requestExpenseSync(queryClient);
+  }
+};
+
 const invalidateBudgetMutationQueries = async (queryClient: QueryClient) => {
   await queryClient.invalidateQueries({ queryKey: queries.budgets._def });
   await queryClient.invalidateQueries({ queryKey: queries.budgetWeekly._def });
@@ -355,7 +368,10 @@ export const useUpdateBudgetMutation = () => {
           fallbackError: "Failed to update budget",
         }
       ),
-    onSuccess: () => invalidateBudgetUpdateMutationQueries(queryClient),
+    onSuccess: async (_updated, variables) => {
+      await invalidateBudgetUpdateMutationQueries(queryClient);
+      requestExpenseSyncAfterBudgetMetadataChange(queryClient, variables.input);
+    },
   });
 };
 
@@ -370,6 +386,7 @@ export const useDeleteBudgetMutation = () => {
       }),
     onSuccess: async (_deleted, id) => {
       await invalidateBudgetDeleteMutationQueries(queryClient, id);
+      void requestExpenseSync(queryClient);
     },
   });
 };

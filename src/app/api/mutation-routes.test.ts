@@ -1,3 +1,7 @@
+import {
+  DEFAULT_BUDGET_COLOR,
+  DEFAULT_BUDGET_ICON,
+} from "@/lib/budget-appearance";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST as postBudgetTransfer } from "./budgets/transfer/route";
@@ -624,6 +628,34 @@ describe("REST mutation routes", () => {
       data: created,
     });
     expect(mocks.createBudget).toHaveBeenCalledWith(payload);
+  });
+
+  it("defaults omitted weekly budget appearance for backwards-compatible creates", async () => {
+    const payload = {
+      name: "Groceries",
+      amount: 1000000,
+      period: "week",
+      periodStartDate: "2026-05-18",
+      periodEndDate: null,
+    };
+    const expectedPayload = {
+      ...payload,
+      icon: DEFAULT_BUDGET_ICON,
+      color: DEFAULT_BUDGET_COLOR,
+    };
+    const created = { id: 10, ...expectedPayload };
+    mocks.createBudget.mockResolvedValue(created);
+
+    const response = await postWeeklyBudget(
+      jsonRequest("http://localhost/api/weekly-budgets", payload)
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: created,
+    });
+    expect(mocks.createBudget).toHaveBeenCalledWith(expectedPayload);
   });
 
   it("returns 400 for an invalid weekly budget payload", async () => {

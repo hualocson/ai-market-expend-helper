@@ -1,7 +1,11 @@
 import dayjs from "@/configs/date";
 import type { CreateExpenseInput } from "@/db/type";
 import { PaidBy } from "@/enums";
-import { BUDGET_COLOR_IDS } from "@/lib/budget-appearance";
+import {
+  BUDGET_COLOR_IDS,
+  DEFAULT_BUDGET_COLOR,
+  DEFAULT_BUDGET_ICON,
+} from "@/lib/budget-appearance";
 import type {
   BudgetCreateInput,
   BudgetUpdateInput,
@@ -51,8 +55,8 @@ const budgetColorSchema = z.enum(BUDGET_COLOR_IDS);
 export const budgetCreatePayloadSchema: z.ZodType<BudgetCreateInput> = z
   .object({
     name: z.string().min(1),
-    icon: budgetIconSchema,
-    color: budgetColorSchema,
+    icon: budgetIconSchema.default(DEFAULT_BUDGET_ICON),
+    color: budgetColorSchema.default(DEFAULT_BUDGET_COLOR),
     amount: z.number().finite(),
     period: budgetPeriodSchema,
     periodStartDate: isoDateSchema,

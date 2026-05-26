@@ -417,7 +417,7 @@ describe("mutation hooks", () => {
     });
   });
 
-  it("does not request expense sync for budget mutations", async () => {
+  it("requests expense sync after budget updates and deletes refresh expense snapshots", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
 
@@ -452,7 +452,7 @@ describe("mutation hooks", () => {
         { status: 500 }
       );
     });
-    const { result } = renderMutationHook(() => ({
+    const { result, queryClient } = renderMutationHook(() => ({
       assignTransaction: useAssignTransactionBudgetMutation(),
       create: useCreateBudgetMutation(),
       remove: useDeleteBudgetMutation(),
@@ -492,7 +492,9 @@ describe("mutation hooks", () => {
       });
     });
 
-    expect(requestExpenseSyncMock).not.toHaveBeenCalled();
+    expect(requestExpenseSyncMock).toHaveBeenCalledTimes(2);
+    expect(requestExpenseSyncMock).toHaveBeenNthCalledWith(1, queryClient);
+    expect(requestExpenseSyncMock).toHaveBeenNthCalledWith(2, queryClient);
   });
 
   it("does not refetch deleted budget transactions after successful delete", async () => {
