@@ -67,7 +67,7 @@ import {
 
 import BudgetBadge from "@/components/BudgetBadge";
 import BudgetColorList from "@/components/BudgetColorList";
-import BudgetEmojiPickerDrawer from "@/components/BudgetEmojiPickerDrawer";
+import BudgetEmojiPickerSheet from "@/components/BudgetEmojiPickerSheet";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import DatePickerSheet from "@/components/DatePickerSheet";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
@@ -1371,8 +1371,9 @@ const BudgetWeeklyBudgetsClient = ({
                 className="placeholder:text-muted-foreground inline-flex min-h-12 w-full overflow-hidden border-none bg-transparent px-0 py-2 text-xl font-semibold whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
                 tabIndex={0}
               />
-              <BudgetEmojiPickerDrawer
+              <BudgetEmojiPickerSheet
                 value={icon}
+                color={color}
                 onSelect={(nextIcon) => setIcon(normalizeBudgetIcon(nextIcon))}
               />
               <BudgetBadge

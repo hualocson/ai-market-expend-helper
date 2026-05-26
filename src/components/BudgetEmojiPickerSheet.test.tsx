@@ -5,7 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import BudgetEmojiPickerDrawer from "./BudgetEmojiPickerDrawer";
+import BudgetEmojiPickerSheet from "./BudgetEmojiPickerSheet";
 
 vi.mock("next/dynamic", () => ({
   default: () =>
@@ -33,13 +33,33 @@ vi.mock("emoji-picker-react", () => ({
   default: () => null,
 }));
 
-vi.mock("@/components/ui/drawer", () => {
-  const DrawerContext = React.createContext<{
+vi.mock("@/components/BudgetBadge", () => ({
+  default: ({
+    icon,
+    color,
+    name,
+  }: {
+    icon?: string | null;
+    color?: string | null;
+    name?: string | null;
+  }) => (
+    <span
+      aria-label={`Budget: ${name ?? "Budget assigned"}`}
+      data-color={color}
+    >
+      {icon}
+      {name}
+    </span>
+  ),
+}));
+
+vi.mock("@/components/ui/sheet", () => {
+  const SheetContext = React.createContext<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
   } | null>(null);
 
-  const Drawer = ({
+  const Sheet = ({
     children,
     open: controlledOpen,
     onOpenChange,
@@ -53,14 +73,14 @@ vi.mock("@/components/ui/drawer", () => {
     const setOpen = onOpenChange ?? setUncontrolledOpen;
 
     return (
-      <DrawerContext.Provider value={{ open, onOpenChange: setOpen }}>
+      <SheetContext.Provider value={{ open, onOpenChange: setOpen }}>
         <div>{children}</div>
-      </DrawerContext.Provider>
+      </SheetContext.Provider>
     );
   };
 
-  const DrawerTrigger = ({ children }: { children: ReactNode }) => {
-    const drawer = React.useContext(DrawerContext);
+  const SheetTrigger = ({ children }: { children: ReactNode }) => {
+    const sheet = React.useContext(SheetContext);
 
     if (!React.isValidElement(children)) {
       return null;
@@ -73,15 +93,15 @@ vi.mock("@/components/ui/drawer", () => {
     return React.cloneElement(child, {
       onClick: (event: React.MouseEvent<HTMLElement>) => {
         child.props.onClick?.(event);
-        drawer?.onOpenChange(true);
+        sheet?.onOpenChange(true);
       },
     } as Partial<React.HTMLAttributes<HTMLElement>>);
   };
 
-  const DrawerContent = ({ children }: { children: ReactNode }) => {
-    const drawer = React.useContext(DrawerContext);
+  const SheetContent = ({ children }: { children: ReactNode }) => {
+    const sheet = React.useContext(SheetContext);
 
-    if (!drawer?.open) {
+    if (!sheet?.open) {
       return null;
     }
 
@@ -97,22 +117,24 @@ vi.mock("@/components/ui/drawer", () => {
   };
 
   return {
-    Drawer,
-    DrawerTrigger,
-    DrawerContent,
-    DrawerDescription: wrap("div"),
-    DrawerFooter: wrap("div"),
-    DrawerHeader: wrap("div"),
-    DrawerTitle: wrap("h2"),
+    Sheet,
+    SheetTrigger,
+    SheetContent,
+    SheetDescription: wrap("div"),
+    SheetFooter: wrap("div"),
+    SheetHeader: wrap("div"),
+    SheetTitle: wrap("h2"),
   };
 });
 
-describe("BudgetEmojiPickerDrawer", () => {
-  it("opens the picker drawer and confirms a selected emoji", async () => {
+describe("BudgetEmojiPickerSheet", () => {
+  it("opens the picker sheet and confirms a selected emoji", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
-    render(<BudgetEmojiPickerDrawer value="💰" onSelect={onSelect} />);
+    render(
+      <BudgetEmojiPickerSheet value="💰" color="rose" onSelect={onSelect} />
+    );
 
     await user.click(
       screen.getByRole("button", { name: /choose budget emoji/i })
@@ -121,12 +143,18 @@ describe("BudgetEmojiPickerDrawer", () => {
     expect(
       screen.getByRole("heading", { name: /choose emoji/i })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/budget: preview/i)).toHaveTextContent("💰");
+    const initialPreview = screen.getByLabelText(/budget: preview/i);
+
+    expect(initialPreview).toHaveTextContent("💰");
+    expect(initialPreview).toHaveAttribute("data-color", "rose");
 
     await user.click(await screen.findByRole("button", { name: /pick cart/i }));
 
     expect(onSelect).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(/budget: preview/i)).toHaveTextContent("🛒");
+    const updatedPreview = screen.getByLabelText(/budget: preview/i);
+
+    expect(updatedPreview).toHaveTextContent("🛒");
+    expect(updatedPreview).toHaveAttribute("data-color", "rose");
     expect(
       screen.getByRole("heading", { name: /choose emoji/i })
     ).toBeInTheDocument();
