@@ -232,18 +232,21 @@ describe("QuickExpenseSheet — fields", () => {
     return user;
   };
 
-  it("renders the date / budget / paid-by trigger buttons", async () => {
+  it("renders the date and paid-by trigger buttons plus the budget chip row", async () => {
     await openSheet();
     expect(screen.getByRole("button", { name: /^date:/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /^budget:/i })
+      screen.getByRole("radiogroup", { name: /^budget$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /no budget/i, pressed: true })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /^paid by:/i })
     ).toBeInTheDocument();
   });
 
-  it("opens picker drawers from canceled pointer down", async () => {
+  it("opens date and paid-by picker drawers from canceled pointer down", async () => {
     const user = await openSheet();
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     note.focus();
@@ -257,17 +260,6 @@ describe("QuickExpenseSheet — fields", () => {
       await screen.findByRole("dialog", { name: /^date$/i })
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: /done/i }));
-
-    note.focus();
-    const budgetDefaultWasNotPrevented = fireEvent.pointerDown(
-      screen.getByRole("button", { name: /^budget:/i }),
-      { cancelable: true }
-    );
-    expect(budgetDefaultWasNotPrevented).toBe(false);
-    expect(
-      await screen.findByRole("dialog", { name: /^budget$/i })
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /no budget/i }));
 
     note.focus();
     const paidByDefaultWasNotPrevented = fireEvent.pointerDown(
@@ -403,6 +395,37 @@ describe("QuickExpenseSheet — fields", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the collapsed budget chip row and expands then selects a budget", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 3, name: "Food week" }),
+      budgetOption({ id: 4, name: "Rent month", period: "month" }),
+    ]);
+    const user = await openSheet();
+    const noBudgetChip = screen.getByRole("button", {
+      name: /no budget/i,
+      pressed: true,
+    });
+    expect(noBudgetChip).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /food week/i })
+    ).not.toBeInTheDocument();
+
+    await user.click(noBudgetChip);
+    await user.click(await screen.findByRole("button", { name: /food week/i }));
+
+    const selectedBudgetChip = screen.getByRole("button", {
+      name: /food week/i,
+      pressed: true,
+    });
+    expect(selectedBudgetChip).toBeInTheDocument();
+    expect(selectedBudgetChip).toHaveClass("bg-rose-400/14", "text-rose-300");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /rent month/i })
+      ).not.toBeInTheDocument()
+    );
+  });
+
   it("restores note focus after closing the date picker opened from note focus", async () => {
     const user = await openSheet();
     const note = screen.getByPlaceholderText(/what did you spend on/i);
@@ -414,13 +437,16 @@ describe("QuickExpenseSheet — fields", () => {
     await waitFor(() => expect(note).toHaveFocus());
   });
 
-  it("restores amount focus after closing the budget picker opened from amount focus", async () => {
+  it("keeps amount focus after selecting a budget chip from amount focus", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 3, name: "Food week" }),
+    ]);
     const user = await openSheet();
     const amount = screen.getByPlaceholderText("0");
 
     await user.click(amount);
-    await user.click(screen.getByRole("button", { name: /^budget:/i }));
-    await user.click(await screen.findByRole("button", { name: /no budget/i }));
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
+    await user.click(await screen.findByRole("button", { name: /food week/i }));
 
     await waitFor(() => expect(amount).toHaveFocus());
   });
@@ -488,7 +514,7 @@ describe("QuickExpenseSheet — submit", () => {
     ]);
     const user = await openSheet();
 
-    await user.click(screen.getByRole("button", { name: /^budget:/i }));
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
     await user.click(await screen.findByRole("button", { name: /food week/i }));
     await user.type(
       screen.getByPlaceholderText(/what did you spend on/i),
@@ -597,10 +623,10 @@ describe("QuickExpenseSheet — submit", () => {
     renderSheet();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
-    await user.click(screen.getByRole("button", { name: /^budget:/i }));
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
     await user.click(await screen.findByRole("button", { name: /food week/i }));
     expect(
-      screen.getByRole("button", { name: /budget: selected/i })
+      screen.getByRole("button", { name: /food week/i, pressed: true })
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^date:/i }));
@@ -623,7 +649,7 @@ describe("QuickExpenseSheet — submit", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /budget: no budget/i })
+        screen.getByRole("button", { name: /no budget/i, pressed: true })
       ).toBeInTheDocument()
     );
 

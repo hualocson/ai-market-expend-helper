@@ -30,7 +30,6 @@ import {
   Plus,
   Trash2,
   UserRound,
-  Wallet,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -57,7 +56,7 @@ import {
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
-import BudgetPickerSheet from "./BudgetPickerSheet";
+import BudgetChipRow from "./BudgetChipRow";
 import CategoryChipRow from "./CategoryChipRow";
 import DatePickerSheet from "./DatePickerSheet";
 import ExpenseItemIcon from "./ExpenseItemIcon";
@@ -249,7 +248,6 @@ const QuickExpenseSheet = ({
         : buildDefaultDraft(fallbackPaidBy);
   const [draft, setDraft] = useState<TExpenseDraft>(() => buildDraftForOpen());
   const [dateOpen, setDateOpen] = useState(false);
-  const [budgetOpen, setBudgetOpen] = useState(false);
   const [paidByOpen, setPaidByOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
@@ -424,10 +422,6 @@ const QuickExpenseSheet = ({
     setDateOpen(next);
   };
 
-  const handleBudgetOpenChange = (next: boolean) => {
-    setBudgetOpen(next);
-  };
-
   const handlePaidByOpenChange = (next: boolean) => {
     setPaidByOpen(next);
   };
@@ -480,17 +474,6 @@ const QuickExpenseSheet = ({
     window.addEventListener(EXPENSE_PREFILL_EVENT, handle);
     return () => window.removeEventListener(EXPENSE_PREFILL_EVENT, handle);
   }, [isEditMode, onOpenChange, open]);
-
-  const selectedBudgetName = useMemo(() => {
-    if (draft.budgetId === null) {
-      return null;
-    }
-    return (
-      budgetOptionsQuery.data?.find((b) => b.id === draft.budgetId)?.name ??
-      draft.budgetName ??
-      "Budget"
-    );
-  }, [draft.budgetId, draft.budgetName, budgetOptionsQuery.data]);
 
   useEffect(() => {
     if (draft.budgetId === null || !budgetOptionsQuery.isSuccess) {
@@ -562,8 +545,8 @@ const QuickExpenseSheet = ({
               : "Enter expense details and save."}
           </SheetDescription>
         </SheetHeader>
-        <div className="my-auto flex flex-col gap-4">
-          <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-3 gap-2 px-4">
+        <div className="mt-20 flex flex-col gap-4">
+          <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-2 gap-2 px-4">
             <Button
               type="button"
               variant="outline"
@@ -577,26 +560,6 @@ const QuickExpenseSheet = ({
             >
               <Calendar className="h-4 w-4" />
               <span>{formatDateLabel(draft.date)}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={cn(
-                "rounded-full border-none",
-                draft.budgetId === null &&
-                  "border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning"
-              )}
-              aria-label={`Budget: ${draft.budgetId === null ? "No budget" : "Selected"}`}
-              onPointerDown={(event) =>
-                handleDrawerTriggerPointerDown(event, () => setBudgetOpen(true))
-              }
-              onClick={() => setBudgetOpen(true)}
-            >
-              <Wallet className="h-4 w-4" />
-              {selectedBudgetName !== null && (
-                <span className="truncate">{selectedBudgetName}</span>
-              )}
             </Button>
             <Button
               type="button"
@@ -686,7 +649,34 @@ const QuickExpenseSheet = ({
               </div>
             )}
 
-            <div className="quick-expense-enter-group quick-expense-enter-delay-3">
+            <div className="quick-expense-enter-group quick-expense-enter-delay-3 flex flex-col gap-2">
+              <BudgetChipRow
+                value={draft.budgetId}
+                options={budgetOptionsQuery.data ?? []}
+                selectedBudget={
+                  draft.budgetId === null
+                    ? null
+                    : {
+                        id: draft.budgetId,
+                        name: draft.budgetName,
+                        icon: draft.budgetIcon,
+                        color: draft.budgetColor,
+                      }
+                }
+                loading={budgetOptionsQuery.isPending}
+                onChange={(id) => {
+                  const selected = budgetOptionsQuery.data?.find(
+                    (budget) => budget.id === id
+                  );
+                  setDraft((prev) => ({
+                    ...prev,
+                    budgetId: id,
+                    budgetName: id === null ? null : (selected?.name ?? null),
+                    budgetIcon: id === null ? null : (selected?.icon ?? null),
+                    budgetColor: id === null ? null : (selected?.color ?? null),
+                  }));
+                }}
+              />
               <CategoryChipRow
                 value={draft.category}
                 onChange={(c) => setField("category", c)}
@@ -729,29 +719,6 @@ const QuickExpenseSheet = ({
           onOpenChange={handleDateOpenChange}
           value={draft.date}
           onChange={(next) => setField("date", next)}
-          onCloseAutoFocus={handlePickerCloseAutoFocus}
-          onRestoreFocusRequest={restoreDrawerInputFocus}
-        />
-
-        <BudgetPickerSheet
-          open={budgetOpen}
-          onOpenChange={handleBudgetOpenChange}
-          value={draft.budgetId}
-          onChange={(id) => {
-            const selected = budgetOptionsQuery.data?.find(
-              (budget) => budget.id === id
-            );
-            setDraft((prev) => ({
-              ...prev,
-              budgetId: id,
-              budgetName: id === null ? null : (selected?.name ?? null),
-              budgetIcon: id === null ? null : (selected?.icon ?? null),
-              budgetColor: id === null ? null : (selected?.color ?? null),
-            }));
-          }}
-          weekStart={weekStart}
-          targetDate={targetDate}
-          isParentOpen={sheetOpen}
           onCloseAutoFocus={handlePickerCloseAutoFocus}
           onRestoreFocusRequest={restoreDrawerInputFocus}
         />
