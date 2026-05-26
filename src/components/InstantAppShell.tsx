@@ -17,23 +17,27 @@ export default function InstantAppShell({
       aria-hidden="true"
       className="instant-app-shell"
     >
-      <div className="instant-app-shell__header">
+      <div className="flex flex-col items-start gap-2">
         <div
           data-testid="instant-shell-total"
-          className="instant-app-shell__total"
+          className="h-12 w-[80vw] rounded-2xl bg-white/10"
         />
-        <div className="instant-app-shell__chips">
-          <span />
-          <span />
+        <div className="flex items-center gap-2">
+          <span className="bg-muted h-10 w-24 rounded-full" />
+          <span className="bg-muted h-10 w-32 rounded-full" />
         </div>
       </div>
-      <div className="instant-app-shell__heatmap" />
-      <div className="instant-app-shell__day-summary" />
+      <div className="bg-muted mt-2 mb-4 min-h-[300px] rounded-[28px]" />
+      <div className="flex items-center justify-between">
+        <span className="bg-muted h-4 w-40 rounded-full"></span>
+        <span className="bg-muted h-4 w-10 rounded-full"></span>
+      </div>
+      {/* <div className="instant-app-shell__day-summary" />
       <div className="instant-app-shell__rows">
         <span data-testid="instant-shell-row" />
         <span data-testid="instant-shell-row" />
         <span data-testid="instant-shell-row" />
-      </div>
+      </div> */}
     </div>
   );
 }

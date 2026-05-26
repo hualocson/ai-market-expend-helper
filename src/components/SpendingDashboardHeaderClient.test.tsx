@@ -1,11 +1,10 @@
 import React from "react";
 
-import { INSTANT_SHELL_SNAPSHOT_KEY } from "@/lib/instant-shell/snapshot";
 import { queries } from "@/lib/queries";
 import type { DashboardMonthlySummary } from "@/lib/services/dashboard";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import SpendingDashboardHeader from "./SpendingDashboardHeader";
 import SpendingDashboardHeaderClient from "./SpendingDashboardHeaderClient";
@@ -47,10 +46,6 @@ vi.mock("@/components/SpendingHeatmapChart", () => ({
 
 const originalGlobalReact = globalThis.React;
 
-beforeEach(() => {
-  localStorage.clear();
-});
-
 afterEach(() => {
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
@@ -61,8 +56,9 @@ afterEach(() => {
 });
 
 describe("SpendingDashboardHeaderClient", () => {
-  it("persists the formatted total for the instant shell", () => {
+  it("does not persist the formatted total for the instant shell", () => {
     globalThis.React = React;
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
     render(
       <SpendingDashboardHeaderClient
@@ -74,12 +70,7 @@ describe("SpendingDashboardHeaderClient", () => {
       />
     );
 
-    expect(
-      JSON.parse(localStorage.getItem(INSTANT_SHELL_SNAPSHOT_KEY) ?? "{}")
-    ).toEqual({
-      totalText: "1.250.000",
-      updatedAt: expect.any(Number),
-    });
+    expect(setItemSpy).not.toHaveBeenCalled();
   });
 
   it("renders the large total with compact payer and AI actions", () => {

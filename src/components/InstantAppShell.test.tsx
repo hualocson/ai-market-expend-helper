@@ -22,7 +22,7 @@ describe("InstantAppShell", () => {
       "true"
     );
     expect(screen.getByTestId("instant-shell-total")).toBeInTheDocument();
-    expect(screen.getAllByTestId("instant-shell-row")).toHaveLength(3);
+    expect(screen.queryByTestId("instant-shell-row")).not.toBeInTheDocument();
     expect(container.querySelector(".instant-app-shell__bottom")).toBeNull();
     expect(
       container.querySelectorAll(
