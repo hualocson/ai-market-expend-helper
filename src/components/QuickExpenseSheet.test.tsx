@@ -378,7 +378,7 @@ describe("QuickExpenseSheet — fields", () => {
       "overflow-x-auto"
     );
     expect(suggestions).toHaveStyle({
-      bottom: "calc(256px + env(safe-area-inset-bottom) + 8px)",
+      bottom: "calc(256px + 8px)",
     });
   });
 
