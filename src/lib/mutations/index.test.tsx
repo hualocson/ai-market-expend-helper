@@ -67,6 +67,8 @@ const syncedLocalExpense = (
   paidBy: PaidBy.CUBI,
   budgetId: null,
   budgetName: null,
+  budgetIcon: null,
+  budgetColor: null,
   syncStatus: "synced",
   lastError: null,
   updatedAt: "2026-05-24T09:00:00.000Z",
@@ -219,6 +221,8 @@ describe("mutation hooks", () => {
         paidBy: pendingExpense.paidBy,
         budgetId: pendingExpense.budgetId,
         budgetName: pendingExpense.budgetName,
+        budgetIcon: pendingExpense.budgetIcon,
+        budgetColor: pendingExpense.budgetColor,
       },
     });
     await syncRepository.outbox.put({
@@ -287,6 +291,37 @@ describe("mutation hooks", () => {
     await expect(syncRepository.outbox.list("expenses")).resolves.toEqual([]);
   });
 
+  it("creates a local fallback with budget appearance when updating an unknown server expense", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { result } = renderMutationHook(() => useUpdateExpenseMutation());
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        id: 77,
+        input: {
+          date: "26/05/2026",
+          amount: 120000,
+          note: "Lunch",
+          category: "Food",
+          paidBy: PaidBy.CUBI,
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        },
+      });
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      expenseSyncStore.getState().expensesByClientId["server-77"]
+    ).toMatchObject({
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+  });
+
   it("updates budgets with the id route and invalidates budget query roots", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -344,6 +379,8 @@ describe("mutation hooks", () => {
     await act(async () => {
       await result.current.mutateAsync({
         name: "Dining",
+        icon: "💰",
+        color: "lime",
         amount: 200000,
         period: "month",
         periodStartDate: "2026-05-01",
@@ -357,6 +394,8 @@ describe("mutation hooks", () => {
         method: "POST",
         body: JSON.stringify({
           name: "Dining",
+          icon: "💰",
+          color: "lime",
           amount: 200000,
           period: "month",
           periodStartDate: "2026-05-01",
@@ -418,6 +457,8 @@ describe("mutation hooks", () => {
     await act(async () => {
       await result.current.create.mutateAsync({
         name: "Dining",
+        icon: "💰",
+        color: "lime",
         amount: 200000,
         period: "month",
         periodStartDate: "2026-05-01",

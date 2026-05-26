@@ -418,6 +418,9 @@ const toPushOperationPayload = (operation: SyncOperation<unknown>) => {
             category: payload.category,
             paidBy: payload.paidBy,
             budgetId: payload.budgetId,
+            budgetName: payload.budgetName,
+            budgetIcon: payload.budgetIcon ?? null,
+            budgetColor: payload.budgetColor ?? null,
           },
   };
 };

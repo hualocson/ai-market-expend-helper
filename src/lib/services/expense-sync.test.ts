@@ -146,6 +146,9 @@ describe("expense sync service", () => {
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       },
     ]);
@@ -158,6 +161,9 @@ describe("expense sync service", () => {
       category: "Food",
       paidBy: "Cubi",
       budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
     });
     expect(result).toEqual({
       results: [
@@ -220,6 +226,9 @@ describe("expense sync service", () => {
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       },
     ]);

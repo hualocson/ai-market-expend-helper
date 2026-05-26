@@ -1,12 +1,17 @@
 import dayjs from "@/configs/date";
 import type { CreateExpenseInput } from "@/db/type";
+import { isBudgetColorId } from "@/lib/budget-appearance";
 import { queries } from "@/lib/queries";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import type {
   ExpenseListItem,
   ExpenseListResult,
 } from "@/lib/services/expenses";
-import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
+import type {
+  InfiniteData,
+  QueryClient,
+  QueryKey,
+} from "@tanstack/react-query";
 
 type ExpenseListCacheData =
   | ExpenseListResult
@@ -36,7 +41,15 @@ type ExpenseListQueryParamsFromKey = {
 type BuildRowOptions = {
   fallbackBudgetId?: number | null;
   fallbackBudgetName?: string | null;
+  fallbackBudgetIcon?: string | null;
+  fallbackBudgetColor?: CreateExpenseInput["budgetColor"];
   fallbackDate?: string;
+};
+
+type BudgetSnapshot = {
+  name: string;
+  icon: string | null;
+  color: CreateExpenseInput["budgetColor"];
 };
 
 let optimisticExpenseId = -1;
@@ -131,7 +144,9 @@ const normalizeSearchText = (value: string) =>
     .toLowerCase();
 
 const tokenizeSearchText = (value: string) =>
-  normalizeSearchText(value).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  normalizeSearchText(value)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
 
 const matchesSearch = (row: ExpenseListItem, q: string | null) => {
   const terms = tokenizeSearchText(q ?? "");
@@ -189,7 +204,9 @@ const matchesRecent = (
     ? recentRangeEnd
     : endOfMonth;
 
-  return !rowDate.isBefore(rangeStart, "day") && rowDate.isBefore(rangeEnd, "day");
+  return (
+    !rowDate.isBefore(rangeStart, "day") && rowDate.isBefore(rangeEnd, "day")
+  );
 };
 
 const matchesExpenseList = (
@@ -210,7 +227,9 @@ const rebuildGroups = (
 ): ExpenseListResult["groupedRows"] =>
   rows.reduce<ExpenseListResult["groupedRows"]>((groups, row) => {
     const parsedDate = dayjs(row.date, "YYYY-MM-DD", true);
-    const key = parsedDate.isValid() ? parsedDate.format("YYYY-MM-DD") : row.date;
+    const key = parsedDate.isValid()
+      ? parsedDate.format("YYYY-MM-DD")
+      : row.date;
     const label = parsedDate.isValid()
       ? parsedDate.format("dddd, DD/MM/YYYY")
       : row.date;
@@ -262,7 +281,7 @@ const getRowsFromCacheData = (data: ExpenseListCacheData) =>
     ? data.pages.flatMap((page) => page.rows)
     : data.rows;
 
-const findBudgetName = (
+const findBudgetSnapshot = (
   queryClient: QueryClient,
   budgetId: number | null | undefined
 ) => {
@@ -289,7 +308,11 @@ const findBudgetName = (
         typeof option.name === "string"
     );
     if (matched) {
-      return matched.name;
+      return {
+        name: matched.name,
+        icon: typeof matched.icon === "string" ? matched.icon : null,
+        color: isBudgetColorId(matched.color) ? matched.color : null,
+      } satisfies BudgetSnapshot;
     }
   }
 
@@ -309,12 +332,36 @@ const buildRow = (
 
   const budgetId =
     input.budgetId === undefined
-      ? options.fallbackBudgetId ?? null
+      ? (options.fallbackBudgetId ?? null)
       : input.budgetId;
+  const budgetSnapshot =
+    input.budgetId === undefined
+      ? null
+      : findBudgetSnapshot(queryClient, input.budgetId);
   const budgetName =
     input.budgetId === undefined
-      ? options.fallbackBudgetName ?? null
-      : findBudgetName(queryClient, input.budgetId);
+      ? (options.fallbackBudgetName ?? null)
+      : input.budgetId === null
+        ? null
+        : (budgetSnapshot?.name ?? input.budgetName ?? null);
+  const budgetIcon =
+    input.budgetId === undefined
+      ? (options.fallbackBudgetIcon ?? null)
+      : input.budgetId === null
+        ? null
+        : (input.budgetIcon ??
+          budgetSnapshot?.icon ??
+          options.fallbackBudgetIcon ??
+          null);
+  const budgetColor =
+    input.budgetId === undefined
+      ? (options.fallbackBudgetColor ?? null)
+      : input.budgetId === null
+        ? null
+        : (input.budgetColor ??
+          budgetSnapshot?.color ??
+          options.fallbackBudgetColor ??
+          null);
 
   return {
     id,
@@ -325,6 +372,8 @@ const buildRow = (
     paidBy: input.paidBy ?? "",
     budgetId,
     budgetName,
+    budgetIcon,
+    budgetColor,
   };
 };
 
@@ -359,7 +408,10 @@ const patchCreateSnapshots = (
   context.snapshots.forEach((snapshot) => {
     if (isInfiniteExpenseListResult(snapshot.data)) {
       const firstPage = snapshot.data.pages[0];
-      if (!firstPage || !matchesExpenseList(row, firstPage, snapshot.queryKey)) {
+      if (
+        !firstPage ||
+        !matchesExpenseList(row, firstPage, snapshot.queryKey)
+      ) {
         return;
       }
 
@@ -417,9 +469,18 @@ export const applyOptimisticExpenseUpdate = (
   const previousRow = context.snapshots
     .flatMap((snapshot) => getRowsFromCacheData(snapshot.data))
     .find((row) => row.id === variables.id);
+  const shouldReusePreviousBudgetAppearance =
+    typeof variables.input.budgetId === "undefined" ||
+    variables.input.budgetId === previousRow?.budgetId;
   const nextRow = buildRow(variables.input, queryClient, variables.id, {
     fallbackBudgetId: previousRow?.budgetId,
     fallbackBudgetName: previousRow?.budgetName,
+    fallbackBudgetIcon: shouldReusePreviousBudgetAppearance
+      ? previousRow?.budgetIcon
+      : null,
+    fallbackBudgetColor: shouldReusePreviousBudgetAppearance
+      ? previousRow?.budgetColor
+      : null,
     fallbackDate: previousRow?.date,
   });
   if (!nextRow) {
@@ -438,7 +499,10 @@ export const applyOptimisticExpenseUpdate = (
     }
 
     const withoutRow = result.rows.filter((row) => row.id !== variables.id);
-    return withRows(result, shouldInclude ? [nextRow, ...withoutRow] : withoutRow);
+    return withRows(
+      result,
+      shouldInclude ? [nextRow, ...withoutRow] : withoutRow
+    );
   });
 
   return context;

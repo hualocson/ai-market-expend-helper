@@ -82,7 +82,7 @@ describe("expense services", () => {
         budgetId: 10,
         budgetName: "Meals",
         budgetIcon: "🍜",
-        budgetColor: "rose",
+        budgetColor: "rose" as const,
       },
       {
         id: 3,

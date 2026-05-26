@@ -75,6 +75,8 @@ const expense = {
   paidBy: "me",
   budgetId: null,
   budgetName: null,
+  budgetIcon: null,
+  budgetColor: null,
 };
 
 type ExpenseFixture = typeof expense & {

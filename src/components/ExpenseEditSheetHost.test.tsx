@@ -42,6 +42,8 @@ const expense = {
   paidBy: "Loc",
   budgetId: 3,
   budgetName: "Home food",
+  budgetIcon: "🍜",
+  budgetColor: "rose" as const,
 };
 
 beforeEach(() => {
@@ -78,6 +80,8 @@ describe("ExpenseEditSheetHost", () => {
           paidBy: "Loc",
           budgetId: 3,
           budgetName: "Home food",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
         },
         onOpenChange,
         onConfirmDelete: expect.any(Function),

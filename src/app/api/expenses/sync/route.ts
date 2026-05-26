@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { PaidBy } from "@/enums";
 import { apiError, apiSuccess } from "@/lib/api/route-response";
+import { BUDGET_COLOR_IDS } from "@/lib/budget-appearance";
 import {
   getExpenseChangesSince,
   pushExpenseOperations,
@@ -22,6 +23,9 @@ const localExpensePayloadSchema = z.object({
   category: z.string().min(1),
   paidBy: z.enum([PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER]),
   budgetId: z.number().int().positive().nullable(),
+  budgetName: z.string().nullable().optional().default(null),
+  budgetIcon: z.string().nullable().optional().default(null),
+  budgetColor: z.enum(BUDGET_COLOR_IDS).nullable().optional().default(null),
 });
 
 const expenseSyncOperationSchema = z.object({

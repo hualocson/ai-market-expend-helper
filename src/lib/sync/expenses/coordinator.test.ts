@@ -607,9 +607,41 @@ describe("expense sync coordinator", () => {
         serverId: null,
         syncStatus: "pending",
         serverUpdatedAt: null,
+        payload: {
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+        },
       })
     );
-    await syncRepository.outbox.put(outboxOperation());
+    await syncRepository.outbox.put(
+      outboxOperation({
+        payload: {
+          entity: "expenses",
+          clientId: "client-1",
+          serverId: null,
+          date: "2026-05-23",
+          amount: 45000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: 10,
+          budgetName: "Meals",
+          budgetIcon: "🍜",
+          budgetColor: "rose",
+          syncStatus: "pending",
+          lastError: null,
+          updatedAt: "2026-05-24T09:00:00.000Z",
+          serverUpdatedAt: null,
+        },
+      })
+    );
     const queryClient = new QueryClient();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(
@@ -661,7 +693,10 @@ describe("expense sync coordinator", () => {
                 note: "Coffee",
                 category: "Food",
                 paidBy: "Cubi",
-                budgetId: null,
+                budgetId: 10,
+                budgetName: "Meals",
+                budgetIcon: "🍜",
+                budgetColor: "rose",
               },
             },
           ],

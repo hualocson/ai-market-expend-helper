@@ -46,6 +46,9 @@ export type ExpenseSyncPushOperation = {
     category: string;
     paidBy: string;
     budgetId: number | null;
+    budgetName: string | null;
+    budgetIcon: string | null;
+    budgetColor: BudgetColorId | null;
     clientId: string;
   } | null;
 };

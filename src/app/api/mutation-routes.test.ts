@@ -133,6 +133,9 @@ describe("REST mutation routes", () => {
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       },
     ];
@@ -186,8 +189,46 @@ describe("REST mutation routes", () => {
       {
         ...operation,
         serverId: null,
+        payload: {
+          ...operation.payload,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
+        },
       },
     ]);
+  });
+
+  it("passes expense sync budget appearance snapshots to the service", async () => {
+    const operation = {
+      operationId: "op-appearance",
+      type: "create",
+      clientId: "client-1",
+      serverId: null,
+      payload: {
+        clientId: "client-1",
+        date: "23/05/2026",
+        amount: 45000,
+        note: "Coffee",
+        category: "Food",
+        paidBy: "Cubi",
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
+    };
+    const payload = { results: [] };
+    mocks.pushExpenseOperations.mockResolvedValue(payload);
+
+    const response = await postExpenseSync(
+      jsonRequest("http://localhost/api/expenses/sync", {
+        operations: [operation],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.pushExpenseOperations).toHaveBeenCalledWith([operation]);
   });
 
   it("normalizes omitted expense sync delete serverId to null", async () => {

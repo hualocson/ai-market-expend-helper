@@ -1,6 +1,6 @@
 import { PaidBy } from "@/enums";
-import type { ExpenseListResult } from "@/lib/services/expenses";
 import { queries } from "@/lib/queries";
+import type { ExpenseListResult } from "@/lib/services/expenses";
 import type { InfiniteData } from "@tanstack/react-query";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
@@ -72,6 +72,8 @@ const buildRows = (): ExpenseListResult["rows"] => [
     paidBy: PaidBy.CUBI,
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
   },
   {
     id: 10,
@@ -82,6 +84,8 @@ const buildRows = (): ExpenseListResult["rows"] => [
     paidBy: PaidBy.CUBI,
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
   },
   {
     id: 11,
@@ -92,6 +96,8 @@ const buildRows = (): ExpenseListResult["rows"] => [
     paidBy: PaidBy.EMBE,
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
   },
 ];
 
@@ -111,6 +117,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -321,6 +329,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -362,6 +372,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: 7,
           budgetName: "Groceries",
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -385,6 +397,95 @@ describe("expense optimistic cache helpers", () => {
     });
   });
 
+  it("preserves budget appearance in optimistic rows", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(
+      queries.expenses.list({ month: "2026-05" }).queryKey,
+      buildExpenseList([
+        {
+          id: 1,
+          date: "2026-05-26",
+          amount: 100000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: PaidBy.CUBI,
+          budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
+        },
+      ])
+    );
+
+    applyOptimisticExpenseUpdate(queryClient, {
+      id: 1,
+      input: {
+        date: "2026-05-26",
+        amount: 120000,
+        note: "Lunch",
+        category: "Food",
+        paidBy: PaidBy.CUBI,
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
+    });
+
+    const next = queryClient.getQueryData<ExpenseListResult>(
+      queries.expenses.list({ month: "2026-05" }).queryKey
+    );
+
+    expect(next?.rows[0]).toMatchObject({
+      budgetName: "Meals",
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+  });
+
+  it("does not reuse previous budget appearance when an update changes budget without snapshots", () => {
+    const queryClient = new QueryClient();
+    const query = queries.expenses.list({ month: "2026-05" });
+    queryClient.setQueryData(
+      query.queryKey,
+      buildExpenseList([
+        {
+          id: 10,
+          date: "2026-05-23",
+          amount: 10000,
+          note: "Coffee",
+          category: "Food",
+          paidBy: PaidBy.CUBI,
+          budgetId: 7,
+          budgetName: "Groceries",
+          budgetIcon: "🛒",
+          budgetColor: "sky",
+        },
+      ])
+    );
+
+    applyOptimisticExpenseUpdate(queryClient, {
+      id: 10,
+      input: {
+        date: "23/05/2026",
+        amount: 40000,
+        note: "Dinner",
+        category: "Food",
+        paidBy: PaidBy.EMBE,
+        budgetId: 10,
+        budgetName: "Meals",
+      },
+    });
+
+    const next = queryClient.getQueryData<ExpenseListResult>(query.queryKey);
+    expect(next?.rows[0]).toMatchObject({
+      budgetId: 10,
+      budgetName: "Meals",
+      budgetIcon: null,
+      budgetColor: null,
+    });
+  });
+
   it("clears an existing budget assignment when update input has null budgetId", () => {
     const queryClient = new QueryClient();
     const query = queries.expenses.list({ month: "2026-05" });
@@ -400,6 +501,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: 7,
           budgetName: "Groceries",
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -439,6 +542,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -479,6 +584,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -520,6 +627,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -544,7 +653,10 @@ describe("expense optimistic cache helpers", () => {
   it("deletes a row from all cached expense lists and regroups totals", () => {
     const queryClient = new QueryClient();
     const monthQuery = queries.expenses.list({ month: "2026-05" });
-    const searchQuery = queries.expenses.list({ month: "2026-05", q: "coffee" });
+    const searchQuery = queries.expenses.list({
+      month: "2026-05",
+      q: "coffee",
+    });
     queryClient.setQueryData(
       monthQuery.queryKey,
       buildExpenseList(buildRows())
@@ -561,6 +673,8 @@ describe("expense optimistic cache helpers", () => {
           paidBy: PaidBy.CUBI,
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       ])
     );
@@ -601,13 +715,13 @@ describe("expense optimistic cache helpers", () => {
     queryClient.setQueryData(query.queryKey, previous);
 
     const context = applyOptimisticExpenseDelete(queryClient, 10);
-    const next = queryClient.getQueryData<InfiniteData<ExpenseListResult, number>>(
-      query.queryKey
-    );
+    const next = queryClient.getQueryData<
+      InfiniteData<ExpenseListResult, number>
+    >(query.queryKey);
 
-    expect(next?.pages.flatMap((page) => page.rows.map((row) => row.id))).toEqual(
-      [12, 11]
-    );
+    expect(
+      next?.pages.flatMap((page) => page.rows.map((row) => row.id))
+    ).toEqual([12, 11]);
 
     restoreExpenseListSnapshots(queryClient, context);
     expect(queryClient.getQueryData(query.queryKey)).toEqual(previous);
@@ -660,7 +774,10 @@ describe("expense optimistic cache helpers", () => {
   it("restores exact snapshots for all cached lists after a failed optimistic change", () => {
     const queryClient = new QueryClient();
     const monthQuery = queries.expenses.list({ month: "2026-05" });
-    const searchQuery = queries.expenses.list({ month: "2026-05", q: "coffee" });
+    const searchQuery = queries.expenses.list({
+      month: "2026-05",
+      q: "coffee",
+    });
     const previousMonth = buildExpenseList(buildRows());
     const previousSearch = buildExpenseList([
       {
@@ -672,6 +789,8 @@ describe("expense optimistic cache helpers", () => {
         paidBy: PaidBy.CUBI,
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
       },
     ]);
     queryClient.setQueryData(monthQuery.queryKey, previousMonth);
@@ -680,7 +799,9 @@ describe("expense optimistic cache helpers", () => {
     const context = applyOptimisticExpenseDelete(queryClient, 10);
     restoreExpenseListSnapshots(queryClient, context);
 
-    expect(queryClient.getQueryData(monthQuery.queryKey)).toEqual(previousMonth);
+    expect(queryClient.getQueryData(monthQuery.queryKey)).toEqual(
+      previousMonth
+    );
     expect(queryClient.getQueryData(searchQuery.queryKey)).toEqual(
       previousSearch
     );

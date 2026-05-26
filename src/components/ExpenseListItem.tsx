@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { ExpenseListItemSyncStatus } from "@/lib/expenses/list-model";
 import { useDeleteExpenseMutation } from "@/lib/mutations";
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import BudgetBadge from "@/components/BudgetBadge";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
@@ -37,6 +39,8 @@ export type ExpenseListItemData = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
   syncStatus?: ExpenseListItemSyncStatus;
 };
 
@@ -330,9 +334,12 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
                   {expense.category}
                 </p>
                 {expense.budgetId ? (
-                  <p className="bg-success/10 text-success max-w-[160px] truncate rounded-2xl px-3 text-sm">
-                    {budgetBadgeLabel}
-                  </p>
+                  <BudgetBadge
+                    icon={expense.budgetIcon ?? null}
+                    color={expense.budgetColor ?? null}
+                    name={budgetBadgeLabel}
+                    className="max-w-[160px] px-2.5 py-0.5 text-sm"
+                  />
                 ) : (
                   <span className="bg-warning size-2 rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--warning)_55%,transparent)]" />
                 )}

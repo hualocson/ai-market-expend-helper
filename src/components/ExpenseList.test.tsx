@@ -93,6 +93,8 @@ describe("ExpenseList", () => {
     paidBy: "Loc",
     budgetId: null,
     budgetName: null,
+    budgetIcon: null,
+    budgetColor: null,
   };
 
   const buildPage = (
@@ -305,6 +307,8 @@ describe("ExpenseList", () => {
           paidBy: "Cubi",
           budgetId: null,
           budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
         },
       }))
     );

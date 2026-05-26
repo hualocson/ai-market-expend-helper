@@ -105,6 +105,8 @@ describe("DailyReportContent", () => {
         paidBy: "Loc",
         budgetId: null,
         budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
       },
     ],
     dailyRemaining: 30_000,
