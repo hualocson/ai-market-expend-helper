@@ -101,13 +101,14 @@ vi.mock("@/components/ui/drawer", () => {
     DrawerTrigger,
     DrawerContent,
     DrawerDescription: wrap("div"),
+    DrawerFooter: wrap("div"),
     DrawerHeader: wrap("div"),
     DrawerTitle: wrap("h2"),
   };
 });
 
 describe("BudgetEmojiPickerDrawer", () => {
-  it("opens the picker drawer and selects an emoji", async () => {
+  it("opens the picker drawer and confirms a selected emoji", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
@@ -120,8 +121,17 @@ describe("BudgetEmojiPickerDrawer", () => {
     expect(
       screen.getByRole("heading", { name: /choose emoji/i })
     ).toBeInTheDocument();
+    expect(screen.getByLabelText(/budget: preview/i)).toHaveTextContent("💰");
 
     await user.click(await screen.findByRole("button", { name: /pick cart/i }));
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/budget: preview/i)).toHaveTextContent("🛒");
+    expect(
+      screen.getByRole("heading", { name: /choose emoji/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /confirm emoji/i }));
 
     expect(onSelect).toHaveBeenCalledWith("🛒");
 
