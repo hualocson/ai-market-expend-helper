@@ -563,6 +563,8 @@ describe("REST mutation routes", () => {
   it("creates a weekly budget with a validated payload", async () => {
     const payload = {
       name: "Groceries",
+      icon: "🛒",
+      color: "emerald",
       amount: 1000000,
       period: "week",
       periodStartDate: "2026-05-18",
@@ -604,8 +606,31 @@ describe("REST mutation routes", () => {
     expect(mocks.createBudget).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for an invalid weekly budget color", async () => {
+    const response = await postWeeklyBudget(
+      jsonRequest("http://localhost/api/weekly-budgets", {
+        name: "Groceries",
+        icon: "🛒",
+        color: "custom-purple",
+        amount: 1000000,
+        period: "week",
+        periodStartDate: "2026-05-18",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
+    });
+    expect(mocks.createBudget).not.toHaveBeenCalled();
+  });
+
   it("updates a weekly budget with a validated payload", async () => {
-    const payload = { amount: 900000 };
+    const payload = { icon: "🍜", color: "rose", amount: 900000 };
     const updated = { id: 10, name: "Groceries", ...payload };
     mocks.updateBudget.mockResolvedValue(updated);
 
