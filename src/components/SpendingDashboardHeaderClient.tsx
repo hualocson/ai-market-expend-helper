@@ -76,9 +76,9 @@ const SpendingDashboardHeaderClient = ({
     <>
       <div className="spending-header-gradient fixed top-0 right-0 left-0 z-30 flex w-dvw flex-col items-start gap-3 px-4 py-6">
         <m.p
-          initial={{ opacity: 0, y: 10, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.16, ease: "easeOut" }}
           aria-label={`${formatVnd(activeTotal)} Vietnamese dong`}
           className="text-foreground flex max-w-full items-center gap-2 font-mono text-[clamp(2.65rem,12vw,4.75rem)] leading-none font-semibold tracking-[-0.08em] whitespace-nowrap tabular-nums"
         >
@@ -88,9 +88,9 @@ const SpendingDashboardHeaderClient = ({
 
         <div className="flex items-center gap-2">
           <m.div
-            initial={{ opacity: 0, x: -10, filter: "blur(10px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.3, ease: "easeInOut", delay: 0.2 }}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut", delay: 0.08 }}
           >
             <Select value={activePayer} onValueChange={setActivePayer}>
               <SelectTrigger
@@ -110,9 +110,9 @@ const SpendingDashboardHeaderClient = ({
           </m.div>
 
           <m.div
-            initial={{ opacity: 0, x: -10, filter: "blur(10px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.3, ease: "easeInOut", delay: 0.25 }}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut", delay: 0.1 }}
           >
             <Link
               href="/ai"
@@ -127,9 +127,9 @@ const SpendingDashboardHeaderClient = ({
       </div>
 
       <m.div
-        initial={{ opacity: 0, filter: "blur(10px)" }}
-        animate={{ opacity: 1, filter: "blur(0px)" }}
-        transition={{ duration: 0.3, ease: "easeInOut", delay: 0.3 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.16, ease: "easeOut", delay: 0.12 }}
         className="border-border/45 bg-surface-2/65 mt-28 rounded-[28px] border p-3.5 shadow-sm backdrop-blur-sm"
       >
         <SpendingHeatmapChart

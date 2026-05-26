@@ -197,9 +197,9 @@ const ExpenseList = ({
 
   return (
     <m.section
-      initial={{ opacity: 0, filter: "blur(10px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.3, ease: "easeInOut", delay: 0.35 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.16, ease: "easeOut", delay: 0.14 }}
       className="flex w-full grow flex-col gap-4 overflow-auto"
     >
       <div
