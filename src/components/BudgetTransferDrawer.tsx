@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 
+import BudgetBadge from "@/components/BudgetBadge";
 import VndSymbol from "@/components/VndSymbol";
 
 type Props = {
@@ -114,9 +115,12 @@ const SourceBudgetRow = memo(function SourceBudgetRow({
     >
       <span className="flex min-w-0 flex-col">
         <span className="flex items-center gap-1.5">
-          <span className="text-foreground truncate text-sm font-medium">
-            {budget.name}
-          </span>
+          <BudgetBadge
+            icon={budget.icon}
+            color={budget.color}
+            name={budget.name}
+            className="max-w-full border-0 bg-transparent px-0 py-0"
+          />
           {selected ? (
             <Check className="text-success h-4 w-4 shrink-0" />
           ) : null}
@@ -313,9 +317,12 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                   Destination
                 </p>
                 <div className="mt-1 flex items-center justify-between">
-                  <p className="text-foreground text-sm font-semibold">
-                    {destination.name}
-                  </p>
+                  <BudgetBadge
+                    icon={destination.icon}
+                    color={destination.color}
+                    name={destination.name}
+                    className="max-w-full border-0 bg-transparent px-0 py-0"
+                  />
                   <p className="text-foreground text-sm font-semibold tabular-nums">
                     {formatVnd(destination.amount)}
                   </p>
@@ -366,9 +373,12 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
                         data-testid="budget-transfer-nested-destination"
                         className="border-border/45 bg-card/95 rounded-2xl border px-4 py-3"
                       >
-                        <p className="text-foreground truncate text-base font-semibold">
-                          {destination.name}
-                        </p>
+                        <BudgetBadge
+                          icon={destination.icon}
+                          color={destination.color}
+                          name={destination.name}
+                          className="max-w-full border-0 bg-transparent px-0 py-0"
+                        />
                         <p className="text-muted-foreground mt-0.5 text-[11px] tabular-nums">
                           Filling · {formatVnd(destination.amount)}
                         </p>

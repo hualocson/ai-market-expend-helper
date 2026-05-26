@@ -1,6 +1,6 @@
+import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { describe, expect, it } from "vitest";
 
-import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import {
   formatBudgetRange,
   groupBudgetOptions,
@@ -17,25 +17,33 @@ const opt = (over: Partial<BudgetWeeklyOption> = {}): BudgetWeeklyOption => ({
   amount: 100,
   spent: 0,
   remaining: 100,
+  icon: "💰",
+  color: "lime",
   ...over,
 });
 
 describe("formatBudgetRange", () => {
   it("returns single date when start equals end", () => {
     expect(
-      formatBudgetRange(opt({ periodStartDate: "2026-05-18", periodEndDate: "2026-05-18" }))
+      formatBudgetRange(
+        opt({ periodStartDate: "2026-05-18", periodEndDate: "2026-05-18" })
+      )
     ).toMatch(/18 May 2026/);
   });
 
   it("returns short range when same year", () => {
     expect(
-      formatBudgetRange(opt({ periodStartDate: "2026-05-18", periodEndDate: "2026-05-24" }))
+      formatBudgetRange(
+        opt({ periodStartDate: "2026-05-18", periodEndDate: "2026-05-24" })
+      )
     ).toMatch(/18 May - 24 May 2026/);
   });
 
   it("falls back to period label when start date is missing", () => {
     expect(
-      formatBudgetRange(opt({ periodStartDate: null, periodEndDate: null, period: "month" }))
+      formatBudgetRange(
+        opt({ periodStartDate: null, periodEndDate: null, period: "month" })
+      )
     ).toBe("Month budget");
   });
 });
@@ -63,9 +71,15 @@ describe("groupBudgetOptions", () => {
 
 describe("pickDefaultBudget", () => {
   it("prefers week, then month, then custom", () => {
-    expect(pickDefaultBudget({ week: [opt({ id: 1 })], month: [], custom: [] })?.id).toBe(1);
-    expect(pickDefaultBudget({ week: [], month: [opt({ id: 2 })], custom: [] })?.id).toBe(2);
-    expect(pickDefaultBudget({ week: [], month: [], custom: [opt({ id: 3 })] })?.id).toBe(3);
+    expect(
+      pickDefaultBudget({ week: [opt({ id: 1 })], month: [], custom: [] })?.id
+    ).toBe(1);
+    expect(
+      pickDefaultBudget({ week: [], month: [opt({ id: 2 })], custom: [] })?.id
+    ).toBe(2);
+    expect(
+      pickDefaultBudget({ week: [], month: [], custom: [opt({ id: 3 })] })?.id
+    ).toBe(3);
     expect(pickDefaultBudget({ week: [], month: [], custom: [] })).toBeNull();
   });
 });

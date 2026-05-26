@@ -1,10 +1,10 @@
+import type { BudgetListItem } from "@/types/budget-weekly";
 import { describe, expect, it } from "vitest";
 
 import {
-  groupTransferCandidates,
   type CandidateGroup,
+  groupTransferCandidates,
 } from "./budget-transfer-groups";
-import type { BudgetListItem } from "@/types/budget-weekly";
 
 const makeBudget = (overrides: Partial<BudgetListItem>): BudgetListItem => ({
   id: 1,
@@ -12,6 +12,8 @@ const makeBudget = (overrides: Partial<BudgetListItem>): BudgetListItem => ({
   amount: 500_000,
   spent: 180_000,
   remaining: 320_000,
+  icon: "💰",
+  color: "lime",
   period: "week",
   periodStartDate: "2026-05-13",
   periodEndDate: "2026-05-19",
@@ -29,7 +31,13 @@ describe("groupTransferCandidates", () => {
 
   it("buckets a current-week budget into this-week", () => {
     const groups = groupTransferCandidates(
-      [makeBudget({ id: 1, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16" })],
+      [
+        makeBudget({
+          id: 1,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+        }),
+      ],
       NOW
     );
     expect(groups).toHaveLength(1);
@@ -40,7 +48,13 @@ describe("groupTransferCandidates", () => {
 
   it("buckets a previous-week budget into last-week", () => {
     const groups = groupTransferCandidates(
-      [makeBudget({ id: 2, periodStartDate: "2026-05-03", periodEndDate: "2026-05-09" })],
+      [
+        makeBudget({
+          id: 2,
+          periodStartDate: "2026-05-03",
+          periodEndDate: "2026-05-09",
+        }),
+      ],
       NOW
     );
     expect(groups).toHaveLength(1);
@@ -83,7 +97,11 @@ describe("groupTransferCandidates", () => {
   it("buckets older weeks, older months, and custom periods into earlier", () => {
     const groups = groupTransferCandidates(
       [
-        makeBudget({ id: 5, periodStartDate: "2026-03-01", periodEndDate: "2026-03-07" }),
+        makeBudget({
+          id: 5,
+          periodStartDate: "2026-03-01",
+          periodEndDate: "2026-03-07",
+        }),
         makeBudget({
           id: 6,
           period: "month",
@@ -107,7 +125,11 @@ describe("groupTransferCandidates", () => {
   it("omits empty groups", () => {
     const groups = groupTransferCandidates(
       [
-        makeBudget({ id: 1, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16" }),
+        makeBudget({
+          id: 1,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+        }),
         makeBudget({
           id: 3,
           period: "month",
@@ -124,21 +146,33 @@ describe("groupTransferCandidates", () => {
   it("orders groups: this-week, last-week, this-month, last-month, earlier", () => {
     const groups = groupTransferCandidates(
       [
-        makeBudget({ id: 99, periodStartDate: "2026-03-01", periodEndDate: "2026-03-07" }), // earlier
+        makeBudget({
+          id: 99,
+          periodStartDate: "2026-03-01",
+          periodEndDate: "2026-03-07",
+        }), // earlier
         makeBudget({
           id: 4,
           period: "month",
           periodStartDate: "2026-04-01",
           periodEndDate: "2026-04-30",
         }), // last-month
-        makeBudget({ id: 2, periodStartDate: "2026-05-03", periodEndDate: "2026-05-09" }), // last-week
+        makeBudget({
+          id: 2,
+          periodStartDate: "2026-05-03",
+          periodEndDate: "2026-05-09",
+        }), // last-week
         makeBudget({
           id: 3,
           period: "month",
           periodStartDate: "2026-05-01",
           periodEndDate: "2026-05-31",
         }), // this-month
-        makeBudget({ id: 1, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16" }), // this-week
+        makeBudget({
+          id: 1,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+        }), // this-week
       ],
       NOW
     );
@@ -154,10 +188,30 @@ describe("groupTransferCandidates", () => {
   it("sorts within a group by remaining desc; non-positive remaining falls to bottom", () => {
     const groups: CandidateGroup[] = groupTransferCandidates(
       [
-        makeBudget({ id: 1, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16", remaining: 50_000 }),
-        makeBudget({ id: 2, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16", remaining: 0 }),
-        makeBudget({ id: 3, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16", remaining: 200_000 }),
-        makeBudget({ id: 4, periodStartDate: "2026-05-10", periodEndDate: "2026-05-16", remaining: -10_000 }),
+        makeBudget({
+          id: 1,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+          remaining: 50_000,
+        }),
+        makeBudget({
+          id: 2,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+          remaining: 0,
+        }),
+        makeBudget({
+          id: 3,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+          remaining: 200_000,
+        }),
+        makeBudget({
+          id: 4,
+          periodStartDate: "2026-05-10",
+          periodEndDate: "2026-05-16",
+          remaining: -10_000,
+        }),
       ],
       NOW
     );
