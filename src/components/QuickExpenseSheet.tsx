@@ -351,7 +351,6 @@ const QuickExpenseSheet = ({
       return;
     }
     amountRef.current?.focus({ preventScroll: true });
-    amountRef.current?.select();
   };
 
   const handlePickerCloseAutoFocus: React.ComponentProps<
@@ -534,7 +533,7 @@ const QuickExpenseSheet = ({
               : "Enter expense details and save."}
           </SheetDescription>
         </SheetHeader>
-        <div className="my-auto flex flex-col gap-4 pt-12">
+        <div className="my-auto flex flex-col gap-4">
           <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-3 gap-2 px-4">
             <Button
               type="button"
@@ -648,8 +647,6 @@ const QuickExpenseSheet = ({
                     onPointerDown={(e) => e.preventDefault()}
                     onClick={() => {
                       setField("amount", s);
-                      setAmountFocused(false);
-                      amountRef.current?.blur();
                     }}
                   >
                     {formatVnd(s)}

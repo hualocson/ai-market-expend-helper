@@ -314,7 +314,7 @@ describe("QuickExpenseSheet — fields", () => {
     expect(amount.value).toMatch(/5[.,]?000/);
   });
 
-  it("hides amount suggestions after applying a suggestion", async () => {
+  it("keeps amount focused after applying a suggestion", async () => {
     const user = await openSheet();
     const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
     await user.click(amount);
@@ -322,10 +322,10 @@ describe("QuickExpenseSheet — fields", () => {
     await user.click(screen.getByRole("button", { name: /5[.,]?000$/ }));
 
     expect(amount.value).toMatch(/5[.,]?000/);
-    expect(amount).not.toHaveFocus();
+    expect(amount).toHaveFocus();
     expect(
-      screen.queryByRole("group", { name: /amount suggestions/i })
-    ).not.toBeInTheDocument();
+      screen.getByRole("group", { name: /amount suggestions/i })
+    ).toBeInTheDocument();
   });
 
   it("hides amount suggestions when the amount input loses focus", async () => {
