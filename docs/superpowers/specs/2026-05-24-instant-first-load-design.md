@@ -1,272 +1,258 @@
-# Instant First Load Design
+# Returning User Instant Shell Design
 
-## Context
+**Date:** 2026-05-26
+**Status:** Draft for review
 
-The reference article, [How's Linear so fast? A technical breakdown](https://performance.dev/how-is-linear-so-fast-a-technical-breakdown), describes first-load speed as a product of several coordinated decisions:
+## Goal
 
-- Ship a small critical shell first.
-- Inline enough theme/style state to avoid a blank or wrong-themed page.
-- Preload or precache likely assets.
-- Treat the browser's local database as the first read path.
-- Reconcile with the server after useful UI is already visible.
-- Keep startup animation cheap, mostly `opacity` and `transform`, with short durations.
+Make returning visits to Spendly show a recognizable app shell sooner, without weakening the current `/` server prefetch, TanStack Query hydration, IndexedDB expense sync, or service-worker correctness boundaries.
 
-Spendly already has some of the right building blocks:
+The target feeling is: when a returning user opens the app, the screen should look like Spendly immediately, even while the real server-prefetched dashboard and expense list are still being prepared.
 
-- Next.js App Router pages with TanStack Query hydration.
-- Serwist service worker setup in `src/app/sw.ts` and `next.config.ts`.
-- An offline page at `src/app/~offline/page.tsx`.
-- An Expense sync direction already started under `src/lib/sync/core/*` and `src/lib/sync/expenses/*`.
-- Background submit and recovery boundaries documented in `LEARNINGS.md`.
+## Current Context
 
-The current home route still waits for server prefetches in `src/app/page.tsx` before rendering the main dashboard and expense list. The root layout also mounts several client-owned systems immediately: React Query provider, theme provider, settings provider, pull-to-refresh, mutation coordinator, recovery host, progressive blur, bottom nav, and toast host. `src/app/loading.tsx` is a client component and imports `motion/react`, so the loading state itself is not a minimal shell.
+The codebase has changed since the earlier first-load brainstorm. The app now has a stronger local-first Expense foundation:
 
-The design goal is not to clone Linear's architecture completely. It is to apply the first-load principle to this codebase without breaking the existing app-owned data rules: browser reads use TanStack Query query factories and REST routes, writes use mutation hooks or the local sync engine, and no new Server Actions are added.
+- `src/app/page.tsx` server-prefetches both `getDashboardMonthlySummary()` and `getExpenseList({ limit: 30 })` in parallel.
+- Browser Expense reads in `src/lib/queries/expenses.ts` are IndexedDB-only and build list results from sync records.
+- `src/components/ExpenseSyncCoordinator.tsx` reads the hydrated first Expense page from TanStack Query, seeds those rows into IndexedDB sync storage, then requests normal sync.
+- `src/components/ExpenseList.tsx` gates infinite loading until the Expense sync cursor exists, avoiding a false "load more" path before local pagination is ready.
+- `src/app/sw.ts` explicitly uses `NetworkOnly` for `/api/*`, RSC payloads, and app documents before falling through to Serwist defaults for static assets.
+
+Those pieces should stay intact. The first-load problem is now narrower: the real app still cannot visibly render until the current route tree is ready, and the fallback path is too heavy. `src/app/loading.tsx` is a client component that imports `motion/react`. The root layout eagerly mounts several client systems, including sync, quick expense mutation coordination, recovery host, pull-to-refresh, progressive blur, bottom nav, theme/settings/query providers, and toasts. First-screen dashboard/list components still use blur-filter startup motion.
 
 ## Scope
 
 In scope:
 
-- The first visible load of `/`.
-- The route loading fallback.
-- The root shell paint path.
-- Last-known dashboard summary display as a startup hint.
-- Last-known Expense list display from IndexedDB as a startup hint.
-- Background server validation after initial paint.
-- Deferring non-critical root JavaScript.
-- Route/code warmup after first paint.
-- Service worker behavior for static assets and offline fallback.
-- Focused tests for shell persistence, dashboard snapshot parsing, and local Expense query seeding.
-- Manual performance verification with Web Vitals and browser throttling.
+- Returning-user perceived first load of `/`.
+- A pre-hydration, inert app shell that appears before the real app subtree is ready.
+- Tiny persisted presentation hints, such as theme and last-known formatted total text.
+- Keeping the existing `/` server prefetch exactly as the canonical first real content path.
+- Making `src/app/loading.tsx` server-renderable and CSS-only.
+- Removing or reducing expensive blur-filter startup animation on first-screen surfaces.
+- Deferring non-critical root work that does not need to run before first paint.
+- Focused tests for shell persistence/hiding behavior and service-worker boundaries where touched.
 
 Out of scope:
 
-- Full local-first migration for budgets, reports, AI, or dashboard-derived data.
-- WebSockets or live push.
-- A new auth system.
-- Server Actions for app-owned data.
-- Caching mutable `/api/*` responses in the service worker.
-- Rewriting the whole app shell or navigation model.
-- Replacing TanStack Query with a custom client database API.
+- Changing the home page's server-prefetch behavior.
+- Streaming a new `HomeInstantContent` fallback for this iteration.
+- Reintroducing `/api/expenses` browser fallbacks.
+- Caching mutable app API responses in the service worker.
+- Changing Expense sync semantics, outbox behavior, cursor gating, or local pagination.
+- Making dashboard, report, budget, or AI data fully local-first.
+- Adding Server Actions.
+- Building route warmup before the shell path is stable.
 
 ## Considered Approaches
 
-### Recommended: streamed shell plus local startup hints
+### Recommended: pre-hydration returning shell plus startup-cost cleanup
 
-Keep Next.js App Router and TanStack Query. Split the home page into a static frame, an instant fallback, and a streamed server-prefetched content subtree. The fallback renders immediately using lightweight shell UI, last-known dashboard summary from `localStorage`, and Expense records from IndexedDB converted into the existing `ExpenseListResult` query shape. Server prefetch still runs and hydrates canonical data when ready.
+Add an inert shell at the root layout level. The shell is plain DOM and CSS, with a tiny script that reads safe presentation hints from `localStorage` before hydration. It appears while the real app subtree is pending and disappears after hydration. The existing `/` server prefetch remains unchanged and still provides the real dashboard and first Expense page.
 
-This matches the current migration path. It improves perceived first load without asking every domain to become local-first at once.
+This approach gives returning users an immediate visual anchor without creating a second data path. It is intentionally conservative: the shell is not data ownership, not a cache, and not a replacement for server-prefetched content.
 
-### Alternative: full local-first home route
+### Alternative: stream `/` with an instant Suspense fallback
 
-Make the home route read only from IndexedDB/Zustand and treat all server data as sync output. This would be closest to Linear's model, but it is too large for this step because dashboard, budgets, reports, and AI are still server-owned. It also risks duplicating business logic before the Expense sync engine is fully settled.
+Move the current home prefetch into a child component and let the route stream an interactive fallback. This could help both cold and returning users, but it changes the home route composition and risks overlapping with the existing cold-start Expense list design. It is better saved for a later pass if the inert shell is not enough.
 
-### Alternative: service-worker cache for API responses
+### Alternative: only reduce JavaScript and animation cost
 
-Cache `/api/expenses`, `/api/dashboard/monthly-summary`, and report responses with a stale-while-revalidate strategy. This is simple, but it creates stale mutable data outside TanStack Query and IndexedDB ownership. It would make mutation invalidation harder to reason about and can show data that the app cannot correctly reconcile.
+Make `loading.tsx` server-only, remove blur-filter motion, defer recovery hosts, and reduce font cost without adding a shell. This improves hydration and animation work, but it still may show a blank or generic loading state until the route is ready. It should be included as supporting cleanup, not the whole design.
 
-### Alternative: only optimize bundle size
+## Architecture
 
-Dynamic-import heavy components, reduce font files, and simplify animations while keeping current server prefetch behavior. This helps transfer and hydration cost, but it does not solve the main UX issue: the first useful home surface still waits for network and database work.
-
-## Design
-
-The first load should have three layers.
-
-Layer 1 is the pre-hydration shell. It is static DOM and CSS rendered by the root layout, with a tiny inline script that applies the last-known theme before React hydrates. The shell approximates the home screen structure: total header area, filter chips, heatmap panel, list rows, and bottom navigation position. It should not fetch data, import animation libraries, or mount query providers. Its job is to prevent blank-screen time and theme flash.
-
-Layer 2 is the instant home fallback. The home route should stream a fallback immediately while server prefetch continues. This fallback can mount normal client components, but it should prefer local startup data. `SpendingDashboardHeader` can use a validated dashboard snapshot from `localStorage` until the query resolves. `ExpenseList` can seed its TanStack infinite query from IndexedDB Expense sync records, using the existing local list builder in `src/lib/sync/expenses/list.ts`.
-
-Layer 3 is the canonical server-backed content. The existing `getDashboardMonthlySummary()` and `getExpenseList()` prefetches should still run, but in a streamed child component. When they finish, TanStack Query receives canonical server data and normal invalidation behavior continues.
-
-The result is:
+The returning-user load path should be:
 
 ```txt
-HTML starts
--> inline theme/shell script runs
--> static app shell paints
--> React hydrates
--> instant fallback reads local dashboard snapshot and IndexedDB expenses
--> server prefetch resolves
--> canonical TanStack Query data replaces local startup hints
--> background sync/invalidation continues normally
+Browser receives HTML
+-> tiny shell script applies stored theme/presentation hints
+-> inert Spendly shell paints
+-> existing / server prefetch continues unchanged
+-> React hydrates provider/app subtree
+-> shell bridge hides inert shell
+-> real dashboard and Expense list render from hydrated TanStack Query
+-> ExpenseSyncCoordinator seeds hydrated Expense page into IndexedDB and syncs
 ```
 
-## Root Shell
+The shell is independent from route data. It does not query IndexedDB, call REST routes, use TanStack Query, or import app components that carry client behavior. It is a paint bridge only.
 
-The root layout should include a minimal `InstantAppShell` before the provider-heavy app subtree. This shell must be inert:
+## Shell Shape
 
-- `aria-hidden="true"`
-- no interactive controls
-- no app-owned data fetches
-- no route state dependency
-- hidden after hydration using an attribute on `<html>`
+The shell should visually match the stable structure of the home screen:
 
-The inline script should do only startup-safe work:
+- top spending amount area
+- payer chip row
+- heatmap-sized panel
+- recent Expense row placeholders
+- reserved bottom navigation/blur area
 
-- read `spendly:shell:v1` from `localStorage`
-- apply `light` or `dark` class before paint
-- optionally set a CSS custom property for last-known total text
-- mark the document as shell-ready
-- catch all errors
+It should not show detailed stale Expense rows. For this returning-user-first design, showing detailed local records in the pre-hydration shell would require IndexedDB access before hydration, which is too much work for the shell layer. The real hydrated route already shows the server-prefetched first page, and the existing sync coordinator handles IndexedDB seeding.
 
-The script must not parse large payloads, query IndexedDB, or inspect route data. IndexedDB belongs to the hydrated fallback layer.
+The shell may show a last-known formatted total string because it is presentation-only. It should not store or render the full dashboard payload.
 
-## Home Route Streaming
+## Shell Persistence
 
-`src/app/page.tsx` should stop awaiting mutable data directly at the page root. Instead:
-
-- `HomeFrame` renders the stable layout wrapper.
-- `HomeInstantContent` is the Suspense fallback.
-- `HomePrefetchedContent` performs the existing dashboard and expense prefetch in parallel and returns a `HydrationBoundary`.
-
-This keeps server prefetch benefits for users with fast connections, while allowing immediate fallback for slower starts.
-
-The fallback should look like real app UI, not a spinner. A spinner says "wait"; cached or skeleton-like app structure says "the app is here."
-
-## Local Expense Startup Data
-
-Expense startup data should come from the existing sync storage direction, not from service-worker API caching.
-
-The local flow:
-
-```txt
-ExpenseList with preferLocalStartupData
--> listSyncRecords("expenses")
--> cast/validate LocalExpense records
--> buildExpenseListResultFromLocalRows(rows, params)
--> wrap as InfiniteData<ExpenseListResult, number>
--> queryClient.setQueryData(queries.expenses.list(params).queryKey, data)
-```
-
-This preserves the existing `ExpenseList` rendering path. The list still uses TanStack Query and the query factory key. When the real network query resolves, it replaces or reconciles the startup data through the normal query lifecycle.
-
-Deleted local records must be filtered. Pending rows can be shown because they represent user-visible local work. Failed rows can remain visible if the sync engine marks them clearly later; the first-load seed should not invent new recovery behavior.
-
-## Dashboard Snapshot
-
-Dashboard summary is derived server-owned data, so it should not be treated as a durable local database in this design. It can be used as a startup snapshot only.
-
-Persist a small validated shape:
+Use a small namespaced localStorage key, for example:
 
 ```ts
-type DashboardSnapshot = {
-  activeMonth: string;
-  payerOptions: string[];
-  totalsByPayer: Record<string, { total: number; totals: number[] }>;
+type InstantShellSnapshot = {
+  theme: "dark" | "light";
+  totalText: string | null;
   updatedAt: number;
 };
 ```
 
-The snapshot should be written after successful dashboard render and read only by the instant fallback. Invalid shapes must be ignored. The canonical dashboard query remains the source that refreshes reports, monthly totals, and heatmap data.
+Rules:
 
-The root shell may persist only presentation-safe data such as theme and a formatted total string. It should not persist the whole dashboard payload.
+- The snapshot is optional.
+- Invalid JSON or invalid shapes are ignored.
+- The default theme remains dark.
+- `totalText` is a display hint only. It should be formatted text, not raw dashboard state.
+- The shell script must catch all errors because storage can be blocked.
 
-## Service Worker and Preloading
+The real dashboard component can update this snapshot after it successfully renders live query data. That write should be isolated in a small helper module, not scattered across components.
 
-Serwist should continue to own static asset precaching and offline document fallback. The service worker should not cache mutable app API responses for expenses, reports, budgets, or dashboard summaries.
+## Root Layout Design
 
-Allowed service-worker responsibilities:
+Add three small pieces:
 
-- precache generated Next/static assets
-- serve `/~offline` for document fallback
-- reuse fonts, scripts, styles, and images where safe
-- enable navigation preload
+- `InstantAppShell`: server-rendered inert shell markup.
+- `instantShellScript`: tiny inline script that runs before hydration and applies safe shell hints.
+- `InstantShellBridge`: client component that marks hydration complete and persists current shell presentation hints when live data becomes available.
 
-Not allowed:
+`InstantAppShell` should render before the provider-heavy app subtree in `src/app/layout.tsx`.
 
-- stale-while-revalidate for `/api/expenses`
-- stale-while-revalidate for `/api/dashboard/*`
-- stale-while-revalidate for reports or budget API data
-- mutation response caching
+The hiding mechanism should be a document attribute, for example:
 
-Route warmup can happen after first paint from a tiny client component. Warm likely next routes such as `/report`, `/budgets`, `/ai`, and `/settings` using `router.prefetch()` during idle time. This should never compete with the first paint.
+```txt
+html[data-instant-shell-hydrated="true"] #instant-app-shell { display: none; }
+```
 
-## JavaScript and Animation Budget
+The shell should be `aria-hidden` and should not contain focusable elements. It must not compete with the real `BottomNav` once hydration completes.
 
-First-load code should be split into critical and deferred work.
+## Loading Route Design
 
-Critical:
+`src/app/loading.tsx` should stop importing `motion/react` and stop being a client component. It can render the same inert shell or a smaller CSS-only logo/shell fallback.
 
-- root providers required for visible UI
-- bottom navigation
-- dashboard header
-- expense list
-- minimal shell bridge
+The key requirement is that route loading does not pull animation runtime into the critical fallback. If animation is needed, use CSS with `prefers-reduced-motion` support and only opacity/transform.
 
-Deferred:
+## Root Work Deferral
 
-- quick expense mutation coordinator
-- recovery sheet host
-- edit sheet host until edit intent
-- route warmup until idle
-- any analytics/reporting beyond Web Vitals measurement
+Keep eager:
 
-`src/app/loading.tsx` should become server-renderable and CSS-only. It should not import `motion/react`.
+- `ReactQueryProvider`, because hydrated route data needs it.
+- `ExpenseSyncCoordinator`, because it seeds the hydrated first page and requests sync.
+- `ThemeProvider` and `SettingsStoreProvider`, because they define real app rendering.
+- `BottomNav`, because it is part of the first recognizable app frame.
+- `Toaster`, unless tests show it adds meaningful startup cost.
 
-Startup animations should avoid blur filters and layout-triggering properties. For first paint, use opacity and small transform transitions only. Any `transition: all` in startup-critical surfaces should be replaced with explicit properties.
+Consider deferring:
+
+- `QuickExpenseMutationCoordinator`, because it processes queued recovery mutations and is not needed to paint the first screen.
+- `QuickExpenseRecoverySheetHost`, because it renders only when a failed operation is reopened.
+
+Deferral should happen after hydration or during idle time. It must preserve `LEARNINGS.md` rules: queued operations should still be handled by a stable coordinator, and persisted recovery state must not be replayed unsafely. If deferral risks delaying important failed-draft handling too long, keep the coordinator eager and only defer the recovery host.
+
+## Animation And Rendering Budget
+
+First-screen startup animation should avoid blur filters. The current dashboard and Expense list use `filter: "blur(...)"` in `motion/react` entrance states. Replace those first-load effects with cheap opacity/transform transitions or remove them.
+
+Startup-sensitive rules:
+
+- animate `opacity` and `transform`
+- avoid `filter`, `height`, `width`, `margin`, `top`, `left`, and `transition-all`
+- keep durations short
+- respect reduced motion
+
+This is supporting work. The shell should provide the biggest perceived load improvement; animation cleanup should reduce jank during the transition from shell to real UI.
+
+## Service Worker Boundary
+
+Keep the current service-worker correctness rule:
+
+- `/api/*`: network only
+- RSC payloads: network only
+- app document navigations: network only
+- static assets: Serwist/default cache behavior
+- `/~offline`: document fallback
+
+Do not add API stale-while-revalidate caching to make the shell feel faster. That would create a second mutable data cache outside TanStack Query and IndexedDB sync.
 
 ## Data Ownership
 
-This design preserves current ownership boundaries:
+This design preserves current data ownership:
 
-- Server prefetch calls service/db functions directly.
-- Browser reads call query factories and REST route handlers.
-- Expense local startup reads from IndexedDB sync records and seeds TanStack Query.
-- Browser writes stay in mutation hooks or the Expense sync engine.
-- Recovery store remains UI recovery state, not server state.
-- Service worker caches static assets, not mutable API data.
+- Server components call service/database functions directly.
+- `/` prefetch remains the first real data source for dashboard and page-one Expenses.
+- Browser Expense reads remain IndexedDB-only after hydration.
+- `ExpenseSyncCoordinator` owns hydrated-page seeding and sync requests.
+- Browser writes remain in mutation hooks and the Expense sync engine.
+- The inert shell owns only presentation hints.
+- The service worker owns static assets and offline fallback, not mutable app data.
 
-No new Server Actions should be added for app-owned data.
+No Server Actions should be added.
 
 ## Failure Behavior
 
-If `localStorage` is unavailable, the shell uses the default dark theme and empty shell values.
+If `localStorage` is blocked, the shell paints with default dark styling and no total text.
 
-If IndexedDB is unavailable or blocked, the instant fallback renders without local expense rows and the server query fills the list when ready.
+If the inline shell script fails, it should fail closed and allow the server-rendered shell CSS to paint.
 
-If the dashboard snapshot is invalid or stale, it is ignored. The fallback can show shell structure until the server query resolves.
+If hydration fails, the shell may remain visible, but it is inert and should not expose stale interactive UI.
 
-If the service worker is missing on first visit, the design still works because the pre-hydration shell and streaming fallback are not service-worker-dependent.
+If the server prefetch is slow, the shell remains visible until hydration/real app takeover.
 
-If server prefetch fails, existing query error behavior should own the user-visible state. This design does not add a separate offline data authority for reports or budgets.
+If the server prefetch fails, existing route/query error behavior should own the real app state. The shell should not become an offline data UI.
 
 ## Testing Strategy
 
-Focused automated tests:
+Automated tests:
 
-- shell bridge marks hydration and persists shell state
-- dashboard snapshot parser accepts valid shapes and rejects invalid shapes
-- Expense query seed builds `InfiniteData<ExpenseListResult, number>`
-- Expense query seed filters deleted records
-- `ExpenseList` still renders seeded query data and normal query data
-- `SpendingDashboardHeader` prefers live query data over cached snapshot
+- shell snapshot parser accepts valid snapshots and rejects invalid ones
+- shell script applies default dark state when storage is missing or invalid
+- shell bridge marks the document hydrated
+- shell bridge hides the inert shell after hydration
+- dashboard render writes only presentation-safe shell data
+- `loading.tsx` does not import `motion/react`
+- service worker still routes `/api/*`, RSC, and document navigations to `NetworkOnly`
 
-Manual checks:
+Focused regression tests:
 
-- cold `/` load shows shell quickly
-- second `/` load shows last-known dashboard/expense data before network
+- home page still prefetches dashboard and first Expense page
+- `ExpenseSyncCoordinator` still seeds hydrated first page into IndexedDB
+- Expense browser query fetcher remains IndexedDB-only
+- Expense load-more cursor gate remains unchanged
+
+Manual verification:
+
+- returning `/` visit shows a Spendly-shaped shell before real content
+- real dashboard and Expense list replace the shell without visible layout jump
+- quick expense failed-draft recovery still works after any deferral
 - offline document fallback still works
-- expense create/edit/delete behavior still follows `LEARNINGS.md`
-- no mutable `/api/*` response is served from service-worker cache
+- no mutable API response is served from service-worker cache
 
-Performance checks:
+Performance verification:
 
-- capture baseline before implementation
-- capture cold visit after implementation
-- capture second visit after service worker install
-- compare FCP, LCP, JS transferred, request count, and visible time-to-shell
+- capture before/after visible time-to-shell
+- compare FCP/LCP on returning visit
+- compare JS transferred before first content
+- verify first-screen transition does not show blur jank
 
-## Open Questions
+## Success Criteria
 
-- Should the dashboard snapshot have a TTL, or is "show until server replaces it" acceptable for a personal finance app?
-- Should pending/failed local Expense rows display a sync badge on first load, or should this wait for the broader sync-engine UI?
-- Should route warmup include `/ai`, which may pull heavier chat code, or should `/ai` warm only on hover/focus of the AI button?
+The design succeeds when:
+
+- returning users see a branded Spendly shell quickly, before the server-prefetched route finishes
+- the existing `/` server prefetch is unchanged
+- no new mutable data cache is introduced
+- Expense sync, cursor gating, and hydrated first-page seeding continue to work
+- startup loading no longer depends on `motion/react`
+- first-screen startup motion avoids blur filters
 
 ## Recommendation
 
-Proceed with the streamed shell plus local startup hints approach.
+Implement the pre-hydration returning shell first, with minimal presentation persistence and a CSS-only loading fallback. Then measure. Only after that should the app consider route streaming or deeper home fallback changes.
 
-It applies the article's first-load lesson without overextending the current architecture. It makes the app feel present immediately, uses IndexedDB only where the repo already has a sync direction, keeps mutable data ownership inside TanStack Query and the sync engine, and avoids service-worker API caching that would make correctness harder.
-
-After this design is reviewed, the implementation plan should be rewritten from this spec rather than using the premature draft plan.
+This keeps the architecture honest: the shell makes the app feel present sooner, while the current server-prefetch and IndexedDB sync model continue to own correctness.
