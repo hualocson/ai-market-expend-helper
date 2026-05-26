@@ -10,13 +10,12 @@ import { Toaster } from "@/components/ui/sonner";
 import AppMain from "@/components/AppMain";
 import BottomNav from "@/components/BottomNav";
 import CssPropertyRegistry from "@/components/CssPropertyRegistry";
+import DeferredRecoveryWork from "@/components/DeferredRecoveryWork";
 import ExpenseSyncCoordinator from "@/components/ExpenseSyncCoordinator";
 import InstantAppShell from "@/components/InstantAppShell";
 import InstantShellBridge from "@/components/InstantShellBridge";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import QuickExpenseMutationCoordinator from "@/components/QuickExpenseMutationCoordinator";
-import QuickExpenseRecoverySheetHost from "@/components/QuickExpenseRecoverySheetHost";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -309,8 +308,7 @@ export default function RootLayout({
               <AppMain>
                 <PullToRefresh>{children}</PullToRefresh>
               </AppMain>
-              <QuickExpenseMutationCoordinator />
-              <QuickExpenseRecoverySheetHost />
+              <DeferredRecoveryWork />
               <ProgressiveBlur
                 className="fixed right-0 bottom-0 left-0"
                 position="bottom"
