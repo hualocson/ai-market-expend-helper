@@ -69,6 +69,8 @@ const localExpenseToListItem = (
   paidBy: row.paidBy,
   budgetId: row.budgetId,
   budgetName: row.budgetName,
+  budgetIcon: row.budgetIcon ?? null,
+  budgetColor: row.budgetColor ?? null,
   syncStatus: row.syncStatus === "deleted" ? undefined : row.syncStatus,
 });
 

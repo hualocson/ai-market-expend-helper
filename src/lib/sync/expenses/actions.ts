@@ -1,5 +1,10 @@
 import dayjs from "@/configs/date";
 import type { CreateExpenseInput } from "@/db/type";
+import {
+  type BudgetColorId,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import { syncRepository } from "@/lib/sync/core/repository";
 import type { SyncRecord } from "@/lib/sync/core/types";
 import type { StoreApi } from "zustand/vanilla";
@@ -13,6 +18,11 @@ import {
 } from "./types";
 
 type ExpenseSyncStoreApi = StoreApi<ExpenseSyncState>;
+type LocalExpenseInput = CreateExpenseInput & {
+  budgetIcon?: string | null;
+  budgetColor?: BudgetColorId | null;
+};
+type LocalBudgetAppearance = Pick<LocalExpense, "budgetIcon" | "budgetColor">;
 
 const createDevelopmentIdEntropy = () => {
   const bytes = new Uint8Array(16);
@@ -45,6 +55,57 @@ const normalizeLocalExpenseDate = (value: string): string => {
   return dayjs().format("YYYY-MM-DD");
 };
 
+const resolveProvidedBudgetAppearance = (
+  input: LocalExpenseInput
+): LocalBudgetAppearance => {
+  const budgetId = input.budgetId ?? null;
+  if (budgetId === null) {
+    return {
+      budgetIcon: null,
+      budgetColor: null,
+    };
+  }
+
+  return {
+    budgetIcon: input.budgetIcon ? normalizeBudgetIcon(input.budgetIcon) : null,
+    budgetColor: input.budgetColor
+      ? normalizeBudgetColor(input.budgetColor)
+      : null,
+  };
+};
+
+const resolveUpdatedBudgetAppearance = (
+  input: LocalExpenseInput,
+  existingExpense: LocalExpense
+): LocalBudgetAppearance => {
+  const budgetId = input.budgetId ?? null;
+  if (budgetId === null) {
+    return {
+      budgetIcon: null,
+      budgetColor: null,
+    };
+  }
+
+  return {
+    budgetIcon:
+      typeof input.budgetIcon !== "undefined"
+        ? input.budgetIcon
+          ? normalizeBudgetIcon(input.budgetIcon)
+          : null
+        : budgetId === existingExpense.budgetId
+          ? (existingExpense.budgetIcon ?? null)
+          : null,
+    budgetColor:
+      typeof input.budgetColor !== "undefined"
+        ? input.budgetColor
+          ? normalizeBudgetColor(input.budgetColor)
+          : null
+        : budgetId === existingExpense.budgetId
+          ? (existingExpense.budgetColor ?? null)
+          : null,
+  };
+};
+
 const getExistingExpense = (
   store: ExpenseSyncStoreApi,
   clientId: string
@@ -65,6 +126,8 @@ const toExpensePayload = (expense: LocalExpense): ExpensePayload => ({
   paidBy: expense.paidBy,
   budgetId: expense.budgetId,
   budgetName: expense.budgetName,
+  budgetIcon: expense.budgetIcon ?? null,
+  budgetColor: expense.budgetColor ?? null,
 });
 
 const toSyncRecord = (expense: LocalExpense): SyncRecord<ExpensePayload> => ({
@@ -153,10 +216,11 @@ const coalescePendingCreate = async (
 
 export const createLocalExpense = async (
   store: ExpenseSyncStoreApi,
-  input: CreateExpenseInput
+  input: LocalExpenseInput
 ): Promise<LocalExpense> => {
   const updatedAt = new Date().toISOString();
   const clientId = input.clientId ?? createLocalId("expense");
+  const budgetAppearance = resolveProvidedBudgetAppearance(input);
   const expense: LocalExpense = {
     entity: EXPENSE_SYNC_ENTITY,
     clientId,
@@ -168,6 +232,8 @@ export const createLocalExpense = async (
     paidBy: input.paidBy,
     budgetId: input.budgetId ?? null,
     budgetName: input.budgetName ?? null,
+    budgetIcon: budgetAppearance.budgetIcon,
+    budgetColor: budgetAppearance.budgetColor,
     syncStatus: "pending",
     lastError: null,
     updatedAt,
@@ -188,10 +254,14 @@ export const createLocalExpense = async (
 export const updateLocalExpense = async (
   store: ExpenseSyncStoreApi,
   clientId: string,
-  input: CreateExpenseInput
+  input: LocalExpenseInput
 ): Promise<LocalExpense> => {
   const existingExpense = getExistingExpense(store, clientId);
   const updatedAt = new Date().toISOString();
+  const budgetAppearance = resolveUpdatedBudgetAppearance(
+    input,
+    existingExpense
+  );
   const expense: LocalExpense = {
     ...existingExpense,
     date: normalizeLocalExpenseDate(input.date),
@@ -207,6 +277,8 @@ export const updateLocalExpense = async (
           (input.budgetId === existingExpense.budgetId
             ? existingExpense.budgetName
             : null)),
+    budgetIcon: budgetAppearance.budgetIcon,
+    budgetColor: budgetAppearance.budgetColor,
     syncStatus: "pending",
     lastError: null,
     updatedAt,

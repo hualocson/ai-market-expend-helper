@@ -1,3 +1,4 @@
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import type { SyncOperation, SyncRecord } from "@/lib/sync/core/types";
 
 export type ExpensePayload = {
@@ -8,6 +9,8 @@ export type ExpensePayload = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon?: string | null;
+  budgetColor?: BudgetColorId | null;
 };
 
 export type LocalExpense = Omit<
