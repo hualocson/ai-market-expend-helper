@@ -1,10 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 
+import { writeInstantShellSnapshot } from "@/lib/instant-shell/snapshot";
 import { formatVnd } from "@/lib/utils";
 import { Sparkles } from "lucide-react";
 import { motion as m } from "motion/react";
@@ -63,6 +64,13 @@ const SpendingDashboardHeaderClient = ({
   const activeTotals =
     totalsByPayer[activePayer] ?? totalsByPayer[initialPayer];
   const activeTotal = activeTotals?.total ?? 0;
+
+  useEffect(() => {
+    writeInstantShellSnapshot({
+      totalText: formatVnd(activeTotal),
+      updatedAt: Date.now(),
+    });
+  }, [activeTotal]);
 
   return (
     <>
