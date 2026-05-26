@@ -30,6 +30,8 @@ export type BudgetTransaction = {
   category: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
 };
 
 export type BudgetReport = {

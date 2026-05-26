@@ -148,6 +148,8 @@ export const getWeeklyBudgetReport = async (
         category: expenses.category,
         budgetId: expenseBudgets.budgetId,
         budgetName: budgets.name,
+        budgetIcon: budgets.icon,
+        budgetColor: budgets.color,
       })
       .from(expenses)
       .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
@@ -199,6 +201,10 @@ export const getWeeklyBudgetReport = async (
       category: row.category ?? "",
       budgetId,
       budgetName: row.budgetName ?? null,
+      budgetIcon:
+        budgetId === null ? null : normalizeBudgetIcon(row.budgetIcon),
+      budgetColor:
+        budgetId === null ? null : normalizeBudgetColor(row.budgetColor),
     };
   });
 

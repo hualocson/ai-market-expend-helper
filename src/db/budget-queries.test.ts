@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deleteBudget, setExpenseBudget, updateBudget } from "./budget-queries";
+import {
+  deleteBudget,
+  getWeeklyBudgetReport,
+  setExpenseBudget,
+  updateBudget,
+} from "./budget-queries";
 
 const dbMocks = vi.hoisted(() => ({
   deleteReturning: vi.fn(),
@@ -106,5 +111,63 @@ describe("updateBudget", () => {
       updatedAt: expect.any(Date),
     });
     expect(touchWhere).toHaveBeenCalled();
+  });
+});
+
+describe("getWeeklyBudgetReport", () => {
+  it("includes budget appearance on transaction rows with budget metadata", async () => {
+    const budgetRows = [
+      {
+        id: 10,
+        name: "Meals",
+        icon: "🍜",
+        color: "rose",
+        amount: 500000,
+        period: "week",
+        periodStartDate: "2026-05-18",
+        periodEndDate: "2026-05-24",
+      },
+    ];
+    const expenseRows = [
+      {
+        id: 50,
+        date: "2026-05-20",
+        note: "Dinner",
+        amount: 120000,
+        category: "Food",
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
+    ];
+    const selectResults = [budgetRows, expenseRows];
+    dbMocks.select.mockImplementation(() => {
+      const rows = selectResults.shift() ?? [];
+      const chain = {
+        from: vi.fn(() => chain),
+        leftJoin: vi.fn(() => chain),
+        orderBy: vi.fn(() => rows),
+        where: vi.fn(() => chain),
+      };
+
+      return chain;
+    });
+
+    const report = await getWeeklyBudgetReport("2026-05-18");
+
+    expect(report.transactions).toEqual([
+      {
+        id: 50,
+        date: "2026-05-20",
+        note: "Dinner",
+        amount: 120000,
+        category: "Food",
+        budgetId: 10,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
+    ]);
   });
 });
