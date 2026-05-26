@@ -8,6 +8,14 @@ import Link from "next/link";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import {
+  BUDGET_COLOR_OPTIONS,
+  type BudgetColorId,
+  DEFAULT_BUDGET_COLOR,
+  DEFAULT_BUDGET_ICON,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
+import {
   useCreateBudgetMutation,
   useDeleteBudgetMutation,
   useUpdateBudgetMutation,
@@ -31,6 +39,7 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowLeftIcon,
+  Check,
   Loader2,
   Plus,
   SaveIcon,
@@ -57,6 +66,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 
+import BudgetBadge from "@/components/BudgetBadge";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
@@ -295,6 +305,8 @@ const BudgetWeeklyBudgetsClient = ({
   const [period, setPeriod] = useState<BudgetPeriod>("week");
   const [periodStartDate, setPeriodStartDate] = useState(weekStartDate);
   const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
+  const [icon, setIcon] = useState(DEFAULT_BUDGET_ICON);
+  const [color, setColor] = useState<BudgetColorId>(DEFAULT_BUDGET_COLOR);
   const [isSaving, setIsSaving] = useState(false);
   const createBudgetMutation = useCreateBudgetMutation();
   const updateBudgetMutation = useUpdateBudgetMutation();
@@ -574,9 +586,13 @@ const BudgetWeeklyBudgetsClient = ({
         )}
       >
         <div className="flex w-full items-center justify-between gap-3">
-          <p className="text-foreground line-clamp-1 text-sm font-semibold sm:text-base">
-            {budget.name}
-          </p>
+          <BudgetBadge
+            icon={budget.icon}
+            color={budget.color}
+            name={budget.name}
+            className="max-w-[68%] px-2.5 py-1"
+            nameClassName="text-sm font-semibold sm:text-base"
+          />
           <p
             className={cn(
               "text-sm font-semibold",
@@ -674,6 +690,11 @@ const BudgetWeeklyBudgetsClient = ({
     </div>
   );
 
+  const resetBudgetAppearance = () => {
+    setIcon(DEFAULT_BUDGET_ICON);
+    setColor(DEFAULT_BUDGET_COLOR);
+  };
+
   const handleOpenChange = (open: boolean) => {
     setSheetOpen(open);
     if (!open) {
@@ -683,6 +704,7 @@ const BudgetWeeklyBudgetsClient = ({
       setPeriod("week");
       setPeriodStartDate(weekStartDate);
       setPeriodEndDate(null);
+      resetBudgetAppearance();
     }
   };
 
@@ -693,6 +715,7 @@ const BudgetWeeklyBudgetsClient = ({
     setPeriod("week");
     setPeriodStartDate(weekStartDate);
     setPeriodEndDate(null);
+    resetBudgetAppearance();
     setSheetOpen(true);
   };
 
@@ -703,6 +726,8 @@ const BudgetWeeklyBudgetsClient = ({
     setPeriod(budget.period);
     setPeriodStartDate(budget.periodStartDate);
     setPeriodEndDate(budget.periodEndDate ?? null);
+    setIcon(normalizeBudgetIcon(budget.icon));
+    setColor(normalizeBudgetColor(budget.color));
     setSheetOpen(true);
   };
 
@@ -766,6 +791,8 @@ const BudgetWeeklyBudgetsClient = ({
             period,
             periodStartDate,
             periodEndDate: period === "custom" ? periodEndDate : null,
+            icon,
+            color,
           },
         });
         toast.success("Budget updated.");
@@ -776,6 +803,8 @@ const BudgetWeeklyBudgetsClient = ({
           period,
           periodStartDate,
           periodEndDate: period === "custom" ? periodEndDate : null,
+          icon,
+          color,
         });
         toast.success("Budget created.");
       }
@@ -1072,7 +1101,18 @@ const BudgetWeeklyBudgetsClient = ({
       >
         <DrawerContent className="rounded-t-3xl! border-t-0!">
           <DrawerHeader>
-            <DrawerTitle>{detailBudget?.name ?? "Budget detail"}</DrawerTitle>
+            <DrawerTitle>
+              {detailBudget ? (
+                <BudgetBadge
+                  icon={detailBudget.icon}
+                  color={detailBudget.color}
+                  name={detailBudget.name}
+                  className="max-w-full"
+                />
+              ) : (
+                "Budget detail"
+              )}
+            </DrawerTitle>
             <DrawerDescription>
               {detailBudget
                 ? formatBudgetPeriodRange(detailBudget)
@@ -1331,6 +1371,71 @@ const BudgetWeeklyBudgetsClient = ({
               <p className="text-muted-foreground mt-2 text-[11px]">
                 Keep it short so it stays readable in budget cards.
               </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-foreground text-sm font-medium">
+                    Appearance
+                  </h3>
+                  <p className="text-muted-foreground mt-1 text-[11px]">
+                    Pick an emoji and color for budget badges.
+                  </p>
+                </div>
+                <BudgetBadge
+                  icon={icon}
+                  color={color}
+                  name={trimmedName || "Budget"}
+                />
+              </div>
+              <div className="space-y-2">
+                <label
+                  htmlFor="budget-icon-input"
+                  className="text-muted-foreground text-[11px] font-medium"
+                >
+                  Budget icon
+                </label>
+                <Input
+                  id="budget-icon-input"
+                  value={icon}
+                  onChange={(event) => setIcon(event.target.value.slice(0, 8))}
+                  onBlur={() =>
+                    setIcon((current) => normalizeBudgetIcon(current))
+                  }
+                  className="h-11 w-20 text-center text-lg"
+                />
+              </div>
+              <div className="grid grid-cols-6 gap-2">
+                {BUDGET_COLOR_OPTIONS.map((option) => {
+                  const selected = color === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-label={`Budget color ${option.label}`}
+                      aria-pressed={selected}
+                      onClick={() => setColor(option.id)}
+                      className={cn(
+                        "focus-visible:ring-ring/40 relative grid size-10 place-items-center rounded-xl border transition-[transform,border-color,box-shadow] focus-visible:ring-2 focus-visible:outline-none active:scale-[0.96]",
+                        selected
+                          ? "border-primary shadow-sm"
+                          : "border-border/60"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "size-5 rounded-full",
+                          option.swatchClassName
+                        )}
+                      />
+                      {selected ? (
+                        <Check className="text-foreground absolute h-3.5 w-3.5" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>
