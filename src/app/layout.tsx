@@ -12,8 +12,6 @@ import BottomNav from "@/components/BottomNav";
 import CssPropertyRegistry from "@/components/CssPropertyRegistry";
 import DeferredRecoveryWork from "@/components/DeferredRecoveryWork";
 import ExpenseSyncCoordinator from "@/components/ExpenseSyncCoordinator";
-import InstantAppShell from "@/components/InstantAppShell";
-import InstantShellBridge from "@/components/InstantShellBridge";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
@@ -293,8 +291,6 @@ export default function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: instantShellScript }}
         />
-        <InstantAppShell />
-        <InstantShellBridge />
         <ReactQueryProvider>
           <ExpenseSyncCoordinator />
           <CssPropertyRegistry />

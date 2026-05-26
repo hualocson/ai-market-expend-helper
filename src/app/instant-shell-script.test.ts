@@ -13,8 +13,10 @@ const controlCharacterPattern = new RegExp(
 
 describe("instantShellScript", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/");
     document.documentElement.removeAttribute("data-instant-shell-ready");
     document.documentElement.removeAttribute("data-instant-shell-has-total");
+    document.documentElement.removeAttribute("data-instant-shell-hydrated");
     document.documentElement.style.removeProperty("--instant-shell-total");
     localStorage.clear();
   });
@@ -33,6 +35,18 @@ describe("instantShellScript", () => {
     expect(document.documentElement.dataset.instantShellHasTotal).toBe(
       undefined
     );
+    expect(document.documentElement.dataset.instantShellHydrated).toBe(
+      undefined
+    );
+  });
+
+  it("marks the shell hydrated immediately outside the home route", () => {
+    window.history.replaceState(null, "", "/settings");
+
+    runInstantShellScript();
+
+    expect(document.documentElement.dataset.instantShellReady).toBe("true");
+    expect(document.documentElement.dataset.instantShellHydrated).toBe("true");
   });
 
   it("applies a valid stored totalText as a CSS custom property and marks it available", () => {

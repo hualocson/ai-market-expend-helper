@@ -37,6 +37,10 @@ vi.mock("@/components/ExpenseList", () => ({
   default: () => <div data-testid="expense-list" />,
 }));
 
+vi.mock("@/components/InstantShellBridge", () => ({
+  default: () => <div data-testid="instant-shell-bridge" />,
+}));
+
 vi.mock("@/components/SpendingDashboardHeader", () => ({
   default: () => <div data-testid="dashboard-header" />,
 }));
@@ -97,5 +101,7 @@ describe("Home page", () => {
     );
     expect(screen.getByTestId("dashboard-header")).toBeInTheDocument();
     expect(screen.getByTestId("expense-list")).toBeInTheDocument();
+    expect(screen.getByTestId("instant-app-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("instant-shell-bridge")).toBeInTheDocument();
   });
 });

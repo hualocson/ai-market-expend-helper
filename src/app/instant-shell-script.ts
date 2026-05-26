@@ -15,6 +15,9 @@ export const instantShellScript = `
   try {
     ${escapeCssString}
     const root = document.documentElement;
+    if (window.location.pathname !== "/") {
+      root.dataset.instantShellHydrated = "true";
+    }
     const raw = localStorage.getItem("${INSTANT_SHELL_SNAPSHOT_KEY}");
     const snapshot = raw ? JSON.parse(raw) : null;
     root.dataset.instantShellReady = "true";
@@ -34,7 +37,11 @@ export const instantShellScript = `
       root.dataset.instantShellHasTotal = "true";
     }
   } catch {
-    document.documentElement.dataset.instantShellReady = "true";
+    const root = document.documentElement;
+    root.dataset.instantShellReady = "true";
+    if (window.location.pathname !== "/") {
+      root.dataset.instantShellHydrated = "true";
+    }
   }
 })();
 `;
