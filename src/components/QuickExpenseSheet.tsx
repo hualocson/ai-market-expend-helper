@@ -568,7 +568,7 @@ const QuickExpenseSheet = ({
               type="button"
               variant="outline"
               size="sm"
-              className="rounded-full"
+              className="rounded-full border-none"
               aria-label={`Date: ${formatDateLabel(draft.date)}`}
               onPointerDown={(event) =>
                 handleDrawerTriggerPointerDown(event, () => setDateOpen(true))
@@ -583,7 +583,7 @@ const QuickExpenseSheet = ({
               variant="outline"
               size="sm"
               className={cn(
-                "rounded-full",
+                "rounded-full border-none",
                 draft.budgetId === null &&
                   "border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning"
               )}
@@ -602,7 +602,7 @@ const QuickExpenseSheet = ({
               type="button"
               variant="outline"
               size="sm"
-              className="rounded-full"
+              className="rounded-full border-none"
               aria-label={`Paid by: ${draft.paidBy}`}
               onPointerDown={(event) =>
                 handleDrawerTriggerPointerDown(event, () => setPaidByOpen(true))
@@ -614,8 +614,8 @@ const QuickExpenseSheet = ({
             </Button>
           </div>
 
-          <div className="flex flex-1 flex-col justify-center gap-4 px-4">
-            <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2">
+          <div className="flex flex-1 flex-col justify-center gap-4">
+            <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2 px-4">
               <input
                 ref={noteRef}
                 value={draft.note}
@@ -709,7 +709,7 @@ const QuickExpenseSheet = ({
               aria-label="Delete expense"
               onClick={() => setDeleteConfirmOpen(true)}
               disabled={!onConfirmDelete || queueing}
-              className="rounded-xl"
+              className="rounded-xl border-none"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

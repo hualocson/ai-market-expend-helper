@@ -46,14 +46,15 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
 
   return (
     <div
-      className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto pt-1"
+      className="no-scrollbar flex w-[100svw] items-center gap-2 overflow-x-auto pt-1 pr-4"
       role="radiogroup"
       aria-label="Category"
     >
       <AnimatePresence initial={false} mode="popLayout">
-        {orderedCategories.map((category) => {
+        {orderedCategories.map((category, index) => {
           const isActive = category === value;
           const showChevron = isActive && !expanded;
+          const isFirstItem = index === 0;
           return (
             <motion.button
               layout
@@ -68,10 +69,9 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.5, ease: EASE_OUT }}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium",
-                isActive
-                  ? "border-foreground/20 bg-muted"
-                  : "bg-muted/50 hover:bg-muted border-transparent"
+                "flex shrink-0 items-center gap-2 rounded-full border-none px-3 py-2 text-sm font-medium",
+                isActive ? "bg-white/10" : "bg-muted/50 hover:bg-muted",
+                isFirstItem && "ml-4"
               )}
             >
               <ExpenseItemIcon category={category} size="sm" />
