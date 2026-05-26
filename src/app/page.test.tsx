@@ -1,5 +1,6 @@
 import React, { type PropsWithChildren } from "react";
 
+import { queries } from "@/lib/queries";
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,6 +35,10 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("@/components/ExpenseList", () => ({
   default: () => <div data-testid="expense-list" />,
+}));
+
+vi.mock("@/components/InstantShellBridge", () => ({
+  default: () => <div data-testid="instant-shell-bridge" />,
 }));
 
 vi.mock("@/components/SpendingDashboardHeader", () => ({
@@ -83,7 +88,20 @@ describe("Home page", () => {
     await prefetchOptions.queryFn({ pageParam: 0 });
 
     expect(getExpenseListMock).toHaveBeenCalledWith({ limit: 30, offset: 0 });
+    expect(prefetchQueryMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        queryKey: queries.dashboard.monthlySummary().queryKey,
+      })
+    );
+    expect(prefetchInfiniteQueryMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        queryKey: queries.expenses.list({ limit: 30 }).queryKey,
+        initialPageParam: 0,
+      })
+    );
     expect(screen.getByTestId("dashboard-header")).toBeInTheDocument();
     expect(screen.getByTestId("expense-list")).toBeInTheDocument();
+    expect(screen.getByTestId("instant-app-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("instant-shell-bridge")).toBeInTheDocument();
   });
 });

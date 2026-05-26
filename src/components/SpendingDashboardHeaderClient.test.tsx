@@ -56,6 +56,23 @@ afterEach(() => {
 });
 
 describe("SpendingDashboardHeaderClient", () => {
+  it("does not persist the formatted total for the instant shell", () => {
+    globalThis.React = React;
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+    render(
+      <SpendingDashboardHeaderClient
+        activeMonth="2026-03"
+        payerOptions={["All"]}
+        totalsByPayer={{
+          All: { total: 1_250_000, totals: [1_250_000] },
+        }}
+      />
+    );
+
+    expect(setItemSpy).not.toHaveBeenCalled();
+  });
+
   it("renders the large total with compact payer and AI actions", () => {
     globalThis.React = React;
 

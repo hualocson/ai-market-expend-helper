@@ -670,6 +670,30 @@ textarea:focus {
   background: color-mix(in srgb, var(--muted-foreground) 75%, transparent);
 }
 
+.instant-app-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  gap: 14px;
+  width: min(100%, 28rem);
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding: calc(env(safe-area-inset-top) + 34px) 16px
+    calc(env(safe-area-inset-bottom) + 14px);
+  overflow: hidden;
+  color: var(--foreground);
+  pointer-events: none;
+  user-select: none;
+}
+
+html[data-instant-shell-hydrated="true"]
+  #instant-app-shell[data-instant-shell-root="true"] {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
