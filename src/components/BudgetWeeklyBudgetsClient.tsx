@@ -8,7 +8,6 @@ import Link from "next/link";
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import {
-  BUDGET_COLOR_OPTIONS,
   type BudgetColorId,
   DEFAULT_BUDGET_COLOR,
   DEFAULT_BUDGET_ICON,
@@ -39,11 +38,11 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowLeftIcon,
-  Check,
   Loader2,
   Plus,
   SaveIcon,
   Trash2,
+  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,6 +57,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Drawer,
+  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
@@ -67,11 +67,11 @@ import {
 import { Input } from "@/components/ui/input";
 
 import BudgetBadge from "@/components/BudgetBadge";
+import BudgetColorList from "@/components/BudgetColorList";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
-import DialogCompanionSlot from "@/components/mascots/DialogCompanionSlot";
 
 type BudgetWeeklyBudgetsClientProps = {
   weekStartDate: string;
@@ -1339,13 +1339,20 @@ const BudgetWeeklyBudgetsClient = ({
         onOpenChange={handleOpenChange}
         repositionInputs={false}
       >
-        <DrawerContent className="rounded-t-3xl! border-t-0!">
-          <DrawerHeader className="gap-1 pb-2">
-            <DialogCompanionSlot />
-            <DrawerTitle>{formTitle}</DrawerTitle>
-            <DrawerDescription>{formDescription}</DrawerDescription>
+        <DrawerContent hideIndicator className="rounded-t-3xl! border-t-0!">
+          <DrawerHeader>
+            <div className="flex items-center justify-between gap-2">
+              <DrawerTitle>{formTitle}</DrawerTitle>
+              <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
+              </DrawerClose>
+            </div>
+            <DrawerDescription className="sr-only">
+              {formDescription}
+            </DrawerDescription>
           </DrawerHeader>
-          <div className="no-scrollbar flex max-h-[65svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
+          <div className="no-scrollbar flex max-h-[98svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label
@@ -1406,36 +1413,7 @@ const BudgetWeeklyBudgetsClient = ({
                   className="h-11 w-20 text-center text-lg"
                 />
               </div>
-              <div className="grid grid-cols-6 gap-2">
-                {BUDGET_COLOR_OPTIONS.map((option) => {
-                  const selected = color === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      aria-label={`Budget color ${option.label}`}
-                      aria-pressed={selected}
-                      onClick={() => setColor(option.id)}
-                      className={cn(
-                        "focus-visible:ring-ring/40 relative grid size-10 place-items-center rounded-xl border transition-[transform,border-color,box-shadow] focus-visible:ring-2 focus-visible:outline-none active:scale-[0.96]",
-                        selected
-                          ? "border-primary shadow-sm"
-                          : "border-border/60"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "size-5 rounded-full",
-                          option.swatchClassName
-                        )}
-                      />
-                      {selected ? (
-                        <Check className="text-foreground absolute h-3.5 w-3.5" />
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
+              <BudgetColorList value={color} onChange={setColor} />
             </div>
 
             <div>
