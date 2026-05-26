@@ -37,7 +37,7 @@ const BudgetBadge = ({
     <span
       aria-label={`Budget: ${label}`}
       className={cn(
-        "inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium",
+        "inline-flex min-w-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium",
         colorOption.chipClassName,
         className
       )}

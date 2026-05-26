@@ -23,6 +23,14 @@ describe("budget appearance helpers", () => {
     expect(isBudgetColorId("")).toBe(false);
   });
 
+  it("keeps budget chip styles borderless", () => {
+    expect(
+      BUDGET_COLOR_OPTIONS.every(
+        (option) => !option.chipClassName.includes("border")
+      )
+    ).toBe(true);
+  });
+
   it("normalizes icon and color fallback values", () => {
     expect(normalizeBudgetIcon(" 🍜 ")).toBe("🍜");
     expect(normalizeBudgetIcon("")).toBe(DEFAULT_BUDGET_ICON);

@@ -14,6 +14,12 @@ describe("BudgetBadge", () => {
     expect(screen.getByLabelText("Budget: Meals")).toBeInTheDocument();
   });
 
+  it("renders without a border utility", () => {
+    render(<BudgetBadge icon="🍜" color="rose" name="Meals" />);
+
+    expect(screen.getByLabelText("Budget: Meals")).not.toHaveClass("border");
+  });
+
   it("uses fallback appearance for missing icon and color", () => {
     render(<BudgetBadge icon={null} color={null} name="Budget assigned" />);
 
