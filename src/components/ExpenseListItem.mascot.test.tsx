@@ -133,6 +133,35 @@ describe("ExpenseListItem edit flow", () => {
   });
 });
 
+describe("ExpenseListItem visual metadata", () => {
+  it("renders category as an icon badge with the category name", () => {
+    renderItem();
+
+    const categoryBadge = screen.getByLabelText("Category: Food");
+
+    expect(categoryBadge).toHaveTextContent("Food");
+    expect(screen.getAllByTestId("expense-item-icon")).toHaveLength(2);
+  });
+
+  it("uses the assigned budget icon in the leading icon slot", () => {
+    renderItem(vi.fn(), {
+      budgetId: 7,
+      budgetName: "Meals",
+      budgetIcon: "🍜",
+      budgetColor: "rose",
+    });
+
+    expect(screen.getByLabelText("Category: Food")).toHaveTextContent("Food");
+    expect(screen.getAllByText("🍜")).toHaveLength(1);
+
+    const budgetName = screen.getByLabelText("Budget: Meals");
+
+    expect(budgetName).toHaveTextContent("Meals");
+    expect(budgetName).toHaveClass("text-muted-foreground");
+    expect(budgetName).not.toHaveClass("bg-rose-400/14");
+  });
+});
+
 describe("ExpenseListItem sync status indicator", () => {
   it("does not render a sync dot for synced or missing status", () => {
     const onEditExpense = vi.fn();
