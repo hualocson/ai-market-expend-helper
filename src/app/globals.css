@@ -675,11 +675,13 @@ textarea:focus {
   inset: 0;
   z-index: 0;
   display: grid;
-  grid-template-rows: auto minmax(160px, 1fr) auto auto;
-  gap: 18px;
+  grid-template-rows: auto minmax(132px, min(24dvh, 180px)) 1fr auto;
+  gap: 14px;
+  width: min(100%, 28rem);
   min-height: 100dvh;
-  padding: max(20px, env(safe-area-inset-top)) 18px
-    max(20px, env(safe-area-inset-bottom));
+  margin-inline: auto;
+  padding: calc(env(safe-area-inset-top) + 18px) 16px
+    calc(env(safe-area-inset-bottom) + 14px);
   overflow: hidden;
   color: var(--foreground);
   pointer-events: none;
@@ -694,16 +696,20 @@ html[data-instant-shell-hydrated="true"]
 
 .instant-app-shell__header {
   display: grid;
-  gap: 14px;
-  padding-top: 18px;
+  gap: 12px;
+  padding-top: 6px;
 }
 
 .instant-app-shell__total {
-  min-height: 56px;
-  font-size: clamp(2.75rem, 18vw, 4.75rem);
-  font-weight: 800;
+  min-height: 54px;
+  overflow: hidden;
+  font-family: var(--font-geist-mono);
+  font-size: clamp(2.55rem, 13.25vw, 3.9rem);
+  font-weight: 700;
   line-height: 0.95;
   letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .instant-app-shell__total::before {
@@ -712,13 +718,13 @@ html[data-instant-shell-hydrated="true"]
 
 .instant-app-shell__chips {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .instant-app-shell__chips span {
   display: block;
-  width: 72px;
-  height: 32px;
+  width: 70px;
+  height: 30px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-2);
@@ -726,19 +732,31 @@ html[data-instant-shell-hydrated="true"]
 }
 
 .instant-app-shell__chips span:last-child {
-  width: 92px;
+  width: 88px;
   background: var(--surface-3);
 }
 
 .instant-app-shell__heatmap {
-  min-height: 180px;
+  min-height: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background:
     linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
     repeating-linear-gradient(
+      90deg,
+      transparent 0 18px,
+      color-mix(in srgb, var(--border) 45%, transparent) 18px 19px,
+      transparent 19px 29px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 18px,
+      color-mix(in srgb, var(--border) 38%, transparent) 18px 19px,
+      transparent 19px 29px
+    ),
+    repeating-linear-gradient(
         90deg,
-        var(--surface-3) 0 14px,
+        color-mix(in srgb, var(--surface-3) 86%, transparent) 0 14px,
         transparent 14px 24px
       )
       border-box;
@@ -747,23 +765,55 @@ html[data-instant-shell-hydrated="true"]
 
 .instant-app-shell__rows {
   display: grid;
-  gap: 10px;
+  align-content: start;
+  gap: 9px;
 }
 
 .instant-app-shell__rows span {
   display: block;
-  height: 58px;
+  height: 54px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background:
+    radial-gradient(
+      circle at 28px 50%,
+      var(--surface-3) 0 15px,
+      transparent 16px
+    ),
+    linear-gradient(var(--surface-3), var(--surface-3)) 54px 17px / 44% 9px
+      no-repeat,
+    linear-gradient(
+        color-mix(in srgb, var(--muted-foreground) 24%, transparent),
+        color-mix(in srgb, var(--muted-foreground) 24%, transparent)
+      )
+      54px 33px / 30% 7px no-repeat,
+    linear-gradient(var(--surface-3), var(--surface-3)) calc(100% - 16px) 22px /
+      20% 10px no-repeat,
+    var(--surface-2);
   box-shadow: var(--shadow-sm);
 }
 
 .instant-app-shell__bottom {
-  height: 76px;
+  height: 64px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background:
+    radial-gradient(
+      circle at 22% 50%,
+      var(--surface-3) 0 13px,
+      transparent 14px
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      var(--surface-3) 0 15px,
+      transparent 16px
+    ),
+    radial-gradient(
+      circle at 78% 50%,
+      var(--surface-3) 0 13px,
+      transparent 14px
+    ),
+    var(--surface-2);
   box-shadow: var(--shadow-sm);
 }
 
