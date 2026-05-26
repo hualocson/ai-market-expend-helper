@@ -13,6 +13,14 @@ describe("InstantAppShell", () => {
       "aria-hidden",
       "true"
     );
+    expect(screen.getByTestId("instant-app-shell")).toHaveAttribute(
+      "id",
+      "instant-app-shell"
+    );
+    expect(screen.getByTestId("instant-app-shell")).toHaveAttribute(
+      "data-instant-shell-root",
+      "true"
+    );
     expect(screen.getByTestId("instant-shell-total")).toBeInTheDocument();
     expect(screen.getAllByTestId("instant-shell-row")).toHaveLength(3);
     expect(

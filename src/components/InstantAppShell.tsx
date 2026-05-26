@@ -1,11 +1,21 @@
 import React from "react";
 
-export default function InstantAppShell() {
+type InstantAppShellProps = {
+  variant?: "root" | "loading";
+};
+
+export default function InstantAppShell({
+  variant = "root",
+}: InstantAppShellProps) {
+  const isRoot = variant === "root";
+
   return (
     <div
-      id="instant-app-shell"
+      id={isRoot ? "instant-app-shell" : "instant-app-loading-shell"}
       data-testid="instant-app-shell"
+      data-instant-shell-root={isRoot ? "true" : undefined}
       aria-hidden="true"
+      className="instant-app-shell"
     >
       <div className="instant-app-shell__header">
         <div

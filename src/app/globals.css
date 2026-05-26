@@ -670,7 +670,7 @@ textarea:focus {
   background: color-mix(in srgb, var(--muted-foreground) 75%, transparent);
 }
 
-#instant-app-shell {
+.instant-app-shell {
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -687,7 +687,8 @@ textarea:focus {
   background: var(--background);
 }
 
-html[data-instant-shell-hydrated="true"] #instant-app-shell {
+html[data-instant-shell-hydrated="true"]
+  #instant-app-shell[data-instant-shell-root="true"] {
   display: none;
 }
 
