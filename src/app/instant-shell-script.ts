@@ -31,6 +31,7 @@ export const instantShellScript = `
         "--instant-shell-total",
         '"' + escapeCssString(snapshot.totalText) + '"'
       );
+      root.dataset.instantShellHasTotal = "true";
     }
   } catch {
     document.documentElement.dataset.instantShellReady = "true";

@@ -14,6 +14,7 @@ const controlCharacterPattern = new RegExp(
 describe("instantShellScript", () => {
   beforeEach(() => {
     document.documentElement.removeAttribute("data-instant-shell-ready");
+    document.documentElement.removeAttribute("data-instant-shell-has-total");
     document.documentElement.style.removeProperty("--instant-shell-total");
     localStorage.clear();
   });
@@ -29,9 +30,12 @@ describe("instantShellScript", () => {
     expect(
       document.documentElement.style.getPropertyValue("--instant-shell-total")
     ).toBe("");
+    expect(document.documentElement.dataset.instantShellHasTotal).toBe(
+      undefined
+    );
   });
 
-  it("applies a valid stored totalText as a CSS custom property", () => {
+  it("applies a valid stored totalText as a CSS custom property and marks it available", () => {
     localStorage.setItem(
       INSTANT_SHELL_SNAPSHOT_KEY,
       JSON.stringify({ totalText: "1.250.000", updatedAt: 1779786000000 })
@@ -42,6 +46,7 @@ describe("instantShellScript", () => {
     expect(
       document.documentElement.style.getPropertyValue("--instant-shell-total")
     ).toBe('"1.250.000"');
+    expect(document.documentElement.dataset.instantShellHasTotal).toBe("true");
   });
 
   it("escapes quotes, backslashes, and control characters in the CSS custom property", () => {
@@ -103,5 +108,8 @@ describe("instantShellScript", () => {
     expect(
       document.documentElement.style.getPropertyValue("--instant-shell-total")
     ).toBe("");
+    expect(document.documentElement.dataset.instantShellHasTotal).toBe(
+      undefined
+    );
   });
 });

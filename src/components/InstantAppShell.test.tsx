@@ -23,6 +23,7 @@ describe("InstantAppShell", () => {
     );
     expect(screen.getByTestId("instant-shell-total")).toBeInTheDocument();
     expect(screen.getAllByTestId("instant-shell-row")).toHaveLength(3);
+    expect(container.querySelector(".instant-app-shell__bottom")).toBeNull();
     expect(
       container.querySelectorAll(
         'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'

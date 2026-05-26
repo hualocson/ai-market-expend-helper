@@ -673,14 +673,15 @@ textarea:focus {
 .instant-app-shell {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: 60;
   display: grid;
-  grid-template-rows: auto minmax(132px, min(24dvh, 180px)) 1fr auto;
+  align-content: start;
+  grid-template-rows: auto minmax(280px, min(45dvh, 380px)) auto auto;
   gap: 14px;
   width: min(100%, 28rem);
   min-height: 100dvh;
   margin-inline: auto;
-  padding: calc(env(safe-area-inset-top) + 18px) 16px
+  padding: calc(env(safe-area-inset-top) + 34px) 16px
     calc(env(safe-area-inset-bottom) + 14px);
   overflow: hidden;
   color: var(--foreground);
@@ -696,15 +697,15 @@ html[data-instant-shell-hydrated="true"]
 
 .instant-app-shell__header {
   display: grid;
-  gap: 12px;
-  padding-top: 6px;
+  gap: 8px;
+  padding-top: 10px;
 }
 
 .instant-app-shell__total {
-  min-height: 54px;
+  min-height: 50px;
   overflow: hidden;
   font-family: var(--font-geist-mono);
-  font-size: clamp(2.55rem, 13.25vw, 3.9rem);
+  font-size: clamp(2.45rem, 12vw, 3.45rem);
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: 0;
@@ -716,15 +717,24 @@ html[data-instant-shell-hydrated="true"]
   content: var(--instant-shell-total, "");
 }
 
+html[data-instant-shell-has-total="true"] .instant-app-shell__total::after {
+  content: " đ";
+  font-size: 0.72em;
+  text-decoration: underline;
+  text-underline-offset: 0.08em;
+}
+
 .instant-app-shell__chips {
   display: flex;
+  align-items: center;
   gap: 8px;
+  height: 42px;
 }
 
 .instant-app-shell__chips span {
   display: block;
-  width: 70px;
-  height: 30px;
+  width: 82px;
+  height: 42px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-2);
@@ -732,7 +742,7 @@ html[data-instant-shell-hydrated="true"]
 }
 
 .instant-app-shell__chips span:last-child {
-  width: 88px;
+  width: 116px;
   background: var(--surface-3);
 }
 
@@ -763,6 +773,18 @@ html[data-instant-shell-hydrated="true"]
   box-shadow: var(--shadow-sm);
 }
 
+.instant-app-shell__day-summary {
+  height: 28px;
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--muted-foreground) 62%, transparent),
+        color-mix(in srgb, var(--muted-foreground) 62%, transparent)
+      )
+      0 50% / 42% 16px no-repeat,
+    linear-gradient(var(--surface-3), var(--surface-3)) 100% 50% / 22% 16px
+      no-repeat;
+}
+
 .instant-app-shell__rows {
   display: grid;
   align-content: start;
@@ -771,9 +793,9 @@ html[data-instant-shell-hydrated="true"]
 
 .instant-app-shell__rows span {
   display: block;
-  height: 54px;
+  height: 68px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 28px;
   background:
     radial-gradient(
       circle at 28px 50%,
@@ -793,28 +815,65 @@ html[data-instant-shell-hydrated="true"]
   box-shadow: var(--shadow-sm);
 }
 
-.instant-app-shell__bottom {
-  height: 64px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background:
-    radial-gradient(
-      circle at 22% 50%,
-      var(--surface-3) 0 13px,
-      transparent 14px
-    ),
-    radial-gradient(
-      circle at 50% 50%,
-      var(--surface-3) 0 15px,
-      transparent 16px
-    ),
-    radial-gradient(
-      circle at 78% 50%,
-      var(--surface-3) 0 13px,
-      transparent 14px
-    ),
-    var(--surface-2);
-  box-shadow: var(--shadow-sm);
+@media (max-height: 820px) {
+  .instant-app-shell {
+    grid-template-rows: auto minmax(240px, min(41dvh, 340px)) auto auto;
+    gap: 12px;
+    padding-top: calc(env(safe-area-inset-top) + 28px);
+  }
+
+  .instant-app-shell__rows {
+    gap: 10px;
+  }
+
+  .instant-app-shell__rows span {
+    height: 62px;
+  }
+}
+
+@media (max-height: 700px) {
+  .instant-app-shell {
+    grid-template-rows: auto minmax(190px, 31dvh) auto auto;
+    gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 18px) 16px
+      calc(env(safe-area-inset-bottom) + 10px);
+  }
+
+  .instant-app-shell__header {
+    gap: 6px;
+    padding-top: 8px;
+  }
+
+  .instant-app-shell__total {
+    min-height: 44px;
+    font-size: clamp(2.1rem, 10vw, 2.9rem);
+  }
+
+  .instant-app-shell__chips {
+    height: 38px;
+  }
+
+  .instant-app-shell__chips span {
+    width: 78px;
+    height: 38px;
+  }
+
+  .instant-app-shell__chips span:nth-child(2) {
+    width: 108px;
+  }
+
+  .instant-app-shell__day-summary {
+    height: 24px;
+  }
+
+  .instant-app-shell__rows {
+    gap: 8px;
+  }
+
+  .instant-app-shell__rows span {
+    height: 54px;
+    border-radius: 24px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

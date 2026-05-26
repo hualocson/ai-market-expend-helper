@@ -28,12 +28,12 @@ export default function InstantAppShell({
         </div>
       </div>
       <div className="instant-app-shell__heatmap" />
+      <div className="instant-app-shell__day-summary" />
       <div className="instant-app-shell__rows">
         <span data-testid="instant-shell-row" />
         <span data-testid="instant-shell-row" />
         <span data-testid="instant-shell-row" />
       </div>
-      <div className="instant-app-shell__bottom" />
     </div>
   );
 }
