@@ -3,6 +3,11 @@ import { db } from "@/db";
 import { createExpense, softDeleteExpense, updateExpense } from "@/db/queries";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
 import type { PaidBy } from "@/enums";
+import {
+  type BudgetColorId,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import { and, eq, gt, isNotNull, lte, or } from "drizzle-orm";
 
 export type ExpenseSyncCursor = string | null;
@@ -17,6 +22,8 @@ export type ExpenseSyncServerRow = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: BudgetColorId | null;
   updatedAt: string;
   deletedAt: string | null;
   isDeleted: boolean;
@@ -68,6 +75,8 @@ type ExpenseSyncRowQueryResult = {
   paidBy: string;
   budgetId: number | null;
   budgetName: string | null;
+  budgetIcon: string | null;
+  budgetColor: string | null;
   updatedAt: Date;
   deletedAt: Date | null;
   isDeleted: boolean;
@@ -85,6 +94,10 @@ const toExpenseSyncServerRow = (
   paidBy: row.paidBy,
   budgetId: row.budgetId === null ? null : Number(row.budgetId),
   budgetName: row.budgetName ?? null,
+  budgetIcon:
+    row.budgetId === null ? null : normalizeBudgetIcon(row.budgetIcon),
+  budgetColor:
+    row.budgetId === null ? null : normalizeBudgetColor(row.budgetColor),
   updatedAt: row.updatedAt.toISOString(),
   deletedAt: row.deletedAt?.toISOString() ?? null,
   isDeleted: row.isDeleted,
@@ -102,6 +115,8 @@ const getExpenseSyncRow = async (id: number): Promise<ExpenseSyncServerRow> => {
       paidBy: expenses.paidBy,
       budgetId: expenseBudgets.budgetId,
       budgetName: budgets.name,
+      budgetIcon: budgets.icon,
+      budgetColor: budgets.color,
       updatedAt: expenses.updatedAt,
       deletedAt: expenses.deletedAt,
       isDeleted: expenses.isDeleted,
@@ -169,6 +184,8 @@ export const getExpenseChangesSince = async (
       paidBy: expenses.paidBy,
       budgetId: expenseBudgets.budgetId,
       budgetName: budgets.name,
+      budgetIcon: budgets.icon,
+      budgetColor: budgets.color,
       updatedAt: expenses.updatedAt,
       deletedAt: expenses.deletedAt,
       isDeleted: expenses.isDeleted,

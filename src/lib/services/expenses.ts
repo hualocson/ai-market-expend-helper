@@ -1,6 +1,10 @@
 import { db } from "@/db";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
 import {
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
+import {
   type ExpenseListQueryParams,
   type ExpenseListResult,
   groupExpenseRowsByDate,
@@ -58,6 +62,8 @@ export const getExpenseList = async ({
       paidBy: expenses.paidBy,
       budgetId: expenseBudgets.budgetId,
       budgetName: budgets.name,
+      budgetIcon: budgets.icon,
+      budgetColor: budgets.color,
     })
     .from(expenses)
     .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
@@ -77,6 +83,14 @@ export const getExpenseList = async ({
     paidBy: expense.paidBy ?? "",
     budgetId: expense.budgetId === null ? null : Number(expense.budgetId),
     budgetName: expense.budgetName ?? null,
+    budgetIcon:
+      expense.budgetId === null
+        ? null
+        : normalizeBudgetIcon(expense.budgetIcon),
+    budgetColor:
+      expense.budgetId === null
+        ? null
+        : normalizeBudgetColor(expense.budgetColor),
   }));
 
   return {
