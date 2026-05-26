@@ -670,6 +670,102 @@ textarea:focus {
   background: color-mix(in srgb, var(--muted-foreground) 75%, transparent);
 }
 
+#instant-app-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-rows: auto minmax(160px, 1fr) auto auto;
+  gap: 18px;
+  min-height: 100dvh;
+  padding: max(20px, env(safe-area-inset-top)) 18px
+    max(20px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  color: var(--foreground);
+  pointer-events: none;
+  user-select: none;
+  background: var(--background);
+}
+
+html[data-instant-shell-hydrated="true"] #instant-app-shell {
+  display: none;
+}
+
+.instant-app-shell__header {
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+}
+
+.instant-app-shell__total {
+  min-height: 56px;
+  font-size: clamp(2.75rem, 18vw, 4.75rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.instant-app-shell__total::before {
+  content: var(--instant-shell-total, "");
+}
+
+.instant-app-shell__chips {
+  display: flex;
+  gap: 10px;
+}
+
+.instant-app-shell__chips span {
+  display: block;
+  width: 72px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow-sm);
+}
+
+.instant-app-shell__chips span:last-child {
+  width: 92px;
+  background: var(--surface-3);
+}
+
+.instant-app-shell__heatmap {
+  min-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
+    repeating-linear-gradient(
+        90deg,
+        var(--surface-3) 0 14px,
+        transparent 14px 24px
+      )
+      border-box;
+  box-shadow: var(--shadow-sm);
+}
+
+.instant-app-shell__rows {
+  display: grid;
+  gap: 10px;
+}
+
+.instant-app-shell__rows span {
+  display: block;
+  height: 58px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-sm);
+}
+
+.instant-app-shell__bottom {
+  height: 76px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-sm);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
