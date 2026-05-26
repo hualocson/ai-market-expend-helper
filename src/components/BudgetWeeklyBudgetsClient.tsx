@@ -68,6 +68,7 @@ import { Input } from "@/components/ui/input";
 
 import BudgetBadge from "@/components/BudgetBadge";
 import BudgetColorList from "@/components/BudgetColorList";
+import BudgetEmojiPickerDrawer from "@/components/BudgetEmojiPickerDrawer";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
@@ -1363,32 +1364,19 @@ const BudgetWeeklyBudgetsClient = ({
                 className="placeholder:text-muted-foreground inline-flex min-h-12 w-full overflow-hidden border-none bg-transparent px-0 py-2 text-xl font-semibold whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
                 tabIndex={0}
               />
+              <BudgetEmojiPickerDrawer
+                value={icon}
+                onSelect={(nextIcon) => setIcon(normalizeBudgetIcon(nextIcon))}
+              />
               <BudgetBadge
                 icon={icon}
                 color={color}
                 name={trimmedName || "Budget"}
-                className="shrink-0"
+                className="h-8 shrink-0"
               />
             </div>
 
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <label
-                  htmlFor="budget-icon-input"
-                  className="text-muted-foreground text-[11px] font-medium"
-                >
-                  Budget icon
-                </label>
-                <Input
-                  id="budget-icon-input"
-                  value={icon}
-                  onChange={(event) => setIcon(event.target.value.slice(0, 8))}
-                  onBlur={() =>
-                    setIcon((current) => normalizeBudgetIcon(current))
-                  }
-                  className="h-11 w-20 text-center text-lg"
-                />
-              </div>
+            <div>
               <BudgetColorList value={color} onChange={setColor} />
             </div>
 

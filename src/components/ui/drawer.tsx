@@ -56,13 +56,15 @@ function DrawerContent({
   children,
   onOpenAutoFocus,
   hideIndicator = false,
+  overlayClassName = "",
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Content> & {
   hideIndicator?: boolean;
+  overlayClassName?: string;
 }) {
   return (
     <DrawerPortal data-slot="drawer-portal">
-      <DrawerOverlay />
+      <DrawerOverlay className={overlayClassName} />
       <DrawerPrimitive.Content
         data-slot="drawer-content"
         className={cn(

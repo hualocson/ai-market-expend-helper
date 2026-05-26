@@ -156,6 +156,59 @@ vi.mock("@/components/ui/drawer", () => {
     </DrawerContext.Provider>
   );
 
+  const DrawerNested = ({
+    children,
+    open: controlledOpen,
+    onOpenChange,
+  }: {
+    children: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => {
+    const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+    const open = controlledOpen ?? uncontrolledOpen;
+    const setOpen = onOpenChange ?? setUncontrolledOpen;
+
+    return (
+      <DrawerContext.Provider value={{ open, onOpenChange: setOpen }}>
+        <div>{children}</div>
+      </DrawerContext.Provider>
+    );
+  };
+
+  const DrawerTrigger = ({ children }: { children: ReactNode }) => {
+    const drawer = React.useContext(DrawerContext);
+
+    if (!React.isValidElement(children)) {
+      return null;
+    }
+
+    const child = children as React.ReactElement<
+      React.HTMLAttributes<HTMLElement>
+    >;
+
+    return React.cloneElement(child, {
+      onClick: (event: React.MouseEvent<HTMLElement>) => {
+        child.props.onClick?.(event);
+        drawer?.onOpenChange?.(true);
+      },
+    } as Partial<React.HTMLAttributes<HTMLElement>>);
+  };
+
+  const DrawerClose = ({ children }: { children: ReactNode }) => {
+    const drawer = React.useContext(DrawerContext);
+
+    return (
+      <button
+        type="button"
+        aria-label="Close drawer"
+        onClick={() => drawer?.onOpenChange?.(false)}
+      >
+        {children}
+      </button>
+    );
+  };
+
   const DrawerContent = ({ children }: { children: ReactNode }) => {
     const drawer = React.useContext(DrawerContext);
 
@@ -187,6 +240,9 @@ vi.mock("@/components/ui/drawer", () => {
 
   return {
     Drawer,
+    DrawerNested,
+    DrawerTrigger,
+    DrawerClose,
     DrawerContent,
     DrawerDescription: wrap("div"),
     DrawerFooter: wrap("div"),
