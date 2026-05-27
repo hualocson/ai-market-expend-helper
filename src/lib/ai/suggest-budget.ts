@@ -12,15 +12,28 @@ const MODEL_JSON_SCHEMA: OpenRouterJsonSchema = {
   name: "suggest_budget",
   strict: true,
   schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["status"],
-    properties: {
-      status: { type: "string", enum: ["success", "no_match"] },
-      budgetId: { type: "integer" },
-      confidence: { type: "string", enum: ["high", "medium", "low"] },
-      reason: { type: "string" },
-    },
+    oneOf: [
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["status", "budgetId", "confidence", "reason"],
+        properties: {
+          status: { type: "string", const: "success" },
+          budgetId: { type: "integer", minimum: 1 },
+          confidence: { type: "string", enum: ["high", "medium", "low"] },
+          reason: { type: "string", minLength: 1, maxLength: 180 },
+        },
+      },
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["status", "reason"],
+        properties: {
+          status: { type: "string", const: "no_match" },
+          reason: { type: "string", minLength: 1, maxLength: 180 },
+        },
+      },
+    ],
   },
 };
 
@@ -29,6 +42,7 @@ You choose the best budget for one expense note.
 
 Rules:
 - Choose only from the provided budget ids.
+- Never invent a budget id or budget name.
 - Return no_match when the note is ambiguous.
 - Prefer semantic fit over remaining amount.
 - Use budget name as the primary signal.
@@ -44,17 +58,34 @@ type SuggestBudgetArgs = {
   fetchFn?: typeof fetch;
 };
 
-const normalizeText = (value: string) =>
-  value.trim().toLowerCase().replace(/\s+/g, " ");
+const tokenizeText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(" ")
+    .filter(Boolean);
+
+const containsTokenSequence = (tokens: string[], phraseTokens: string[]) => {
+  if (phraseTokens.length === 0 || phraseTokens.length > tokens.length) {
+    return false;
+  }
+
+  return tokens.some((_, index) =>
+    phraseTokens.every((token, phraseIndex) => {
+      return tokens[index + phraseIndex] === token;
+    })
+  );
+};
 
 const findDeterministicMatch = (
   note: string,
   budgets: SuggestBudgetCandidate[]
 ): SuggestBudgetResponse | null => {
-  const normalizedNote = normalizeText(note);
+  const noteTokens = tokenizeText(note);
   const matches = budgets.filter((budget) => {
-    const normalizedName = normalizeText(budget.name);
-    return normalizedName.length > 1 && normalizedNote.includes(normalizedName);
+    const budgetNameTokens = tokenizeText(budget.name);
+    return containsTokenSequence(noteTokens, budgetNameTokens);
   });
 
   if (matches.length !== 1) {

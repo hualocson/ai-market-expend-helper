@@ -74,6 +74,84 @@ describe("suggestBudget", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("does not deterministically match a budget name inside another word", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createResponse(
+        JSON.stringify({
+          status: "no_match",
+          reason: "The note is a card payment, not car spending.",
+        })
+      )
+    );
+
+    await expect(
+      suggestBudget({
+        note: "card payment",
+        budgets: [
+          {
+            id: 10,
+            name: "Car",
+            amount: 2000000,
+            spent: 500000,
+            remaining: 1500000,
+            period: "month",
+          },
+        ],
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "no_match",
+      reason: "The note is a card payment, not car spending.",
+    });
+    expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
+  it("uses the provider when overlapping budget names are ambiguous", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createResponse(
+        JSON.stringify({
+          status: "success",
+          budgetId: 21,
+          confidence: "medium",
+          reason: "The more specific coffee budget fits.",
+        })
+      )
+    );
+
+    await expect(
+      suggestBudget({
+        note: "coffee beans refill",
+        budgets: [
+          {
+            id: 20,
+            name: "Coffee",
+            amount: 500000,
+            spent: 120000,
+            remaining: 380000,
+            period: "month",
+          },
+          {
+            id: 21,
+            name: "Coffee Beans",
+            amount: 400000,
+            spent: 100000,
+            remaining: 300000,
+            period: "month",
+          },
+        ],
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "success",
+      budgetId: 21,
+      confidence: "medium",
+      reason: "The more specific coffee budget fits.",
+    });
+    expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
   it("uses the provider when deterministic matching is inconclusive", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       createResponse(
