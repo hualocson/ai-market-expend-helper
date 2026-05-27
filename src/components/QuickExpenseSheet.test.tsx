@@ -1150,6 +1150,35 @@ describe("QuickExpenseSheet — edit mode", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("shows edit success toast after the local write resolves", async () => {
+    let resolveUpdate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.updateMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      })
+    );
+    const user = userEvent.setup();
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 2, name: "Sports week" }),
+    ]);
+    renderEditSheet();
+
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.updateMutateAsync).toHaveBeenCalled()
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveUpdate({ clientId: "expense-client-1" });
+    });
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Expense updated.")
+    );
+  });
+
   it("renders edit footer with Update and an icon-only delete action", async () => {
     const user = userEvent.setup();
     const onConfirmDelete = vi.fn();
