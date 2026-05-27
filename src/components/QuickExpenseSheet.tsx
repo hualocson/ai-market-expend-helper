@@ -614,6 +614,9 @@ const QuickExpenseSheet = ({
     if (!suggestionCandidates.length) {
       return;
     }
+    if (budgetSelectionSourceRef.current === "manual") {
+      return;
+    }
 
     const requestCandidateKey = suggestionCandidateKey;
     const requestSnapshotKey = `${note}\n${requestCandidateKey}`;

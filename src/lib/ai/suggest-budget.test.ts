@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { suggestBudget } from "./suggest-budget";
+import { MissingOpenRouterApiKeyError, suggestBudget } from "./suggest-budget";
 import type { SuggestBudgetCandidate } from "./suggest-budget-contract";
 
 const budgets: SuggestBudgetCandidate[] = [
@@ -72,6 +72,40 @@ describe("suggestBudget", () => {
       reason: "The note contains the budget name Coffee.",
     });
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("does not require an api key for no-match or deterministic results", async () => {
+    const fetchFn = vi.fn();
+
+    await expect(
+      suggestBudget({ note: "coffee", budgets: [], fetchFn })
+    ).resolves.toEqual({
+      status: "no_match",
+      reason: "No budgets are available for this expense.",
+    });
+
+    await expect(
+      suggestBudget({
+        note: "coffee with team",
+        budgets,
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "success",
+      budgetId: 2,
+      confidence: "high",
+      reason: "The note contains the budget name Coffee.",
+    });
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("throws when provider fallback needs a missing api key", async () => {
+    await expect(
+      suggestBudget({
+        note: "weekly market refill",
+        budgets,
+      })
+    ).rejects.toBeInstanceOf(MissingOpenRouterApiKeyError);
   });
 
   it("does not deterministically match a budget name inside another word", async () => {

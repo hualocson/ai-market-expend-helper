@@ -54,9 +54,16 @@ Rules:
 type SuggestBudgetArgs = {
   note: string;
   budgets: SuggestBudgetCandidate[];
-  apiKey: string;
+  apiKey?: string;
   fetchFn?: typeof fetch;
 };
+
+export class MissingOpenRouterApiKeyError extends Error {
+  constructor() {
+    super("Missing OPENROUTER_API_KEY");
+    this.name = "MissingOpenRouterApiKeyError";
+  }
+}
 
 const tokenizeText = (value: string) =>
   value
@@ -163,6 +170,10 @@ export const suggestBudget = async ({
   const deterministic = findDeterministicMatch(trimmedNote, budgets);
   if (deterministic) {
     return deterministic;
+  }
+
+  if (!apiKey) {
+    throw new MissingOpenRouterApiKeyError();
   }
 
   const providerResult = await callOpenRouterJson({

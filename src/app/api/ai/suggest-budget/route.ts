@@ -1,4 +1,7 @@
-import { suggestBudget } from "@/lib/ai/suggest-budget";
+import {
+  MissingOpenRouterApiKeyError,
+  suggestBudget,
+} from "@/lib/ai/suggest-budget";
 import { suggestBudgetRequestSchema } from "@/lib/ai/suggest-budget-contract";
 import { apiError, apiSuccess } from "@/lib/api/route-response";
 
@@ -20,8 +23,15 @@ export const POST = async (request: Request) => {
       return invalidPayloadResponse();
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
+    const result = await suggestBudget({
+      note: parsed.data.note,
+      budgets: parsed.data.budgets,
+      apiKey: process.env.OPENROUTER_API_KEY,
+    });
+
+    return apiSuccess(result);
+  } catch (error) {
+    if (error instanceof MissingOpenRouterApiKeyError) {
       return apiError(
         "SUGGEST_BUDGET_FAILED",
         "Missing OPENROUTER_API_KEY",
@@ -29,14 +39,6 @@ export const POST = async (request: Request) => {
       );
     }
 
-    const result = await suggestBudget({
-      note: parsed.data.note,
-      budgets: parsed.data.budgets,
-      apiKey,
-    });
-
-    return apiSuccess(result);
-  } catch (error) {
     console.error("Failed to suggest budget:", error);
     return apiError("SUGGEST_BUDGET_FAILED", "Failed to suggest budget", 500);
   }

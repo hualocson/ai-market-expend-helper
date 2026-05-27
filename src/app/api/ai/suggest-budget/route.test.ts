@@ -6,9 +6,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "./route";
 
-const { suggestBudget } = vi.hoisted(() => ({ suggestBudget: vi.fn() }));
+const { MissingOpenRouterApiKeyError, suggestBudget } = vi.hoisted(() => ({
+  MissingOpenRouterApiKeyError: class MissingOpenRouterApiKeyError extends Error {
+    constructor() {
+      super("Missing OPENROUTER_API_KEY");
+      this.name = "MissingOpenRouterApiKeyError";
+    }
+  },
+  suggestBudget: vi.fn(),
+}));
 
-vi.mock("@/lib/ai/suggest-budget", () => ({ suggestBudget }));
+vi.mock("@/lib/ai/suggest-budget", () => ({
+  MissingOpenRouterApiKeyError,
+  suggestBudget,
+}));
 
 const budgets = [
   {
@@ -141,6 +152,31 @@ describe("POST /api/ai/suggest-budget", () => {
     });
   });
 
+  it("allows task-level success without OPENROUTER_API_KEY when no AI fallback is needed", async () => {
+    const suggestion = {
+      status: "success",
+      budgetId: 2,
+      confidence: "high",
+      reason: "The note contains the budget name Coffee.",
+    } as const;
+    suggestBudget.mockResolvedValue(suggestion);
+
+    const response = await POST(
+      createRequest({ note: "coffee with team", budgets })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: suggestion,
+    });
+    expect(suggestBudget).toHaveBeenCalledWith({
+      note: "coffee with team",
+      budgets,
+      apiKey: undefined,
+    });
+  });
+
   it("returns no_match data as a success envelope", async () => {
     process.env.OPENROUTER_API_KEY = "test-key";
     const suggestion = {
@@ -177,9 +213,11 @@ describe("POST /api/ai/suggest-budget", () => {
     });
   });
 
-  it("returns 500 when OPENROUTER_API_KEY is missing", async () => {
+  it("returns 500 when OPENROUTER_API_KEY is needed but missing", async () => {
+    suggestBudget.mockRejectedValue(new MissingOpenRouterApiKeyError());
+
     const response = await POST(
-      createRequest({ note: "coffee with team", budgets })
+      createRequest({ note: "weekly market refill", budgets })
     );
 
     expect(response.status).toBe(500);
@@ -190,7 +228,11 @@ describe("POST /api/ai/suggest-budget", () => {
         message: "Missing OPENROUTER_API_KEY",
       },
     });
-    expect(suggestBudget).not.toHaveBeenCalled();
+    expect(suggestBudget).toHaveBeenCalledWith({
+      note: "weekly market refill",
+      budgets,
+      apiKey: undefined,
+    });
   });
 
   it("returns 500 when suggestion unexpectedly fails", async () => {

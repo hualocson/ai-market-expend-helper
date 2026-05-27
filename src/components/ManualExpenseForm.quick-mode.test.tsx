@@ -274,7 +274,7 @@ describe("ManualExpenseForm quick mode", () => {
     await user.type(noteInput, "taxi to office");
     await user.tab();
 
-    await waitFor(() => expect(suggestBudgetMutateAsync).toHaveBeenCalled());
+    expect(suggestBudgetMutateAsync).not.toHaveBeenCalled();
 
     const budgetButton = screen.getByRole("button", { name: /budget/i });
     expect(within(budgetButton).getByText("Coffee")).toBeVisible();
@@ -370,9 +370,7 @@ describe("ManualExpenseForm quick mode", () => {
     await user.type(noteInput, "taxi to office");
     await user.tab();
 
-    await waitFor(() =>
-      expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
-    );
+    expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(1);
 
     expect(within(budgetButton).getByText("No budget")).toBeVisible();
     expect(

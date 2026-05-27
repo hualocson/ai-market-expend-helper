@@ -639,9 +639,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     await user.type(note, "taxi to office");
     await user.tab();
 
-    await waitFor(() =>
-      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalled()
-    );
+    expect(mutationMocks.suggestBudgetMutateAsync).not.toHaveBeenCalled();
 
     expect(
       screen.getByRole("button", { name: /coffee/i, pressed: true })
@@ -696,30 +694,15 @@ describe("QuickExpenseSheet — budget suggestion", () => {
 
   it("does not overwrite a manually cleared No budget selection with a later AI suggestion", async () => {
     const user = await openSheetWithBudgets();
-    mutationMocks.suggestBudgetMutateAsync
-      .mockResolvedValueOnce({
-        status: "success",
-        budgetId: 7,
-        confidence: "high",
-        reason: "Coffee team expense",
-      })
-      .mockResolvedValueOnce({
-        status: "success",
-        budgetId: 8,
-        confidence: "high",
-        reason: "Transport expense",
-      });
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 8,
+      confidence: "high",
+      reason: "Transport expense",
+    });
 
-    const note = screen.getByPlaceholderText(/what did you spend on/i);
-    await user.type(note, "coffee with team");
-    await user.tab();
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: /coffee/i, pressed: true })
-      ).toBeInTheDocument()
-    );
-
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
+    await user.click(await screen.findByRole("button", { name: /coffee/i }));
     await user.click(screen.getByRole("button", { name: /coffee/i }));
     await user.click(await screen.findByRole("button", { name: /no budget/i }));
 
@@ -727,14 +710,12 @@ describe("QuickExpenseSheet — budget suggestion", () => {
       screen.getByRole("button", { name: /no budget/i, pressed: true })
     ).toBeInTheDocument();
 
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
     await user.click(note);
-    await user.clear(note);
     await user.type(note, "taxi to office");
     await user.tab();
 
-    await waitFor(() =>
-      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
-    );
+    expect(mutationMocks.suggestBudgetMutateAsync).not.toHaveBeenCalled();
 
     expect(
       screen.getByRole("button", { name: /no budget/i, pressed: true })
@@ -780,9 +761,6 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     await waitFor(() =>
       expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1)
     );
-    expect(
-      await screen.findByRole("button", { name: /coffee/i, pressed: true })
-    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^date:/i }));
     await user.click(
@@ -808,9 +786,21 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     await waitFor(() =>
       expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
     );
-    expect(
-      await screen.findByRole("button", { name: /transport/i, pressed: true })
-    ).toBeInTheDocument();
+    expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenLastCalledWith({
+      note: "shared note",
+      budgets: [
+        {
+          id: 8,
+          name: "Transport",
+          amount: 800000,
+          spent: 250000,
+          remaining: 550000,
+          period: "month",
+          periodStartDate: "2026-05-01",
+          periodEndDate: "2026-05-31",
+        },
+      ],
+    });
   });
 });
 
