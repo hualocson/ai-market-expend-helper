@@ -581,6 +581,44 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1);
   });
 
+  it("does not request the same note again when only the date changes", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([suggestionBudgets[0]]);
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("radiogroup", { name: /^budget$/i })
+      ).toHaveAttribute("aria-busy", "false")
+    );
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "shared note");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1)
+    );
+
+    await user.click(screen.getByRole("button", { name: /^date:/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /pick mocked date/i })
+    );
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
+    await waitFor(() =>
+      expect(weeklyBudgetOptionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        "2026-05-20"
+      )
+    );
+
+    await user.click(note);
+    await user.tab();
+
+    expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1);
+  });
+
   it("does not overwrite a manually selected budget with a later AI suggestion", async () => {
     const user = await openSheetWithBudgets();
     mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({

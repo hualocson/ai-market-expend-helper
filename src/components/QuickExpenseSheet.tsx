@@ -345,9 +345,8 @@ const QuickExpenseSheet = ({
   );
   const suggestionCandidateKey = useMemo(
     () =>
-      JSON.stringify({
-        targetDate,
-        candidates: suggestionCandidates.map((budget) => ({
+      JSON.stringify(
+        suggestionCandidates.map((budget) => ({
           id: budget.id,
           name: budget.name,
           amount: budget.amount,
@@ -356,9 +355,9 @@ const QuickExpenseSheet = ({
           period: budget.period,
           periodStartDate: budget.periodStartDate ?? null,
           periodEndDate: budget.periodEndDate ?? null,
-        })),
-      }),
-    [suggestionCandidates, targetDate]
+        }))
+      ),
+    [suggestionCandidates]
   );
   currentSuggestionCandidateKeyRef.current = suggestionCandidateKey;
 
