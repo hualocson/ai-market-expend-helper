@@ -2,7 +2,9 @@ import React from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import { queries } from "@/lib/queries";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
+import { getWeekRange } from "@/lib/week";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -124,6 +126,16 @@ const budgetSuggestionFixture = {
       remaining: 550000,
     },
   ],
+};
+
+const getBudgetOptionsQueryKey = () => {
+  const targetDate = dayjs();
+  const weekStart = getWeekRange(targetDate).weekStartDate.format("YYYY-MM-DD");
+
+  return queries.budgetWeekly.options(
+    weekStart,
+    targetDate.format("YYYY-MM-DD")
+  ).queryKey;
 };
 
 const renderManualExpenseForm = async ({
@@ -365,6 +377,152 @@ describe("ManualExpenseForm quick mode", () => {
     expect(within(budgetButton).getByText("No budget")).toBeVisible();
     expect(
       within(budgetButton).queryByText("Transport")
+    ).not.toBeInTheDocument();
+  });
+
+  it("suggests the same note again after candidate budgets change", async () => {
+    ensureReactGlobal();
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+    const budgetOptionsQueryKey = getBudgetOptionsQueryKey();
+    queryClient.setQueryData(budgetOptionsQueryKey, [
+      budgetSuggestionFixture.budgets[0],
+    ]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(createFetchResponse());
+    suggestBudgetMutateAsync
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 8,
+        confidence: "high",
+        reason: "Transport expense",
+      });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SettingsStoreProvider>
+          <ManualExpenseForm showBudgetSelect />
+        </SettingsStoreProvider>
+      </QueryClientProvider>
+    );
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "shared note");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(1)
+    );
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    await waitFor(() =>
+      expect(within(budgetButton).getByText("Coffee")).toBeVisible()
+    );
+
+    await act(async () => {
+      queryClient.setQueryData(budgetOptionsQueryKey, [
+        budgetSuggestionFixture.budgets[1],
+      ]);
+    });
+    await waitFor(() =>
+      expect(within(budgetButton).getByText("No budget")).toBeVisible()
+    );
+
+    await user.click(noteInput);
+    await user.tab();
+
+    await waitFor(() =>
+      expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
+    );
+  });
+
+  it("ignores an in-flight response after candidate budgets change", async () => {
+    ensureReactGlobal();
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+    const budgetOptionsQueryKey = getBudgetOptionsQueryKey();
+    queryClient.setQueryData(budgetOptionsQueryKey, [
+      budgetSuggestionFixture.budgets[0],
+    ]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(createFetchResponse());
+    let resolveSuggestion!: (value: {
+      status: "success";
+      budgetId: number;
+      confidence: "high";
+      reason: string;
+    }) => void;
+    suggestBudgetMutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSuggestion = resolve;
+        })
+    );
+
+    const renderTree = (
+      <QueryClientProvider client={queryClient}>
+        <SettingsStoreProvider>
+          <ManualExpenseForm showBudgetSelect />
+        </SettingsStoreProvider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(renderTree);
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "shared note");
+    await user.tab();
+    await waitFor(() => expect(suggestBudgetMutateAsync).toHaveBeenCalled());
+
+    await act(async () => {
+      queryClient.setQueryData(budgetOptionsQueryKey, [
+        {
+          ...budgetSuggestionFixture.budgets[0],
+          name: "Coffee next week",
+          periodStartDate: dayjs().add(7, "day").format("YYYY-MM-DD"),
+          periodEndDate: dayjs().add(13, "day").format("YYYY-MM-DD"),
+        },
+      ]);
+      rerender(renderTree);
+    });
+
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    await user.click(budgetButton);
+    expect(
+      await screen.findByRole("button", { name: /coffee next week/i })
+    ).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await act(async () => {
+      resolveSuggestion({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      });
+    });
+
+    expect(within(budgetButton).getByText("No budget")).toBeVisible();
+    expect(
+      within(budgetButton).queryByText("Coffee next week")
     ).not.toBeInTheDocument();
   });
 

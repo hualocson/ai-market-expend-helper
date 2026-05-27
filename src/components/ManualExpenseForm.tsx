@@ -205,7 +205,8 @@ const ManualExpenseForm = forwardRef<
       initialExpense?.budgetId ? "manual" : "none"
     );
     const currentNoteRef = useRef(expense.note);
-    const lastSuggestedNoteRef = useRef<string | null>(null);
+    const currentSuggestionCandidateKeyRef = useRef("");
+    const lastSuggestionSnapshotRef = useRef<string | null>(null);
     const suggestionRequestIdRef = useRef(0);
 
     const setBudgetSelectionSource = useCallback(
@@ -241,7 +242,7 @@ const ManualExpenseForm = forwardRef<
         setBudgetIcon(initialExpense?.budgetIcon ?? null);
         setBudgetColor(initialExpense?.budgetColor ?? null);
         setBudgetSelectionSource(initialExpense?.budgetId ? "manual" : "none");
-        lastSuggestedNoteRef.current = null;
+        lastSuggestionSnapshotRef.current = null;
         suggestionRequestIdRef.current += 1;
       }
       hasManualPaidBy.current = false;
@@ -334,6 +335,38 @@ const ManualExpenseForm = forwardRef<
       () => groupBudgetOptions(budgetOptions),
       [budgetOptions]
     );
+    const suggestionCandidates = useMemo(
+      () =>
+        budgetOptions.map((budget) => ({
+          id: budget.id,
+          name: budget.name,
+          amount: budget.amount,
+          spent: budget.spent,
+          remaining: budget.remaining,
+          period: budget.period,
+          periodStartDate: budget.periodStartDate ?? undefined,
+          periodEndDate: budget.periodEndDate,
+        })),
+      [budgetOptions]
+    );
+    const suggestionCandidateKey = useMemo(
+      () =>
+        JSON.stringify({
+          targetDate: budgetTargetDate ?? "",
+          candidates: suggestionCandidates.map((budget) => ({
+            id: budget.id,
+            name: budget.name,
+            amount: budget.amount,
+            spent: budget.spent,
+            remaining: budget.remaining,
+            period: budget.period,
+            periodStartDate: budget.periodStartDate ?? null,
+            periodEndDate: budget.periodEndDate ?? null,
+          })),
+        }),
+      [budgetTargetDate, suggestionCandidates]
+    );
+    currentSuggestionCandidateKeyRef.current = suggestionCandidateKey;
 
     const handleSubmit = useCallback(async () => {
       if (!canSubmit || loading) {
@@ -519,36 +552,32 @@ const ManualExpenseForm = forwardRef<
       if (note.length < 3) {
         return;
       }
-      if (!budgetOptions.length) {
+      if (!suggestionCandidates.length) {
         return;
       }
-      if (lastSuggestedNoteRef.current === note) {
+      const requestCandidateKey = suggestionCandidateKey;
+      const requestSnapshotKey = `${note}\n${requestCandidateKey}`;
+      if (lastSuggestionSnapshotRef.current === requestSnapshotKey) {
         return;
       }
 
-      lastSuggestedNoteRef.current = note;
+      lastSuggestionSnapshotRef.current = requestSnapshotKey;
       const requestId = suggestionRequestIdRef.current + 1;
       suggestionRequestIdRef.current = requestId;
 
       try {
         const result = await suggestBudgetMutateAsync({
           note,
-          budgets: budgetOptions.map((budget) => ({
-            id: budget.id,
-            name: budget.name,
-            amount: budget.amount,
-            spent: budget.spent,
-            remaining: budget.remaining,
-            period: budget.period,
-            periodStartDate: budget.periodStartDate ?? undefined,
-            periodEndDate: budget.periodEndDate,
-          })),
+          budgets: suggestionCandidates,
         });
 
         if (requestId !== suggestionRequestIdRef.current) {
           return;
         }
         if (currentNoteRef.current.trim() !== note) {
+          return;
+        }
+        if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
           return;
         }
         if (budgetSelectionSourceRef.current === "manual") {
@@ -565,10 +594,11 @@ const ManualExpenseForm = forwardRef<
     }, [
       applySuggestedBudget,
       budgetLoaded,
-      budgetOptions,
       expense.note,
       isSheetOpen,
       showBudgetSelect,
+      suggestionCandidateKey,
+      suggestionCandidates,
       suggestBudgetMutateAsync,
     ]);
 
