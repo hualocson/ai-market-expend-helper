@@ -26,6 +26,7 @@ export type TBudgetChipRowProps = {
   options: TBudgetOption[];
   selectedBudget?: TBudgetChipRowSelectedBudget | null;
   loading?: boolean;
+  suggesting?: boolean;
   onChange: (next: number | null) => void;
 };
 
@@ -84,6 +85,7 @@ const BudgetChipRow = ({
   options,
   selectedBudget,
   loading = false,
+  suggesting = false,
   onChange,
 }: TBudgetChipRowProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -173,6 +175,23 @@ const BudgetChipRow = ({
       aria-busy={loading}
     >
       <AnimatePresence initial={false} mode="popLayout">
+        {suggesting ? (
+          <motion.div
+            layout
+            role="status"
+            aria-label="Suggesting budget"
+            key="suggesting-budget"
+            initial={{ opacity: 0, x: -12, filter: "blur(2px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: -12, filter: "blur(2px)" }}
+            transition={{ duration: 0.3, ease: EASE_OUT }}
+            className="text-muted-foreground bg-muted/50 ml-4 grid size-9 shrink-0 place-items-center rounded-full border-none"
+          >
+            <span className="bg-background/30 grid size-5 shrink-0 place-items-center rounded-full">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            </span>
+          </motion.div>
+        ) : null}
         {orderedOptions.map((option, index) => {
           const isActive = option.kind !== "loading" && option.id === value;
           const showChevron = isActive && !expanded;
@@ -195,7 +214,7 @@ const BudgetChipRow = ({
               className={cn(
                 "flex shrink-0 items-center gap-2 rounded-full border-none px-3 py-2 text-sm font-medium",
                 getButtonToneClassName(option, isActive),
-                isFirstItem && "ml-4"
+                isFirstItem && !suggesting && "ml-4"
               )}
             >
               {option.kind === "budget" ? (

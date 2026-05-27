@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import ExpenseListItem from "./ExpenseListItem";
+import ExpenseListItem, { type ExpenseListItemData } from "./ExpenseListItem";
 
 const deleteExpenseMutationMock = vi.hoisted(() => vi.fn());
 const deleteExpenseIsPendingMock = vi.hoisted(() => ({ value: false }));
@@ -65,7 +65,7 @@ vi.mock("@/components/PaidByIcon", () => ({
   ),
 }));
 
-const expense = {
+const expense: ExpenseListItemData = {
   id: 1,
   clientId: "pending-client-1",
   date: "2026-04-01",

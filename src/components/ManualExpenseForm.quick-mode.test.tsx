@@ -2,7 +2,9 @@ import React from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
+import { queries } from "@/lib/queries";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
+import { getWeekRange } from "@/lib/week";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,6 +13,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 
 import ManualExpenseForm from "./ManualExpenseForm";
+
+const { suggestBudgetMutateAsync } = vi.hoisted(() => ({
+  suggestBudgetMutateAsync: vi.fn(),
+}));
+
+vi.mock("@/lib/mutations", async (importActual) => {
+  const actual = await importActual<typeof import("@/lib/mutations")>();
+
+  return {
+    ...actual,
+    useSuggestBudgetMutation: () => ({
+      mutateAsync: suggestBudgetMutateAsync,
+    }),
+  };
+});
 
 const originalGlobalReact = globalThis.React;
 
@@ -77,9 +94,49 @@ const renderManualExpenseFormTree = ({
 );
 
 afterEach(() => {
+  suggestBudgetMutateAsync.mockReset();
   restoreReactGlobal();
   vi.restoreAllMocks();
 });
+
+const budgetSuggestionFixture = {
+  budgets: [
+    {
+      id: 7,
+      name: "Coffee",
+      icon: "☕",
+      color: "amber",
+      period: "week",
+      periodStartDate: dayjs().startOf("week").format("YYYY-MM-DD"),
+      periodEndDate: dayjs().endOf("week").format("YYYY-MM-DD"),
+      amount: 300000,
+      spent: 125000,
+      remaining: 175000,
+    },
+    {
+      id: 8,
+      name: "Transport",
+      icon: "🚕",
+      color: "sky",
+      period: "month",
+      periodStartDate: dayjs().startOf("month").format("YYYY-MM-DD"),
+      periodEndDate: dayjs().endOf("month").format("YYYY-MM-DD"),
+      amount: 800000,
+      spent: 250000,
+      remaining: 550000,
+    },
+  ],
+};
+
+const getBudgetOptionsQueryKey = () => {
+  const targetDate = dayjs();
+  const weekStart = getWeekRange(targetDate).weekStartDate.format("YYYY-MM-DD");
+
+  return queries.budgetWeekly.options(
+    weekStart,
+    targetDate.format("YYYY-MM-DD")
+  ).queryKey;
+};
 
 const renderManualExpenseForm = async ({
   initialMode,
@@ -130,6 +187,343 @@ const renderManualExpenseForm = async ({
 };
 
 describe("ManualExpenseForm quick mode", () => {
+  it("suggests and preselects a high confidence budget on note blur", async () => {
+    const user = userEvent.setup();
+    suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 7,
+      confidence: "high",
+      reason: "Coffee team expense",
+    });
+
+    await renderManualExpenseForm({
+      initialMode: "quick",
+      showBudgetSelect: true,
+      budgetPayload: budgetSuggestionFixture,
+    });
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "coffee with team");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(suggestBudgetMutateAsync).toHaveBeenCalledWith({
+        note: "coffee with team",
+        budgets: [
+          {
+            id: 7,
+            name: "Coffee",
+            amount: 300000,
+            spent: 125000,
+            remaining: 175000,
+            period: "week",
+            periodStartDate: budgetSuggestionFixture.budgets[0].periodStartDate,
+            periodEndDate: budgetSuggestionFixture.budgets[0].periodEndDate,
+          },
+          {
+            id: 8,
+            name: "Transport",
+            amount: 800000,
+            spent: 250000,
+            remaining: 550000,
+            period: "month",
+            periodStartDate: budgetSuggestionFixture.budgets[1].periodStartDate,
+            periodEndDate: budgetSuggestionFixture.budgets[1].periodEndDate,
+          },
+        ],
+      })
+    );
+
+    await user.click(screen.getByRole("button", { name: /more options/i }));
+
+    expect(
+      within(screen.getByRole("button", { name: /budget/i })).getByText(
+        "Coffee"
+      )
+    ).toBeVisible();
+  });
+
+  it("does not overwrite a manually selected budget with an AI suggestion", async () => {
+    const user = userEvent.setup();
+    suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 8,
+      confidence: "high",
+      reason: "Transport expense",
+    });
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      budgetPayload: budgetSuggestionFixture,
+    });
+
+    await user.click(screen.getByRole("button", { name: /budget/i }));
+    await user.click(await screen.findByRole("button", { name: /coffee/i }));
+
+    expect(
+      within(screen.getByRole("button", { name: /budget/i })).getByText(
+        "Coffee"
+      )
+    ).toBeVisible();
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "taxi to office");
+    await user.tab();
+
+    expect(suggestBudgetMutateAsync).not.toHaveBeenCalled();
+
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    expect(within(budgetButton).getByText("Coffee")).toBeVisible();
+    expect(
+      within(budgetButton).queryByText("Transport")
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores a suggestion response when the note changed after blur", async () => {
+    const user = userEvent.setup();
+    let resolveSuggestion!: (value: {
+      status: "success";
+      budgetId: number;
+      confidence: "high";
+      reason: string;
+    }) => void;
+    suggestBudgetMutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSuggestion = resolve;
+        })
+    );
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      budgetPayload: budgetSuggestionFixture,
+    });
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "coffee with team");
+    await user.tab();
+    await waitFor(() => expect(suggestBudgetMutateAsync).toHaveBeenCalled());
+
+    await user.click(noteInput);
+    await user.clear(noteInput);
+    await user.type(noteInput, "taxi home");
+
+    await act(async () => {
+      resolveSuggestion({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      });
+    });
+
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    expect(within(budgetButton).getByText("No budget")).toBeVisible();
+    expect(within(budgetButton).queryByText("Coffee")).not.toBeInTheDocument();
+  });
+
+  it("does not overwrite a manually cleared No budget selection with an AI suggestion", async () => {
+    const user = userEvent.setup();
+    suggestBudgetMutateAsync
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 8,
+        confidence: "high",
+        reason: "Transport expense",
+      });
+
+    await renderManualExpenseForm({
+      showBudgetSelect: true,
+      budgetPayload: budgetSuggestionFixture,
+    });
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "coffee with team");
+    await user.tab();
+
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    await waitFor(() =>
+      expect(within(budgetButton).getByText("Coffee")).toBeVisible()
+    );
+
+    await user.click(budgetButton);
+    await user.click(await screen.findByRole("button", { name: /no budget/i }));
+
+    expect(within(budgetButton).getByText("No budget")).toBeVisible();
+
+    await user.click(noteInput);
+    await user.clear(noteInput);
+    await user.type(noteInput, "taxi to office");
+    await user.tab();
+
+    expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(1);
+
+    expect(within(budgetButton).getByText("No budget")).toBeVisible();
+    expect(
+      within(budgetButton).queryByText("Transport")
+    ).not.toBeInTheDocument();
+  });
+
+  it("suggests the same note again after candidate budgets change", async () => {
+    ensureReactGlobal();
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+    const budgetOptionsQueryKey = getBudgetOptionsQueryKey();
+    queryClient.setQueryData(budgetOptionsQueryKey, [
+      budgetSuggestionFixture.budgets[0],
+    ]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(createFetchResponse());
+    suggestBudgetMutateAsync
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 8,
+        confidence: "high",
+        reason: "Transport expense",
+      });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SettingsStoreProvider>
+          <ManualExpenseForm showBudgetSelect />
+        </SettingsStoreProvider>
+      </QueryClientProvider>
+    );
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "shared note");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(1)
+    );
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    await waitFor(() =>
+      expect(within(budgetButton).getByText("Coffee")).toBeVisible()
+    );
+
+    await act(async () => {
+      queryClient.setQueryData(budgetOptionsQueryKey, [
+        budgetSuggestionFixture.budgets[1],
+      ]);
+    });
+    await waitFor(() =>
+      expect(within(budgetButton).getByText("No budget")).toBeVisible()
+    );
+
+    await user.click(noteInput);
+    await user.tab();
+
+    await waitFor(() =>
+      expect(suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
+    );
+  });
+
+  it("ignores an in-flight response after candidate budgets change", async () => {
+    ensureReactGlobal();
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+    const budgetOptionsQueryKey = getBudgetOptionsQueryKey();
+    queryClient.setQueryData(budgetOptionsQueryKey, [
+      budgetSuggestionFixture.budgets[0],
+    ]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(createFetchResponse());
+    let resolveSuggestion!: (value: {
+      status: "success";
+      budgetId: number;
+      confidence: "high";
+      reason: string;
+    }) => void;
+    suggestBudgetMutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSuggestion = resolve;
+        })
+    );
+
+    const renderTree = (
+      <QueryClientProvider client={queryClient}>
+        <SettingsStoreProvider>
+          <ManualExpenseForm showBudgetSelect />
+        </SettingsStoreProvider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(renderTree);
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "shared note");
+    await user.tab();
+    await waitFor(() => expect(suggestBudgetMutateAsync).toHaveBeenCalled());
+
+    await act(async () => {
+      queryClient.setQueryData(budgetOptionsQueryKey, [
+        {
+          ...budgetSuggestionFixture.budgets[0],
+          name: "Coffee next week",
+          periodStartDate: dayjs().add(7, "day").format("YYYY-MM-DD"),
+          periodEndDate: dayjs().add(13, "day").format("YYYY-MM-DD"),
+        },
+      ]);
+      rerender(renderTree);
+    });
+
+    const budgetButton = screen.getByRole("button", { name: /budget/i });
+    await user.click(budgetButton);
+    expect(
+      await screen.findByRole("button", { name: /coffee next week/i })
+    ).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await act(async () => {
+      resolveSuggestion({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      });
+    });
+
+    expect(within(budgetButton).getByText("No budget")).toBeVisible();
+    expect(
+      within(budgetButton).queryByText("Coffee next week")
+    ).not.toBeInTheDocument();
+  });
+
   it("hides advanced controls by default and shows More options", async () => {
     await renderManualExpenseForm({
       initialMode: "quick",

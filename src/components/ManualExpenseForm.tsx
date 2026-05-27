@@ -15,7 +15,10 @@ import { Category, PaidBy } from "@/enums";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import type { BudgetColorId } from "@/lib/budget-appearance";
 import { groupBudgetOptions, pickDefaultBudget } from "@/lib/budget-options";
-import { useCreateExpenseMutation } from "@/lib/mutations";
+import {
+  useCreateExpenseMutation,
+  useSuggestBudgetMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import type { QuickAddMode } from "@/lib/quick-add-mode";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
@@ -84,6 +87,11 @@ export type ManualExpenseFormState = {
   loading: boolean;
   mode: QuickAddMode;
 };
+
+type BudgetSelectionSource = "none" | "manual" | "ai";
+
+const isManualBudgetSelectionSource = (source: BudgetSelectionSource) =>
+  source === "manual";
 
 type ManualExpenseFormProps = {
   initialExpense?:
@@ -191,9 +199,25 @@ const ManualExpenseForm = forwardRef<
     const [paidByDrawerOpen, setPaidByDrawerOpen] = useState(false);
     const [budgetDrawerOpen, setBudgetDrawerOpen] = useState(false);
     const createExpenseMutation = useCreateExpenseMutation();
+    const { mutateAsync: suggestBudgetMutateAsync } =
+      useSuggestBudgetMutation();
 
     const amountRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
+    const budgetSelectionSourceRef = useRef<BudgetSelectionSource>(
+      initialExpense?.budgetId ? "manual" : "none"
+    );
+    const currentNoteRef = useRef(expense.note);
+    const currentSuggestionCandidateKeyRef = useRef("");
+    const lastSuggestionSnapshotRef = useRef<string | null>(null);
+    const suggestionRequestIdRef = useRef(0);
+
+    const setBudgetSelectionSource = useCallback(
+      (source: BudgetSelectionSource) => {
+        budgetSelectionSourceRef.current = source;
+      },
+      []
+    );
 
     const handleOnNoteKeyDown = (
       e: React.KeyboardEvent<HTMLTextAreaElement>
@@ -213,15 +237,24 @@ const ManualExpenseForm = forwardRef<
       }
 
       setExpense(buildExpense(initialExpense));
+      currentNoteRef.current = initialExpense?.note ?? defaultExpense.note;
       setPaidBy(normalizePaidBy(initialExpense?.paidBy));
       if (showBudgetSelect) {
         setBudgetId(initialExpense?.budgetId ?? null);
         setBudgetName(initialExpense?.budgetName ?? null);
         setBudgetIcon(initialExpense?.budgetIcon ?? null);
         setBudgetColor(initialExpense?.budgetColor ?? null);
+        setBudgetSelectionSource(initialExpense?.budgetId ? "manual" : "none");
+        lastSuggestionSnapshotRef.current = null;
+        suggestionRequestIdRef.current += 1;
       }
       hasManualPaidBy.current = false;
-    }, [initialExpense, normalizePaidBy, showBudgetSelect]);
+    }, [
+      initialExpense,
+      normalizePaidBy,
+      setBudgetSelectionSource,
+      showBudgetSelect,
+    ]);
 
     useEffect(() => {
       setMode(initialMode ?? "advanced");
@@ -247,14 +280,20 @@ const ManualExpenseForm = forwardRef<
         ? (prefillExpense.category as Category)
         : defaultExpense.category;
 
-      setExpense((prev) => ({
-        ...prev,
-        amount: Number.isFinite(nextAmount) ? nextAmount : prev.amount,
-        ...(typeof prefillExpense.note !== "undefined"
-          ? { note: prefillExpense.note }
-          : {}),
-        category: nextCategory,
-      }));
+      setExpense((prev) => {
+        const nextNote =
+          typeof prefillExpense.note !== "undefined"
+            ? prefillExpense.note
+            : prev.note;
+        currentNoteRef.current = nextNote;
+
+        return {
+          ...prev,
+          amount: Number.isFinite(nextAmount) ? nextAmount : prev.amount,
+          note: nextNote,
+          category: nextCategory,
+        };
+      });
 
       requestAnimationFrame(() => {
         amountRef.current?.focus();
@@ -299,6 +338,38 @@ const ManualExpenseForm = forwardRef<
       () => groupBudgetOptions(budgetOptions),
       [budgetOptions]
     );
+    const suggestionCandidates = useMemo(
+      () =>
+        budgetOptions.map((budget) => ({
+          id: budget.id,
+          name: budget.name,
+          amount: budget.amount,
+          spent: budget.spent,
+          remaining: budget.remaining,
+          period: budget.period,
+          periodStartDate: budget.periodStartDate ?? undefined,
+          periodEndDate: budget.periodEndDate,
+        })),
+      [budgetOptions]
+    );
+    const suggestionCandidateKey = useMemo(
+      () =>
+        JSON.stringify({
+          targetDate: budgetTargetDate ?? "",
+          candidates: suggestionCandidates.map((budget) => ({
+            id: budget.id,
+            name: budget.name,
+            amount: budget.amount,
+            spent: budget.spent,
+            remaining: budget.remaining,
+            period: budget.period,
+            periodStartDate: budget.periodStartDate ?? null,
+            periodEndDate: budget.periodEndDate ?? null,
+          })),
+        }),
+      [budgetTargetDate, suggestionCandidates]
+    );
+    currentSuggestionCandidateKeyRef.current = suggestionCandidateKey;
 
     const handleSubmit = useCallback(async () => {
       if (!canSubmit || loading) {
@@ -382,8 +453,15 @@ const ManualExpenseForm = forwardRef<
         setBudgetName(null);
         setBudgetIcon(null);
         setBudgetColor(null);
+        setBudgetSelectionSource("none");
       }
-    }, [budgetId, budgetLoaded, budgetOptions, showBudgetSelect]);
+    }, [
+      budgetId,
+      budgetLoaded,
+      budgetOptions,
+      setBudgetSelectionSource,
+      showBudgetSelect,
+    ]);
 
     useEffect(() => {
       if (!autoSelectDefaultBudget || !showBudgetSelect || !budgetLoaded) {
@@ -422,6 +500,10 @@ const ManualExpenseForm = forwardRef<
       field: keyof TExpense,
       value: string | number
     ) => {
+      if (field === "note") {
+        currentNoteRef.current = String(value);
+      }
+
       setExpense((prev) => ({
         ...prev,
         [field]: value,
@@ -441,9 +523,90 @@ const ManualExpenseForm = forwardRef<
         setBudgetName(value === null ? null : (selected?.name ?? null));
         setBudgetIcon(value === null ? null : (selected?.icon ?? null));
         setBudgetColor(value === null ? null : (selected?.color ?? null));
+        setBudgetSelectionSource("manual");
       },
-      [budgetOptions]
+      [budgetOptions, setBudgetSelectionSource]
     );
+
+    const applySuggestedBudget = useCallback(
+      (suggestedBudgetId: number) => {
+        const selected = budgetOptions.find(
+          (budget) => budget.id === suggestedBudgetId
+        );
+        if (!selected) {
+          return;
+        }
+
+        setBudgetId(selected.id);
+        setBudgetName(selected.name ?? null);
+        setBudgetIcon(selected.icon ?? null);
+        setBudgetColor(selected.color ?? null);
+        setBudgetSelectionSource("ai");
+      },
+      [budgetOptions, setBudgetSelectionSource]
+    );
+
+    const handleNoteBlur = useCallback(async () => {
+      if (!showBudgetSelect || !isSheetOpen || !budgetLoaded) {
+        return;
+      }
+
+      const note = expense.note.trim();
+      if (note.length < 3) {
+        return;
+      }
+      if (!suggestionCandidates.length) {
+        return;
+      }
+      if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+        return;
+      }
+      const requestCandidateKey = suggestionCandidateKey;
+      const requestSnapshotKey = `${note}\n${requestCandidateKey}`;
+      if (lastSuggestionSnapshotRef.current === requestSnapshotKey) {
+        return;
+      }
+
+      lastSuggestionSnapshotRef.current = requestSnapshotKey;
+      const requestId = suggestionRequestIdRef.current + 1;
+      suggestionRequestIdRef.current = requestId;
+
+      try {
+        const result = await suggestBudgetMutateAsync({
+          note,
+          budgets: suggestionCandidates,
+        });
+
+        if (requestId !== suggestionRequestIdRef.current) {
+          return;
+        }
+        if (currentNoteRef.current.trim() !== note) {
+          return;
+        }
+        if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
+          return;
+        }
+        if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+          return;
+        }
+        if (result.status !== "success" || result.confidence === "low") {
+          return;
+        }
+
+        applySuggestedBudget(result.budgetId);
+      } catch (error) {
+        console.error("Failed to suggest budget", error);
+      }
+    }, [
+      applySuggestedBudget,
+      budgetLoaded,
+      expense.note,
+      isSheetOpen,
+      showBudgetSelect,
+      suggestionCandidateKey,
+      suggestionCandidates,
+      suggestBudgetMutateAsync,
+    ]);
 
     useEffect(() => {
       amountRef.current?.focus();
@@ -533,6 +696,7 @@ const ManualExpenseForm = forwardRef<
               placeholder="Optional note about this expense"
               className="min-h-[80px] resize-none rounded-xl"
               onKeyDown={handleOnNoteKeyDown}
+              onBlur={handleNoteBlur}
               tabIndex={0}
             />
             {/* reset button */}
