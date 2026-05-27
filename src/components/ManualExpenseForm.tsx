@@ -90,6 +90,9 @@ export type ManualExpenseFormState = {
 
 type BudgetSelectionSource = "none" | "manual" | "ai";
 
+const isManualBudgetSelectionSource = (source: BudgetSelectionSource) =>
+  source === "manual";
+
 type ManualExpenseFormProps = {
   initialExpense?:
     | (TExpense & {
@@ -555,7 +558,7 @@ const ManualExpenseForm = forwardRef<
       if (!suggestionCandidates.length) {
         return;
       }
-      if (budgetSelectionSourceRef.current === "manual") {
+      if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
         return;
       }
       const requestCandidateKey = suggestionCandidateKey;
@@ -583,7 +586,7 @@ const ManualExpenseForm = forwardRef<
         if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
           return;
         }
-        if (budgetSelectionSourceRef.current === "manual") {
+        if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
           return;
         }
         if (result.status !== "success" || result.confidence === "low") {

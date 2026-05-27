@@ -564,6 +564,41 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     expect(mutationMocks.updateMutateAsync).not.toHaveBeenCalled();
   });
 
+  it("shows a left-side loading indicator while suggesting a budget", async () => {
+    let resolveSuggestion!: (value: { status: "no_match" }) => void;
+    mutationMocks.suggestBudgetMutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSuggestion = resolve;
+        })
+    );
+    const user = await openSheetWithBudgets();
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "coffee with team");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalled()
+    );
+
+    const budgetList = screen.getByRole("radiogroup", { name: /^budget$/i });
+    const indicator = within(budgetList).getByLabelText("Suggesting budget");
+    expect(indicator).toHaveAttribute("role", "status");
+    expect(budgetList.firstElementChild).toBe(indicator);
+    expect(indicator).not.toHaveTextContent("Suggesting");
+
+    await act(async () => {
+      resolveSuggestion({ status: "no_match" });
+    });
+
+    await waitFor(() =>
+      expect(
+        within(budgetList).queryByLabelText("Suggesting budget")
+      ).not.toBeInTheDocument()
+    );
+  });
+
   it("does not request a duplicate suggestion for the same note and candidates", async () => {
     const user = await openSheetWithBudgets();
 

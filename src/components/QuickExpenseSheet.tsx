@@ -97,6 +97,9 @@ export type TExpenseDraft = TQuickExpenseDraft;
 type TRestorableInputFocus = "note" | "amount" | null;
 type BudgetSelectionSource = "none" | "manual" | "ai";
 
+const isManualBudgetSelectionSource = (source: BudgetSelectionSource) =>
+  source === "manual";
+
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
 const ALLOWED_PAID_BY = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
@@ -255,6 +258,7 @@ const QuickExpenseSheet = ({
   const [paidByOpen, setPaidByOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
+  const [isSuggestingBudget, setIsSuggestingBudget] = useState(false);
   const keyboardOffset = useKeyboardOffset();
 
   const [queueing, setQueueing] = useState(false);
@@ -287,6 +291,7 @@ const QuickExpenseSheet = ({
     currentNoteRef.current = nextDraft.note;
     lastSuggestionSnapshotRef.current = null;
     suggestionRequestIdRef.current += 1;
+    setIsSuggestingBudget(false);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -614,7 +619,7 @@ const QuickExpenseSheet = ({
     if (!suggestionCandidates.length) {
       return;
     }
-    if (budgetSelectionSourceRef.current === "manual") {
+    if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
       return;
     }
 
@@ -627,6 +632,7 @@ const QuickExpenseSheet = ({
     lastSuggestionSnapshotRef.current = requestSnapshotKey;
     const requestId = suggestionRequestIdRef.current + 1;
     suggestionRequestIdRef.current = requestId;
+    setIsSuggestingBudget(true);
 
     try {
       const result = await suggestBudgetMutateAsync({
@@ -646,7 +652,7 @@ const QuickExpenseSheet = ({
       if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
         return;
       }
-      if (budgetSelectionSourceRef.current === "manual") {
+      if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
         return;
       }
       if (result.status !== "success" || result.confidence === "low") {
@@ -656,6 +662,10 @@ const QuickExpenseSheet = ({
       applySuggestedBudget(result.budgetId);
     } catch (error) {
       console.error("Failed to suggest budget", error);
+    } finally {
+      if (requestId === suggestionRequestIdRef.current) {
+        setIsSuggestingBudget(false);
+      }
     }
   };
 
@@ -832,6 +842,7 @@ const QuickExpenseSheet = ({
                       }
                 }
                 loading={budgetOptionsQuery.isPending}
+                suggesting={isSuggestingBudget}
                 onChange={(id) => {
                   const selected = budgetOptions.find(
                     (budget) => budget.id === id

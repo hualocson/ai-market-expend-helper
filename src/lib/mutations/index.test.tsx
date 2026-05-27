@@ -428,7 +428,7 @@ describe("mutation hooks", () => {
           amount: 1000000,
           spent: 250000,
           remaining: 750000,
-          period: "week",
+          period: "week" as const,
           periodStartDate: "2026-05-25",
           periodEndDate: "2026-05-31",
         },
