@@ -2,6 +2,10 @@
 
 import type { TBudget } from "@/db/schema";
 import type { CreateExpenseInput } from "@/db/type";
+import type {
+  SuggestBudgetRequest,
+  SuggestBudgetResponse,
+} from "@/lib/ai/suggest-budget-contract";
 import { ApiResponseError, unwrapApiResponse } from "@/lib/api/api-response";
 import { queries } from "@/lib/queries";
 import type {
@@ -340,6 +344,19 @@ export const useDeleteExpenseMutation = () => {
     },
   });
 };
+
+export const useSuggestBudgetMutation = () =>
+  useMutation({
+    mutationFn: (input: SuggestBudgetRequest) =>
+      fetchJsonMutation<SuggestBudgetResponse, SuggestBudgetRequest>(
+        "/api/ai/suggest-budget",
+        {
+          method: "POST",
+          body: input,
+          fallbackError: "Failed to suggest budget",
+        }
+      ),
+  });
 
 export const useCreateBudgetMutation = () => {
   const queryClient = useQueryClient();

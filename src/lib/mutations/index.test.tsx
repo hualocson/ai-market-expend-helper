@@ -7,6 +7,7 @@ import {
   useCreateExpenseMutation,
   useDeleteBudgetMutation,
   useDeleteExpenseMutation,
+  useSuggestBudgetMutation,
   useTransferBudgetMutation,
   useUpdateBudgetMutation,
   useUpdateExpenseMutation,
@@ -415,6 +416,68 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly._def,
     });
+  });
+
+  it("suggests a budget through the AI route and unwraps the response", async () => {
+    const input = {
+      note: "Weekly groceries",
+      budgets: [
+        {
+          id: 1,
+          name: "Groceries",
+          amount: 1000000,
+          spent: 250000,
+          remaining: 750000,
+          period: "week",
+          periodStartDate: "2026-05-25",
+          periodEndDate: "2026-05-31",
+        },
+      ],
+    };
+    const responsePayload = {
+      status: "success",
+      budgetId: 1,
+      confidence: "high",
+      reason: "The note matches Groceries.",
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(successEnvelope(responsePayload)));
+    const { result } = renderMutationHook(() => useSuggestBudgetMutation());
+
+    await expect(result.current.mutateAsync(input)).resolves.toEqual(
+      responsePayload
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/ai/suggest-budget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("throws the API error message when budget suggestion fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: false,
+          error: {
+            code: "AI_BUDGET_SUGGESTION_FAILED",
+            message: "Unable to suggest a budget",
+          },
+        },
+        { status: 500 }
+      )
+    );
+    const { result } = renderMutationHook(() => useSuggestBudgetMutation());
+
+    await expect(
+      result.current.mutateAsync({
+        note: "Weekly groceries",
+        budgets: [],
+      })
+    ).rejects.toThrow("Unable to suggest a budget");
   });
 
   it("requests expense sync after budget updates and deletes refresh expense snapshots", async () => {
