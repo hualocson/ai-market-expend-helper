@@ -52,8 +52,8 @@ Context:
 
 Rules:
 - Choose only from the provided budget ids. Never invent a budget id or budget name.
-- Use budget name as the primary signal. Use period and remaining amount only as supporting context.
-- Prefer semantic fit over remaining amount.
+- Use budget name as the primary signal.
+- Prefer semantic fit.
 - When two or more budgets fit, pick the most specific one (e.g. "Ăn trưa" over a broader "Ăn uống") and lower confidence accordingly. Never return no_match just because more than one budget could fit.
 - Return no_match only when no provided budget has any plausible semantic connection to the note.
 - Write "reason" in Vietnamese, one short sentence.
@@ -133,9 +133,6 @@ const buildUserPrompt = (note: string, budgets: SuggestBudgetCandidate[]) =>
     budgets: budgets.map((budget) => ({
       id: budget.id,
       name: budget.name,
-      amount: budget.amount,
-      spent: budget.spent,
-      remaining: budget.remaining,
       period: budget.period,
       periodStartDate: budget.periodStartDate,
       periodEndDate: budget.periodEndDate,

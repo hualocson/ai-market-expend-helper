@@ -38,6 +38,16 @@ const createResponse = (content: unknown, ok = true) =>
     }),
   }) as unknown as Response;
 
+const getPostedMessages = (fetchFn: ReturnType<typeof vi.fn>) => {
+  const body = fetchFn.mock.calls[0]?.[1]?.body;
+  expect(typeof body).toBe("string");
+
+  const payload = JSON.parse(body as string) as {
+    messages: Array<{ role: string; content: string }>;
+  };
+  return payload.messages;
+};
+
 describe("suggestBudget", () => {
   it("returns no_match when note is empty or no budgets are provided", async () => {
     await expect(
@@ -297,6 +307,66 @@ describe("suggestBudget", () => {
       reason: "The note is about household food.",
     });
     expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
+  it("omits budget amounts from the provider prompts", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createResponse(
+        JSON.stringify({
+          status: "success",
+          budgetId: 1,
+          confidence: "medium",
+          reason: "The note is about household food.",
+        })
+      )
+    );
+
+    await expect(
+      suggestBudget({
+        note: "weekly market refill",
+        budgets,
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "success",
+      budgetId: 1,
+      confidence: "medium",
+      reason: "The note is about household food.",
+    });
+
+    const messages = getPostedMessages(fetchFn);
+    const systemPrompt = messages.find(
+      (message) => message.role === "system"
+    )?.content;
+    const userPrompt = messages.find(
+      (message) => message.role === "user"
+    )?.content;
+
+    expect(systemPrompt).toBeDefined();
+    expect(systemPrompt).not.toMatch(/\bamount\b|remaining|spent|\bperiod\b/i);
+
+    expect(userPrompt).toBeDefined();
+    expect(JSON.parse(userPrompt as string)).toEqual({
+      note: "weekly market refill",
+      budgets: [
+        {
+          id: 1,
+          name: "Groceries",
+          period: "month",
+        },
+        {
+          id: 2,
+          name: "Coffee",
+          period: "month",
+        },
+        {
+          id: 3,
+          name: "Transport",
+          period: "month",
+        },
+      ],
+    });
   });
 
   it("returns fallback when the provider invents a budget id", async () => {
