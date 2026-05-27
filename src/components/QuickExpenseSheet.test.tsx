@@ -34,6 +34,7 @@ const recoveryStoreMock = vi.hoisted(() => ({
 const mutationMocks = vi.hoisted(() => ({
   createMutateAsync: vi.fn(),
   updateMutateAsync: vi.fn(),
+  suggestBudgetMutateAsync: vi.fn(),
 }));
 
 vi.mock("@/stores/quick-expense-recovery-store", async () => {
@@ -56,6 +57,9 @@ vi.mock("@/lib/mutations", () => ({
   }),
   useUpdateExpenseMutation: () => ({
     mutateAsync: mutationMocks.updateMutateAsync,
+  }),
+  useSuggestBudgetMutation: () => ({
+    mutateAsync: mutationMocks.suggestBudgetMutateAsync,
   }),
 }));
 
@@ -131,6 +135,10 @@ beforeEach(() => {
   });
   mutationMocks.updateMutateAsync.mockResolvedValue({
     clientId: "expense-client-1",
+  });
+  mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+    status: "no_match",
+    reason: "No provided budget clearly fits this note.",
   });
   weeklyBudgetOptionsMock.mockResolvedValue([]);
 });
@@ -462,6 +470,309 @@ describe("QuickExpenseSheet — fields", () => {
 
     await waitFor(() => expect(note).not.toHaveFocus());
     expect(amount).not.toHaveFocus();
+  });
+});
+
+describe("QuickExpenseSheet — budget suggestion", () => {
+  const suggestionBudgets = [
+    budgetOption({
+      id: 7,
+      name: "Coffee",
+      icon: "☕",
+      color: "amber",
+      period: "week",
+      periodStartDate: "2026-05-25",
+      periodEndDate: "2026-05-31",
+      amount: 300000,
+      spent: 125000,
+      remaining: 175000,
+    }),
+    budgetOption({
+      id: 8,
+      name: "Transport",
+      icon: "🚕",
+      color: "sky",
+      period: "month",
+      periodStartDate: "2026-05-01",
+      periodEndDate: "2026-05-31",
+      amount: 800000,
+      spent: 250000,
+      remaining: 550000,
+    }),
+  ];
+
+  const openSheetWithBudgets = async (
+    budgets: BudgetWeeklyOption[] = suggestionBudgets
+  ) => {
+    weeklyBudgetOptionsMock.mockResolvedValue(budgets);
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("radiogroup", { name: /^budget$/i })
+      ).toHaveAttribute("aria-busy", "false")
+    );
+    return user;
+  };
+
+  it("sends budget candidates on note blur and preselects a high-confidence match", async () => {
+    const user = await openSheetWithBudgets();
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 7,
+      confidence: "high",
+      reason: "Coffee team expense",
+    });
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "coffee with team");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledWith({
+        note: "coffee with team",
+        budgets: [
+          {
+            id: 7,
+            name: "Coffee",
+            amount: 300000,
+            spent: 125000,
+            remaining: 175000,
+            period: "week",
+            periodStartDate: "2026-05-25",
+            periodEndDate: "2026-05-31",
+          },
+          {
+            id: 8,
+            name: "Transport",
+            amount: 800000,
+            spent: 250000,
+            remaining: 550000,
+            period: "month",
+            periodStartDate: "2026-05-01",
+            periodEndDate: "2026-05-31",
+          },
+        ],
+      })
+    );
+
+    expect(
+      await screen.findByRole("button", { name: /coffee/i, pressed: true })
+    ).toBeInTheDocument();
+    expect(mutationMocks.createMutateAsync).not.toHaveBeenCalled();
+    expect(mutationMocks.updateMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("does not request a duplicate suggestion for the same note and candidates", async () => {
+    const user = await openSheetWithBudgets();
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "shared note");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1)
+    );
+
+    await user.click(note);
+    await user.tab();
+
+    expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not overwrite a manually selected budget with a later AI suggestion", async () => {
+    const user = await openSheetWithBudgets();
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 8,
+      confidence: "high",
+      reason: "Transport expense",
+    });
+
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
+    await user.click(await screen.findByRole("button", { name: /coffee/i }));
+
+    expect(
+      screen.getByRole("button", { name: /coffee/i, pressed: true })
+    ).toBeInTheDocument();
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "taxi to office");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalled()
+    );
+
+    expect(
+      screen.getByRole("button", { name: /coffee/i, pressed: true })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /transport/i, pressed: true })
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores a suggestion response when the note changed after blur", async () => {
+    let resolveSuggestion!: (value: {
+      status: "success";
+      budgetId: number;
+      confidence: "high";
+      reason: string;
+    }) => void;
+    mutationMocks.suggestBudgetMutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSuggestion = resolve;
+        })
+    );
+    const user = await openSheetWithBudgets();
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "coffee with team");
+    await user.tab();
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalled()
+    );
+
+    await user.click(note);
+    await user.clear(note);
+    await user.type(note, "taxi home");
+
+    await act(async () => {
+      resolveSuggestion({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      });
+    });
+
+    expect(
+      screen.getByRole("button", { name: /no budget/i, pressed: true })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /coffee/i, pressed: true })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not overwrite a manually cleared No budget selection with a later AI suggestion", async () => {
+    const user = await openSheetWithBudgets();
+    mutationMocks.suggestBudgetMutateAsync
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 8,
+        confidence: "high",
+        reason: "Transport expense",
+      });
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "coffee with team");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /coffee/i, pressed: true })
+      ).toBeInTheDocument()
+    );
+
+    await user.click(screen.getByRole("button", { name: /coffee/i }));
+    await user.click(await screen.findByRole("button", { name: /no budget/i }));
+
+    expect(
+      screen.getByRole("button", { name: /no budget/i, pressed: true })
+    ).toBeInTheDocument();
+
+    await user.click(note);
+    await user.clear(note);
+    await user.type(note, "taxi to office");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
+    );
+
+    expect(
+      screen.getByRole("button", { name: /no budget/i, pressed: true })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /transport/i, pressed: true })
+    ).not.toBeInTheDocument();
+  });
+
+  it("suggests the same note again after candidate budgets change", async () => {
+    weeklyBudgetOptionsMock.mockImplementation(
+      async (_weekStart, targetDate) =>
+        targetDate === "2026-05-20"
+          ? [suggestionBudgets[1]]
+          : [suggestionBudgets[0]]
+    );
+    mutationMocks.suggestBudgetMutateAsync
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 7,
+        confidence: "high",
+        reason: "Coffee team expense",
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        budgetId: 8,
+        confidence: "high",
+        reason: "Transport expense",
+      });
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("radiogroup", { name: /^budget$/i })
+      ).toHaveAttribute("aria-busy", "false")
+    );
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "shared note");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(1)
+    );
+    expect(
+      await screen.findByRole("button", { name: /coffee/i, pressed: true })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^date:/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /pick mocked date/i })
+    );
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
+    await waitFor(() =>
+      expect(weeklyBudgetOptionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        "2026-05-20"
+      )
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /no budget/i, pressed: true })
+      ).toBeInTheDocument()
+    );
+
+    await user.click(note);
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledTimes(2)
+    );
+    expect(
+      await screen.findByRole("button", { name: /transport/i, pressed: true })
+    ).toBeInTheDocument();
   });
 });
 

@@ -6,6 +6,7 @@ import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
+import type { SuggestBudgetCandidate } from "@/lib/ai/suggest-budget-contract";
 import type { BudgetColorId } from "@/lib/budget-appearance";
 import {
   EXPENSE_PREFILL_EVENT,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/expense-prefill";
 import {
   useCreateExpenseMutation,
+  useSuggestBudgetMutation,
   useUpdateExpenseMutation,
 } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
@@ -93,6 +95,7 @@ export type TQuickExpenseSheetInitialExpense = {
 
 export type TExpenseDraft = TQuickExpenseDraft;
 type TRestorableInputFocus = "note" | "amount" | null;
+type BudgetSelectionSource = "none" | "manual" | "ai";
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
@@ -236,6 +239,7 @@ const QuickExpenseSheet = ({
   const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
   const { mutateAsync: createExpense } = useCreateExpenseMutation();
   const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
+  const { mutateAsync: suggestBudgetMutateAsync } = useSuggestBudgetMutation();
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -256,6 +260,34 @@ const QuickExpenseSheet = ({
   const [queueing, setQueueing] = useState(false);
 
   const canSubmit = draft.amount > 0 && !queueing;
+  const noteRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const sheetOpenRef = useRef(sheetOpen);
+  const pendingDrawerFocusRestoreRef = useRef<TRestorableInputFocus>(null);
+  const budgetSelectionSourceRef = useRef<BudgetSelectionSource>(
+    recoveryDraft || isEditMode ? "manual" : "none"
+  );
+  const currentNoteRef = useRef(draft.note);
+  const currentSuggestionCandidateKeyRef = useRef("");
+  const lastSuggestionSnapshotRef = useRef<string | null>(null);
+  const suggestionRequestIdRef = useRef(0);
+  const previousControlledOpenRef = useRef(open);
+  sheetOpenRef.current = sheetOpen;
+  currentNoteRef.current = draft.note;
+  useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
+
+  const getOpenBudgetSelectionSource = (): BudgetSelectionSource =>
+    recoveryDraft || isEditMode ? "manual" : "none";
+
+  const resetSuggestionTracking = (
+    nextDraft: TExpenseDraft,
+    source: BudgetSelectionSource
+  ) => {
+    budgetSelectionSourceRef.current = source;
+    currentNoteRef.current = nextDraft.note;
+    lastSuggestionSnapshotRef.current = null;
+    suggestionRequestIdRef.current += 1;
+  };
 
   const handleOpenChange = (next: boolean) => {
     if (typeof open !== "boolean") {
@@ -267,11 +299,15 @@ const QuickExpenseSheet = ({
       setAmountFocused(false);
       setDeleteConfirmOpen(false);
       if (!isEditMode) {
-        setDraft(buildDefaultDraft(fallbackPaidBy));
+        const nextDraft = buildDefaultDraft(fallbackPaidBy);
+        setDraft(nextDraft);
+        resetSuggestionTracking(nextDraft, "none");
       }
       return;
     }
-    setDraft(buildDraftForOpen());
+    const nextDraft = buildDraftForOpen();
+    setDraft(nextDraft);
+    resetSuggestionTracking(nextDraft, getOpenBudgetSelectionSource());
   };
 
   const targetDate = useMemo(() => {
@@ -292,6 +328,39 @@ const QuickExpenseSheet = ({
     gcTime: 30 * 60 * 1000,
     retry: false,
   });
+  const budgetOptions = budgetOptionsQuery.data ?? [];
+  const suggestionCandidates = useMemo<SuggestBudgetCandidate[]>(
+    () =>
+      budgetOptions.map((budget) => ({
+        id: budget.id,
+        name: budget.name,
+        amount: budget.amount,
+        spent: budget.spent,
+        remaining: budget.remaining,
+        period: budget.period,
+        periodStartDate: budget.periodStartDate ?? undefined,
+        periodEndDate: budget.periodEndDate,
+      })),
+    [budgetOptions]
+  );
+  const suggestionCandidateKey = useMemo(
+    () =>
+      JSON.stringify({
+        targetDate,
+        candidates: suggestionCandidates.map((budget) => ({
+          id: budget.id,
+          name: budget.name,
+          amount: budget.amount,
+          spent: budget.spent,
+          remaining: budget.remaining,
+          period: budget.period,
+          periodStartDate: budget.periodStartDate ?? null,
+          periodEndDate: budget.periodEndDate ?? null,
+        })),
+      }),
+    [suggestionCandidates, targetDate]
+  );
+  currentSuggestionCandidateKeyRef.current = suggestionCandidateKey;
 
   const handleSubmit = () => {
     if (!canSubmit) {
@@ -307,9 +376,8 @@ const QuickExpenseSheet = ({
     const selectedBudget =
       draft.budgetId === null
         ? null
-        : (budgetOptionsQuery.data?.find(
-            (budget) => budget.id === draft.budgetId
-          ) ?? null);
+        : (budgetOptions.find((budget) => budget.id === draft.budgetId) ??
+          null);
     const submittedDraft = cloneExpenseDraft({
       ...draft,
       budgetName:
@@ -360,17 +428,15 @@ const QuickExpenseSheet = ({
     }
   };
 
-  const noteRef = useRef<HTMLInputElement>(null);
-  const amountRef = useRef<HTMLInputElement>(null);
-  const sheetOpenRef = useRef(sheetOpen);
-  const pendingDrawerFocusRestoreRef = useRef<TRestorableInputFocus>(null);
-  sheetOpenRef.current = sheetOpen;
-  useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
-
   const setField = <K extends keyof TExpenseDraft>(
     key: K,
     value: TExpenseDraft[K]
-  ) => setDraft((prev) => ({ ...prev, [key]: value }));
+  ) => {
+    if (key === "note") {
+      currentNoteRef.current = String(value);
+    }
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleDrawerTriggerPointerDown = (
     event: React.PointerEvent<HTMLButtonElement>,
@@ -437,15 +503,37 @@ const QuickExpenseSheet = ({
   };
 
   useEffect(() => {
+    const previousControlledOpen = previousControlledOpenRef.current;
+    previousControlledOpenRef.current = open;
+    if (
+      typeof open !== "boolean" ||
+      !open ||
+      previousControlledOpen === open ||
+      recoveryDraft ||
+      isEditMode
+    ) {
+      return;
+    }
+
+    const nextDraft = buildDefaultDraft(fallbackPaidBy);
+    setDraft(nextDraft);
+    resetSuggestionTracking(nextDraft, "none");
+  }, [fallbackPaidBy, isEditMode, open, recoveryDraft]);
+
+  useEffect(() => {
     if (!sheetOpen) {
       return;
     }
     if (recoveryDraft) {
-      setDraft({ ...recoveryDraft });
+      const nextDraft = { ...recoveryDraft };
+      setDraft(nextDraft);
+      resetSuggestionTracking(nextDraft, "manual");
       return;
     }
     if (isEditMode) {
-      setDraft(buildDraftFromExpense(initialExpense, fallbackPaidBy));
+      const nextDraft = buildDraftFromExpense(initialExpense, fallbackPaidBy);
+      setDraft(nextDraft);
+      resetSuggestionTracking(nextDraft, "manual");
     }
   }, [fallbackPaidBy, initialExpense, isEditMode, recoveryDraft, sheetOpen]);
 
@@ -458,14 +546,18 @@ const QuickExpenseSheet = ({
       if (!detail) {
         return;
       }
-      setDraft((prev) => ({
-        ...prev,
-        amount: detail.amount,
-        note: detail.note,
-        category: detail.category
-          ? normalizeCategory(detail.category)
-          : prev.category,
-      }));
+      setDraft((prev) => {
+        const nextDraft = {
+          ...prev,
+          amount: detail.amount,
+          note: detail.note,
+          category: detail.category
+            ? normalizeCategory(detail.category)
+            : prev.category,
+        };
+        resetSuggestionTracking(nextDraft, "none");
+        return nextDraft;
+      });
       if (typeof open !== "boolean") {
         setInternalOpen(true);
       }
@@ -479,9 +571,7 @@ const QuickExpenseSheet = ({
     if (draft.budgetId === null || !budgetOptionsQuery.isSuccess) {
       return;
     }
-    if (
-      !budgetOptionsQuery.data.some((budget) => budget.id === draft.budgetId)
-    ) {
+    if (!budgetOptions.some((budget) => budget.id === draft.budgetId)) {
       setDraft((prev) => ({
         ...prev,
         budgetId: null,
@@ -489,8 +579,83 @@ const QuickExpenseSheet = ({
         budgetIcon: null,
         budgetColor: null,
       }));
+      if (budgetSelectionSourceRef.current === "ai") {
+        budgetSelectionSourceRef.current = "none";
+      }
     }
-  }, [draft.budgetId, budgetOptionsQuery.data, budgetOptionsQuery.isSuccess]);
+  }, [draft.budgetId, budgetOptions, budgetOptionsQuery.isSuccess]);
+
+  const applySuggestedBudget = (suggestedBudgetId: number) => {
+    const selected = budgetOptions.find(
+      (budget) => budget.id === suggestedBudgetId
+    );
+    if (!selected) {
+      return;
+    }
+
+    setDraft((prev) => ({
+      ...prev,
+      budgetId: selected.id,
+      budgetName: selected.name ?? null,
+      budgetIcon: selected.icon ?? null,
+      budgetColor: selected.color ?? null,
+    }));
+    budgetSelectionSourceRef.current = "ai";
+  };
+
+  const handleNoteBlur = async () => {
+    if (!sheetOpen || !budgetOptionsQuery.isSuccess) {
+      return;
+    }
+
+    const note = draft.note.trim();
+    if (note.length < 3) {
+      return;
+    }
+    if (!suggestionCandidates.length) {
+      return;
+    }
+
+    const requestCandidateKey = suggestionCandidateKey;
+    const requestSnapshotKey = `${note}\n${requestCandidateKey}`;
+    if (lastSuggestionSnapshotRef.current === requestSnapshotKey) {
+      return;
+    }
+
+    lastSuggestionSnapshotRef.current = requestSnapshotKey;
+    const requestId = suggestionRequestIdRef.current + 1;
+    suggestionRequestIdRef.current = requestId;
+
+    try {
+      const result = await suggestBudgetMutateAsync({
+        note,
+        budgets: suggestionCandidates,
+      });
+
+      if (requestId !== suggestionRequestIdRef.current) {
+        return;
+      }
+      if (!sheetOpenRef.current) {
+        return;
+      }
+      if (currentNoteRef.current.trim() !== note) {
+        return;
+      }
+      if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
+        return;
+      }
+      if (budgetSelectionSourceRef.current === "manual") {
+        return;
+      }
+      if (result.status !== "success" || result.confidence === "low") {
+        return;
+      }
+
+      applySuggestedBudget(result.budgetId);
+    } catch (error) {
+      console.error("Failed to suggest budget", error);
+    }
+  };
 
   const suggestions = useMemo(() => {
     if (draft.amount <= 0) {
@@ -583,6 +748,7 @@ const QuickExpenseSheet = ({
                 ref={noteRef}
                 value={draft.note}
                 onChange={(e) => setField("note", e.target.value)}
+                onBlur={handleNoteBlur}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -652,7 +818,7 @@ const QuickExpenseSheet = ({
             <div className="quick-expense-enter-group quick-expense-enter-delay-3 flex flex-col gap-2">
               <BudgetChipRow
                 value={draft.budgetId}
-                options={budgetOptionsQuery.data ?? []}
+                options={budgetOptions}
                 selectedBudget={
                   draft.budgetId === null
                     ? null
@@ -665,9 +831,10 @@ const QuickExpenseSheet = ({
                 }
                 loading={budgetOptionsQuery.isPending}
                 onChange={(id) => {
-                  const selected = budgetOptionsQuery.data?.find(
+                  const selected = budgetOptions.find(
                     (budget) => budget.id === id
                   );
+                  budgetSelectionSourceRef.current = "manual";
                   setDraft((prev) => ({
                     ...prev,
                     budgetId: id,
