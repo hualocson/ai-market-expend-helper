@@ -204,6 +204,7 @@ const ManualExpenseForm = forwardRef<
     const budgetSelectionSourceRef = useRef<BudgetSelectionSource>(
       initialExpense?.budgetId ? "manual" : "none"
     );
+    const currentNoteRef = useRef(expense.note);
     const lastSuggestedNoteRef = useRef<string | null>(null);
     const suggestionRequestIdRef = useRef(0);
 
@@ -232,6 +233,7 @@ const ManualExpenseForm = forwardRef<
       }
 
       setExpense(buildExpense(initialExpense));
+      currentNoteRef.current = initialExpense?.note ?? defaultExpense.note;
       setPaidBy(normalizePaidBy(initialExpense?.paidBy));
       if (showBudgetSelect) {
         setBudgetId(initialExpense?.budgetId ?? null);
@@ -274,14 +276,20 @@ const ManualExpenseForm = forwardRef<
         ? (prefillExpense.category as Category)
         : defaultExpense.category;
 
-      setExpense((prev) => ({
-        ...prev,
-        amount: Number.isFinite(nextAmount) ? nextAmount : prev.amount,
-        ...(typeof prefillExpense.note !== "undefined"
-          ? { note: prefillExpense.note }
-          : {}),
-        category: nextCategory,
-      }));
+      setExpense((prev) => {
+        const nextNote =
+          typeof prefillExpense.note !== "undefined"
+            ? prefillExpense.note
+            : prev.note;
+        currentNoteRef.current = nextNote;
+
+        return {
+          ...prev,
+          amount: Number.isFinite(nextAmount) ? nextAmount : prev.amount,
+          note: nextNote,
+          category: nextCategory,
+        };
+      });
 
       requestAnimationFrame(() => {
         amountRef.current?.focus();
@@ -456,6 +464,10 @@ const ManualExpenseForm = forwardRef<
       field: keyof TExpense,
       value: string | number
     ) => {
+      if (field === "note") {
+        currentNoteRef.current = String(value);
+      }
+
       setExpense((prev) => ({
         ...prev,
         [field]: value,
@@ -475,7 +487,7 @@ const ManualExpenseForm = forwardRef<
         setBudgetName(value === null ? null : (selected?.name ?? null));
         setBudgetIcon(value === null ? null : (selected?.icon ?? null));
         setBudgetColor(value === null ? null : (selected?.color ?? null));
-        setBudgetSelectionSource(value === null ? "none" : "manual");
+        setBudgetSelectionSource("manual");
       },
       [budgetOptions, setBudgetSelectionSource]
     );
@@ -534,6 +546,9 @@ const ManualExpenseForm = forwardRef<
         });
 
         if (requestId !== suggestionRequestIdRef.current) {
+          return;
+        }
+        if (currentNoteRef.current.trim() !== note) {
           return;
         }
         if (budgetSelectionSourceRef.current === "manual") {
