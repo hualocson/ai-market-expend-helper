@@ -29,6 +29,12 @@ const createResponse = (content: unknown, ok = true) =>
     }),
   }) as unknown as Response;
 
+const createProviderResponse = (body: unknown, ok = true) =>
+  ({
+    ok,
+    json: vi.fn().mockResolvedValue(body),
+  }) as unknown as Response;
+
 describe("callOpenRouterJson", () => {
   it("posts a structured-output chat completion and parses valid JSON", async () => {
     const fetchFn = vi
@@ -108,6 +114,19 @@ describe("callOpenRouterJson", () => {
         })
       ).resolves.toEqual({ ok: false, reason: "invalid_response" });
     }
+  });
+
+  it("returns invalid_response when the provider JSON body is null", async () => {
+    await expect(
+      callOpenRouterJson({
+        apiKey: "test-key",
+        model: "test/model",
+        messages: [{ role: "user", content: "coffee" }],
+        jsonSchema,
+        schema: suggestionSchema,
+        fetchFn: vi.fn().mockResolvedValue(createProviderResponse(null)),
+      })
+    ).resolves.toEqual({ ok: false, reason: "invalid_response" });
   });
 
   it("returns schema_mismatch when parsed JSON does not match the schema", async () => {

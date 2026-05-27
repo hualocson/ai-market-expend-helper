@@ -46,6 +46,15 @@ const readContent = (content: unknown) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+type OpenRouterResponsePayload = {
+  choices?: Array<{ message?: { content?: unknown } }>;
+};
+
+const isOpenRouterResponsePayload = (
+  payload: unknown
+): payload is OpenRouterResponsePayload =>
+  typeof payload === "object" && payload !== null;
+
 export const callOpenRouterJson = async <TSchema extends z.ZodType>({
   apiKey,
   model,
@@ -82,13 +91,15 @@ export const callOpenRouterJson = async <TSchema extends z.ZodType>({
     return { ok: false, reason: "request_failed" };
   }
 
-  let payload: {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
+  let payload: unknown;
 
   try {
-    payload = (await response.json()) as typeof payload;
+    payload = await response.json();
   } catch {
+    return { ok: false, reason: "invalid_response" };
+  }
+
+  if (!isOpenRouterResponsePayload(payload)) {
     return { ok: false, reason: "invalid_response" };
   }
 
