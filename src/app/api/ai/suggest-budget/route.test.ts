@@ -1,3 +1,7 @@
+import {
+  SUGGEST_BUDGET_MAX_BUDGETS,
+  SUGGEST_BUDGET_NOTE_MAX_LENGTH,
+} from "@/lib/ai/suggest-budget-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "./route";
@@ -49,6 +53,52 @@ describe("POST /api/ai/suggest-budget", () => {
         message: "Invalid payload",
       },
     });
+    expect(suggestBudget).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an oversized note", async () => {
+    const response = await POST(
+      createRequest({
+        note: "a".repeat(SUGGEST_BUDGET_NOTE_MAX_LENGTH + 1),
+        budgets,
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
+    });
+    expect(suggestBudget).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an oversized budget list", async () => {
+    const response = await POST(
+      createRequest({
+        note: "coffee with team",
+        budgets: Array.from(
+          { length: SUGGEST_BUDGET_MAX_BUDGETS + 1 },
+          (_, index) => ({
+            ...budgets[0],
+            id: index + 1,
+            name: `Budget ${index + 1}`,
+          })
+        ),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
+    });
+    expect(suggestBudget).not.toHaveBeenCalled();
   });
 
   it("returns 400 for malformed JSON", async () => {
@@ -62,6 +112,7 @@ describe("POST /api/ai/suggest-budget", () => {
         message: "Invalid payload",
       },
     });
+    expect(suggestBudget).not.toHaveBeenCalled();
   });
 
   it("returns suggestion success data for a valid payload", async () => {
@@ -139,10 +190,14 @@ describe("POST /api/ai/suggest-budget", () => {
         message: "Missing OPENROUTER_API_KEY",
       },
     });
+    expect(suggestBudget).not.toHaveBeenCalled();
   });
 
   it("returns 500 when suggestion unexpectedly fails", async () => {
     process.env.OPENROUTER_API_KEY = "test-key";
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     suggestBudget.mockRejectedValue(new Error("OpenRouter failed"));
 
     const response = await POST(
@@ -157,5 +212,6 @@ describe("POST /api/ai/suggest-budget", () => {
         message: "Failed to suggest budget",
       },
     });
+    expect(consoleErrorSpy).toHaveBeenCalledOnce();
   });
 });
