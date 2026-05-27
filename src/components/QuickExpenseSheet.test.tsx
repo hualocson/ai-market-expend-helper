@@ -938,6 +938,33 @@ describe("QuickExpenseSheet — submit", () => {
     });
   });
 
+  it("shows create success toast after the local write resolves", async () => {
+    let resolveCreate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.createMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+    const user = await openSheet();
+
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalled()
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCreate({ clientId: "expense-client-1" });
+    });
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Expense added.")
+    );
+  });
+
   it("opens create mode with a recovery draft after rerender", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
