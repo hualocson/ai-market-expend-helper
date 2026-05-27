@@ -6,7 +6,13 @@ import {
   suggestBudgetModelResponseSchema,
 } from "./suggest-budget-contract";
 
-const MODEL = "openai/gpt-oss-20b:free";
+// Free OpenRouter options for this structured budget-classification task:
+// 1. qwen/qwen3-next-80b-a3b-instruct:free
+// 2. openrouter/owl-alpha
+// 3. nvidia/nemotron-3-super-120b-a12b:free
+// 4. openrouter/free
+// 5. nvidia/nemotron-nano-9b-v2:free
+const MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
 
 const MODEL_JSON_SCHEMA: OpenRouterJsonSchema = {
   name: "suggest_budget",
