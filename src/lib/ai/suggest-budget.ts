@@ -78,6 +78,9 @@ const tokenizeText = (value: string) =>
   value
     .trim()
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/đ/g, "d")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .split(" ")
     .filter(Boolean);

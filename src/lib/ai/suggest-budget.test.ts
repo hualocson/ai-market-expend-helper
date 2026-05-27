@@ -99,6 +99,58 @@ describe("suggestBudget", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("deterministically matches a Vietnamese budget name even when the note omits diacritics", async () => {
+    const fetchFn = vi.fn();
+    const vietnameseBudgets: SuggestBudgetCandidate[] = [
+      {
+        id: 30,
+        name: "Ăn trưa",
+        amount: 1500000,
+        spent: 400000,
+        remaining: 1100000,
+        period: "month",
+      },
+      {
+        id: 31,
+        name: "Đi lại",
+        amount: 800000,
+        spent: 200000,
+        remaining: 600000,
+        period: "month",
+      },
+    ];
+
+    await expect(
+      suggestBudget({
+        note: "an trua voi sep",
+        budgets: vietnameseBudgets,
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "success",
+      budgetId: 30,
+      confidence: "high",
+      reason: "The note contains the budget name Ăn trưa.",
+    });
+
+    await expect(
+      suggestBudget({
+        note: "di lai grab",
+        budgets: vietnameseBudgets,
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "success",
+      budgetId: 31,
+      confidence: "high",
+      reason: "The note contains the budget name Đi lại.",
+    });
+
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it("throws when provider fallback needs a missing api key", async () => {
     await expect(
       suggestBudget({
