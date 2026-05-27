@@ -416,6 +416,9 @@ const QuickExpenseSheet = ({
       handleOpenChange(false);
 
       void localWrite
+        .then(() => {
+          toast.success(isEditMode ? "Expense updated." : "Expense added.");
+        })
         .catch(() => {
           toast.error(
             isEditMode ? "Failed to update expense" : "Failed to add expense"

@@ -938,6 +938,33 @@ describe("QuickExpenseSheet — submit", () => {
     });
   });
 
+  it("shows create success toast after the local write resolves", async () => {
+    let resolveCreate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.createMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+    const user = await openSheet();
+
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalled()
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCreate({ clientId: "expense-client-1" });
+    });
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Expense added.")
+    );
+  });
+
   it("opens create mode with a recovery draft after rerender", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
@@ -1121,6 +1148,35 @@ describe("QuickExpenseSheet — edit mode", () => {
       })
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("shows edit success toast after the local write resolves", async () => {
+    let resolveUpdate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.updateMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      })
+    );
+    const user = userEvent.setup();
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 2, name: "Sports week" }),
+    ]);
+    renderEditSheet();
+
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.updateMutateAsync).toHaveBeenCalled()
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveUpdate({ clientId: "expense-client-1" });
+    });
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Expense updated.")
+    );
   });
 
   it("renders edit footer with Update and an icon-only delete action", async () => {
