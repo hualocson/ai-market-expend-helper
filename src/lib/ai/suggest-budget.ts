@@ -78,6 +78,9 @@ const containsTokenSequence = (tokens: string[], phraseTokens: string[]) => {
   );
 };
 
+const hasDeterministicNameLength = (tokens: string[]) =>
+  tokens.join("").length > 1;
+
 const findDeterministicMatch = (
   note: string,
   budgets: SuggestBudgetCandidate[]
@@ -85,6 +88,10 @@ const findDeterministicMatch = (
   const noteTokens = tokenizeText(note);
   const matches = budgets.filter((budget) => {
     const budgetNameTokens = tokenizeText(budget.name);
+    if (!hasDeterministicNameLength(budgetNameTokens)) {
+      return false;
+    }
+
     return containsTokenSequence(noteTokens, budgetNameTokens);
   });
 

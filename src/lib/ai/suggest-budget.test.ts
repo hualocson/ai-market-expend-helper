@@ -107,6 +107,39 @@ describe("suggestBudget", () => {
     expect(fetchFn).toHaveBeenCalledOnce();
   });
 
+  it("does not deterministically match a one-character budget name", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createResponse(
+        JSON.stringify({
+          status: "no_match",
+          reason: "One-character budget names are too ambiguous.",
+        })
+      )
+    );
+
+    await expect(
+      suggestBudget({
+        note: "buy a snack",
+        budgets: [
+          {
+            id: 11,
+            name: "A",
+            amount: 300000,
+            spent: 50000,
+            remaining: 250000,
+            period: "month",
+          },
+        ],
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toEqual({
+      status: "no_match",
+      reason: "One-character budget names are too ambiguous.",
+    });
+    expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
   it("uses the provider when overlapping budget names are ambiguous", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       createResponse(
