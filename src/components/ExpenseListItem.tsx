@@ -14,7 +14,7 @@ import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { ExpenseListItemSyncStatus } from "@/lib/expenses/list-model";
 import { cn, formatVnd } from "@/lib/utils";
 import { Copy, Pencil, Trash2 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 
@@ -263,51 +263,55 @@ const ExpenseListItem = ({
       ref={containerRef}
       data-expense-list-item
     >
-      {isOpen ? (
-        <motion.div
-          initial={false}
-          animate={{ opacity: 1, x: "0%" }}
-          transition={{
-            type: "spring",
-            stiffness: 500,
-            damping: 40,
-            mass: 0.7,
-            duration: 0.4,
-          }}
-          className="absolute inset-y-0 right-0 z-50 flex items-center justify-end gap-2"
-        >
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            aria-label="Duplicate expense"
-            onClick={handleDuplicate}
-            className="backdrop-blur-md"
+      <AnimatePresence initial={false}>
+        {isOpen ? (
+          <motion.div
+            key="expense-row-actions"
+            initial={{ opacity: 0, x: "100%" }}
+            animate={{ opacity: 1, x: "0%" }}
+            exit={{ opacity: 0, x: "100%" }}
+            transition={{
+              type: "spring",
+              stiffness: 500,
+              damping: 40,
+              mass: 0.7,
+              duration: 0.4,
+            }}
+            className="absolute inset-y-0 right-0 z-50 flex items-center justify-end gap-2"
           >
-            <Copy className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            aria-label="Edit expense"
-            onClick={openEditSheet}
-            className="backdrop-blur-md"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="destructive"
-            aria-label="Delete expense"
-            onClick={handleDeleteRequest}
-            className="backdrop-blur-md"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </motion.div>
-      ) : null}
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              aria-label="Duplicate expense"
+              onClick={handleDuplicate}
+              className="backdrop-blur-md"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              aria-label="Edit expense"
+              onClick={openEditSheet}
+              className="backdrop-blur-md"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              aria-label="Delete expense"
+              onClick={handleDeleteRequest}
+              className="backdrop-blur-md"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <motion.div
         drag="x"

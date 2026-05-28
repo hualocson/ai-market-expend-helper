@@ -14,6 +14,7 @@ vi.mock("@/lib/expense-prefill", () => ({
 }));
 
 vi.mock("motion/react", () => ({
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   motion: {
     div: ({
       children,
@@ -23,6 +24,7 @@ vi.mock("motion/react", () => ({
       dragDirectionLock: _dragDirectionLock,
       dragElastic: _dragElastic,
       dragTransition: _dragTransition,
+      exit: _exit,
       initial: _initial,
       transition: _transition,
       whileDrag: _whileDrag,
@@ -34,6 +36,7 @@ vi.mock("motion/react", () => ({
       dragDirectionLock?: unknown;
       dragElastic?: unknown;
       dragTransition?: unknown;
+      exit?: unknown;
       initial?: unknown;
       transition?: unknown;
       whileDrag?: unknown;
