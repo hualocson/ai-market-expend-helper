@@ -25,8 +25,8 @@ import type {
   BudgetUpdateInput,
   ExpenseBudgetInput,
 } from "@/types/budget-weekly";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 type UpdateExpenseVariables = {
   id: number;
