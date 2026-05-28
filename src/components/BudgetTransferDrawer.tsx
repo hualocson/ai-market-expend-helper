@@ -3,6 +3,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import dayjs from "@/configs/date";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { groupTransferCandidates } from "@/lib/budget-transfer-groups";
 import { useTransferBudgetMutation } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
@@ -166,6 +167,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const transferBudgetMutation = useTransferBudgetMutation();
+  const haptics = useAppHaptics();
 
   const handleSelectSource = useCallback((id: number) => setSourceId(id), []);
 
@@ -255,6 +257,7 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
 
       if (result.ok) {
         toast.success("Funds moved.");
+        haptics.success();
         onOpenChange(false);
         return;
       }
@@ -274,9 +277,11 @@ const BudgetTransferDrawer = ({ open, onOpenChange, destination }: Props) => {
           toast.error("Failed to move funds.");
         }
       }
+      haptics.error();
     } catch (error) {
       console.error(error);
       toast.error("Failed to move funds.");
+      haptics.error();
     } finally {
       setIsSaving(false);
     }

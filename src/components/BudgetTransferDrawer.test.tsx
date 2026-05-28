@@ -7,7 +7,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import BudgetTransferDrawer from "./BudgetTransferDrawer";
 
+const { hapticsMock } = vi.hoisted(() => ({
+  hapticsMock: {
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    selection: vi.fn(),
+    impact: vi.fn(),
+    trigger: vi.fn(),
+  },
+}));
+
 const transferMock = vi.fn();
+
+vi.mock("@/hooks/useAppHaptics", () => ({
+  useAppHaptics: () => hapticsMock,
+}));
 
 vi.mock("@/lib/mutations", () => ({
   useTransferBudgetMutation: () => ({
@@ -61,6 +76,12 @@ beforeEach(() => {
   toastSuccess.mockReset();
   toastError.mockReset();
   useQueryMock.mockReset();
+  hapticsMock.success.mockReset();
+  hapticsMock.warning.mockReset();
+  hapticsMock.error.mockReset();
+  hapticsMock.selection.mockReset();
+  hapticsMock.impact.mockReset();
+  hapticsMock.trigger.mockReset();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 4, 16, 12, 0, 0));
 });
@@ -375,6 +396,91 @@ describe("BudgetTransferDrawer", () => {
     });
     expect(toastSuccess).toHaveBeenCalledWith("Funds moved.");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("triggers success haptics when funds are moved", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const destination = makeBudget({
+      id: 1,
+      name: "Groceries",
+      amount: 100_000,
+    });
+    const source = makeBudget({
+      id: 2,
+      name: "Dining",
+      amount: 200_000,
+      remaining: 150_000,
+    });
+    transferMock.mockResolvedValue({ ok: true });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Use "Dining"/i }));
+    await user.type(screen.getByLabelText(/amount/i), "30000");
+    await user.click(
+      screen.getByRole("button", { name: /move funds/i, hidden: true })
+    );
+
+    expect(
+      await screen.findByRole("button", {
+        name: /move funds/i,
+        hidden: true,
+      })
+    ).toBeInTheDocument();
+    expect(hapticsMock.success).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.error).not.toHaveBeenCalled();
+  });
+
+  it("triggers error haptics when moving funds fails", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const destination = makeBudget({
+      id: 1,
+      name: "Groceries",
+      amount: 100_000,
+    });
+    const source = makeBudget({
+      id: 2,
+      name: "Dining",
+      amount: 200_000,
+      remaining: 150_000,
+    });
+    transferMock.mockResolvedValue({
+      ok: false,
+      code: "NOT_FOUND",
+    });
+    useQueryMock.mockReturnValue(useQueryReturn({ data: [source] }));
+
+    render(
+      <BudgetTransferDrawer
+        open
+        onOpenChange={() => {}}
+        destination={destination}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /select source budget/i })
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Dining/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Use "Dining"/i }));
+    await user.type(screen.getByLabelText(/amount/i), "30000");
+    await user.click(
+      screen.getByRole("button", { name: /move funds/i, hidden: true })
+    );
+
+    expect(hapticsMock.error).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.success).not.toHaveBeenCalled();
   });
 
   it("on INSUFFICIENT_CAP: shows specific toast and keeps drawer open", async () => {
