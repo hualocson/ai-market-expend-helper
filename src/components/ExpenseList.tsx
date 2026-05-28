@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import Link from "next/link";
 
@@ -90,8 +90,6 @@ const ExpenseList = ({
     limit: pageSize,
   };
   const expenseListQuery = queries.expenses.list(params);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [editingExpense, setEditingExpense] =
     useState<ExpenseListItemData | null>(null);
   const [expenseSyncCursorReady, setExpenseSyncCursorReady] = useState(false);
@@ -150,28 +148,6 @@ const ExpenseList = ({
     !isFetchNextPageError
   );
 
-  useEffect(() => {
-    const target = loadMoreRef.current;
-    if (!target || !hasNextPage || isFetchingNextPage || isLoadMoreGated) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void fetchNextPage();
-        }
-      },
-      {
-        root: listContainerRef.current,
-        rootMargin: "240px 0px",
-      }
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isLoadMoreGated]);
-
   const handleEditExpense = useCallback((expense: ExpenseListItemData) => {
     setEditingExpense(expense);
   }, []);
@@ -202,11 +178,7 @@ const ExpenseList = ({
       transition={{ duration: 0.16, ease: "easeOut", delay: 0.14 }}
       className="flex w-full grow flex-col gap-4 overflow-auto"
     >
-      <div
-        id="expense-list"
-        ref={listContainerRef}
-        className={listContainerClassName}
-      >
+      <div id="expense-list" className={listContainerClassName}>
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
@@ -250,10 +222,7 @@ const ExpenseList = ({
         )}
 
         {hasNextPage || isFetchingNextPage || isFetchNextPageError ? (
-          <div
-            ref={isLoadMoreGated ? undefined : loadMoreRef}
-            className="flex justify-center py-3"
-          >
+          <div className="flex justify-center py-3">
             {isFetchNextPageError ? (
               <button
                 type="button"
@@ -272,7 +241,13 @@ const ExpenseList = ({
                 Syncing all expenses before loading more.
               </span>
             ) : (
-              <span className="sr-only">Loading more transactions</span>
+              <button
+                type="button"
+                onClick={() => void fetchNextPage()}
+                className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+              >
+                Load more
+              </button>
             )}
           </div>
         ) : null}
