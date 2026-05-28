@@ -277,7 +277,7 @@ const ExpenseListItem = ({
               mass: 0.7,
               duration: 0.4,
             }}
-            className="absolute inset-y-0 right-0 z-50 flex items-center justify-end gap-2"
+            className="absolute inset-y-0 right-0 z-50 mr-4 flex items-center justify-end gap-2"
           >
             <Button
               type="button"
@@ -336,9 +336,6 @@ const ExpenseListItem = ({
         whileDrag={{ cursor: "grabbing" }}
         animate={{
           opacity: isOpen ? 0.3 : 1,
-          paddingLeft: isOpen ? 8 : 0,
-          paddingRight: isOpen ? 8 : 0,
-          scale: isOpen ? 0.96 : 1,
         }}
         transition={{ duration: 0.3 }}
       >
