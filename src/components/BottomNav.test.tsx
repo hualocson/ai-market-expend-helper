@@ -73,6 +73,14 @@ describe("BottomNav", () => {
     expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
   });
 
+  it("does not render on child routes of the compact bottom nav preview", () => {
+    pathnameState.value = "/dev/bottom-nav/child";
+
+    render(<BottomNav />);
+
+    expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
+  });
+
   it("triggers medium impact haptics when the add expense button is clicked", async () => {
     const user = userEvent.setup();
 
