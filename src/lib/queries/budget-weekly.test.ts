@@ -20,6 +20,27 @@ describe("budget weekly query helpers", () => {
     );
   });
 
+  it("normalizes omitted target date in option query keys to null", () => {
+    expect(budgetWeeklyOptionsQueryKey("2026-05-17")).toEqual([
+      "budgetWeekly",
+      "options",
+      "2026-05-17",
+      null,
+    ]);
+    expect(budgetWeeklyOptionsQueryKey("2026-05-17", undefined)).toEqual([
+      "budgetWeekly",
+      "options",
+      "2026-05-17",
+      null,
+    ]);
+    expect(budgetWeeklyOptionsQueryKey("2026-05-17", "2026-05-20")).toEqual([
+      "budgetWeekly",
+      "options",
+      "2026-05-17",
+      "2026-05-20",
+    ]);
+  });
+
   it("invalidates all weekly budget option caches", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
