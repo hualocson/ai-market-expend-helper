@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 
 import { useWebHaptics } from "web-haptics/react";
 
@@ -21,14 +21,7 @@ export type AppHaptics = {
 };
 
 export function useAppHaptics(): AppHaptics {
-  const { trigger: triggerHaptic } = useWebHaptics();
-
-  const trigger = useCallback(
-    (type?: AppHapticType) => {
-      triggerHaptic(type);
-    },
-    [triggerHaptic]
-  );
+  const { trigger } = useWebHaptics();
 
   return useMemo(
     () => ({
