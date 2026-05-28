@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import BottomNav from "./BottomNav";
 
-const { hapticsMock, pathnameState } = vi.hoisted(() => ({
+const { hapticsMock, pathnameState, routerPushMock } = vi.hoisted(() => ({
   hapticsMock: {
     success: vi.fn(),
     warning: vi.fn(),
@@ -18,6 +18,7 @@ const { hapticsMock, pathnameState } = vi.hoisted(() => ({
   pathnameState: {
     value: "/",
   },
+  routerPushMock: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAppHaptics", () => ({
@@ -26,6 +27,9 @@ vi.mock("@/hooks/useAppHaptics", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameState.value,
+  useRouter: () => ({
+    push: routerPushMock,
+  }),
 }));
 
 vi.mock("@/components/QuickExpenseDrawer", () => ({
@@ -47,6 +51,7 @@ const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
 beforeEach(() => {
   (globalThis as unknown as Record<string, unknown>).React = React;
   pathnameState.value = "/";
+  routerPushMock.mockReset();
   hapticsMock.success.mockReset();
   hapticsMock.warning.mockReset();
   hapticsMock.error.mockReset();
@@ -65,20 +70,134 @@ afterEach(() => {
 });
 
 describe("BottomNav", () => {
-  it("does not render on the compact bottom nav preview route", () => {
-    pathnameState.value = "/dev/bottom-nav";
+  it("does not render on hidden routes", () => {
+    pathnameState.value = "/ai";
 
     render(<BottomNav />);
 
     expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
   });
 
-  it("does not render on child routes of the compact bottom nav preview", () => {
-    pathnameState.value = "/dev/bottom-nav/child";
+  it("renders collapsed primary controls as buttons", () => {
+    render(<BottomNav />);
+
+    expect(screen.getByRole("button", { name: /home/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: /^budget$/i })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(
+      screen.getByRole("button", { name: /expand navigation/i })
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: /^report$/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add expense/i })
+    ).toBeInTheDocument();
+  });
+
+  it("pushes routes from collapsed nav buttons and updates local active state", async () => {
+    const user = userEvent.setup();
 
     render(<BottomNav />);
 
-    expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^budget$/i }));
+
+    expect(routerPushMock).toHaveBeenCalledTimes(1);
+    expect(routerPushMock).toHaveBeenCalledWith("/budgets");
+    expect(screen.getByRole("button", { name: /^budget$/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: /home/i })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
+
+  it("expands into a vertical menu and pushes routes from expanded items", async () => {
+    const user = userEvent.setup();
+
+    render(<BottomNav />);
+
+    await user.click(
+      screen.getByRole("button", { name: /expand navigation/i })
+    );
+
+    const menuButtons = screen
+      .getAllByRole("button")
+      .filter((button) =>
+        ["Home", "Budget", "Report", "Settings"].includes(
+          button.getAttribute("aria-label") ?? ""
+        )
+      );
+
+    expect(
+      menuButtons.map((button) => button.getAttribute("aria-label"))
+    ).toEqual(["Home", "Budget", "Report", "Settings"]);
+
+    await user.click(screen.getByRole("button", { name: /^report$/i }));
+
+    expect(routerPushMock).toHaveBeenCalledWith("/report");
+    expect(
+      screen.getByRole("button", { name: /expand navigation/i })
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: /^report$/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("syncs local active state from the current route", async () => {
+    const user = userEvent.setup();
+    pathnameState.value = "/report/weekly";
+
+    const { rerender } = render(<BottomNav />);
+
+    await user.click(
+      screen.getByRole("button", { name: /expand navigation/i })
+    );
+
+    expect(screen.getByRole("button", { name: /^report$/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    pathnameState.value = "/reporting";
+    rerender(<BottomNav />);
+
+    expect(screen.getByRole("button", { name: /^report$/i })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
+
+  it("closes the expanded menu when clicking outside", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <button type="button">Outside target</button>
+        <BottomNav />
+      </>
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /expand navigation/i })
+    );
+
+    await user.click(screen.getByRole("button", { name: /outside target/i }));
+
+    expect(
+      screen.getByRole("button", { name: /expand navigation/i })
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: /^report$/i })
+    ).not.toBeInTheDocument();
   });
 
   it("triggers medium impact haptics when the add expense button is clicked", async () => {
@@ -90,23 +209,5 @@ describe("BottomNav", () => {
 
     expect(hapticsMock.impact).toHaveBeenCalledTimes(1);
     expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
-  });
-
-  it("only marks section links active for exact or child routes", () => {
-    pathnameState.value = "/reporting";
-
-    const { rerender } = render(<BottomNav />);
-
-    expect(screen.getByRole("link", { name: /reports/i })).not.toHaveAttribute(
-      "aria-current"
-    );
-
-    pathnameState.value = "/report/weekly";
-    rerender(<BottomNav />);
-
-    expect(screen.getByRole("link", { name: /reports/i })).toHaveAttribute(
-      "aria-current",
-      "page"
-    );
   });
 });

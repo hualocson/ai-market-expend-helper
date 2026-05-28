@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-const FULL_BLEED_PATHS = ["/ai", "/dev/bottom-nav"];
+const FULL_BLEED_PATHS = ["/ai"];
 
 const AppMain = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
