@@ -1,8 +1,13 @@
 "use client";
 
-import type { PropsWithChildren } from "react";
-import { useEffect, useRef, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
 
@@ -22,6 +27,8 @@ export function PullToRefresh({ children }: PropsWithChildren) {
   const canPull = useRef(false);
   const pullDistanceRef = useRef(0);
   const isRefreshingRef = useRef(false);
+  const haptics = useAppHaptics();
+  const hasTriggeredThresholdHaptic = useRef(false);
 
   // Detect if device is mobile/touch-enabled
   useEffect(() => {
@@ -66,33 +73,36 @@ export function PullToRefresh({ children }: PropsWithChildren) {
       }
 
       // Check if touch is on a child scrollable element (not root)
-      const target = e.target as HTMLElement;
-      let element = target;
-      while (
-        element &&
-        element !== document.body &&
-        element !== document.documentElement
-      ) {
-        const style = window.getComputedStyle(element);
-        const overflowY = style.overflowY;
-        const isScrollable =
-          overflowY === "auto" ||
-          overflowY === "scroll" ||
-          overflowY === "overlay";
+      const target = e.target;
+      if (target instanceof HTMLElement) {
+        let element: HTMLElement | null = target;
+        while (
+          element &&
+          element !== document.body &&
+          element !== document.documentElement
+        ) {
+          const style = window.getComputedStyle(element);
+          const overflowY = style.overflowY;
+          const isScrollable =
+            overflowY === "auto" ||
+            overflowY === "scroll" ||
+            overflowY === "overlay";
 
-        if (isScrollable && element.scrollHeight > element.clientHeight) {
-          // Touch is on a scrollable child element, skip pull-to-refresh
-          canPull.current = false;
-          return;
+          if (isScrollable && element.scrollHeight > element.clientHeight) {
+            // Touch is on a scrollable child element, skip pull-to-refresh
+            canPull.current = false;
+            return;
+          }
+
+          element = element.parentElement;
         }
-
-        element = element.parentElement as HTMLElement;
       }
 
       // Only allow pull-to-refresh when at the top of the HTML/root scroll
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       canPull.current = scrollTop === 0;
       touchStartY.current = e.touches[0].clientY;
+      hasTriggeredThresholdHaptic.current = false;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -115,11 +125,19 @@ export function PullToRefresh({ children }: PropsWithChildren) {
         const distance = Math.min(pullDist * resistance, MAX_PULL_DISTANCE);
         setIsReleasing(false);
         setPullDistance(distance);
+        if (
+          distance >= PULL_THRESHOLD &&
+          !hasTriggeredThresholdHaptic.current
+        ) {
+          hasTriggeredThresholdHaptic.current = true;
+          haptics.impact("light");
+        }
       }
     };
 
     const handleTouchEnd = () => {
       if (!canPull.current || isRefreshingRef.current) {
+        hasTriggeredThresholdHaptic.current = false;
         setIsReleasing(true);
         setPullDistance(0);
         return;
@@ -137,11 +155,13 @@ export function PullToRefresh({ children }: PropsWithChildren) {
       }
 
       canPull.current = false;
+      hasTriggeredThresholdHaptic.current = false;
     };
 
     const handleTouchCancel = () => {
       // Reset state on gesture interruption (e.g., incoming call, notification)
       canPull.current = false;
+      hasTriggeredThresholdHaptic.current = false;
       setIsReleasing(true);
       setPullDistance(0);
     };
@@ -161,7 +181,7 @@ export function PullToRefresh({ children }: PropsWithChildren) {
       document.removeEventListener("touchend", handleTouchEnd);
       document.removeEventListener("touchcancel", handleTouchCancel);
     };
-  }, [isMobile]);
+  }, [haptics, isMobile]);
 
   if (!isMobile) {
     return <>{children}</>;
