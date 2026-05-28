@@ -12,21 +12,56 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseList from "./ExpenseList";
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    prefetch,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    href: string;
+    prefetch?: boolean;
+  }) => (
+    <a
+      href={href}
+      data-prefetch={prefetch === false ? "false" : "true"}
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+}));
+
 vi.mock("@/components/ExpenseListItem", () => ({
   default: ({
+    actionOpen,
     expense,
+    onActionOpenChange,
+    onDeleteExpense,
     onEditExpense,
   }: {
-    expense: { note: string };
-    onEditExpense: (expense: { note: string }) => void;
+    actionOpen: boolean;
+    expense: { id: number; note: string };
+    onActionOpenChange: (open: boolean) => void;
+    onDeleteExpense: (expense: { id: number; note: string }) => void;
+    onEditExpense: (expense: { id: number; note: string }) => void;
   }) => (
-    <button
-      type="button"
-      data-testid="expense-item"
-      onClick={() => onEditExpense(expense)}
-    >
-      {expense.note}
-    </button>
+    <div data-action-open={String(actionOpen)} data-testid="expense-item">
+      <button type="button" onClick={() => onEditExpense(expense)}>
+        {expense.note}
+      </button>
+      <button type="button" onClick={() => onActionOpenChange(true)}>
+        Open actions {expense.note}
+      </button>
+      <button type="button" onClick={() => onActionOpenChange(false)}>
+        Close actions {expense.note}
+      </button>
+      {actionOpen ? (
+        <button type="button" onClick={() => onDeleteExpense(expense)}>
+          Request delete {expense.note}
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -40,6 +75,23 @@ vi.mock("@/components/ExpenseEditSheetHost", () => ({
   }) => (
     <div data-testid="expense-edit-sheet-host" data-open={String(open)}>
       {expense?.note ?? ""}
+    </div>
+  ),
+}));
+
+vi.mock("@/components/ExpenseDeleteConfirmDialog", () => ({
+  default: ({
+    expense,
+    onOpenChange,
+  }: {
+    expense: { note: string } | null;
+    onOpenChange: (open: boolean) => void;
+  }) => (
+    <div data-testid="expense-delete-confirm-dialog">
+      <span>{expense?.note ?? ""}</span>
+      <button type="button" onClick={() => onOpenChange(false)}>
+        Close delete dialog
+      </button>
     </div>
   ),
 }));
@@ -178,7 +230,7 @@ describe("ExpenseList", () => {
       "false"
     );
 
-    await user.click(screen.getByTestId("expense-item"));
+    await user.click(screen.getByRole("button", { name: "Coffee beans" }));
 
     expect(screen.getByTestId("expense-edit-sheet-host")).toHaveAttribute(
       "data-open",
@@ -187,6 +239,156 @@ describe("ExpenseList", () => {
     expect(screen.getByTestId("expense-edit-sheet-host")).toHaveTextContent(
       "Coffee beans"
     );
+  });
+
+  it("keeps only one expense item action surface open", async () => {
+    globalThis.React = React;
+
+    const user = userEvent.setup();
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const teaExpense = {
+      ...firstExpense,
+      id: 2,
+      note: "Tea",
+    };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage([{ ...firstExpense, note: "Coffee" }, teaExpense])],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    const items = screen.getAllByTestId("expense-item");
+    expect(items[0]).toHaveAttribute("data-action-open", "false");
+    expect(items[1]).toHaveAttribute("data-action-open", "false");
+
+    await user.click(
+      screen.getByRole("button", { name: "Open actions Coffee" })
+    );
+
+    expect(items[0]).toHaveAttribute("data-action-open", "true");
+    expect(items[1]).toHaveAttribute("data-action-open", "false");
+
+    await user.click(screen.getByRole("button", { name: "Open actions Tea" }));
+
+    expect(items[0]).toHaveAttribute("data-action-open", "false");
+    expect(items[1]).toHaveAttribute("data-action-open", "true");
+  });
+
+  it("keeps the newly opened action surface active after a stale row close", async () => {
+    globalThis.React = React;
+
+    const user = userEvent.setup();
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const teaExpense = {
+      ...firstExpense,
+      id: 2,
+      note: "Tea",
+    };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage([{ ...firstExpense, note: "Coffee" }, teaExpense])],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    const items = screen.getAllByTestId("expense-item");
+
+    await user.click(
+      screen.getByRole("button", { name: "Open actions Coffee" })
+    );
+    await user.click(screen.getByRole("button", { name: "Open actions Tea" }));
+    await user.click(
+      screen.getByRole("button", { name: "Close actions Coffee" })
+    );
+
+    expect(items[0]).toHaveAttribute("data-action-open", "false");
+    expect(items[1]).toHaveAttribute("data-action-open", "true");
+  });
+
+  it("opens one shared delete dialog for the selected expense", async () => {
+    globalThis.React = React;
+
+    const user = userEvent.setup();
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage([{ ...firstExpense, note: "Coffee" }])],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getAllByTestId("expense-delete-confirm-dialog")).toHaveLength(
+      1
+    );
+    expect(
+      screen.getByTestId("expense-delete-confirm-dialog")
+    ).not.toHaveTextContent("Coffee");
+
+    await user.click(
+      screen.getByRole("button", { name: "Open actions Coffee" })
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Request delete Coffee" })
+    );
+
+    expect(
+      screen.getByTestId("expense-delete-confirm-dialog")
+    ).toHaveTextContent("Coffee");
+
+    await user.click(
+      screen.getByRole("button", { name: "Close delete dialog" })
+    );
+
+    expect(
+      screen.getByTestId("expense-delete-confirm-dialog")
+    ).not.toHaveTextContent("Coffee");
+  });
+
+  it("disables prefetch for repeated day summary links", () => {
+    globalThis.React = React;
+
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage()],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    const dayLink = screen.getByRole("link", {
+      name: /Saturday, 23\/05\/2026/,
+    });
+    expect(dayLink).toHaveAttribute("href", "/report/day/2026-05-23");
+    expect(dayLink).toHaveAttribute("data-prefetch", "false");
   });
 
   it("deduplicates expenses that appear in overlapping infinite pages", () => {

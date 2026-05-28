@@ -6,7 +6,6 @@ import Link from "next/link";
 
 import dayjs from "@/configs/date";
 import { queries } from "@/lib/queries";
-import type { DailyReportExpense } from "@/lib/services/reports";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,8 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
+import ExpenseDeleteConfirmDialog from "@/components/ExpenseDeleteConfirmDialog";
 import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
-import ExpenseListItem from "@/components/ExpenseListItem";
+import ExpenseListItem, {
+  type ExpenseListItemData,
+} from "@/components/ExpenseListItem";
 import PageEnterAnimation, {
   PageEnterSection,
 } from "@/components/PageEnterAnimation";
@@ -33,13 +35,35 @@ type DailyReportContentProps = {
 const DailyReportContent = ({ date }: DailyReportContentProps) => {
   const { data: report } = useQuery(queries.reports.daily(date));
   const [editingExpense, setEditingExpense] =
-    useState<DailyReportExpense | null>(null);
-  const handleEditExpense = useCallback((expense: DailyReportExpense) => {
+    useState<ExpenseListItemData | null>(null);
+  const [activeActionExpenseId, setActiveActionExpenseId] = useState<
+    number | null
+  >(null);
+  const [deleteCandidateExpense, setDeleteCandidateExpense] =
+    useState<ExpenseListItemData | null>(null);
+  const handleEditExpense = useCallback((expense: ExpenseListItemData) => {
     setEditingExpense(expense);
   }, []);
   const handleEditOpenChange = useCallback((nextOpen: boolean) => {
     if (!nextOpen) {
       setEditingExpense(null);
+    }
+  }, []);
+  const handleActionOpenChange = useCallback(
+    (expenseId: number, nextOpen: boolean) => {
+      setActiveActionExpenseId((currentId) =>
+        nextOpen ? expenseId : currentId === expenseId ? null : currentId
+      );
+    },
+    []
+  );
+  const handleDeleteExpense = useCallback((expense: ExpenseListItemData) => {
+    setDeleteCandidateExpense(expense);
+    setActiveActionExpenseId(null);
+  }, []);
+  const handleDeleteDialogOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setDeleteCandidateExpense(null);
     }
   }, []);
 
@@ -237,7 +261,12 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
                 report.dailyExpenses.map((expense) => (
                   <ExpenseListItem
                     key={expense.id}
+                    actionOpen={activeActionExpenseId === expense.id}
                     expense={expense}
+                    onActionOpenChange={(nextOpen) =>
+                      handleActionOpenChange(expense.id, nextOpen)
+                    }
+                    onDeleteExpense={handleDeleteExpense}
                     onEditExpense={handleEditExpense}
                   />
                 ))
@@ -254,6 +283,10 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
         expense={editingExpense}
         open={Boolean(editingExpense)}
         onOpenChange={handleEditOpenChange}
+      />
+      <ExpenseDeleteConfirmDialog
+        expense={deleteCandidateExpense}
+        onOpenChange={handleDeleteDialogOpenChange}
       />
     </PageEnterAnimation>
   );
