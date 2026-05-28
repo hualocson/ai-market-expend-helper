@@ -24,18 +24,18 @@ Generic methods:
 
 ## Call Sites
 
-| Area                   | File                                      | Interaction                                 | Haptic method     | Status  | Notes                                                                               |
-| ---------------------- | ----------------------------------------- | ------------------------------------------- | ----------------- | ------- | ----------------------------------------------------------------------------------- |
-| Manual expense form    | `src/components/ManualExpenseForm.tsx`    | Submit succeeds and success toast appears   | `success()`       | planned | Trigger after the create or caller-owned submit promise resolves.                   |
-| Manual expense form    | `src/components/ManualExpenseForm.tsx`    | Submit fails and error toast appears        | `error()`         | planned | Trigger in the same catch path that shows the error toast.                          |
-| Manual expense form    | `src/components/ManualExpenseForm.tsx`    | Quick/advanced mode changes                 | `selection()`     | planned | Trigger only when the mode actually changes.                                        |
-| AI expense chat        | `src/components/AIExpenseChat.tsx`        | Parse returns a full expense result         | `success()`       | planned | Trigger when the assistant success bubble replaces pending state.                   |
-| AI expense chat        | `src/components/AIExpenseChat.tsx`        | Parse returns fallback prefill              | `warning()`       | planned | Fallback is not a hard error, but it needs user attention.                          |
-| AI expense chat        | `src/components/AIExpenseChat.tsx`        | Parse request fails                         | `error()`         | planned | Trigger when the visible error assistant message is set.                            |
-| Budget picker          | `src/components/BudgetPickerSheet.tsx`    | Budget row or no-budget row is selected     | `selection()`     | planned | Trigger before or alongside closing the sheet.                                      |
-| Budget transfer drawer | `src/components/BudgetTransferDrawer.tsx` | Transfer succeeds and success toast appears | `success()`       | planned | Trigger after mutation resolves.                                                    |
-| Budget transfer drawer | `src/components/BudgetTransferDrawer.tsx` | Transfer fails and error toast appears      | `error()`         | planned | Trigger in the same catch path as the error toast.                                  |
-| Pull to refresh        | `src/components/PullToRefresh.tsx`        | Pull crosses the refresh threshold          | `impact("light")` | planned | Trigger once per gesture when the threshold is first crossed, not every move event. |
+| Area                   | File                                      | Interaction                                 | Haptic method     | Status      | Notes                                                                                 |
+| ---------------------- | ----------------------------------------- | ------------------------------------------- | ----------------- | ----------- | ------------------------------------------------------------------------------------- |
+| Manual expense form    | `src/components/ManualExpenseForm.tsx`    | Submit succeeds and success toast appears   | `success()`       | implemented | Triggered after the create or caller-owned submit promise resolves.                   |
+| Manual expense form    | `src/components/ManualExpenseForm.tsx`    | Submit fails and error toast appears        | `error()`         | implemented | Triggered in the same catch path that shows the error toast.                          |
+| Manual expense form    | `src/components/ManualExpenseForm.tsx`    | Quick/advanced mode changes                 | `selection()`     | implemented | Triggered only when quick mode opens advanced options.                                |
+| AI expense chat        | `src/components/AIExpenseChat.tsx`        | Parse returns a full expense result         | `success()`       | implemented | Triggered when the assistant success bubble replaces pending state.                   |
+| AI expense chat        | `src/components/AIExpenseChat.tsx`        | Parse returns fallback prefill              | `warning()`       | implemented | Fallback is not a hard error, but it needs user attention.                            |
+| AI expense chat        | `src/components/AIExpenseChat.tsx`        | Parse request fails                         | `error()`         | implemented | Triggered when the visible error assistant message is set.                            |
+| Budget picker          | `src/components/BudgetPickerSheet.tsx`    | Budget row or no-budget row is selected     | `selection()`     | implemented | Triggered before or alongside closing the sheet.                                      |
+| Budget transfer drawer | `src/components/BudgetTransferDrawer.tsx` | Transfer succeeds and success toast appears | `success()`       | implemented | Triggered after mutation resolves.                                                    |
+| Budget transfer drawer | `src/components/BudgetTransferDrawer.tsx` | Transfer fails and error toast appears      | `error()`         | implemented | Triggered in the same catch path as the error toast.                                  |
+| Pull to refresh        | `src/components/PullToRefresh.tsx`        | Pull crosses the refresh threshold          | `impact("light")` | implemented | Triggered once per gesture when the threshold is first crossed, not every move event. |
 
 ## Rules
 
