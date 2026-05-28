@@ -83,4 +83,22 @@ describe("BottomNav", () => {
     expect(hapticsMock.impact).toHaveBeenCalledTimes(1);
     expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
   });
+
+  it("only marks section links active for exact or child routes", () => {
+    pathnameState.value = "/reporting";
+
+    const { rerender } = render(<BottomNav />);
+
+    expect(screen.getByRole("link", { name: /reports/i })).not.toHaveAttribute(
+      "aria-current"
+    );
+
+    pathnameState.value = "/report/weekly";
+    rerender(<BottomNav />);
+
+    expect(screen.getByRole("link", { name: /reports/i })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+  });
 });

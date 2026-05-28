@@ -13,7 +13,7 @@ const previewRows = [
 
 const BottomNavPreviewPage = () => {
   return (
-    <main className="bg-background text-foreground relative mx-auto min-h-svh w-full max-w-[430px] overflow-hidden">
+    <div className="bg-background text-foreground relative mx-auto min-h-svh w-full max-w-[430px] overflow-hidden">
       <section className="px-5 pt-8 pb-36">
         <p className="text-muted-foreground text-xs font-semibold">
           Bottom nav test
@@ -56,7 +56,7 @@ const BottomNavPreviewPage = () => {
         className="pointer-events-none fixed right-0 bottom-0 left-0 h-44 bg-[radial-gradient(ellipse_at_50%_70%,color-mix(in_srgb,#ffffff_12%,transparent),transparent_28%),linear-gradient(transparent,color-mix(in_srgb,var(--background)_96%,transparent)_56%)]"
       />
       <CompactBottomNavPreview />
-    </main>
+    </div>
   );
 };
 

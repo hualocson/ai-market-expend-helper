@@ -9,6 +9,9 @@ import { BarChart3, Cog, Home, Wallet } from "lucide-react";
 
 import QuickExpenseDrawer from "@/components/QuickExpenseDrawer";
 
+const isActiveSection = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
+
 const navItems = [
   {
     href: "/",
@@ -20,19 +23,19 @@ const navItems = [
     href: "/budgets",
     label: "Budgets",
     icon: Wallet,
-    isActive: (pathname: string) => pathname.startsWith("/budgets"),
+    isActive: (pathname: string) => isActiveSection(pathname, "/budgets"),
   },
   {
     href: "/report",
     label: "Reports",
     icon: BarChart3,
-    isActive: (pathname: string) => pathname.startsWith("/report"),
+    isActive: (pathname: string) => isActiveSection(pathname, "/report"),
   },
   {
     href: "/settings",
     label: "Settings",
     icon: Cog,
-    isActive: (pathname: string) => pathname.startsWith("/settings"),
+    isActive: (pathname: string) => isActiveSection(pathname, "/settings"),
   },
 ];
 
