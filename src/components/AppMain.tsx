@@ -1,11 +1,12 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+
+import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-const FULL_BLEED_PATHS = ["/ai"];
+const FULL_BLEED_PATHS = ["/ai", "/dev/bottom-nav"];
 
 const AppMain = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import BottomNav from "./BottomNav";
 
-const { hapticsMock } = vi.hoisted(() => ({
+const { hapticsMock, pathnameState } = vi.hoisted(() => ({
   hapticsMock: {
     success: vi.fn(),
     warning: vi.fn(),
@@ -15,6 +15,9 @@ const { hapticsMock } = vi.hoisted(() => ({
     impact: vi.fn(),
     trigger: vi.fn(),
   },
+  pathnameState: {
+    value: "/",
+  },
 }));
 
 vi.mock("@/hooks/useAppHaptics", () => ({
@@ -22,7 +25,7 @@ vi.mock("@/hooks/useAppHaptics", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => pathnameState.value,
 }));
 
 vi.mock("@/components/QuickExpenseDrawer", () => ({
@@ -43,6 +46,7 @@ const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
 
 beforeEach(() => {
   (globalThis as unknown as Record<string, unknown>).React = React;
+  pathnameState.value = "/";
   hapticsMock.success.mockReset();
   hapticsMock.warning.mockReset();
   hapticsMock.error.mockReset();
@@ -61,6 +65,14 @@ afterEach(() => {
 });
 
 describe("BottomNav", () => {
+  it("does not render on the compact bottom nav preview route", () => {
+    pathnameState.value = "/dev/bottom-nav";
+
+    render(<BottomNav />);
+
+    expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
+  });
+
   it("triggers medium impact haptics when the add expense button is clicked", async () => {
     const user = userEvent.setup();
 

@@ -36,7 +36,7 @@ const navItems = [
   },
 ];
 
-const HIDDEN_PATHS = ["/ai"];
+const HIDDEN_PATHS = ["/ai", "/dev/bottom-nav"];
 
 const BottomNav = () => {
   const pathname = usePathname();
