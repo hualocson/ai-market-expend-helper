@@ -705,11 +705,17 @@ const QuickExpenseSheet = ({
       if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
         return;
       }
+      if (result.status === "no_match") {
+        haptics.error();
+        return;
+      }
       if (result.status !== "success" || result.confidence === "low") {
+        haptics.error();
         return;
       }
 
       applySuggestedBudget(result.budgetId);
+      haptics.success();
     } catch (error) {
       console.error("Failed to suggest budget", error);
     } finally {

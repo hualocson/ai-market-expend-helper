@@ -630,6 +630,27 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     );
   });
 
+  it("triggers error haptics when the AI budget suggestion returns no_match", async () => {
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "no_match",
+      reason: "No provided budget matches this note.",
+    });
+    const user = await openSheetWithBudgets();
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "office supplies");
+    await user.tab();
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalled()
+    );
+    expect(hapticsMock.error).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.warning).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /no budget/i, pressed: true })
+    ).toBeInTheDocument();
+  });
+
   it("does not request a duplicate suggestion for the same note and candidates", async () => {
     const user = await openSheetWithBudgets();
 

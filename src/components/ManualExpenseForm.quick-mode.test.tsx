@@ -325,6 +325,36 @@ describe("ManualExpenseForm quick mode", () => {
     ).toBeVisible();
   });
 
+  it("triggers warning haptics when the AI budget suggestion returns no_match", async () => {
+    const user = userEvent.setup();
+    suggestBudgetMutateAsync.mockResolvedValue({
+      status: "no_match",
+      reason: "No provided budget matches this note.",
+    });
+
+    await renderManualExpenseForm({
+      initialMode: "quick",
+      showBudgetSelect: true,
+      budgetPayload: budgetSuggestionFixture,
+    });
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "office supplies");
+    await user.tab();
+
+    await waitFor(() => expect(suggestBudgetMutateAsync).toHaveBeenCalled());
+    expect(hapticsMock.warning).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: /more options/i }));
+    expect(
+      within(screen.getByRole("button", { name: /budget/i })).getByText(
+        "No budget"
+      )
+    ).toBeVisible();
+  });
+
   it("does not overwrite a manually selected budget with an AI suggestion", async () => {
     const user = userEvent.setup();
     suggestBudgetMutateAsync.mockResolvedValue({

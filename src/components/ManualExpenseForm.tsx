@@ -594,6 +594,10 @@ const ManualExpenseForm = forwardRef<
         if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
           return;
         }
+        if (result.status === "no_match") {
+          haptics.warning();
+          return;
+        }
         if (result.status !== "success" || result.confidence === "low") {
           return;
         }
@@ -607,6 +611,7 @@ const ManualExpenseForm = forwardRef<
       budgetLoaded,
       expense.note,
       isSheetOpen,
+      haptics,
       showBudgetSelect,
       suggestionCandidateKey,
       suggestionCandidates,
