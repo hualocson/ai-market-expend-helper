@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import type { SuggestBudgetCandidate } from "@/lib/ai/suggest-budget-contract";
@@ -68,6 +69,7 @@ import VndSymbol from "./VndSymbol";
 
 export type TQuickExpenseSheetProps = {
   compact?: boolean;
+  onTriggerClick?: () => void;
   mode?: "create" | "edit";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -259,6 +261,7 @@ const formatDateLabel = (date: string) => {
 
 const QuickExpenseSheet = ({
   compact = false,
+  onTriggerClick,
   mode = "create",
   open,
   onOpenChange,
@@ -275,6 +278,7 @@ const QuickExpenseSheet = ({
   const { mutateAsync: createExpense } = useCreateExpenseMutation();
   const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
   const { mutateAsync: suggestBudgetMutateAsync } = useSuggestBudgetMutation();
+  const haptics = useAppHaptics();
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -451,6 +455,7 @@ const QuickExpenseSheet = ({
         .then(() => {
           if (isEditMode) {
             toast.success("Expense updated.");
+            haptics.success();
             return;
           }
           toast.success(<QuickExpenseSuccessToast draft={submittedDraft} />, {
@@ -460,11 +465,13 @@ const QuickExpenseSheet = ({
                 "!min-w-0 !w-auto !max-w-[min(78vw,340px)] !overflow-visible !whitespace-normal !text-clip",
             },
           });
+          haptics.success();
         })
         .catch(() => {
           toast.error(
             isEditMode ? "Failed to update expense" : "Failed to add expense"
           );
+          haptics.error();
         })
         .finally(() => {
           setQueueing(false);
@@ -473,6 +480,7 @@ const QuickExpenseSheet = ({
       toast.error(
         isEditMode ? "Failed to update expense" : "Failed to add expense"
       );
+      haptics.error();
       setQueueing(false);
     }
   };
@@ -732,6 +740,7 @@ const QuickExpenseSheet = ({
           <Button
             size={compact ? "icon-lg" : "default"}
             aria-label={compact ? "Add expense" : undefined}
+            onClick={onTriggerClick}
             className={cn(
               "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
               compact && "size-12"

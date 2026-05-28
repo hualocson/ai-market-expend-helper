@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
 import { BarChart3, Cog, Home, Wallet } from "lucide-react";
 
@@ -39,8 +40,13 @@ const HIDDEN_PATHS = ["/ai"];
 
 const BottomNav = () => {
   const pathname = usePathname();
+  const haptics = useAppHaptics();
 
-  if (HIDDEN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+  if (
+    HIDDEN_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`)
+    )
+  ) {
     return null;
   }
 
@@ -96,7 +102,10 @@ const BottomNav = () => {
           })}
         </div>
         <div className="ds-glass-strong absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border p-1">
-          <QuickExpenseSheet compact />
+          <QuickExpenseSheet
+            compact
+            onTriggerClick={() => haptics.impact("medium")}
+          />
         </div>
       </div>
     </nav>
