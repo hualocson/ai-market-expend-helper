@@ -7,7 +7,7 @@ import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
 import { BarChart3, Cog, Home, Wallet } from "lucide-react";
 
-import QuickExpenseSheet from "@/components/QuickExpenseSheet";
+import QuickExpenseDrawer from "@/components/QuickExpenseDrawer";
 
 const navItems = [
   {
@@ -102,7 +102,7 @@ const BottomNav = () => {
           })}
         </div>
         <div className="ds-glass-strong absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border p-1">
-          <QuickExpenseSheet
+          <QuickExpenseDrawer
             compact
             onTriggerClick={() => haptics.impact("medium")}
           />

@@ -7,9 +7,9 @@ import type { BudgetColorId } from "@/lib/budget-appearance";
 import { useDeleteExpenseMutation } from "@/lib/mutations";
 import { toast } from "sonner";
 
-import QuickExpenseSheet, {
-  type TQuickExpenseSheetInitialExpense,
-} from "@/components/QuickExpenseSheet";
+import QuickExpenseDrawer, {
+  type TQuickExpenseDrawerInitialExpense,
+} from "@/components/QuickExpenseDrawer";
 
 export type ExpenseEditSheetHostExpense = {
   id: number;
@@ -44,7 +44,7 @@ const ExpenseEditSheetHost = ({
   const deleteExpenseMutation = useDeleteExpenseMutation();
   const isDeleting = deleteExpenseMutation.isPending;
   const initialExpense =
-    useMemo<TQuickExpenseSheetInitialExpense | null>(() => {
+    useMemo<TQuickExpenseDrawerInitialExpense | null>(() => {
       if (!expense) {
         return null;
       }
@@ -84,7 +84,7 @@ const ExpenseEditSheetHost = ({
   };
 
   return (
-    <QuickExpenseSheet
+    <QuickExpenseDrawer
       mode="edit"
       open={open && Boolean(expense)}
       onOpenChange={onOpenChange}

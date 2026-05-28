@@ -2,7 +2,7 @@
 
 import { useQuickExpenseRecoveryStore } from "@/stores/quick-expense-recovery-store";
 
-import QuickExpenseSheet from "./QuickExpenseSheet";
+import QuickExpenseDrawer from "./QuickExpenseDrawer";
 
 const QuickExpenseRecoverySheetHost = () => {
   const activeRecoveryOperationId = useQuickExpenseRecoveryStore(
@@ -25,7 +25,7 @@ const QuickExpenseRecoverySheetHost = () => {
   }
 
   return (
-    <QuickExpenseSheet
+    <QuickExpenseDrawer
       mode={entry.mode}
       open
       onOpenChange={(next) => {

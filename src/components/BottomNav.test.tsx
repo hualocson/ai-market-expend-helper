@@ -25,7 +25,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
-vi.mock("@/components/QuickExpenseSheet", () => ({
+vi.mock("@/components/QuickExpenseDrawer", () => ({
   default: ({
     onTriggerClick,
   }: {

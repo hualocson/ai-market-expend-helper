@@ -47,15 +47,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
@@ -67,13 +67,13 @@ import ExpenseItemIcon from "./ExpenseItemIcon";
 import PaidByPickerSheet from "./PaidByPickerSheet";
 import VndSymbol from "./VndSymbol";
 
-export type TQuickExpenseSheetProps = {
+export type TQuickExpenseDrawerProps = {
   compact?: boolean;
   onTriggerClick?: () => void;
   mode?: "create" | "edit";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  initialExpense?: TQuickExpenseSheetInitialExpense | null;
+  initialExpense?: TQuickExpenseDrawerInitialExpense | null;
   recoveryDraft?: TQuickExpenseDraft | null;
   recoveryOperationId?: string;
   transactionId?: number;
@@ -82,7 +82,7 @@ export type TQuickExpenseSheetProps = {
   showTrigger?: boolean;
 };
 
-export type TQuickExpenseSheetInitialExpense = {
+export type TQuickExpenseDrawerInitialExpense = {
   id?: number;
   clientId?: string;
   date: string;
@@ -180,7 +180,7 @@ const formatDraftDate = (value: string | undefined): string => {
 };
 
 const buildDraftFromExpense = (
-  initialExpense: TQuickExpenseSheetInitialExpense | null | undefined,
+  initialExpense: TQuickExpenseDrawerInitialExpense | null | undefined,
   fallbackPaidBy: PaidBy
 ): TExpenseDraft => {
   if (!initialExpense) {
@@ -259,7 +259,7 @@ const formatDateLabel = (date: string) => {
   return parsed.format("DD/MM");
 };
 
-const QuickExpenseSheet = ({
+const QuickExpenseDrawer = ({
   compact = false,
   onTriggerClick,
   mode = "create",
@@ -271,7 +271,7 @@ const QuickExpenseSheet = ({
   transactionId,
   onConfirmDelete,
   showTrigger,
-}: TQuickExpenseSheetProps) => {
+}: TQuickExpenseDrawerProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
   const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
@@ -281,7 +281,7 @@ const QuickExpenseSheet = ({
   const haptics = useAppHaptics();
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
-  const sheetOpen = open ?? internalOpen;
+  const drawerOpen = open ?? internalOpen;
   const shouldShowTrigger = showTrigger ?? !isEditMode;
   const buildDraftForOpen = () =>
     recoveryDraft
@@ -302,7 +302,7 @@ const QuickExpenseSheet = ({
   const canSubmit = draft.amount > 0 && !queueing;
   const noteRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
-  const sheetOpenRef = useRef(sheetOpen);
+  const drawerOpenRef = useRef(drawerOpen);
   const pendingDrawerFocusRestoreRef = useRef<TRestorableInputFocus>(null);
   const budgetSelectionSourceRef = useRef<BudgetSelectionSource>(
     recoveryDraft || isEditMode ? "manual" : "none"
@@ -312,7 +312,7 @@ const QuickExpenseSheet = ({
   const lastSuggestionSnapshotRef = useRef<string | null>(null);
   const suggestionRequestIdRef = useRef(0);
   const previousControlledOpenRef = useRef(open);
-  sheetOpenRef.current = sheetOpen;
+  drawerOpenRef.current = drawerOpen;
   currentNoteRef.current = draft.note;
   useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
 
@@ -364,7 +364,7 @@ const QuickExpenseSheet = ({
 
   const budgetOptionsQuery = useQuery({
     ...queries.budgetWeekly.options(weekStart, targetDate),
-    enabled: sheetOpen && Boolean(weekStart),
+    enabled: drawerOpen && Boolean(weekStart),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     retry: false,
@@ -518,7 +518,7 @@ const QuickExpenseSheet = ({
       return;
     }
 
-    if (!sheetOpenRef.current) {
+    if (!drawerOpenRef.current) {
       return;
     }
     if (inputToRestore === "note") {
@@ -528,9 +528,7 @@ const QuickExpenseSheet = ({
     amountRef.current?.focus({ preventScroll: true });
   };
 
-  const handlePickerCloseAutoFocus: React.ComponentProps<
-    typeof SheetContent
-  >["onCloseAutoFocus"] = (event) => {
+  const handlePickerCloseAutoFocus = (event: Event) => {
     if (pendingDrawerFocusRestoreRef.current === null) {
       return;
     }
@@ -575,7 +573,7 @@ const QuickExpenseSheet = ({
   }, [fallbackPaidBy, isEditMode, open, recoveryDraft]);
 
   useEffect(() => {
-    if (!sheetOpen) {
+    if (!drawerOpen) {
       return;
     }
     if (recoveryDraft) {
@@ -589,7 +587,7 @@ const QuickExpenseSheet = ({
       setDraft(nextDraft);
       resetSuggestionTracking(nextDraft, "manual");
     }
-  }, [fallbackPaidBy, initialExpense, isEditMode, recoveryDraft, sheetOpen]);
+  }, [fallbackPaidBy, initialExpense, isEditMode, recoveryDraft, drawerOpen]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -658,7 +656,7 @@ const QuickExpenseSheet = ({
   };
 
   const handleNoteBlur = async () => {
-    if (!sheetOpen || !budgetOptionsQuery.isSuccess) {
+    if (!drawerOpen || !budgetOptionsQuery.isSuccess) {
       return;
     }
 
@@ -693,7 +691,7 @@ const QuickExpenseSheet = ({
       if (requestId !== suggestionRequestIdRef.current) {
         return;
       }
-      if (!sheetOpenRef.current) {
+      if (!drawerOpenRef.current) {
         return;
       }
       if (currentNoteRef.current.trim() !== note) {
@@ -737,9 +735,16 @@ const QuickExpenseSheet = ({
   const anchorSuggestionsToKeyboard = keyboardOffset > 0;
 
   return (
-    <Sheet open={sheetOpen} onOpenChange={handleOpenChange} modal>
+    <Drawer
+      open={drawerOpen}
+      onOpenChange={handleOpenChange}
+      modal
+      direction="bottom"
+      repositionInputs={false}
+      autoFocus={false}
+    >
       {shouldShowTrigger ? (
-        <SheetTrigger asChild>
+        <DrawerTrigger asChild>
           <Button
             size={compact ? "icon-lg" : "default"}
             aria-label={compact ? "Add expense" : undefined}
@@ -752,13 +757,12 @@ const QuickExpenseSheet = ({
             <Plus className={compact ? "h-5 w-5" : "h-4 w-4"} />
             {compact ? null : "Add expense"}
           </Button>
-        </SheetTrigger>
+        </DrawerTrigger>
       ) : null}
-      <SheetContent
-        side="bottom"
-        showCloseButton={false}
-        overlayClassName="quick-expense-sheet-overlay"
-        className="quick-expense-sheet-morph h-full w-full gap-0 rounded-none p-0"
+      <DrawerContent
+        hideIndicator
+        overlayClassName="quick-expense-drawer-overlay"
+        className="quick-expense-drawer-morph h-dvh w-full gap-0 rounded-none p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           if (isEditMode) {
@@ -767,18 +771,20 @@ const QuickExpenseSheet = ({
           noteRef.current?.focus({ preventScroll: true });
         }}
       >
-        <SheetClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+        <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
-        </SheetClose>
-        <SheetHeader className="sr-only">
-          <SheetTitle>{isEditMode ? "Edit expense" : "Add expense"}</SheetTitle>
-          <SheetDescription>
+        </DrawerClose>
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>
+            {isEditMode ? "Edit expense" : "Add expense"}
+          </DrawerTitle>
+          <DrawerDescription>
             {isEditMode
               ? "Update expense details and save."
               : "Enter expense details and save."}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
         <div className="mt-20 flex flex-col gap-4">
           <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-2 gap-2 px-4">
             <Button
@@ -922,7 +928,7 @@ const QuickExpenseSheet = ({
           </div>
         </div>
 
-        <SheetFooter
+        <DrawerFooter
           className={cn(
             "quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4",
             isEditMode && "flex-row gap-2"
@@ -949,7 +955,7 @@ const QuickExpenseSheet = ({
           >
             {isEditMode ? "Update" : "Save expense"}
           </Button>
-        </SheetFooter>
+        </DrawerFooter>
 
         <DatePickerSheet
           open={dateOpen}
@@ -1028,9 +1034,9 @@ const QuickExpenseSheet = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 };
 
-export default QuickExpenseSheet;
+export default QuickExpenseDrawer;

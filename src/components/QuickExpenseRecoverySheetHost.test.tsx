@@ -19,6 +19,7 @@ import QuickExpenseRecoverySheetHost from "./QuickExpenseRecoverySheetHost";
 const mutationMocks = vi.hoisted(() => ({
   createMutateAsync: vi.fn(),
   updateMutateAsync: vi.fn(),
+  suggestBudgetMutateAsync: vi.fn(),
 }));
 
 vi.mock("@/lib/mutations", () => ({
@@ -27,6 +28,9 @@ vi.mock("@/lib/mutations", () => ({
   }),
   useUpdateExpenseMutation: () => ({
     mutateAsync: mutationMocks.updateMutateAsync,
+  }),
+  useSuggestBudgetMutation: () => ({
+    mutateAsync: mutationMocks.suggestBudgetMutateAsync,
   }),
 }));
 
@@ -63,6 +67,7 @@ vi.mock("@/lib/queries", async () => {
 
 const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
   .React;
+const originalMatchMedia = window.matchMedia;
 
 const localExpense: LocalExpense = {
   entity: "expenses",
@@ -130,6 +135,23 @@ describe("QuickExpenseRecoverySheetHost", () => {
     mutationMocks.updateMutateAsync.mockResolvedValue({
       clientId: "expense-client-1",
     });
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "no_match",
+      reason: "No provided budget clearly fits this note.",
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     weeklyBudgetOptionsMock.mockResolvedValue([]);
     useQuickExpenseRecoveryStore.setState({
       entries: {},
@@ -139,6 +161,10 @@ describe("QuickExpenseRecoverySheetHost", () => {
   });
 
   afterEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
+    });
     if (typeof originalGlobalReact === "undefined") {
       Reflect.deleteProperty(globalThis, "React");
     } else {

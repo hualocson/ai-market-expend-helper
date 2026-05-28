@@ -14,10 +14,10 @@ const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("@/components/QuickExpenseSheet", () => ({
+vi.mock("@/components/QuickExpenseDrawer", () => ({
   default: (props: Record<string, unknown>) => {
     quickExpenseSheetMock(props);
-    return props.open ? <div data-testid="quick-expense-sheet" /> : null;
+    return props.open ? <div data-testid="quick-expense-drawer" /> : null;
   },
 }));
 

@@ -17,9 +17,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 
-import QuickExpenseSheet, {
-  type TQuickExpenseSheetProps,
-} from "./QuickExpenseSheet";
+import QuickExpenseDrawer, {
+  type TQuickExpenseDrawerProps,
+} from "./QuickExpenseDrawer";
 
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
@@ -125,6 +125,7 @@ const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
   .React;
 const originalVisualViewport = window.visualViewport;
 const originalInnerHeight = window.innerHeight;
+const originalMatchMedia = window.matchMedia;
 
 const budgetOption = (
   override: Partial<BudgetWeeklyOption> = {}
@@ -144,6 +145,19 @@ const budgetOption = (
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
   toastMock.loading.mockReturnValue("loading-toast");
   mutationMocks.createMutateAsync.mockResolvedValue({
     clientId: "expense-client-1",
@@ -173,6 +187,10 @@ afterEach(() => {
     configurable: true,
     value: originalInnerHeight,
   });
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: originalMatchMedia,
+  });
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
   } else {
@@ -181,15 +199,15 @@ afterEach(() => {
   }
 });
 
-const renderSheet = (props: Partial<TQuickExpenseSheetProps> = {}) => {
+const renderDrawer = (props: Partial<TQuickExpenseDrawerProps> = {}) => {
   (globalThis as unknown as Record<string, unknown>).React = React;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const renderWithProps = (nextProps: Partial<TQuickExpenseSheetProps>) => (
+  const renderWithProps = (nextProps: Partial<TQuickExpenseDrawerProps>) => (
     <QueryClientProvider client={client}>
       <SettingsStoreProvider>
-        <QuickExpenseSheet {...nextProps} />
+        <QuickExpenseDrawer {...nextProps} />
       </SettingsStoreProvider>
     </QueryClientProvider>
   );
@@ -197,15 +215,15 @@ const renderSheet = (props: Partial<TQuickExpenseSheetProps> = {}) => {
 
   return {
     ...result,
-    rerenderSheet: (nextProps: Partial<TQuickExpenseSheetProps>) =>
+    rerenderDrawer: (nextProps: Partial<TQuickExpenseDrawerProps>) =>
       result.rerender(renderWithProps(nextProps)),
   };
 };
 
-describe("QuickExpenseSheet — open/close", () => {
+describe("QuickExpenseDrawer — open/close", () => {
   it("opens when the trigger is clicked and focuses the note input", async () => {
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
 
     expect(
       screen.queryByPlaceholderText(/what did you spend on/i)
@@ -220,7 +238,7 @@ describe("QuickExpenseSheet — open/close", () => {
   it("calls the trigger click callback when the trigger is clicked", async () => {
     const user = userEvent.setup();
     const onTriggerClick = vi.fn();
-    renderSheet({ onTriggerClick });
+    renderDrawer({ onTriggerClick });
 
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
@@ -229,7 +247,7 @@ describe("QuickExpenseSheet — open/close", () => {
 
   it("does not render a hidden keyboard primer input", async () => {
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
 
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
@@ -241,38 +259,42 @@ describe("QuickExpenseSheet — open/close", () => {
 
   it("uses the quick expense morph entrance surface", async () => {
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
 
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
-    expect(await screen.findByRole("dialog")).toHaveClass(
-      "quick-expense-sheet-morph"
+    const drawer = await screen.findByRole("dialog");
+
+    expect(drawer).toHaveClass("quick-expense-drawer-morph");
+    expect(drawer).toHaveClass(
+      "data-[vaul-drawer-direction=bottom]:mt-0",
+      "data-[vaul-drawer-direction=bottom]:max-h-none"
     );
   });
 
-  it("uses the quick expense overlay class for the full-screen sheet", async () => {
+  it("uses the quick expense overlay class for the full-screen drawer", async () => {
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
 
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
     await screen.findByRole("dialog");
-    expect(document.querySelector('[data-slot="sheet-overlay"]')).toHaveClass(
-      "quick-expense-sheet-overlay"
+    expect(document.querySelector('[data-slot="drawer-overlay"]')).toHaveClass(
+      "quick-expense-drawer-overlay"
     );
   });
 });
 
-describe("QuickExpenseSheet — fields", () => {
-  const openSheet = async () => {
+describe("QuickExpenseDrawer — fields", () => {
+  const openDrawer = async () => {
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
     return user;
   };
 
   it("renders the date and paid-by trigger buttons plus the budget chip row", async () => {
-    await openSheet();
+    await openDrawer();
     expect(screen.getByRole("button", { name: /^date:/i })).toBeInTheDocument();
     expect(
       screen.getByRole("radiogroup", { name: /^budget$/i })
@@ -286,7 +308,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("opens date and paid-by picker drawers from canceled pointer down", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     note.focus();
 
@@ -312,7 +334,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("blurs the active input while opening a picker drawer", async () => {
-    await openSheet();
+    await openDrawer();
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     note.focus();
 
@@ -327,7 +349,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("shows suggestion chips when amount > 0", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0");
     await user.click(amount);
     await user.keyboard("5");
@@ -339,7 +361,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("applies a suggestion chip to the amount input", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
     await user.click(amount);
     await user.keyboard("5");
@@ -348,7 +370,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("keeps amount focused after applying a suggestion", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
     await user.click(amount);
     await user.keyboard("5");
@@ -362,7 +384,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("hides amount suggestions when the amount input loses focus", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0");
     await user.click(amount);
     await user.keyboard("5");
@@ -392,7 +414,7 @@ describe("QuickExpenseSheet — fields", () => {
       value: visualViewport,
     });
 
-    const user = await openSheet();
+    const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0");
     await user.click(amount);
     act(() => {
@@ -416,7 +438,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("renders the collapsed category chip row and expands then toggles active chip", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const foodChip = screen.getByRole("button", {
       name: /food/i,
       pressed: true,
@@ -439,7 +461,7 @@ describe("QuickExpenseSheet — fields", () => {
       budgetOption({ id: 3, name: "Food week" }),
       budgetOption({ id: 4, name: "Rent month", period: "month" }),
     ]);
-    const user = await openSheet();
+    const user = await openDrawer();
     const noBudgetChip = screen.getByRole("button", {
       name: /no budget/i,
       pressed: true,
@@ -466,7 +488,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("restores note focus after closing the date picker opened from note focus", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const note = screen.getByPlaceholderText(/what did you spend on/i);
 
     await user.click(note);
@@ -480,7 +502,7 @@ describe("QuickExpenseSheet — fields", () => {
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 3, name: "Food week" }),
     ]);
-    const user = await openSheet();
+    const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0");
 
     await user.click(amount);
@@ -491,7 +513,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 
   it("does not force note or amount focus when closing paid-by without a focused input", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     const amount = screen.getByPlaceholderText("0");
 
@@ -504,7 +526,7 @@ describe("QuickExpenseSheet — fields", () => {
   });
 });
 
-describe("QuickExpenseSheet — budget suggestion", () => {
+describe("QuickExpenseDrawer — budget suggestion", () => {
   const suggestionBudgets = [
     budgetOption({
       id: 7,
@@ -532,12 +554,12 @@ describe("QuickExpenseSheet — budget suggestion", () => {
     }),
   ];
 
-  const openSheetWithBudgets = async (
+  const openDrawerWithBudgets = async (
     budgets: BudgetWeeklyOption[] = suggestionBudgets
   ) => {
     weeklyBudgetOptionsMock.mockResolvedValue(budgets);
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
     await waitFor(() =>
       expect(
@@ -548,7 +570,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
   };
 
   it("sends budget candidates on note blur and preselects a high-confidence match", async () => {
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
     mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
       status: "success",
       budgetId: 7,
@@ -603,7 +625,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
           resolveSuggestion = resolve;
         })
     );
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
 
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     await user.type(note, "coffee with team");
@@ -635,7 +657,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
       status: "no_match",
       reason: "No provided budget matches this note.",
     });
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
 
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     await user.type(note, "office supplies");
@@ -652,7 +674,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
   });
 
   it("does not request a duplicate suggestion for the same note and candidates", async () => {
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
 
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     await user.type(note, "shared note");
@@ -671,7 +693,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
   it("does not request the same note again when only the date changes", async () => {
     weeklyBudgetOptionsMock.mockResolvedValue([suggestionBudgets[0]]);
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
     await waitFor(() =>
       expect(
@@ -707,7 +729,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
   });
 
   it("does not overwrite a manually selected budget with a later AI suggestion", async () => {
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
     mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
       status: "success",
       budgetId: 8,
@@ -749,7 +771,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
           resolveSuggestion = resolve;
         })
     );
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
 
     const note = screen.getByPlaceholderText(/what did you spend on/i);
     await user.type(note, "coffee with team");
@@ -780,7 +802,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
   });
 
   it("does not overwrite a manually cleared No budget selection with a later AI suggestion", async () => {
-    const user = await openSheetWithBudgets();
+    const user = await openDrawerWithBudgets();
     mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
       status: "success",
       budgetId: 8,
@@ -833,7 +855,7 @@ describe("QuickExpenseSheet — budget suggestion", () => {
         reason: "Transport expense",
       });
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
     await waitFor(() =>
       expect(
@@ -891,23 +913,23 @@ describe("QuickExpenseSheet — budget suggestion", () => {
   });
 });
 
-describe("QuickExpenseSheet — submit", () => {
-  const openSheet = async () => {
+describe("QuickExpenseDrawer — submit", () => {
+  const openDrawer = async () => {
     const user = userEvent.setup();
-    renderSheet();
+    renderDrawer();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
     return user;
   };
 
   it("disables submit when amount is zero", async () => {
-    await openSheet();
+    await openDrawer();
     expect(
       screen.getByRole("button", { name: /save expense/i })
     ).toBeDisabled();
   });
 
   it("calls the local-first create mutation with the submitted draft and closes", async () => {
-    const user = await openSheet();
+    const user = await openDrawer();
     await user.type(
       screen.getByPlaceholderText(/what did you spend on/i),
       "Retry lunch"
@@ -938,7 +960,7 @@ describe("QuickExpenseSheet — submit", () => {
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 3, name: "Food week" }),
     ]);
-    const user = await openSheet();
+    const user = await openDrawer();
 
     await user.click(screen.getByRole("button", { name: /no budget/i }));
     await user.click(await screen.findByRole("button", { name: /food week/i }));
@@ -972,7 +994,7 @@ describe("QuickExpenseSheet — submit", () => {
         resolveCreate = resolve;
       })
     );
-    const user = await openSheet();
+    const user = await openDrawer();
 
     await user.click(screen.getByPlaceholderText("0"));
     await user.keyboard("12000");
@@ -997,7 +1019,7 @@ describe("QuickExpenseSheet — submit", () => {
         resolveCreate = resolve;
       })
     );
-    const user = await openSheet();
+    const user = await openDrawer();
 
     await user.click(screen.getByPlaceholderText("0"));
     await user.keyboard("12000");
@@ -1021,7 +1043,7 @@ describe("QuickExpenseSheet — submit", () => {
         resolveCreate = resolve;
       })
     );
-    const user = await openSheet();
+    const user = await openDrawer();
 
     await user.click(screen.getByRole("button", { name: /no budget/i }));
     await user.click(await screen.findByRole("button", { name: /food week/i }));
@@ -1061,7 +1083,7 @@ describe("QuickExpenseSheet — submit", () => {
         rejectCreate = reject;
       })
     );
-    const user = await openSheet();
+    const user = await openDrawer();
 
     await user.click(screen.getByPlaceholderText("0"));
     await user.keyboard("12000");
@@ -1086,13 +1108,13 @@ describe("QuickExpenseSheet — submit", () => {
   it("opens create mode with a recovery draft after rerender", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
-    const { rerenderSheet } = renderSheet({
+    const { rerenderDrawer } = renderDrawer({
       open: false,
       onOpenChange,
       showTrigger: false,
     });
 
-    rerenderSheet({
+    rerenderDrawer({
       open: true,
       onOpenChange,
       showTrigger: false,
@@ -1139,7 +1161,7 @@ describe("QuickExpenseSheet — submit", () => {
         return [budgetOption({ id: 1, name: "Food week" })];
       }
     );
-    renderSheet();
+    renderDrawer();
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
     await user.click(screen.getByRole("button", { name: /no budget/i }));
@@ -1184,7 +1206,7 @@ describe("QuickExpenseSheet — submit", () => {
   });
 });
 
-describe("QuickExpenseSheet — edit mode", () => {
+describe("QuickExpenseDrawer — edit mode", () => {
   const editExpense = {
     date: "2026-05-20",
     amount: 150000,
@@ -1194,10 +1216,10 @@ describe("QuickExpenseSheet — edit mode", () => {
     budgetId: 2,
   };
 
-  const renderEditSheet = (props: Partial<TQuickExpenseSheetProps> = {}) => {
+  const renderEditDrawer = (props: Partial<TQuickExpenseDrawerProps> = {}) => {
     const onOpenChange = vi.fn();
     const onSuccess = vi.fn();
-    renderSheet({
+    renderDrawer({
       mode: "edit",
       open: true,
       onOpenChange,
@@ -1215,7 +1237,7 @@ describe("QuickExpenseSheet — edit mode", () => {
       budgetOption({ id: 2, name: "Sports week" }),
     ]);
 
-    renderEditSheet();
+    renderEditDrawer();
 
     expect(
       await screen.findByPlaceholderText(/what did you spend on/i)
@@ -1236,7 +1258,7 @@ describe("QuickExpenseSheet — edit mode", () => {
   });
 
   it("does not autofocus the note field when edit mode opens", async () => {
-    renderEditSheet();
+    renderEditDrawer();
 
     const note = await screen.findByPlaceholderText(/what did you spend on/i);
 
@@ -1248,7 +1270,7 @@ describe("QuickExpenseSheet — edit mode", () => {
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
     ]);
-    const { onOpenChange } = renderEditSheet();
+    const { onOpenChange } = renderEditDrawer();
 
     await user.click(screen.getByRole("button", { name: /^update$/i }));
 
@@ -1279,7 +1301,7 @@ describe("QuickExpenseSheet — edit mode", () => {
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
     ]);
-    renderEditSheet();
+    renderEditDrawer();
 
     await user.click(screen.getByRole("button", { name: /^update$/i }));
 
@@ -1310,7 +1332,7 @@ describe("QuickExpenseSheet — edit mode", () => {
     weeklyBudgetOptionsMock.mockResolvedValue([
       budgetOption({ id: 2, name: "Sports week" }),
     ]);
-    renderEditSheet();
+    renderEditDrawer();
 
     await user.click(screen.getByRole("button", { name: /^update$/i }));
 
@@ -1325,7 +1347,7 @@ describe("QuickExpenseSheet — edit mode", () => {
   it("renders edit footer with Update and an icon-only delete action", async () => {
     const user = userEvent.setup();
     const onConfirmDelete = vi.fn();
-    renderEditSheet({ onConfirmDelete });
+    renderEditDrawer({ onConfirmDelete });
 
     expect(
       screen.getByRole("button", { name: /^update$/i })
@@ -1351,7 +1373,7 @@ describe("QuickExpenseSheet — edit mode", () => {
 
   it("keeps the edit sheet open when canceling delete confirmation", async () => {
     const user = userEvent.setup();
-    const { onOpenChange } = renderEditSheet({ onConfirmDelete: vi.fn() });
+    const { onOpenChange } = renderEditDrawer({ onConfirmDelete: vi.fn() });
 
     await user.click(screen.getByRole("button", { name: /delete expense/i }));
     const confirmDialog = screen.getByRole("dialog", {
@@ -1373,7 +1395,7 @@ describe("QuickExpenseSheet — edit mode", () => {
 
   it("shows the expense details in the delete confirmation", async () => {
     const user = userEvent.setup();
-    renderEditSheet({ onConfirmDelete: vi.fn() });
+    renderEditDrawer({ onConfirmDelete: vi.fn() });
 
     await user.click(screen.getByRole("button", { name: /delete expense/i }));
     const confirmDialog = screen.getByRole("dialog", {
@@ -1391,7 +1413,7 @@ describe("QuickExpenseSheet — edit mode", () => {
   it("confirms delete and closes the edit sheet", async () => {
     const user = userEvent.setup();
     const onConfirmDelete = vi.fn();
-    const { onOpenChange } = renderEditSheet({ onConfirmDelete });
+    const { onOpenChange } = renderEditDrawer({ onConfirmDelete });
 
     await user.click(screen.getByRole("button", { name: /delete expense/i }));
     const confirmDialog = screen.getByRole("dialog", {
@@ -1410,7 +1432,7 @@ describe("QuickExpenseSheet — edit mode", () => {
 
   it("does not submit edit mode without a transaction id", async () => {
     const user = userEvent.setup();
-    renderEditSheet({ transactionId: undefined });
+    renderEditDrawer({ transactionId: undefined });
 
     await user.click(screen.getByRole("button", { name: /^update$/i }));
 
@@ -1419,9 +1441,9 @@ describe("QuickExpenseSheet — edit mode", () => {
   });
 });
 
-describe("QuickExpenseSheet — prefill", () => {
+describe("QuickExpenseDrawer — prefill", () => {
   it("opens and populates fields when EXPENSE_PREFILL_EVENT fires", async () => {
-    renderSheet();
+    renderDrawer();
     expect(
       screen.queryByPlaceholderText(/what did you spend on/i)
     ).not.toBeInTheDocument();
