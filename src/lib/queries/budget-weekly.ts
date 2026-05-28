@@ -106,7 +106,7 @@ export const fetchWeeklyBudgetOptions = async (
 
 export const budgetWeeklyQueries = createQueryKeys("budgetWeekly", {
   options: (weekStart: string, targetDate?: string) => ({
-    queryKey: [weekStart, targetDate ?? null],
+    queryKey: [weekStart, targetDate ?? null] as [string, string | undefined],
     queryFn: () => fetchWeeklyBudgetOptions(weekStart, targetDate),
   }),
 });
