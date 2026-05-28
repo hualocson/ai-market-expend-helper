@@ -1,7 +1,7 @@
 "use client";
 
 import { queries } from "@/lib/queries";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
 import SpendingDashboardHeaderClient from "@/components/SpendingDashboardHeaderClient";
 
@@ -12,13 +12,9 @@ type SpendingDashboardHeaderProps = {
 const SpendingDashboardHeader = ({
   selectedMonth,
 }: SpendingDashboardHeaderProps) => {
-  const { data: summary } = useQuery(
+  const { data: summary } = useSuspenseQuery(
     queries.dashboard.monthlySummary(selectedMonth)
   );
-
-  if (!summary) {
-    return null;
-  }
 
   return (
     <SpendingDashboardHeaderClient

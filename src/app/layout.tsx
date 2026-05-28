@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
-import Script from "next/script";
 
-import { instantShellScript } from "@/app/instant-shell-script";
 import { cn } from "@/lib/utils";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -286,11 +284,6 @@ export default function RootLayout({
           "bg-background text-foreground antialiased"
         )}
       >
-        <Script
-          id="spendly-instant-shell"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: instantShellScript }}
-        />
         <ReactQueryProvider>
           <ExpenseSyncCoordinator />
           <CssPropertyRegistry />

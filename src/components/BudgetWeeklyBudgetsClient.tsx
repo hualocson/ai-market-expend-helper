@@ -32,7 +32,7 @@ import {
   type InfiniteData,
   type QueryFunction,
   useInfiniteQuery,
-  useQuery,
+  useSuspenseQuery,
 } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -290,13 +290,12 @@ const BudgetWeeklyBudgetsClient = ({
     data: overview,
     error,
     isError,
-    isPending,
     refetch,
-  } = useQuery({
+  } = useSuspenseQuery({
     ...queries.budgets.overview,
   });
 
-  const budgets = overview?.budgets ?? [];
+  const budgets = overview.budgets;
   const [activeTab, setActiveTab] = useState<DashboardTab>("week");
   const activeTabIndex = Math.max(
     DASHBOARD_TABS.findIndex((tab) => tab.id === activeTab),
@@ -851,7 +850,7 @@ const BudgetWeeklyBudgetsClient = ({
 
   const errorMessage =
     error instanceof Error ? error.message : "Failed to load budgets.";
-  const showErrorFallback = isError && !overview;
+  const showErrorFallback = isError;
 
   return (
     <section className="relative flex flex-col pb-6">
@@ -943,16 +942,7 @@ const BudgetWeeklyBudgetsClient = ({
           </div>
         ) : null}
 
-        {isPending && !overview ? (
-          <div className="space-y-3">
-            <div className="bg-card/80 h-20 animate-pulse rounded-2xl" />
-            <div className="bg-card/80 h-24 animate-pulse rounded-2xl" />
-            <div className="bg-card/80 h-24 animate-pulse rounded-2xl" />
-            <div className="bg-card/80 h-24 animate-pulse rounded-2xl" />
-          </div>
-        ) : null}
-
-        {!showErrorFallback && (!isPending || overview) ? (
+        {!showErrorFallback ? (
           <>
             {activeTab === "month" ? (
               <div className="space-y-2.5">
