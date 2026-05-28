@@ -793,9 +793,7 @@ const ManualExpenseForm = forwardRef<
               variant="outline"
               className="h-12 w-full rounded-xl"
               onClick={() => {
-                if (mode !== "advanced") {
-                  haptics.selection();
-                }
+                haptics.selection();
                 setMode("advanced");
               }}
             >
