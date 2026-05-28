@@ -1,31 +1,20 @@
 import React from "react";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseListItem, { type ExpenseListItemData } from "./ExpenseListItem";
 
-const deleteExpenseMutationMock = vi.hoisted(() => vi.fn());
-const deleteExpenseIsPendingMock = vi.hoisted(() => ({ value: false }));
-const toastMock = vi.hoisted(() => ({
-  loading: vi.fn(),
-  success: vi.fn(),
-  error: vi.fn(),
-}));
+const dispatchExpensePrefillMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/mutations", () => ({
-  useDeleteExpenseMutation: () => ({
-    mutateAsync: deleteExpenseMutationMock,
-    isPending: deleteExpenseIsPendingMock.value,
-  }),
-}));
-
-vi.mock("sonner", () => ({
-  toast: toastMock,
+vi.mock("@/lib/expense-prefill", () => ({
+  dispatchExpensePrefill: dispatchExpensePrefillMock,
 }));
 
 vi.mock("motion/react", () => ({
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   motion: {
     div: ({
       children,
@@ -35,6 +24,7 @@ vi.mock("motion/react", () => ({
       dragDirectionLock: _dragDirectionLock,
       dragElastic: _dragElastic,
       dragTransition: _dragTransition,
+      exit: _exit,
       initial: _initial,
       transition: _transition,
       whileDrag: _whileDrag,
@@ -46,6 +36,7 @@ vi.mock("motion/react", () => ({
       dragDirectionLock?: unknown;
       dragElastic?: unknown;
       dragTransition?: unknown;
+      exit?: unknown;
       initial?: unknown;
       transition?: unknown;
       whileDrag?: unknown;
@@ -83,24 +74,84 @@ type ExpenseFixture = typeof expense & {
   syncStatus?: "synced" | "pending" | "failed";
 };
 
-const renderItem = (
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      mutations: { retry: false },
+      queries: { retry: false },
+    },
+  });
+
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  return render(ui, { wrapper: Wrapper });
+};
+
+const renderItem = ({
+  actionOpen = false,
+  onActionOpenChange = vi.fn(),
+  onDeleteExpense = vi.fn(),
   onEditExpense = vi.fn(),
-  overrides: Partial<ExpenseFixture> = {}
-) => {
+  overrides = {},
+}: {
+  actionOpen?: boolean;
+  onActionOpenChange?: (open: boolean) => void;
+  onDeleteExpense?: (expense: ExpenseListItemData) => void;
+  onEditExpense?: (expense: ExpenseListItemData) => void;
+  overrides?: Partial<ExpenseFixture>;
+} = {}) => {
   const item = { ...expense, ...overrides };
 
-  render(<ExpenseListItem expense={item} onEditExpense={onEditExpense} />);
-  return { expense: item, onEditExpense };
+  renderWithQueryClient(
+    <ExpenseListItem
+      actionOpen={actionOpen}
+      expense={item}
+      onActionOpenChange={onActionOpenChange}
+      onDeleteExpense={onDeleteExpense}
+      onEditExpense={onEditExpense}
+    />
+  );
+
+  return { expense: item, onActionOpenChange, onDeleteExpense, onEditExpense };
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  deleteExpenseIsPendingMock.value = false;
-  deleteExpenseMutationMock.mockResolvedValue({ id: 1 });
-  toastMock.loading.mockReturnValue("loading-toast");
 });
 
 describe("ExpenseListItem edit flow", () => {
+  it("does not mount secondary action buttons while closed", () => {
+    renderItem();
+
+    expect(
+      screen.queryByRole("button", { name: "Duplicate expense" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Edit expense$/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete expense" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("mounts secondary action buttons only when controlled open", () => {
+    renderItem({ actionOpen: true });
+
+    expect(
+      screen.getByRole("button", { name: "Duplicate expense" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Edit expense$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete expense" })
+    ).toBeInTheDocument();
+  });
+
   it("requests edit from the parent host when tapping the item", async () => {
     const user = userEvent.setup();
     const { onEditExpense } = renderItem();
@@ -122,14 +173,69 @@ describe("ExpenseListItem edit flow", () => {
     expect(onEditExpense).not.toHaveBeenCalled();
   });
 
-  it("requests edit from the parent host from the swipe edit action", async () => {
+  it("requests edit from the parent host from the open row edit action", async () => {
     const user = userEvent.setup();
-    const { onEditExpense } = renderItem();
+    const { onActionOpenChange, onEditExpense } = renderItem({
+      actionOpen: true,
+    });
 
-    await user.click(screen.getByRole("button", { name: /edit expense$/i }));
+    await user.click(screen.getByRole("button", { name: /^Edit expense$/i }));
 
     expect(onEditExpense).toHaveBeenCalledTimes(1);
     expect(onEditExpense).toHaveBeenCalledWith(expense);
+    expect(onActionOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("dispatches quick expense prefill from the open row duplicate action", async () => {
+    const user = userEvent.setup();
+    const { onActionOpenChange } = renderItem({ actionOpen: true });
+
+    await user.click(screen.getByRole("button", { name: "Duplicate expense" }));
+
+    expect(dispatchExpensePrefillMock).toHaveBeenCalledTimes(1);
+    expect(dispatchExpensePrefillMock).toHaveBeenCalledWith({
+      amount: expense.amount,
+      note: expense.note,
+      category: expense.category,
+      source: "repeat_entry",
+    });
+    expect(onActionOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("requests shared delete confirmation from the open row delete action", async () => {
+    const user = userEvent.setup();
+    const { onActionOpenChange, onDeleteExpense } = renderItem({
+      actionOpen: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Delete expense" }));
+
+    expect(onDeleteExpense).toHaveBeenCalledTimes(1);
+    expect(onDeleteExpense).toHaveBeenCalledWith(expense);
+    expect(onActionOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("ExpenseListItem open coordination", () => {
+  it("keeps a closed row closed when another row opens", () => {
+    const { onActionOpenChange } = renderItem({ actionOpen: false });
+
+    window.dispatchEvent(
+      new CustomEvent("expense-list-item-open", { detail: expense.id + 1 })
+    );
+
+    expect(onActionOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("closes an open row when another row opens", () => {
+    const { onActionOpenChange } = renderItem({ actionOpen: true });
+
+    window.dispatchEvent(
+      new CustomEvent("expense-list-item-open", { detail: expense.id + 1 })
+    );
+
+    expect(onActionOpenChange).toHaveBeenCalledTimes(1);
+    expect(onActionOpenChange).toHaveBeenCalledWith(false);
   });
 });
 
@@ -144,11 +250,14 @@ describe("ExpenseListItem visual metadata", () => {
   });
 
   it("uses the assigned budget icon in the leading icon slot", () => {
-    renderItem(vi.fn(), {
-      budgetId: 7,
-      budgetName: "Meals",
-      budgetIcon: "🍜",
-      budgetColor: "rose",
+    renderItem({
+      onEditExpense: vi.fn(),
+      overrides: {
+        budgetId: 7,
+        budgetName: "Meals",
+        budgetIcon: "🍜",
+        budgetColor: "rose",
+      },
     });
 
     expect(screen.getByLabelText("Category: Food")).toHaveTextContent("Food");
@@ -165,9 +274,12 @@ describe("ExpenseListItem visual metadata", () => {
 describe("ExpenseListItem sync status indicator", () => {
   it("does not render a sync dot for synced or missing status", () => {
     const onEditExpense = vi.fn();
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <ExpenseListItem
+        actionOpen={false}
         expense={{ ...expense, syncStatus: "synced" }}
+        onActionOpenChange={vi.fn()}
+        onDeleteExpense={vi.fn()}
         onEditExpense={onEditExpense}
       />
     );
@@ -176,7 +288,10 @@ describe("ExpenseListItem sync status indicator", () => {
 
     rerender(
       <ExpenseListItem
+        actionOpen={false}
         expense={{ ...expense, syncStatus: undefined }}
+        onActionOpenChange={vi.fn()}
+        onDeleteExpense={vi.fn()}
         onEditExpense={onEditExpense}
       />
     );
@@ -185,7 +300,10 @@ describe("ExpenseListItem sync status indicator", () => {
   });
 
   it("renders the pending sync dot before the paid-by icon", () => {
-    renderItem(vi.fn(), { syncStatus: "pending" });
+    renderItem({
+      onEditExpense: vi.fn(),
+      overrides: { syncStatus: "pending" },
+    });
 
     const indicator = screen.getByLabelText("Sync pending");
     const paidByIcon = screen.getByTestId("paid-by-icon");
@@ -199,7 +317,7 @@ describe("ExpenseListItem sync status indicator", () => {
   });
 
   it("renders the failed sync dot before the paid-by icon", () => {
-    renderItem(vi.fn(), { syncStatus: "failed" });
+    renderItem({ onEditExpense: vi.fn(), overrides: { syncStatus: "failed" } });
 
     const indicator = screen.getByLabelText("Sync failed");
     const paidByIcon = screen.getByTestId("paid-by-icon");
@@ -210,64 +328,5 @@ describe("ExpenseListItem sync status indicator", () => {
       indicator.compareDocumentPosition(paidByIcon) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
-  });
-});
-
-describe("ExpenseListItem delete flow", () => {
-  it("shows a loading toast and replaces it on successful delete", async () => {
-    const user = userEvent.setup();
-
-    renderItem();
-
-    await user.click(screen.getAllByRole("button")[2]);
-    await user.click(screen.getByRole("button", { name: "Delete expense" }));
-
-    expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
-    expect(deleteExpenseMutationMock).toHaveBeenCalledWith({
-      id: 1,
-      clientId: "pending-client-1",
-    });
-    await waitFor(() =>
-      expect(toastMock.success).toHaveBeenCalledWith("Expense deleted.", {
-        id: "loading-toast",
-      })
-    );
-  });
-
-  it("replaces the loading toast on delete failure", async () => {
-    const user = userEvent.setup();
-    deleteExpenseMutationMock.mockRejectedValue(new Error("Network down"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    renderItem();
-
-    await user.click(screen.getAllByRole("button")[2]);
-    await user.click(screen.getByRole("button", { name: "Delete expense" }));
-
-    expect(toastMock.loading).toHaveBeenCalledWith("Deleting expense...");
-    await waitFor(() =>
-      expect(toastMock.error).toHaveBeenCalledWith(
-        "Failed to delete expense.",
-        { id: "loading-toast" }
-      )
-    );
-
-    consoleErrorSpy.mockRestore();
-  });
-
-  it("disables delete actions while the mutation is pending", async () => {
-    const user = userEvent.setup();
-    deleteExpenseIsPendingMock.value = true;
-
-    renderItem();
-
-    const actionDeleteButton = screen.getAllByRole("button")[2];
-    expect(actionDeleteButton).toBeDisabled();
-
-    await user.click(actionDeleteButton);
-    expect(deleteExpenseMutationMock).not.toHaveBeenCalled();
-    expect(toastMock.loading).not.toHaveBeenCalled();
   });
 });

@@ -20,6 +20,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { motion as m } from "motion/react";
 
+import ExpenseDeleteConfirmDialog from "@/components/ExpenseDeleteConfirmDialog";
 import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
 import ExpenseListItem from "@/components/ExpenseListItem";
 import VndSymbol from "@/components/VndSymbol";
@@ -93,6 +94,11 @@ const ExpenseList = ({
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [editingExpense, setEditingExpense] =
+    useState<ExpenseListItemData | null>(null);
+  const [activeActionExpenseId, setActiveActionExpenseId] = useState<
+    number | null
+  >(null);
+  const [deleteCandidateExpense, setDeleteCandidateExpense] =
     useState<ExpenseListItemData | null>(null);
   const [expenseSyncCursorReady, setExpenseSyncCursorReady] = useState(false);
   const {
@@ -182,6 +188,26 @@ const ExpenseList = ({
     }
   }, []);
 
+  const handleActionOpenChange = useCallback(
+    (expenseId: number, nextOpen: boolean) => {
+      setActiveActionExpenseId((currentId) =>
+        nextOpen ? expenseId : currentId === expenseId ? null : currentId
+      );
+    },
+    []
+  );
+
+  const handleDeleteExpense = useCallback((expense: ExpenseListItemData) => {
+    setDeleteCandidateExpense(expense);
+    setActiveActionExpenseId(null);
+  }, []);
+
+  const handleDeleteDialogOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setDeleteCandidateExpense(null);
+    }
+  }, []);
+
   if (!data || data.pages.length === 0) {
     return null;
   }
@@ -212,6 +238,7 @@ const ExpenseList = ({
             <div key={group.key} className="space-y-3">
               <Link
                 href={`/report/day/${group.key}`}
+                prefetch={false}
                 className="group hover:border-border hover:bg-card/80 flex items-center justify-between rounded-2xl border border-transparent px-2 py-1 transition"
               >
                 <div className="flex items-center gap-2">
@@ -229,7 +256,12 @@ const ExpenseList = ({
                 {group.items.map((expense) => (
                   <ExpenseListItem
                     key={expense.id}
+                    actionOpen={activeActionExpenseId === expense.id}
                     expense={expense}
+                    onActionOpenChange={(nextOpen) =>
+                      handleActionOpenChange(expense.id, nextOpen)
+                    }
+                    onDeleteExpense={handleDeleteExpense}
                     onEditExpense={handleEditExpense}
                   />
                 ))}
@@ -287,6 +319,10 @@ const ExpenseList = ({
         expense={editingExpense}
         open={Boolean(editingExpense)}
         onOpenChange={handleEditOpenChange}
+      />
+      <ExpenseDeleteConfirmDialog
+        expense={deleteCandidateExpense}
+        onOpenChange={handleDeleteDialogOpenChange}
       />
     </m.section>
   );
