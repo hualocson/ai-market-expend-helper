@@ -32,7 +32,7 @@ export const fetchDailyReport = async (date: string): Promise<DailyReport> => {
 
 export const reportQueries = createQueryKeys("reports", {
   monthly: (month?: string) => ({
-    queryKey: [month],
+    queryKey: [month ?? null],
     queryFn: () => fetchMonthlyReport(month),
   }),
   daily: (date: string) => ({
