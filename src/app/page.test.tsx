@@ -37,10 +37,6 @@ vi.mock("@/components/ExpenseList", () => ({
   default: () => <div data-testid="expense-list" />,
 }));
 
-vi.mock("@/components/InstantShellBridge", () => ({
-  default: () => <div data-testid="instant-shell-bridge" />,
-}));
-
 vi.mock("@/components/SpendingDashboardHeader", () => ({
   default: () => <div data-testid="dashboard-header" />,
 }));
@@ -60,11 +56,14 @@ afterEach(() => {
 });
 
 describe("Home page", () => {
-  it("prefetches dashboard summary and the first expense page", async () => {
-    prefetchQueryMock.mockResolvedValue(undefined);
-    prefetchInfiniteQueryMock.mockResolvedValue(undefined);
+  it("starts dashboard and first expense page prefetches without blocking render", async () => {
+    prefetchQueryMock.mockReturnValue(new Promise(() => {}));
+    prefetchInfiniteQueryMock.mockReturnValue(new Promise(() => {}));
 
-    render(await Home());
+    const page = Home();
+
+    expect(page).not.toHaveProperty("then");
+    render(page);
 
     expect(prefetchQueryMock).toHaveBeenCalledTimes(1);
     expect(prefetchQueryMock).toHaveBeenCalledWith(
@@ -101,7 +100,9 @@ describe("Home page", () => {
     );
     expect(screen.getByTestId("dashboard-header")).toBeInTheDocument();
     expect(screen.getByTestId("expense-list")).toBeInTheDocument();
-    expect(screen.getByTestId("instant-app-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("instant-shell-bridge")).toBeInTheDocument();
+    expect(screen.queryByTestId("instant-app-shell")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("instant-shell-bridge")
+    ).not.toBeInTheDocument();
   });
 });

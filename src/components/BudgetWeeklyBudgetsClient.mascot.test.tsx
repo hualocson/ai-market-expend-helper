@@ -37,6 +37,12 @@ vi.mock("@tanstack/react-query", () => ({
     isPending: false,
     refetch: vi.fn(),
   }),
+  useSuspenseQuery: () => ({
+    data: overviewData,
+    error: null,
+    isError: false,
+    refetch: vi.fn(),
+  }),
   useInfiniteQuery: () => ({
     data: { pages: [], pageParams: [] },
     error: null,
