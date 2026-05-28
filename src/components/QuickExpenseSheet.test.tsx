@@ -969,6 +969,27 @@ describe("QuickExpenseSheet — submit", () => {
     });
   });
 
+  it("triggers medium impact haptics when the save button is pressed", async () => {
+    let resolveCreate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.createMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+    const user = await openSheet();
+
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+    expect(hapticsMock.success).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCreate({ clientId: "expense-client-1" });
+    });
+  });
+
   it("shows create success toast after the local write resolves", async () => {
     let resolveCreate: (value: { clientId: string }) => void = () => {};
     weeklyBudgetOptionsMock.mockResolvedValue([
@@ -1001,7 +1022,7 @@ describe("QuickExpenseSheet — submit", () => {
     });
 
     await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
-    expect(hapticsMock.success).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.success).not.toHaveBeenCalled();
     expect(hapticsMock.error).not.toHaveBeenCalled();
     const [message, options] = toastMock.success.mock.calls.at(-1) ?? [];
     expect(options).toMatchObject({ icon: null });
@@ -1012,7 +1033,7 @@ describe("QuickExpenseSheet — submit", () => {
     expect(toastContent.container).toHaveTextContent("12.000₫");
   });
 
-  it("triggers error haptics after the local create write fails", async () => {
+  it("does not trigger result haptics after the local create write fails", async () => {
     let rejectCreate: (reason?: unknown) => void = () => {};
     mutationMocks.createMutateAsync.mockReturnValue(
       new Promise((_, reject) => {
@@ -1037,7 +1058,7 @@ describe("QuickExpenseSheet — submit", () => {
     await waitFor(() =>
       expect(toastMock.error).toHaveBeenCalledWith("Failed to add expense")
     );
-    expect(hapticsMock.error).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.error).not.toHaveBeenCalled();
     expect(hapticsMock.success).not.toHaveBeenCalled();
   });
 
@@ -1253,8 +1274,31 @@ describe("QuickExpenseSheet — edit mode", () => {
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith("Expense updated.")
     );
-    expect(hapticsMock.success).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.success).not.toHaveBeenCalled();
     expect(hapticsMock.error).not.toHaveBeenCalled();
+  });
+
+  it("triggers medium impact haptics when the update button is pressed", async () => {
+    let resolveUpdate: (value: { clientId: string }) => void = () => {};
+    mutationMocks.updateMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      })
+    );
+    const user = userEvent.setup();
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 2, name: "Sports week" }),
+    ]);
+    renderEditSheet();
+
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
+
+    expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+    expect(hapticsMock.success).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveUpdate({ clientId: "expense-client-1" });
+    });
   });
 
   it("renders edit footer with Update and an icon-only delete action", async () => {

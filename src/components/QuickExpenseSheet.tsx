@@ -412,6 +412,7 @@ const QuickExpenseSheet = ({
       return;
     }
 
+    haptics.impact("medium");
     setQueueing(true);
     const selectedBudget =
       draft.budgetId === null
@@ -455,7 +456,6 @@ const QuickExpenseSheet = ({
         .then(() => {
           if (isEditMode) {
             toast.success("Expense updated.");
-            haptics.success();
             return;
           }
           toast.success(<QuickExpenseSuccessToast draft={submittedDraft} />, {
@@ -465,13 +465,11 @@ const QuickExpenseSheet = ({
                 "!min-w-0 !w-auto !max-w-[min(78vw,340px)] !overflow-visible !whitespace-normal !text-clip",
             },
           });
-          haptics.success();
         })
         .catch(() => {
           toast.error(
             isEditMode ? "Failed to update expense" : "Failed to add expense"
           );
-          haptics.error();
         })
         .finally(() => {
           setQueueing(false);
@@ -480,7 +478,6 @@ const QuickExpenseSheet = ({
       toast.error(
         isEditMode ? "Failed to update expense" : "Failed to add expense"
       );
-      haptics.error();
       setQueueing(false);
     }
   };
