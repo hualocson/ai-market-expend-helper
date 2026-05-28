@@ -1,48 +1,11 @@
 import React from "react";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseListItem, { type ExpenseListItemData } from "./ExpenseListItem";
-
-const dispatchExpensePrefillMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@/lib/expense-prefill", () => ({
-  dispatchExpensePrefill: dispatchExpensePrefillMock,
-}));
-
-vi.mock("motion/react", () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-  motion: {
-    div: ({
-      children,
-      animate: _animate,
-      drag: _drag,
-      dragConstraints: _dragConstraints,
-      dragDirectionLock: _dragDirectionLock,
-      dragElastic: _dragElastic,
-      dragTransition: _dragTransition,
-      exit: _exit,
-      initial: _initial,
-      transition: _transition,
-      whileDrag: _whileDrag,
-      ...props
-    }: React.HTMLAttributes<HTMLDivElement> & {
-      animate?: unknown;
-      drag?: unknown;
-      dragConstraints?: unknown;
-      dragDirectionLock?: unknown;
-      dragElastic?: unknown;
-      dragTransition?: unknown;
-      exit?: unknown;
-      initial?: unknown;
-      transition?: unknown;
-      whileDrag?: unknown;
-    }) => <div {...props}>{children}</div>,
-  },
-}));
 
 vi.mock("@/components/ExpenseItemIcon", () => ({
   default: ({ category }: { category: string }) => (
@@ -92,31 +55,19 @@ const renderWithQueryClient = (ui: React.ReactElement) => {
 };
 
 const renderItem = ({
-  actionOpen = false,
-  onActionOpenChange = vi.fn(),
-  onDeleteExpense = vi.fn(),
   onEditExpense = vi.fn(),
   overrides = {},
 }: {
-  actionOpen?: boolean;
-  onActionOpenChange?: (open: boolean) => void;
-  onDeleteExpense?: (expense: ExpenseListItemData) => void;
   onEditExpense?: (expense: ExpenseListItemData) => void;
   overrides?: Partial<ExpenseFixture>;
 } = {}) => {
   const item = { ...expense, ...overrides };
 
   renderWithQueryClient(
-    <ExpenseListItem
-      actionOpen={actionOpen}
-      expense={item}
-      onActionOpenChange={onActionOpenChange}
-      onDeleteExpense={onDeleteExpense}
-      onEditExpense={onEditExpense}
-    />
+    <ExpenseListItem expense={item} onEditExpense={onEditExpense} />
   );
 
-  return { expense: item, onActionOpenChange, onDeleteExpense, onEditExpense };
+  return { expense: item, onEditExpense };
 };
 
 beforeEach(() => {
@@ -124,7 +75,7 @@ beforeEach(() => {
 });
 
 describe("ExpenseListItem edit flow", () => {
-  it("does not mount secondary action buttons while closed", () => {
+  it("does not mount swipe action buttons", () => {
     renderItem();
 
     expect(
@@ -138,20 +89,6 @@ describe("ExpenseListItem edit flow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("mounts secondary action buttons only when controlled open", () => {
-    renderItem({ actionOpen: true });
-
-    expect(
-      screen.getByRole("button", { name: "Duplicate expense" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /^Edit expense$/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Delete expense" })
-    ).toBeInTheDocument();
-  });
-
   it("requests edit from the parent host when tapping the item", async () => {
     const user = userEvent.setup();
     const { onEditExpense } = renderItem();
@@ -162,80 +99,12 @@ describe("ExpenseListItem edit flow", () => {
     expect(onEditExpense).toHaveBeenCalledWith(expense);
   });
 
-  it("does not open edit from the drag click that follows a swipe", async () => {
-    const user = userEvent.setup();
-    const { onEditExpense } = renderItem();
+  it("does not configure the row for horizontal drag", () => {
+    renderItem();
 
-    const item = screen.getByRole("button", { name: /edit expense lunch/i });
-    fireEvent.dragStart(item);
-    await user.click(item);
-
-    expect(onEditExpense).not.toHaveBeenCalled();
-  });
-
-  it("requests edit from the parent host from the open row edit action", async () => {
-    const user = userEvent.setup();
-    const { onActionOpenChange, onEditExpense } = renderItem({
-      actionOpen: true,
-    });
-
-    await user.click(screen.getByRole("button", { name: /^Edit expense$/i }));
-
-    expect(onEditExpense).toHaveBeenCalledTimes(1);
-    expect(onEditExpense).toHaveBeenCalledWith(expense);
-    expect(onActionOpenChange).toHaveBeenCalledWith(false);
-  });
-
-  it("dispatches quick expense prefill from the open row duplicate action", async () => {
-    const user = userEvent.setup();
-    const { onActionOpenChange } = renderItem({ actionOpen: true });
-
-    await user.click(screen.getByRole("button", { name: "Duplicate expense" }));
-
-    expect(dispatchExpensePrefillMock).toHaveBeenCalledTimes(1);
-    expect(dispatchExpensePrefillMock).toHaveBeenCalledWith({
-      amount: expense.amount,
-      note: expense.note,
-      category: expense.category,
-      source: "repeat_entry",
-    });
-    expect(onActionOpenChange).toHaveBeenCalledWith(false);
-  });
-
-  it("requests shared delete confirmation from the open row delete action", async () => {
-    const user = userEvent.setup();
-    const { onActionOpenChange, onDeleteExpense } = renderItem({
-      actionOpen: true,
-    });
-
-    await user.click(screen.getByRole("button", { name: "Delete expense" }));
-
-    expect(onDeleteExpense).toHaveBeenCalledTimes(1);
-    expect(onDeleteExpense).toHaveBeenCalledWith(expense);
-    expect(onActionOpenChange).toHaveBeenCalledWith(false);
-  });
-});
-
-describe("ExpenseListItem open coordination", () => {
-  it("keeps a closed row closed when another row opens", () => {
-    const { onActionOpenChange } = renderItem({ actionOpen: false });
-
-    window.dispatchEvent(
-      new CustomEvent("expense-list-item-open", { detail: expense.id + 1 })
-    );
-
-    expect(onActionOpenChange).not.toHaveBeenCalled();
-  });
-
-  it("closes an open row when another row opens", () => {
-    const { onActionOpenChange } = renderItem({ actionOpen: true });
-
-    window.dispatchEvent(
-      new CustomEvent("expense-list-item-open", { detail: expense.id + 1 })
-    );
-
-    expect(onActionOpenChange).toHaveBeenCalledTimes(1);
-    expect(onActionOpenChange).toHaveBeenCalledWith(false);
+    expect(
+      screen.getByRole("button", { name: /edit expense lunch/i })
+    ).not.toHaveAttribute("data-drag");
   });
 });
 
@@ -276,10 +145,7 @@ describe("ExpenseListItem sync status indicator", () => {
     const onEditExpense = vi.fn();
     const { rerender } = renderWithQueryClient(
       <ExpenseListItem
-        actionOpen={false}
         expense={{ ...expense, syncStatus: "synced" }}
-        onActionOpenChange={vi.fn()}
-        onDeleteExpense={vi.fn()}
         onEditExpense={onEditExpense}
       />
     );
@@ -288,10 +154,7 @@ describe("ExpenseListItem sync status indicator", () => {
 
     rerender(
       <ExpenseListItem
-        actionOpen={false}
         expense={{ ...expense, syncStatus: undefined }}
-        onActionOpenChange={vi.fn()}
-        onDeleteExpense={vi.fn()}
         onEditExpense={onEditExpense}
       />
     );
