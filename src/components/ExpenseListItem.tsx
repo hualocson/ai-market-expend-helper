@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
-import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import {
   type BudgetColorId,
@@ -13,21 +12,11 @@ import {
 } from "@/lib/budget-appearance";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { ExpenseListItemSyncStatus } from "@/lib/expenses/list-model";
-import { useDeleteExpenseMutation } from "@/lib/mutations";
 import { cn, formatVnd } from "@/lib/utils";
-import { Copy, NotebookIcon, Pencil, Trash2 } from "lucide-react";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon from "@/components/PaidByIcon";
@@ -49,7 +38,10 @@ export type ExpenseListItemData = {
 };
 
 type ExpenseListItemProps = {
+  actionOpen: boolean;
   expense: ExpenseListItemData;
+  onActionOpenChange: (open: boolean) => void;
+  onDeleteExpense: (expense: ExpenseListItemData) => void;
   onEditExpense: (expense: ExpenseListItemData) => void;
 };
 
@@ -139,21 +131,20 @@ const BudgetName = ({ name }: { name: string }) => (
   </span>
 );
 
-const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const deleteExpenseMutation = useDeleteExpenseMutation();
-  const isDeleting = deleteExpenseMutation.isPending;
+const ExpenseListItem = ({
+  actionOpen,
+  expense,
+  onActionOpenChange,
+  onDeleteExpense,
+  onEditExpense,
+}: ExpenseListItemProps) => {
+  const isOpen = actionOpen;
   const containerRef = useRef<HTMLDivElement>(null);
   const dragClickGuardRef = useRef(false);
 
   const formattedAmount = useMemo(
     () => formatVnd(expense.amount),
     [expense.amount]
-  );
-  const formattedDate = useMemo(
-    () => dayjs(expense.date).format("DD/MM/YYYY"),
-    [expense.date]
   );
   const budgetBadgeLabel = useMemo(() => {
     if (expense.budgetName?.trim()) {
@@ -177,7 +168,7 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
       offsetX >= -CLOSE_THRESHOLD || velocityX >= VELOCITY_THRESHOLD;
 
     if (shouldOpen && !isOpen) {
-      setIsOpen(true);
+      onActionOpenChange(true);
       window.dispatchEvent(
         new CustomEvent(OPEN_EVENT_NAME, { detail: expense.id })
       );
@@ -185,7 +176,7 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
     }
 
     if (shouldClose && isOpen) {
-      setIsOpen(false);
+      onActionOpenChange(false);
     }
 
     window.setTimeout(() => {
@@ -198,14 +189,14 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
       const detailId =
         event instanceof CustomEvent ? (event.detail as number) : null;
 
-      if (detailId !== expense.id) {
-        setIsOpen(false);
+      if (isOpen && detailId !== expense.id) {
+        onActionOpenChange(false);
       }
     };
 
     window.addEventListener(OPEN_EVENT_NAME, handleOtherOpen);
     return () => window.removeEventListener(OPEN_EVENT_NAME, handleOtherOpen);
-  }, [expense.id]);
+  }, [expense.id, isOpen, onActionOpenChange]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -219,38 +210,18 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
       }
 
       if (!containerRef.current.contains(target)) {
-        setIsOpen(false);
+        onActionOpenChange(false);
       }
     };
 
     window.addEventListener("pointerdown", handleOutsidePointer);
     return () =>
       window.removeEventListener("pointerdown", handleOutsidePointer);
-  }, [isOpen]);
-
-  const handleDelete = async () => {
-    if (isDeleting) {
-      return;
-    }
-
-    const loadingToastId = toast.loading("Deleting expense...");
-
-    try {
-      await deleteExpenseMutation.mutateAsync({
-        id: expense.id,
-        clientId: expense.clientId,
-      });
-      toast.success("Expense deleted.", { id: loadingToastId });
-      setIsOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete expense.", { id: loadingToastId });
-    }
-  };
+  }, [isOpen, onActionOpenChange]);
 
   const handleDeleteRequest = () => {
-    setConfirmOpen(true);
-    setIsOpen(false);
+    onDeleteExpense(expense);
+    onActionOpenChange(false);
   };
 
   const handleDuplicate = () => {
@@ -260,12 +231,12 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
       category: expense.category,
       source: "repeat_entry",
     });
-    setIsOpen(false);
+    onActionOpenChange(false);
   };
 
   const openEditSheet = () => {
     onEditExpense(expense);
-    setIsOpen(false);
+    onActionOpenChange(false);
   };
 
   const handleItemClick = () => {
@@ -287,15 +258,15 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
   };
 
   return (
-    <>
-      <div
-        className="bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
-        ref={containerRef}
-        data-expense-list-item
-      >
+    <div
+      className="bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
+      ref={containerRef}
+      data-expense-list-item
+    >
+      {isOpen ? (
         <motion.div
           initial={false}
-          animate={{ opacity: isOpen ? 1 : 0, x: isOpen ? "0%" : "100%" }}
+          animate={{ opacity: 1, x: "0%" }}
           transition={{
             type: "spring",
             stiffness: 500,
@@ -331,154 +302,86 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
             variant="destructive"
             aria-label="Delete expense"
             onClick={handleDeleteRequest}
-            disabled={isDeleting}
             className="backdrop-blur-md"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </motion.div>
+      ) : null}
 
-        <motion.div
-          drag="x"
-          dragDirectionLock
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.1}
-          onClick={handleItemClick}
-          onDragStart={() => {
-            dragClickGuardRef.current = true;
-          }}
-          onDragEnd={handleDragEnd}
-          onKeyDown={handleItemKeyDown}
-          dragTransition={{
-            bounceStiffness: 500,
-            bounceDamping: 15,
-            min: 20,
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label={`Edit expense ${expense.note || expense.category}`}
-          className="focus-visible:ring-ring/40 relative cursor-pointer rounded-[16px] transition-[transform] outline-none focus-visible:ring-2 active:scale-[0.99]"
-          whileDrag={{ cursor: "grabbing" }}
-          animate={{
-            opacity: isOpen ? 0.3 : 1,
-            paddingLeft: isOpen ? 8 : 0,
-            paddingRight: isOpen ? 8 : 0,
-            scale: isOpen ? 0.96 : 1,
-          }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="flex flex-wrap items-center gap-4">
-            {expense.budgetId ? (
-              <BudgetIcon
-                icon={expense.budgetIcon ?? null}
-                color={expense.budgetColor ?? null}
-              />
-            ) : (
-              <ExpenseItemIcon
-                category={expense.category as Category}
-                className={cn(
-                  "shrink-0",
-                  !expense.note && "bg-warning/15 text-warning"
-                )}
-              />
-            )}
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-foreground/90 truncate font-semibold">
-                {expense.note || "<No note>"}
-              </p>
-              <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <CategoryBadge category={expense.category} />
-                {expense.budgetId ? (
-                  <BudgetName name={budgetBadgeLabel} />
-                ) : (
-                  <span className="bg-warning size-2 rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--warning)_55%,transparent)]" />
-                )}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-destructive text-right text-sm font-semibold">
-                -{formattedAmount} <VndSymbol />
-              </p>
-              {expense.paidBy || expense.syncStatus ? (
-                <div className="flex items-center justify-end gap-1.5">
-                  <ExpenseSyncStatusDot status={expense.syncStatus} />
-                  {expense.paidBy ? (
-                    <PaidByIcon paidBy={expense.paidBy} size="sm" />
-                  ) : null}
-                </div>
-              ) : null}
+      <motion.div
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.1}
+        onClick={handleItemClick}
+        onDragStart={() => {
+          dragClickGuardRef.current = true;
+        }}
+        onDragEnd={handleDragEnd}
+        onKeyDown={handleItemKeyDown}
+        dragTransition={{
+          bounceStiffness: 500,
+          bounceDamping: 15,
+          min: 20,
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Edit expense ${expense.note || expense.category}`}
+        className="focus-visible:ring-ring/40 relative cursor-pointer rounded-[16px] transition-[transform] outline-none focus-visible:ring-2 active:scale-[0.99]"
+        whileDrag={{ cursor: "grabbing" }}
+        animate={{
+          opacity: isOpen ? 0.3 : 1,
+          paddingLeft: isOpen ? 8 : 0,
+          paddingRight: isOpen ? 8 : 0,
+          scale: isOpen ? 0.96 : 1,
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          {expense.budgetId ? (
+            <BudgetIcon
+              icon={expense.budgetIcon ?? null}
+              color={expense.budgetColor ?? null}
+            />
+          ) : (
+            <ExpenseItemIcon
+              category={expense.category as Category}
+              className={cn(
+                "shrink-0",
+                !expense.note && "bg-warning/15 text-warning"
+              )}
+            />
+          )}
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-foreground/90 truncate font-semibold">
+              {expense.note || "<No note>"}
+            </p>
+            <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+              <CategoryBadge category={expense.category} />
+              {expense.budgetId ? (
+                <BudgetName name={budgetBadgeLabel} />
+              ) : (
+                <span className="bg-warning size-2 rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--warning)_55%,transparent)]" />
+              )}
             </div>
           </div>
-        </motion.div>
-      </div>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="p-0 sm:max-w-md">
-          <div className="bg-muted/40 flex items-start gap-4 border-b px-6 py-5">
-            <div className="bg-destructive/10 text-destructive flex size-11 shrink-0 items-center justify-center rounded-full">
-              <Trash2 className="h-5 w-5" />
-            </div>
-            <DialogHeader className="text-left">
-              <DialogTitle>Delete this expense?</DialogTitle>
-              <DialogDescription>
-                We will remove it from your list. This cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-          <div className="bg-card/80 border-border mx-2 space-y-4 rounded-xl border p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-sm">{formattedDate}</p>
-                <div className="flex items-center gap-2">
-                  <ExpenseItemIcon
-                    category={expense.category as Category}
-                    size="sm"
-                  />
-                  <span className="text-sm font-medium">
-                    {expense.category}
-                  </span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                  Amount
-                </p>
-                <p className="text-destructive text-lg font-semibold">
-                  -{formattedAmount} <VndSymbol />
-                </p>
-              </div>
-            </div>
-            {expense.note ? (
-              <div className="text-muted-foreground flex items-center gap-2">
-                <NotebookIcon className="size-4" />
-                <span className="text-sm font-medium">{expense.note}</span>
+          <div className="space-y-1">
+            <p className="text-destructive text-right text-sm font-semibold">
+              -{formattedAmount} <VndSymbol />
+            </p>
+            {expense.paidBy || expense.syncStatus ? (
+              <div className="flex items-center justify-end gap-1.5">
+                <ExpenseSyncStatusDot status={expense.syncStatus} />
+                {expense.paidBy ? (
+                  <PaidByIcon paidBy={expense.paidBy} size="sm" />
+                ) : null}
               </div>
             ) : null}
           </div>
-          <DialogFooter className="border-t px-6 py-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmOpen(false)}
-              disabled={isDeleting}
-            >
-              Keep it
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={async () => {
-                await handleDelete();
-                setConfirmOpen(false);
-              }}
-              disabled={isDeleting}
-            >
-              Delete expense
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
