@@ -776,11 +776,11 @@ const QuickExpenseDrawer = ({
             aria-label={compact ? "Add expense" : undefined}
             onClick={onTriggerClick}
             className={cn(
-              "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
+              "text-muted rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
               compact && "size-12"
             )}
           >
-            <Plus className={compact ? "h-5 w-5" : "h-4 w-4"} />
+            <Plus className={compact ? "size-5" : "size-4"} />
             {compact ? null : "Add expense"}
           </Button>
         </DrawerTrigger>
