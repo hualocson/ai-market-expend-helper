@@ -4,9 +4,20 @@ import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import BudgetPickerSheet from "./BudgetPickerSheet";
+
+const { hapticsMock } = vi.hoisted(() => ({
+  hapticsMock: {
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    selection: vi.fn(),
+    impact: vi.fn(),
+    trigger: vi.fn(),
+  },
+}));
 
 const weeklyBudgetOptionsMock = vi.hoisted(() =>
   vi.fn<
@@ -64,6 +75,10 @@ vi.mock("@/lib/queries", async () => {
   };
 });
 
+vi.mock("@/hooks/useAppHaptics", () => ({
+  useAppHaptics: () => hapticsMock,
+}));
+
 const renderSheet = (
   override: Partial<React.ComponentProps<typeof BudgetPickerSheet>> = {}
 ) => {
@@ -89,6 +104,16 @@ const renderSheet = (
 };
 
 describe("BudgetPickerSheet", () => {
+  afterEach(() => {
+    hapticsMock.success.mockReset();
+    hapticsMock.warning.mockReset();
+    hapticsMock.error.mockReset();
+    hapticsMock.selection.mockReset();
+    hapticsMock.impact.mockReset();
+    hapticsMock.trigger.mockReset();
+    vi.restoreAllMocks();
+  });
+
   it("renders week and month groups for fetched budgets", async () => {
     renderSheet();
     expect(await screen.findByText("Food week")).toBeInTheDocument();
@@ -99,11 +124,12 @@ describe("BudgetPickerSheet", () => {
     expect(screen.getByText("Rent month")).toBeInTheDocument();
   });
 
-  it("calls onChange(id) and closes when a budget is selected", async () => {
+  it("calls onChange(id), triggers selection haptics, and closes when a budget is selected", async () => {
     const user = userEvent.setup();
     const { onChange, onOpenChange } = renderSheet();
     await user.click(await screen.findByRole("button", { name: /Food week/i }));
     expect(onChange).toHaveBeenCalledWith(1);
+    expect(hapticsMock.selection).toHaveBeenCalledTimes(1);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
@@ -133,10 +159,11 @@ describe("BudgetPickerSheet", () => {
     expect(onRestoreFocusRequest).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onChange(null) when 'No budget' is selected", async () => {
+  it("calls onChange(null) and triggers selection haptics when 'No budget' is selected", async () => {
     const user = userEvent.setup();
     const { onChange } = renderSheet({ value: 1 });
     await user.click(await screen.findByRole("button", { name: /no budget/i }));
     expect(onChange).toHaveBeenCalledWith(null);
+    expect(hapticsMock.selection).toHaveBeenCalledTimes(1);
   });
 });

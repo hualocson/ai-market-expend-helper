@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import {
   type TBudgetOptionGroupKey,
   budgetGroupEmptyLabel,
@@ -51,6 +52,7 @@ const BudgetPickerSheet = ({
   onCloseAutoFocus,
   onRestoreFocusRequest,
 }: TBudgetPickerSheetProps) => {
+  const haptics = useAppHaptics();
   const budgetOptionsQuery = queries.budgetWeekly.options(
     weekStart,
     targetDate
@@ -70,6 +72,7 @@ const BudgetPickerSheet = ({
   const hasOptions = hasAnyBudgetOption(groups);
 
   const handleSelect = (id: number | null) => {
+    haptics.selection();
     onChange(id);
     flushSync(() => {
       onOpenChange(false);
