@@ -23,7 +23,7 @@ export const fetchDashboardMonthlySummary = async (
 
 export const dashboardQueries = createQueryKeys("dashboard", {
   monthlySummary: (month?: string) => ({
-    queryKey: [month],
+    queryKey: [month ?? null],
     queryFn: () => fetchDashboardMonthlySummary(month),
   }),
 });

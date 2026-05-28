@@ -248,6 +248,42 @@ describe("read query fetchers", () => {
     );
   });
 
+  it("normalizes omitted dashboard month query keys to null", () => {
+    expect(dashboardQueries.monthlySummary().queryKey).toEqual([
+      "dashboard",
+      "monthlySummary",
+      null,
+    ]);
+    expect(dashboardQueries.monthlySummary(undefined).queryKey).toEqual([
+      "dashboard",
+      "monthlySummary",
+      null,
+    ]);
+    expect(dashboardQueries.monthlySummary("2026-05").queryKey).toEqual([
+      "dashboard",
+      "monthlySummary",
+      "2026-05",
+    ]);
+  });
+
+  it("normalizes omitted monthly report query keys to null", () => {
+    expect(reportQueries.monthly().queryKey).toEqual([
+      "reports",
+      "monthly",
+      null,
+    ]);
+    expect(reportQueries.monthly(undefined).queryKey).toEqual([
+      "reports",
+      "monthly",
+      null,
+    ]);
+    expect(reportQueries.monthly("2026-05").queryKey).toEqual([
+      "reports",
+      "monthly",
+      "2026-05",
+    ]);
+  });
+
   it("adds queryFns to read query factory entries", () => {
     expect(typeof expenseQueries.list().queryFn).toBe("function");
     expect(typeof budgetQueries.transferCandidates(1).queryFn).toBe("function");
