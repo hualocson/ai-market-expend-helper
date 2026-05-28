@@ -29,6 +29,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import {
   Calendar,
+  Check,
   NotebookIcon,
   Plus,
   Trash2,
@@ -732,7 +733,32 @@ const QuickExpenseDrawer = ({
     );
   }, [draft.amount]);
   const showSuggestions = amountFocused && suggestions.length > 0;
-  const anchorSuggestionsToKeyboard = keyboardOffset > 0;
+  const keyboardOpen = keyboardOffset > 0;
+  const submitText = isEditMode ? "Update" : "Save expense";
+  const submitLabel = isEditMode ? "Update expense" : "Save expense";
+  const renderSubmitButton = (placement: "footer" | "keyboard") => {
+    const isKeyboardPlacement = placement === "keyboard";
+
+    return (
+      <Button
+        type="button"
+        size={isKeyboardPlacement ? "icon-sm" : "default"}
+        aria-label={isKeyboardPlacement ? submitLabel : undefined}
+        onPointerDown={
+          isKeyboardPlacement ? (event) => event.preventDefault() : undefined
+        }
+        onClick={handleSubmit}
+        disabled={!canSubmit}
+        className={cn(
+          isKeyboardPlacement
+            ? "h-10 w-10 shrink-0 rounded-full"
+            : "h-10 flex-1 rounded-xl text-base font-medium"
+        )}
+      >
+        {isKeyboardPlacement ? <Check className="h-4 w-4" /> : submitText}
+      </Button>
+    );
+  };
 
   return (
     <Drawer
@@ -759,282 +785,308 @@ const QuickExpenseDrawer = ({
           </Button>
         </DrawerTrigger>
       ) : null}
-      <DrawerContent
-        hideIndicator
-        overlayClassName="quick-expense-drawer-overlay"
-        className="quick-expense-drawer-morph h-dvh w-full gap-0 rounded-none p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
-        onOpenAutoFocus={(e) => {
-          e.preventDefault();
-          if (isEditMode) {
-            return;
-          }
-          noteRef.current?.focus({ preventScroll: true });
-        }}
-      >
-        <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
-          <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
-        </DrawerClose>
-        <DrawerHeader className="sr-only">
-          <DrawerTitle>
-            {isEditMode ? "Edit expense" : "Add expense"}
-          </DrawerTitle>
-          <DrawerDescription>
-            {isEditMode
-              ? "Update expense details and save."
-              : "Enter expense details and save."}
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="mt-20 flex flex-col gap-4">
-          <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-2 gap-2 px-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full border-none"
-              aria-label={`Date: ${formatDateLabel(draft.date)}`}
-              onPointerDown={(event) =>
-                handleDrawerTriggerPointerDown(event, () => setDateOpen(true))
-              }
-              onClick={() => setDateOpen(true)}
-            >
-              <Calendar className="h-4 w-4" />
-              <span>{formatDateLabel(draft.date)}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full border-none"
-              aria-label={`Paid by: ${draft.paidBy}`}
-              onPointerDown={(event) =>
-                handleDrawerTriggerPointerDown(event, () => setPaidByOpen(true))
-              }
-              onClick={() => setPaidByOpen(true)}
-            >
-              <UserRound className="h-4 w-4" />
-              <span>{draft.paidBy}</span>
-            </Button>
-          </div>
+      {drawerOpen ? (
+        <DrawerContent
+          hideIndicator
+          overlayClassName="quick-expense-drawer-overlay"
+          className="quick-expense-drawer-morph h-dvh w-full gap-0 rounded-none p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            if (isEditMode) {
+              return;
+            }
+            noteRef.current?.focus({ preventScroll: true });
+          }}
+        >
+          <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
+          </DrawerClose>
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>
+              {isEditMode ? "Edit expense" : "Add expense"}
+            </DrawerTitle>
+            <DrawerDescription>
+              {isEditMode
+                ? "Update expense details and save."
+                : "Enter expense details and save."}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="mt-20 flex flex-col gap-4">
+            <div className="quick-expense-enter-group quick-expense-enter-delay-1 grid grid-cols-2 gap-2 px-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full border-none"
+                aria-label={`Date: ${formatDateLabel(draft.date)}`}
+                onPointerDown={(event) =>
+                  handleDrawerTriggerPointerDown(event, () => setDateOpen(true))
+                }
+                onClick={() => setDateOpen(true)}
+              >
+                <Calendar className="h-4 w-4" />
+                <span>{formatDateLabel(draft.date)}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full border-none"
+                aria-label={`Paid by: ${draft.paidBy}`}
+                onPointerDown={(event) =>
+                  handleDrawerTriggerPointerDown(event, () =>
+                    setPaidByOpen(true)
+                  )
+                }
+                onClick={() => setPaidByOpen(true)}
+              >
+                <UserRound className="h-4 w-4" />
+                <span>{draft.paidBy}</span>
+              </Button>
+            </div>
 
-          <div className="flex flex-1 flex-col justify-center gap-4">
-            <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2 px-4">
-              <input
-                ref={noteRef}
-                value={draft.note}
-                onChange={(e) => setField("note", e.target.value)}
-                onBlur={handleNoteBlur}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    amountRef.current?.focus({
-                      preventScroll: true,
-                    });
-                  }
-                }}
-                placeholder="What did you spend on?"
-                className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
-              />
-              <div className="flex items-baseline gap-1">
-                <VndSymbol className="text-muted-foreground text-4xl font-semibold tracking-tight" />
+            <div className="flex flex-1 flex-col justify-center gap-4">
+              <div className="quick-expense-enter-group quick-expense-enter-delay-2 flex flex-col gap-2 px-4">
                 <input
-                  ref={amountRef}
-                  inputMode="numeric"
-                  value={draft.amount === 0 ? "" : formatVnd(draft.amount)}
-                  onChange={(e) =>
-                    setField("amount", parseVndInput(e.target.value))
-                  }
-                  placeholder="0"
-                  className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
-                  onFocus={() => {
-                    setAmountFocused(true);
-                    amountRef.current?.select();
+                  ref={noteRef}
+                  value={draft.note}
+                  onChange={(e) => setField("note", e.target.value)}
+                  onBlur={handleNoteBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      amountRef.current?.focus({
+                        preventScroll: true,
+                      });
+                    }
                   }}
-                  onBlur={() => setAmountFocused(false)}
+                  placeholder="What did you spend on?"
+                  className="placeholder:text-muted-foreground w-full overflow-hidden border-0 bg-transparent px-0 py-2 text-2xl whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
+                />
+                <div className="flex items-baseline gap-1">
+                  <VndSymbol className="text-muted-foreground text-4xl font-semibold tracking-tight" />
+                  <input
+                    ref={amountRef}
+                    inputMode="numeric"
+                    value={draft.amount === 0 ? "" : formatVnd(draft.amount)}
+                    onChange={(e) =>
+                      setField("amount", parseVndInput(e.target.value))
+                    }
+                    placeholder="0"
+                    className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
+                    onFocus={() => {
+                      setAmountFocused(true);
+                      amountRef.current?.select();
+                    }}
+                    onBlur={() => setAmountFocused(false)}
+                  />
+                </div>
+              </div>
+
+              {showSuggestions && !keyboardOpen ? (
+                <div
+                  role="group"
+                  aria-label="Amount suggestions"
+                  className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto"
+                >
+                  {suggestions.map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full tabular-nums"
+                      onPointerDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setField("amount", s);
+                      }}
+                    >
+                      {formatVnd(s)}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+
+              {keyboardOpen ? (
+                <div
+                  role="group"
+                  aria-label="Amount suggestions"
+                  className="fixed inset-x-0 z-60 mx-auto flex w-full max-w-md items-center gap-2 px-4 pt-2 pb-2"
+                  style={{
+                    bottom: `calc(${keyboardOffset}px + 8px)`,
+                  }}
+                >
+                  <div
+                    data-testid="amount-suggestion-scroll"
+                    className="no-scrollbar flex min-w-0 flex-1 flex-nowrap gap-2 overflow-x-auto"
+                  >
+                    {showSuggestions
+                      ? suggestions.map((s) => (
+                          <Button
+                            key={s}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full tabular-nums"
+                            onPointerDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setField("amount", s);
+                            }}
+                          >
+                            {formatVnd(s)}
+                          </Button>
+                        ))
+                      : null}
+                  </div>
+                  {renderSubmitButton("keyboard")}
+                </div>
+              ) : null}
+
+              <div className="quick-expense-enter-group quick-expense-enter-delay-3 flex flex-col gap-2">
+                <BudgetChipRow
+                  value={draft.budgetId}
+                  options={budgetOptions}
+                  selectedBudget={
+                    draft.budgetId === null
+                      ? null
+                      : {
+                          id: draft.budgetId,
+                          name: draft.budgetName,
+                          icon: draft.budgetIcon,
+                          color: draft.budgetColor,
+                        }
+                  }
+                  loading={budgetOptionsQuery.isPending}
+                  suggesting={isSuggestingBudget}
+                  onChange={(id) => {
+                    const selected = budgetOptions.find(
+                      (budget) => budget.id === id
+                    );
+                    budgetSelectionSourceRef.current = "manual";
+                    setDraft((prev) => ({
+                      ...prev,
+                      budgetId: id,
+                      budgetName: id === null ? null : (selected?.name ?? null),
+                      budgetIcon: id === null ? null : (selected?.icon ?? null),
+                      budgetColor:
+                        id === null ? null : (selected?.color ?? null),
+                    }));
+                  }}
+                />
+                <CategoryChipRow
+                  value={draft.category}
+                  onChange={(c) => setField("category", c)}
                 />
               </div>
             </div>
-
-            {showSuggestions && (
-              <div
-                role="group"
-                aria-label="Amount suggestions"
-                className={cn(
-                  "no-scrollbar flex flex-nowrap gap-2 overflow-x-auto",
-                  anchorSuggestionsToKeyboard &&
-                    "fixed inset-x-0 z-60 mx-auto w-full max-w-md justify-start px-4 pt-2 pb-2"
-                )}
-                style={
-                  anchorSuggestionsToKeyboard
-                    ? {
-                        bottom: `calc(${keyboardOffset}px + 8px)`,
-                      }
-                    : undefined
-                }
-              >
-                {suggestions.map((s) => (
-                  <Button
-                    key={s}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full tabular-nums"
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setField("amount", s);
-                    }}
-                  >
-                    {formatVnd(s)}
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            <div className="quick-expense-enter-group quick-expense-enter-delay-3 flex flex-col gap-2">
-              <BudgetChipRow
-                value={draft.budgetId}
-                options={budgetOptions}
-                selectedBudget={
-                  draft.budgetId === null
-                    ? null
-                    : {
-                        id: draft.budgetId,
-                        name: draft.budgetName,
-                        icon: draft.budgetIcon,
-                        color: draft.budgetColor,
-                      }
-                }
-                loading={budgetOptionsQuery.isPending}
-                suggesting={isSuggestingBudget}
-                onChange={(id) => {
-                  const selected = budgetOptions.find(
-                    (budget) => budget.id === id
-                  );
-                  budgetSelectionSourceRef.current = "manual";
-                  setDraft((prev) => ({
-                    ...prev,
-                    budgetId: id,
-                    budgetName: id === null ? null : (selected?.name ?? null),
-                    budgetIcon: id === null ? null : (selected?.icon ?? null),
-                    budgetColor: id === null ? null : (selected?.color ?? null),
-                  }));
-                }}
-              />
-              <CategoryChipRow
-                value={draft.category}
-                onChange={(c) => setField("category", c)}
-              />
-            </div>
           </div>
-        </div>
 
-        <DrawerFooter
-          className={cn(
-            "quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4",
-            isEditMode && "flex-row gap-2"
-          )}
-        >
-          {isEditMode ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Delete expense"
-              onClick={() => setDeleteConfirmOpen(true)}
-              disabled={!onConfirmDelete || queueing}
-              className="rounded-xl border-none"
+          {!keyboardOpen || isEditMode ? (
+            <DrawerFooter
+              className={cn(
+                "quick-expense-enter-group quick-expense-enter-delay-4 standalone:pb-safe px-4",
+                isEditMode && "flex-row gap-2"
+              )}
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+              {isEditMode ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Delete expense"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  disabled={!onConfirmDelete || queueing}
+                  className="rounded-xl border-none"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : null}
+              {!keyboardOpen ? renderSubmitButton("footer") : null}
+            </DrawerFooter>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="h-10 flex-1 rounded-xl text-base font-medium"
-          >
-            {isEditMode ? "Update" : "Save expense"}
-          </Button>
-        </DrawerFooter>
 
-        <DatePickerSheet
-          open={dateOpen}
-          onOpenChange={handleDateOpenChange}
-          value={draft.date}
-          onChange={(next) => setField("date", next)}
-          onCloseAutoFocus={handlePickerCloseAutoFocus}
-          onRestoreFocusRequest={restoreDrawerInputFocus}
-        />
+          <DatePickerSheet
+            open={dateOpen}
+            onOpenChange={handleDateOpenChange}
+            value={draft.date}
+            onChange={(next) => setField("date", next)}
+            onCloseAutoFocus={handlePickerCloseAutoFocus}
+            onRestoreFocusRequest={restoreDrawerInputFocus}
+          />
 
-        <PaidByPickerSheet
-          open={paidByOpen}
-          onOpenChange={handlePaidByOpenChange}
-          value={draft.paidBy}
-          onChange={(next) => setField("paidBy", next)}
-          onCloseAutoFocus={handlePickerCloseAutoFocus}
-          onRestoreFocusRequest={restoreDrawerInputFocus}
-        />
+          <PaidByPickerSheet
+            open={paidByOpen}
+            onOpenChange={handlePaidByOpenChange}
+            value={draft.paidBy}
+            onChange={(next) => setField("paidBy", next)}
+            onCloseAutoFocus={handlePickerCloseAutoFocus}
+            onRestoreFocusRequest={restoreDrawerInputFocus}
+          />
 
-        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-          <DialogContent className="p-0 sm:max-w-md">
-            <div className="bg-muted/40 flex items-start gap-4 border-b px-6 py-5">
-              <div className="bg-destructive/10 text-destructive flex size-11 shrink-0 items-center justify-center rounded-full">
-                <Trash2 className="h-5 w-5" />
+          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <DialogContent className="p-0 sm:max-w-md">
+              <div className="bg-muted/40 flex items-start gap-4 border-b px-6 py-5">
+                <div className="bg-destructive/10 text-destructive flex size-11 shrink-0 items-center justify-center rounded-full">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <DialogHeader className="text-left">
+                  <DialogTitle>Delete this expense?</DialogTitle>
+                  <DialogDescription>
+                    We will remove it from your list. This cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
               </div>
-              <DialogHeader className="text-left">
-                <DialogTitle>Delete this expense?</DialogTitle>
-                <DialogDescription>
-                  We will remove it from your list. This cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-            <div className="bg-card/80 border-border mx-2 space-y-4 rounded-xl border p-4 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <p className="text-muted-foreground text-sm">{draft.date}</p>
-                  <div className="flex items-center gap-2">
-                    <ExpenseItemIcon category={draft.category} size="sm" />
-                    <span className="text-sm font-medium">
-                      {draft.category}
-                    </span>
+              <div className="bg-card/80 border-border mx-2 space-y-4 rounded-xl border p-4 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground text-sm">
+                      {draft.date}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <ExpenseItemIcon category={draft.category} size="sm" />
+                      <span className="text-sm font-medium">
+                        {draft.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                      Amount
+                    </p>
+                    <p className="text-destructive text-lg font-semibold">
+                      -{formatVnd(draft.amount)} <VndSymbol />
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                    Amount
-                  </p>
-                  <p className="text-destructive text-lg font-semibold">
-                    -{formatVnd(draft.amount)} <VndSymbol />
-                  </p>
-                </div>
+                {draft.note ? (
+                  <div className="text-muted-foreground flex items-center gap-2">
+                    <NotebookIcon className="size-4" />
+                    <span className="text-sm font-medium">{draft.note}</span>
+                  </div>
+                ) : null}
               </div>
-              {draft.note ? (
-                <div className="text-muted-foreground flex items-center gap-2">
-                  <NotebookIcon className="size-4" />
-                  <span className="text-sm font-medium">{draft.note}</span>
-                </div>
-              ) : null}
-            </div>
-            <DialogFooter className="border-t px-6 py-4">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setDeleteConfirmOpen(false)}
-              >
-                Keep it
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleConfirmDelete}
-                disabled={!onConfirmDelete}
-              >
-                Delete expense
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </DrawerContent>
+              <DialogFooter className="border-t px-6 py-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setDeleteConfirmOpen(false)}
+                >
+                  Keep it
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleConfirmDelete}
+                  disabled={!onConfirmDelete}
+                >
+                  Delete expense
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </DrawerContent>
+      ) : null}
     </Drawer>
   );
 };

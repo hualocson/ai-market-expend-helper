@@ -143,6 +143,23 @@ const budgetOption = (
   ...override,
 });
 
+const installVisualViewport = (height: number) => {
+  const visualViewport = new EventTarget() as VisualViewport;
+  Object.defineProperties(visualViewport, {
+    height: { configurable: true, value: height },
+    offsetTop: { configurable: true, value: 0 },
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: 800,
+  });
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: visualViewport,
+  });
+  return visualViewport;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, "matchMedia", {
@@ -400,19 +417,7 @@ describe("QuickExpenseDrawer — fields", () => {
   });
 
   it("positions amount suggestions above the software keyboard", async () => {
-    const visualViewport = new EventTarget() as VisualViewport;
-    Object.defineProperties(visualViewport, {
-      height: { configurable: true, value: 544 },
-      offsetTop: { configurable: true, value: 0 },
-    });
-    Object.defineProperty(window, "innerHeight", {
-      configurable: true,
-      value: 800,
-    });
-    Object.defineProperty(window, "visualViewport", {
-      configurable: true,
-      value: visualViewport,
-    });
+    const visualViewport = installVisualViewport(544);
 
     const user = await openDrawer();
     const amount = screen.getByPlaceholderText("0");
@@ -427,14 +432,36 @@ describe("QuickExpenseDrawer — fields", () => {
     });
 
     expect(suggestions).toHaveClass("fixed");
-    expect(suggestions).toHaveClass(
-      "no-scrollbar",
-      "flex-nowrap",
-      "overflow-x-auto"
-    );
+    expect(suggestions).toHaveClass("fixed", "flex", "items-center", "gap-2");
     expect(suggestions).toHaveStyle({
       bottom: "calc(256px + 8px)",
     });
+  });
+
+  it("pins an icon-only submit button at the end of the keyboard suggestion row", async () => {
+    const visualViewport = installVisualViewport(544);
+
+    const user = await openDrawer();
+    const amount = screen.getByPlaceholderText("0");
+    await user.click(amount);
+    act(() => {
+      visualViewport.dispatchEvent(new Event("resize"));
+    });
+    await user.keyboard("5");
+
+    const row = screen.getByRole("group", {
+      name: /amount suggestions/i,
+    });
+    const suggestionStrip = within(row).getByTestId("amount-suggestion-scroll");
+    const saveButtons = screen.getAllByRole("button", {
+      name: /^save expense$/i,
+    });
+
+    expect(suggestionStrip).toHaveClass("min-w-0", "flex-1", "overflow-x-auto");
+    expect(saveButtons).toHaveLength(1);
+    expect(saveButtons[0]).toHaveTextContent(/^$/);
+    expect(saveButtons[0]).toHaveClass("shrink-0", "rounded-full");
+    expect(saveButtons[0]).toHaveAttribute("aria-label", "Save expense");
   });
 
   it("renders the collapsed category chip row and expands then toggles active chip", async () => {
@@ -1369,6 +1396,35 @@ describe("QuickExpenseDrawer — edit mode", () => {
       screen.getByPlaceholderText(/what did you spend on/i)
     ).toBeInTheDocument();
     expect(onConfirmDelete).not.toHaveBeenCalled();
+  });
+
+  it("moves the edit submit action into the keyboard row as an icon-only button", async () => {
+    const visualViewport = installVisualViewport(544);
+    const user = userEvent.setup();
+    renderEditDrawer();
+
+    await user.click(screen.getByPlaceholderText("0"));
+    act(() => {
+      visualViewport.dispatchEvent(new Event("resize"));
+    });
+
+    const row = screen.getByRole("group", {
+      name: /amount suggestions/i,
+    });
+    const updateButtons = screen.getAllByRole("button", {
+      name: /^update expense$/i,
+    });
+
+    expect(within(row).getByRole("button", { name: /^update expense$/i }));
+    expect(updateButtons).toHaveLength(1);
+    expect(updateButtons[0]).toHaveTextContent(/^$/);
+    expect(updateButtons[0]).toHaveClass("shrink-0", "rounded-full");
+    expect(
+      screen.queryByRole("button", { name: /^update$/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /delete expense/i })
+    ).toBeInTheDocument();
   });
 
   it("keeps the edit sheet open when canceling delete confirmation", async () => {
