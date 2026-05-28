@@ -12,6 +12,7 @@ import {
 
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import type { BudgetColorId } from "@/lib/budget-appearance";
 import { groupBudgetOptions, pickDefaultBudget } from "@/lib/budget-options";
@@ -201,6 +202,7 @@ const ManualExpenseForm = forwardRef<
     const createExpenseMutation = useCreateExpenseMutation();
     const { mutateAsync: suggestBudgetMutateAsync } =
       useSuggestBudgetMutation();
+    const haptics = useAppHaptics();
 
     const amountRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -408,10 +410,12 @@ const ManualExpenseForm = forwardRef<
           await createExpenseMutation.mutateAsync(payload);
         }
         toast.success(successMessage);
+        haptics.success();
         onSuccess?.();
       } catch (error) {
         console.error(error);
         toast.error(errorMessage);
+        haptics.error();
       } finally {
         setLoading(false);
       }
@@ -419,6 +423,7 @@ const ManualExpenseForm = forwardRef<
       canSubmit,
       errorMessage,
       expense,
+      haptics,
       loading,
       onSubmit,
       onSuccess,
@@ -589,6 +594,10 @@ const ManualExpenseForm = forwardRef<
         if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
           return;
         }
+        if (result.status === "no_match") {
+          haptics.warning();
+          return;
+        }
         if (result.status !== "success" || result.confidence === "low") {
           return;
         }
@@ -602,6 +611,7 @@ const ManualExpenseForm = forwardRef<
       budgetLoaded,
       expense.note,
       isSheetOpen,
+      haptics,
       showBudgetSelect,
       suggestionCandidateKey,
       suggestionCandidates,
@@ -782,7 +792,12 @@ const ManualExpenseForm = forwardRef<
               type="button"
               variant="outline"
               className="h-12 w-full rounded-xl"
-              onClick={() => setMode("advanced")}
+              onClick={() => {
+                if (mode !== "advanced") {
+                  haptics.selection();
+                }
+                setMode("advanced");
+              }}
             >
               More options
             </Button>

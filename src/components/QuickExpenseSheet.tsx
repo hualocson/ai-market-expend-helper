@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useAutoShrinkFont } from "@/hooks/useAutoShrinkFont";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import type { SuggestBudgetCandidate } from "@/lib/ai/suggest-budget-contract";
@@ -68,6 +69,7 @@ import VndSymbol from "./VndSymbol";
 
 export type TQuickExpenseSheetProps = {
   compact?: boolean;
+  onTriggerClick?: () => void;
   mode?: "create" | "edit";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -259,6 +261,7 @@ const formatDateLabel = (date: string) => {
 
 const QuickExpenseSheet = ({
   compact = false,
+  onTriggerClick,
   mode = "create",
   open,
   onOpenChange,
@@ -275,6 +278,7 @@ const QuickExpenseSheet = ({
   const { mutateAsync: createExpense } = useCreateExpenseMutation();
   const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
   const { mutateAsync: suggestBudgetMutateAsync } = useSuggestBudgetMutation();
+  const haptics = useAppHaptics();
   const fallbackPaidBy = normalizePaidBy(settingsPaidBy);
   const [internalOpen, setInternalOpen] = useState(false);
   const sheetOpen = open ?? internalOpen;
@@ -408,6 +412,7 @@ const QuickExpenseSheet = ({
       return;
     }
 
+    haptics.impact("medium");
     setQueueing(true);
     const selectedBudget =
       draft.budgetId === null
@@ -700,11 +705,17 @@ const QuickExpenseSheet = ({
       if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
         return;
       }
+      if (result.status === "no_match") {
+        haptics.error();
+        return;
+      }
       if (result.status !== "success" || result.confidence === "low") {
+        haptics.error();
         return;
       }
 
       applySuggestedBudget(result.budgetId);
+      haptics.success();
     } catch (error) {
       console.error("Failed to suggest budget", error);
     } finally {
@@ -732,6 +743,7 @@ const QuickExpenseSheet = ({
           <Button
             size={compact ? "icon-lg" : "default"}
             aria-label={compact ? "Add expense" : undefined}
+            onClick={onTriggerClick}
             className={cn(
               "rounded-full shadow-[0_25px_60px_color-mix(in_srgb,var(--background)_60%,transparent)] active:scale-[0.97]",
               compact && "size-12"

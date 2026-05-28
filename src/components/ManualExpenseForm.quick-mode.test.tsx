@@ -18,6 +18,17 @@ const { suggestBudgetMutateAsync } = vi.hoisted(() => ({
   suggestBudgetMutateAsync: vi.fn(),
 }));
 
+const { hapticsMock } = vi.hoisted(() => ({
+  hapticsMock: {
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    selection: vi.fn(),
+    impact: vi.fn(),
+    trigger: vi.fn(),
+  },
+}));
+
 vi.mock("@/lib/mutations", async (importActual) => {
   const actual = await importActual<typeof import("@/lib/mutations")>();
 
@@ -28,6 +39,10 @@ vi.mock("@/lib/mutations", async (importActual) => {
     }),
   };
 });
+
+vi.mock("@/hooks/useAppHaptics", () => ({
+  useAppHaptics: () => hapticsMock,
+}));
 
 const originalGlobalReact = globalThis.React;
 
@@ -95,6 +110,12 @@ const renderManualExpenseFormTree = ({
 
 afterEach(() => {
   suggestBudgetMutateAsync.mockReset();
+  hapticsMock.success.mockReset();
+  hapticsMock.warning.mockReset();
+  hapticsMock.error.mockReset();
+  hapticsMock.selection.mockReset();
+  hapticsMock.impact.mockReset();
+  hapticsMock.trigger.mockReset();
   restoreReactGlobal();
   vi.restoreAllMocks();
 });
@@ -187,6 +208,65 @@ const renderManualExpenseForm = async ({
 };
 
 describe("ManualExpenseForm quick mode", () => {
+  it("triggers success haptics after submit succeeds", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    await renderManualExpenseForm({
+      initialMode: "quick",
+      prefillExpense: {
+        amount: 45000,
+        note: "Coffee",
+        category: Category.FOOD,
+      },
+      onSubmit,
+    });
+
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(hapticsMock.success).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.error).not.toHaveBeenCalled();
+  });
+
+  it("triggers error haptics after submit fails", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockRejectedValue(new Error("save failed"));
+
+    await renderManualExpenseForm({
+      initialMode: "quick",
+      prefillExpense: {
+        amount: 45000,
+        note: "Coffee",
+        category: Category.FOOD,
+      },
+      onSubmit,
+    });
+
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(hapticsMock.error).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.success).not.toHaveBeenCalled();
+  });
+
+  it("triggers selection haptics when quick mode opens advanced options", async () => {
+    const user = userEvent.setup();
+
+    await renderManualExpenseForm({
+      initialMode: "quick",
+      prefillExpense: {
+        amount: 45000,
+        note: "Coffee",
+        category: Category.FOOD,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: /more options/i }));
+
+    expect(hapticsMock.selection).toHaveBeenCalledTimes(1);
+  });
+
   it("suggests and preselects a high confidence budget on note blur", async () => {
     const user = userEvent.setup();
     suggestBudgetMutateAsync.mockResolvedValue({
@@ -241,6 +321,36 @@ describe("ManualExpenseForm quick mode", () => {
     expect(
       within(screen.getByRole("button", { name: /budget/i })).getByText(
         "Coffee"
+      )
+    ).toBeVisible();
+  });
+
+  it("triggers warning haptics when the AI budget suggestion returns no_match", async () => {
+    const user = userEvent.setup();
+    suggestBudgetMutateAsync.mockResolvedValue({
+      status: "no_match",
+      reason: "No provided budget matches this note.",
+    });
+
+    await renderManualExpenseForm({
+      initialMode: "quick",
+      showBudgetSelect: true,
+      budgetPayload: budgetSuggestionFixture,
+    });
+
+    const noteInput = screen.getByPlaceholderText(
+      "Optional note about this expense"
+    );
+    await user.type(noteInput, "office supplies");
+    await user.tab();
+
+    await waitFor(() => expect(suggestBudgetMutateAsync).toHaveBeenCalled());
+    expect(hapticsMock.warning).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: /more options/i }));
+    expect(
+      within(screen.getByRole("button", { name: /budget/i })).getByText(
+        "No budget"
       )
     ).toBeVisible();
   });

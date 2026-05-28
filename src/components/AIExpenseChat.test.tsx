@@ -7,6 +7,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AIExpenseChat from "./AIExpenseChat";
 
+const { hapticsMock } = vi.hoisted(() => ({
+  hapticsMock: {
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    selection: vi.fn(),
+    impact: vi.fn(),
+    trigger: vi.fn(),
+  },
+}));
+
+vi.mock("@/hooks/useAppHaptics", () => ({
+  useAppHaptics: () => hapticsMock,
+}));
+
 vi.mock("./ManualExpenseForm", () => ({
   default: ({
     initialMode,
@@ -88,6 +103,13 @@ afterEach(() => {
     globalThis.React = originalGlobalReact;
   }
 
+  hapticsMock.success.mockReset();
+  hapticsMock.warning.mockReset();
+  hapticsMock.error.mockReset();
+  hapticsMock.selection.mockReset();
+  hapticsMock.impact.mockReset();
+  hapticsMock.trigger.mockReset();
+
   vi.restoreAllMocks();
 });
 
@@ -140,6 +162,9 @@ describe("AIExpenseChat", () => {
     expect(
       await screen.findByText(/review ai suggestion/i)
     ).toBeInTheDocument();
+    expect(hapticsMock.success).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.warning).not.toHaveBeenCalled();
+    expect(hapticsMock.error).not.toHaveBeenCalled();
     expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /continue to form/i }));
@@ -283,6 +308,9 @@ describe("AIExpenseChat", () => {
       note: "Taxi 45k home",
       amount: 45000,
     });
+    expect(hapticsMock.warning).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.success).not.toHaveBeenCalled();
+    expect(hapticsMock.error).not.toHaveBeenCalled();
     expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
   });
 
@@ -329,6 +357,9 @@ describe("AIExpenseChat", () => {
     expect(
       await screen.findByText(/could not parse that expense/i)
     ).toBeInTheDocument();
+    expect(hapticsMock.error).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.success).not.toHaveBeenCalled();
+    expect(hapticsMock.warning).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "PARSE_EXPENSE_FAILED",

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 
 import { Category } from "@/enums";
+import { useAppHaptics } from "@/hooks/useAppHaptics";
 import type {
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
@@ -70,6 +71,7 @@ const AIExpenseChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [composer, setComposer] = useState("");
   const [loading, setLoading] = useState(false);
+  const haptics = useAppHaptics();
   const logRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -162,6 +164,7 @@ const AIExpenseChat = () => {
           variant: "success",
           expense: payload.expense,
         });
+        haptics.success();
         return;
       }
 
@@ -171,6 +174,7 @@ const AIExpenseChat = () => {
         variant: "fallback",
         prefill: payload.prefill,
       });
+      haptics.warning();
     } catch (requestError) {
       console.error(requestError);
       replaceMessage(assistantId, {
@@ -179,6 +183,7 @@ const AIExpenseChat = () => {
         variant: "error",
         retryInput: input,
       });
+      haptics.error();
     } finally {
       setLoading(false);
     }
