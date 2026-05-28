@@ -940,6 +940,9 @@ describe("QuickExpenseSheet — submit", () => {
 
   it("shows create success toast after the local write resolves", async () => {
     let resolveCreate: (value: { clientId: string }) => void = () => {};
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({ id: 3, name: "Food week" }),
+    ]);
     mutationMocks.createMutateAsync.mockReturnValue(
       new Promise((resolve) => {
         resolveCreate = resolve;
@@ -947,6 +950,12 @@ describe("QuickExpenseSheet — submit", () => {
     );
     const user = await openSheet();
 
+    await user.click(screen.getByRole("button", { name: /no budget/i }));
+    await user.click(await screen.findByRole("button", { name: /food week/i }));
+    await user.type(
+      screen.getByPlaceholderText(/what did you spend on/i),
+      "Budget lunch"
+    );
     await user.click(screen.getByPlaceholderText("0"));
     await user.keyboard("12000");
     await user.click(screen.getByRole("button", { name: /save expense/i }));
@@ -960,9 +969,14 @@ describe("QuickExpenseSheet — submit", () => {
       resolveCreate({ clientId: "expense-client-1" });
     });
 
-    await waitFor(() =>
-      expect(toastMock.success).toHaveBeenCalledWith("Expense added.")
-    );
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+    const [message, options] = toastMock.success.mock.calls.at(-1) ?? [];
+    expect(options).toMatchObject({ icon: null });
+
+    const toastContent = render(message as React.ReactElement);
+    expect(toastContent.container).toHaveTextContent("🍜");
+    expect(toastContent.container).toHaveTextContent("Budget lunch");
+    expect(toastContent.container).toHaveTextContent("12.000₫");
   });
 
   it("opens create mode with a recovery draft after rerender", async () => {
