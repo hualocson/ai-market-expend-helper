@@ -162,6 +162,7 @@ const installVisualViewport = (height: number) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockImplementation((query: string) => ({
@@ -1230,6 +1231,129 @@ describe("QuickExpenseDrawer — submit", () => {
         expect.objectContaining({ budgetId: null })
       )
     );
+  });
+});
+
+describe("QuickExpenseDrawer — keep open", () => {
+  const openDrawer = async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByRole("button", { name: /add expense/i }));
+    return user;
+  };
+
+  it("shows the keep-open toggle in create mode", async () => {
+    await openDrawer();
+    expect(
+      screen.getByRole("switch", { name: /keep open/i })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the drawer open and resets the draft after saving when enabled", async () => {
+    const user = await openDrawer();
+
+    await user.click(screen.getByRole("switch", { name: /keep open/i }));
+
+    // Change the date to a non-today value to prove it carries over.
+    await user.click(screen.getByRole("button", { name: /^date:/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /pick mocked date/i })
+    );
+    await user.click(screen.getByRole("button", { name: /done/i }));
+
+    await user.type(
+      screen.getByPlaceholderText(/what did you spend on/i),
+      "First item"
+    );
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 12000, note: "First item" })
+      )
+    );
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    expect(note).toBeInTheDocument();
+    expect(note).toHaveValue("");
+    expect(screen.getByPlaceholderText("0")).toHaveValue("");
+    await waitFor(() => expect(note).toHaveFocus());
+    expect(
+      screen.getByRole("button", { name: /date: 20\/05/i })
+    ).toBeInTheDocument();
+  });
+
+  it("closes after saving when keep-open is off", async () => {
+    const user = await openDrawer();
+
+    await user.type(
+      screen.getByPlaceholderText(/what did you spend on/i),
+      "Single item"
+    );
+    await user.click(screen.getByPlaceholderText("0"));
+    await user.keyboard("12000");
+    await user.click(screen.getByRole("button", { name: /save expense/i }));
+
+    await waitFor(() =>
+      expect(mutationMocks.createMutateAsync).toHaveBeenCalled()
+    );
+    expect(
+      screen.queryByPlaceholderText(/what did you spend on/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the keep-open toggle in edit mode", async () => {
+    renderDrawer({
+      mode: "edit",
+      open: true,
+      showTrigger: false,
+      transactionId: 42,
+      initialExpense: {
+        date: "2026-05-20",
+        amount: 150000,
+        note: "Badminton court",
+        category: "Badminton",
+        paidBy: "Embe",
+        budgetId: 2,
+      },
+    });
+
+    await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(
+      screen.queryByRole("switch", { name: /keep open/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the keep-open toggle in recovery mode", async () => {
+    const { rerenderDrawer } = renderDrawer({
+      open: false,
+      showTrigger: false,
+    });
+
+    rerenderDrawer({
+      open: true,
+      showTrigger: false,
+      recoveryOperationId: "op-1",
+      recoveryDraft: {
+        clientId: "expense-client-1",
+        date: "20/05/2026",
+        amount: 45000,
+        note: "Recovered lunch",
+        category: Category.FOOD,
+        budgetId: null,
+        budgetName: null,
+        budgetIcon: null,
+        budgetColor: null,
+        paidBy: PaidBy.OTHER,
+      },
+    });
+
+    await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(
+      screen.queryByRole("switch", { name: /keep open/i })
+    ).not.toBeInTheDocument();
   });
 });
 
