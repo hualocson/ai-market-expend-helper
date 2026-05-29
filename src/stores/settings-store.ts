@@ -4,16 +4,19 @@ import { createStore } from "zustand/vanilla";
 
 export type TSettingsState = {
   paidBy: string;
+  keepDrawerOpen: boolean;
 };
 
 export type TSettingsActions = {
   setPaidBy: (paidBy: string) => void;
+  setKeepDrawerOpen: (keepDrawerOpen: boolean) => void;
 };
 
 export type TSettingsStore = TSettingsState & TSettingsActions;
 
 export const defaultInitState: TSettingsState = {
   paidBy: PaidBy.CUBI,
+  keepDrawerOpen: false,
 };
 
 export const createSettingsStore = (
@@ -24,9 +27,10 @@ export const createSettingsStore = (
       (set) => ({
         ...initState,
         setPaidBy: (paidBy: string) => set({ paidBy }),
+        setKeepDrawerOpen: (keepDrawerOpen: boolean) => set({ keepDrawerOpen }),
       }),
       {
-        version: 1,
+        version: 2,
         name: "settings",
       }
     )

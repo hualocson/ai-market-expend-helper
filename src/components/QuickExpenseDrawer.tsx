@@ -57,6 +57,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Switch } from "@/components/ui/switch";
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
@@ -216,6 +217,11 @@ const cloneExpenseDraft = (draft: TExpenseDraft): TExpenseDraft => ({
   paidBy: draft.paidBy,
 });
 
+const buildNextEntryDraft = (previous: TExpenseDraft): TExpenseDraft => ({
+  ...buildDefaultDraft(normalizePaidBy(previous.paidBy)),
+  date: previous.date,
+});
+
 const buildQuickExpensePayload = (
   draft: TExpenseDraft
 ): TQuickExpensePayload => ({
@@ -275,6 +281,10 @@ const QuickExpenseDrawer = ({
 }: TQuickExpenseDrawerProps) => {
   const isEditMode = mode === "edit";
   const settingsPaidBy = useSettingsStore((state) => state.paidBy);
+  const keepDrawerOpen = useSettingsStore((state) => state.keepDrawerOpen);
+  const setKeepDrawerOpen = useSettingsStore(
+    (state) => state.setKeepDrawerOpen
+  );
   const clearRecovery = useQuickExpenseRecoveryStore((state) => state.clear);
   const { mutateAsync: createExpense } = useCreateExpenseMutation();
   const { mutateAsync: updateExpense } = useUpdateExpenseMutation();
@@ -451,7 +461,16 @@ const QuickExpenseDrawer = ({
       if (recoveryOperationId) {
         clearRecovery(recoveryOperationId);
       }
-      handleOpenChange(false);
+      const keepOpen =
+        !isEditMode && !recoveryOperationId && !recoveryDraft && keepDrawerOpen;
+      if (keepOpen) {
+        const nextDraft = buildNextEntryDraft(submittedDraft);
+        setDraft(nextDraft);
+        resetSuggestionTracking(nextDraft, "none");
+        noteRef.current?.focus({ preventScroll: true });
+      } else {
+        handleOpenChange(false);
+      }
 
       void localWrite
         .then(() => {
@@ -736,6 +755,8 @@ const QuickExpenseDrawer = ({
   const keyboardOpen = keyboardOffset > 0;
   const submitText = isEditMode ? "Update" : "Save expense";
   const submitLabel = isEditMode ? "Update expense" : "Save expense";
+  const showKeepOpenToggle =
+    !isEditMode && !recoveryOperationId && !recoveryDraft;
   const renderSubmitButton = (placement: "footer" | "keyboard") => {
     const isKeyboardPlacement = placement === "keyboard";
 
@@ -751,8 +772,8 @@ const QuickExpenseDrawer = ({
         disabled={!canSubmit}
         className={cn(
           isKeyboardPlacement
-            ? "h-10 w-10 shrink-0 rounded-full"
-            : "h-10 flex-1 rounded-xl text-base font-medium"
+            ? "h-12 w-12 shrink-0 rounded-full"
+            : "h-12 flex-1 rounded-xl text-base font-medium"
         )}
       >
         {isKeyboardPlacement ? <Check className="h-4 w-4" /> : submitText}
@@ -798,10 +819,26 @@ const QuickExpenseDrawer = ({
             noteRef.current?.focus({ preventScroll: true });
           }}
         >
-          <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
-            <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
-          </DrawerClose>
+          <div className="quick-expense-enter-group quick-expense-enter-delay-1 absolute top-4 right-4 z-60 flex items-center gap-2">
+            {showKeepOpenToggle ? (
+              <label
+                className="flex items-center gap-2 py-1.5 pr-1.5 pl-3 text-xs font-medium opacity-70"
+                onPointerDown={(event) => event.preventDefault()}
+              >
+                <span>Create more</span>
+                <Switch
+                  checked={keepDrawerOpen}
+                  onCheckedChange={setKeepDrawerOpen}
+                  onPointerDown={(event) => event.preventDefault()}
+                  aria-label="Create more"
+                />
+              </label>
+            ) : null}
+            <DrawerClose className="ring-offset-background rounded-full p-3 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+              <XIcon className="size-4" />
+              <span className="sr-only">Close</span>
+            </DrawerClose>
+          </div>
           <DrawerHeader className="sr-only">
             <DrawerTitle>
               {isEditMode ? "Edit expense" : "Add expense"}
