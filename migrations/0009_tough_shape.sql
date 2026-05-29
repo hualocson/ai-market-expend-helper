@@ -1,0 +1,1 @@
+ALTER TABLE "budgets" ADD COLUMN "category" text DEFAULT 'Other' NOT NULL;

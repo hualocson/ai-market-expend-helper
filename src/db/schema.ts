@@ -1,4 +1,4 @@
-import { PaidBy } from "@/enums";
+import { Category, PaidBy } from "@/enums";
 import {
   type BudgetColorId,
   DEFAULT_BUDGET_COLOR,
@@ -81,6 +81,8 @@ export const budgets = pgTable(
       .$type<BudgetColorId>()
       .notNull()
       .default(DEFAULT_BUDGET_COLOR),
+
+    category: text("category").notNull().default(Category.OTHER),
 
     period: budgetPeriod("period").notNull(),
 
