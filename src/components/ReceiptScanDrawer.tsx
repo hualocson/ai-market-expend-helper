@@ -8,7 +8,7 @@ import type { ScanReceiptResponse } from "@/lib/ai/scan-receipt-contract";
 import { unwrapApiResponse } from "@/lib/api/api-response";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { compressImage } from "@/lib/image/compress-image";
-import { Camera, Images, RefreshCw } from "lucide-react";
+import { Images, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +48,6 @@ const mapResultToPrefill = (result: ScanReceiptResponse) => {
 
 const ReceiptScanDrawer = ({ open, onOpenChange }: ReceiptScanDrawerProps) => {
   const [status, setStatus] = useState<ScanStatus>("idle");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const haptics = useAppHaptics();
 
@@ -93,7 +92,6 @@ const ReceiptScanDrawer = ({ open, onOpenChange }: ReceiptScanDrawerProps) => {
     }
   };
 
-  const openPicker = () => fileInputRef.current?.click();
   const openGallery = () => galleryInputRef.current?.click();
 
   return (
@@ -102,21 +100,12 @@ const ReceiptScanDrawer = ({ open, onOpenChange }: ReceiptScanDrawerProps) => {
         <DrawerHeader className="text-left">
           <DrawerTitle>Scan a receipt</DrawerTitle>
           <DrawerDescription>
-            Take a photo or choose one from your device, and we will draft an
-            expense you can review.
+            Choose a receipt photo from your device and we will draft an expense
+            you can review.
           </DrawerDescription>
         </DrawerHeader>
 
         <div className="flex flex-col items-center gap-4 px-4 pb-8">
-          <input
-            ref={fileInputRef}
-            data-testid="receipt-file-input"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
           <input
             ref={galleryInputRef}
             data-testid="receipt-gallery-input"
@@ -148,34 +137,22 @@ const ReceiptScanDrawer = ({ open, onOpenChange }: ReceiptScanDrawerProps) => {
                 variant="secondary"
                 size="sm"
                 className="gap-1.5 rounded-full"
-                onClick={openPicker}
+                onClick={openGallery}
               >
                 <RefreshCw className="size-3.5" />
                 Try again
               </Button>
             </div>
           ) : (
-            <div className="flex w-full flex-col items-center gap-3">
-              <Button
-                type="button"
-                size="lg"
-                className="gap-2 rounded-full"
-                onClick={openPicker}
-              >
-                <Camera className="size-5" />
-                Take photo
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="lg"
-                className="gap-2 rounded-full"
-                onClick={openGallery}
-              >
-                <Images className="size-5" />
-                Choose from device
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="lg"
+              className="gap-2 rounded-full"
+              onClick={openGallery}
+            >
+              <Images className="size-5" />
+              Choose from device
+            </Button>
           )}
         </div>
       </DrawerContent>
