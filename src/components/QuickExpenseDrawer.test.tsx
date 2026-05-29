@@ -1016,36 +1016,6 @@ describe("QuickExpenseDrawer — budget suggestion", () => {
       within(categoryGroup).getByRole("button", { name: /giving/i })
     ).toHaveAttribute("aria-pressed", "true");
   });
-
-  it("does not re-apply the budget category once it differs from the default", async () => {
-    const user = await openDrawerWithBudgets();
-
-    const budgetGroup = screen.getByRole("radiogroup", { name: /^budget$/i });
-    await user.click(
-      within(budgetGroup).getByRole("button", { name: /no budget/i })
-    );
-    await user.click(
-      await within(budgetGroup).findByRole("button", { name: /coffee/i })
-    );
-
-    const categoryGroup = screen.getByRole("radiogroup", {
-      name: /^category$/i,
-    });
-    expect(
-      within(categoryGroup).getByRole("button", { name: /entertainment/i })
-    ).toHaveAttribute("aria-pressed", "true");
-
-    await user.click(
-      within(budgetGroup).getByRole("button", { name: /coffee/i })
-    );
-    await user.click(
-      await within(budgetGroup).findByRole("button", { name: /transport/i })
-    );
-
-    expect(
-      within(categoryGroup).getByRole("button", { name: /entertainment/i })
-    ).toHaveAttribute("aria-pressed", "true");
-  });
 });
 
 describe("QuickExpenseDrawer — submit", () => {

@@ -139,13 +139,12 @@ const isManualBudgetSelectionSource = (source: BudgetSelectionSource) =>
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
 const ALLOWED_PAID_BY = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
-const DEFAULT_DRAFT_CATEGORY = Category.FOOD;
 
 const buildDefaultDraft = (paidBy: PaidBy): TExpenseDraft => ({
   date: dayjs().format("DD/MM/YYYY"),
   amount: 0,
   note: "",
-  category: DEFAULT_DRAFT_CATEGORY,
+  category: Category.FOOD,
   budgetId: null,
   budgetName: null,
   budgetIcon: null,
@@ -323,6 +322,7 @@ const QuickExpenseDrawer = ({
   const currentSuggestionCandidateKeyRef = useRef("");
   const lastSuggestionSnapshotRef = useRef<string | null>(null);
   const suggestionRequestIdRef = useRef(0);
+  const categoryUserEditedRef = useRef(false);
   const previousControlledOpenRef = useRef(open);
   drawerOpenRef.current = drawerOpen;
   currentNoteRef.current = draft.note;
@@ -340,11 +340,11 @@ const QuickExpenseDrawer = ({
     lastSuggestionSnapshotRef.current = null;
     suggestionRequestIdRef.current += 1;
     setIsSuggestingBudget(false);
+    categoryUserEditedRef.current = false;
   };
 
-  const shouldApplyBudgetCategory = (
-    currentCategory: TExpenseDraft["category"]
-  ) => !isEditMode && currentCategory === DEFAULT_DRAFT_CATEGORY;
+  const shouldApplyBudgetCategory = () =>
+    !isEditMode && !categoryUserEditedRef.current;
 
   const handleOpenChange = (next: boolean) => {
     if (typeof open !== "boolean") {
@@ -676,9 +676,7 @@ const QuickExpenseDrawer = ({
       budgetName: selected.name ?? null,
       budgetIcon: selected.icon ?? null,
       budgetColor: selected.color ?? null,
-      category: shouldApplyBudgetCategory(prev.category)
-        ? selected.category
-        : prev.category,
+      category: shouldApplyBudgetCategory() ? selected.category : prev.category,
     }));
     budgetSelectionSourceRef.current = "ai";
   };
@@ -1017,9 +1015,7 @@ const QuickExpenseDrawer = ({
                       budgetColor:
                         id === null ? null : (selected?.color ?? null),
                       category:
-                        id !== null &&
-                        selected &&
-                        shouldApplyBudgetCategory(prev.category)
+                        id !== null && selected && shouldApplyBudgetCategory()
                           ? selected.category
                           : prev.category,
                     }));
@@ -1027,7 +1023,10 @@ const QuickExpenseDrawer = ({
                 />
                 <CategoryChipRow
                   value={draft.category}
-                  onChange={(c) => setField("category", c)}
+                  onChange={(c) => {
+                    categoryUserEditedRef.current = true;
+                    setField("category", c);
+                  }}
                 />
               </div>
             </div>
