@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -119,6 +120,7 @@ describe("budget weekly query helpers", () => {
         amount: 1500,
         spent: 1700,
         remaining: -200,
+        category: Category.OTHER,
       },
       {
         id: 3,
@@ -131,6 +133,7 @@ describe("budget weekly query helpers", () => {
         amount: 500,
         spent: 0,
         remaining: 500,
+        category: Category.OTHER,
       },
     ]);
   });
@@ -166,6 +169,45 @@ describe("budget weekly query helpers", () => {
       icon: "🍜",
       color: "rose",
     });
+  });
+
+  it("maps budget category and falls back to Other for unknown values", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(
+        successEnvelope({
+          budgets: [
+            {
+              id: 1,
+              name: "Coffee week",
+              category: "Entertainment",
+              period: "week",
+              periodStartDate: "2026-05-18",
+              periodEndDate: "2026-05-24",
+              amount: 100,
+              spent: 0,
+              remaining: 100,
+            },
+            {
+              id: 2,
+              name: "Mystery month",
+              category: "NotARealCategory",
+              period: "month",
+              periodStartDate: "2026-05-01",
+              periodEndDate: "2026-05-31",
+              amount: 200,
+              spent: 0,
+              remaining: 200,
+            },
+          ],
+        })
+      ),
+    } as unknown as Response);
+
+    const options = await fetchWeeklyBudgetOptions("2026-05-18");
+
+    expect(options[0]).toMatchObject({ category: Category.ENTERTAINMENT });
+    expect(options[1]).toMatchObject({ category: Category.OTHER });
   });
 
   it("returns all fetched budget options when no target date is provided", async () => {
@@ -211,6 +253,7 @@ describe("budget weekly query helpers", () => {
         amount: 800,
         spent: 100,
         remaining: 700,
+        category: Category.OTHER,
       },
       {
         id: 2,
@@ -223,6 +266,7 @@ describe("budget weekly query helpers", () => {
         amount: 0,
         spent: 0,
         remaining: 0,
+        category: Category.OTHER,
       },
     ]);
   });

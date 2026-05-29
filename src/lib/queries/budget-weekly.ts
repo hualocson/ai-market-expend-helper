@@ -1,4 +1,5 @@
 import dayjs from "@/configs/date";
+import { Category } from "@/enums";
 import {
   type BudgetColorId,
   normalizeBudgetColor,
@@ -22,6 +23,7 @@ type BudgetWeeklyOptionsResponse = {
     amount?: number;
     spent?: number;
     remaining?: number;
+    category?: string;
   }>;
 };
 
@@ -36,7 +38,13 @@ export type BudgetWeeklyOption = {
   amount: number;
   spent: number;
   remaining: number;
+  category: Category;
 };
+
+const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
+
+const normalizeBudgetCategory = (value: unknown): Category =>
+  ALLOWED_CATEGORIES.find((option) => option === value) ?? Category.OTHER;
 
 export const fetchWeeklyBudgetOptions = async (
   weekStart: string,
@@ -101,6 +109,7 @@ export const fetchWeeklyBudgetOptions = async (
       amount: Number(budget.amount ?? 0),
       spent: Number(budget.spent ?? 0),
       remaining: Number(budget.remaining ?? 0),
+      category: normalizeBudgetCategory(budget.category),
     }));
 };
 

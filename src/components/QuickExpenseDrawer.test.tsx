@@ -140,6 +140,7 @@ const budgetOption = (
   amount: 100000,
   spent: 0,
   remaining: 100000,
+  category: Category.OTHER,
   ...override,
 });
 

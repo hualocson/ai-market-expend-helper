@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { describe, expect, it } from "vitest";
 
@@ -19,6 +20,7 @@ const opt = (over: Partial<BudgetWeeklyOption> = {}): BudgetWeeklyOption => ({
   remaining: 100,
   icon: "💰",
   color: "lime",
+  category: Category.OTHER,
   ...over,
 });
 
