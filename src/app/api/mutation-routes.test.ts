@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import {
   DEFAULT_BUDGET_COLOR,
   DEFAULT_BUDGET_ICON,
@@ -610,6 +611,7 @@ describe("REST mutation routes", () => {
       name: "Groceries",
       icon: "🛒",
       color: "emerald",
+      category: Category.FOOD,
       amount: 1000000,
       period: "week",
       periodStartDate: "2026-05-18",
@@ -642,6 +644,7 @@ describe("REST mutation routes", () => {
       ...payload,
       icon: DEFAULT_BUDGET_ICON,
       color: DEFAULT_BUDGET_COLOR,
+      category: Category.OTHER,
     };
     const created = { id: 10, ...expectedPayload };
     mocks.createBudget.mockResolvedValue(created);
@@ -709,7 +712,7 @@ describe("REST mutation routes", () => {
 
     const response = await patchWeeklyBudget(
       jsonRequest("http://localhost/api/weekly-budgets/10", payload),
-      { params: { id: "10" } }
+      routeParams("10")
     );
 
     expect(response.status).toBe(200);
@@ -723,7 +726,7 @@ describe("REST mutation routes", () => {
   it("returns 400 for an invalid weekly budget id", async () => {
     const response = await patchWeeklyBudget(
       jsonRequest("http://localhost/api/weekly-budgets/0", { amount: 900000 }),
-      { params: { id: "0" } }
+      routeParams("0")
     );
 
     expect(response.status).toBe(400);
@@ -744,7 +747,7 @@ describe("REST mutation routes", () => {
       new Request("http://localhost/api/weekly-budgets/10", {
         method: "DELETE",
       }),
-      { params: { id: "10" } }
+      routeParams("10")
     );
 
     expect(response.status).toBe(404);
