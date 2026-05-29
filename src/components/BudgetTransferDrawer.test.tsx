@@ -1,5 +1,6 @@
 import React from "react";
 
+import { Category } from "@/enums";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -53,6 +54,7 @@ const makeBudget = (overrides: Partial<BudgetListItem>): BudgetListItem => ({
   remaining: 400_000,
   icon: "💰",
   color: "lime",
+  category: Category.FOOD,
   period: "week",
   periodStartDate: "2026-05-10",
   periodEndDate: "2026-05-16",

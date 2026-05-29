@@ -1,6 +1,7 @@
 import React from "react";
 import type { ReactNode } from "react";
 
+import { Category } from "@/enums";
 import { DEFAULT_BUDGET_ICON } from "@/lib/budget-appearance";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { render, screen, within } from "@testing-library/react";
@@ -307,6 +308,7 @@ const groceryBudget = (): BudgetListItem => ({
   name: "Groceries",
   icon: "🛒",
   color: "emerald",
+  category: Category.FOOD,
   amount: 500000,
   spent: 120000,
   remaining: 380000,

@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { describe, expect, it } from "vitest";
 
@@ -14,6 +15,7 @@ const makeBudget = (overrides: Partial<BudgetListItem>): BudgetListItem => ({
   remaining: 320_000,
   icon: "💰",
   color: "lime",
+  category: Category.OTHER,
   period: "week",
   periodStartDate: "2026-05-13",
   periodEndDate: "2026-05-19",
