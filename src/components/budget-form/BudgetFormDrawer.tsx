@@ -113,7 +113,10 @@ const BudgetFormDrawer = ({
             <BudgetColorList value={form.color} onChange={form.setColor} />
           </div>
 
+<div>
+
           <CategoryChipRow value={form.category} onChange={form.setCategory} />
+</div>
 
           <div className="px-4">
             <label htmlFor="budget-amount-input" className="sr-only">
