@@ -21,6 +21,7 @@ import {
 import BudgetBadge from "@/components/BudgetBadge";
 import BudgetColorList from "@/components/BudgetColorList";
 import BudgetEmojiPickerSheet from "@/components/BudgetEmojiPickerSheet";
+import CategoryChipRow from "@/components/CategoryChipRow";
 import DatePickerSheet from "@/components/DatePickerSheet";
 import VndSymbol from "@/components/VndSymbol";
 
@@ -110,6 +111,18 @@ const BudgetFormDrawer = ({
 
           <div>
             <BudgetColorList value={form.color} onChange={form.setColor} />
+          </div>
+
+          <div>
+            <label className="text-foreground text-sm font-medium">
+              Category
+            </label>
+            <div className="mt-2">
+              <CategoryChipRow
+                value={form.category}
+                onChange={form.setCategory}
+              />
+            </div>
           </div>
 
           <div>

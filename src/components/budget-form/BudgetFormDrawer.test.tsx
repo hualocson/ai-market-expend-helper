@@ -1,7 +1,8 @@
 import React from "react";
 
+import { Category } from "@/enums";
 import type { BudgetListItem } from "@/types/budget-weekly";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -31,6 +32,7 @@ const groceryBudget = (): BudgetListItem => ({
   name: "Groceries",
   icon: "🛒",
   color: "emerald",
+  category: Category.FOOD,
   amount: 500_000,
   spent: 120_000,
   remaining: 380_000,
@@ -130,5 +132,20 @@ describe("BudgetFormDrawer", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onMoveFunds).toHaveBeenCalledWith(budget);
+  });
+
+  it("renders the category picker defaulting to Other", () => {
+    render(
+      <BudgetFormDrawer
+        open
+        onOpenChange={vi.fn()}
+        budget={null}
+        weekStartDate="2026-05-11"
+        onMoveFunds={vi.fn()}
+      />
+    );
+    const group = screen.getByRole("radiogroup", { name: "Category" });
+    expect(group).toBeInTheDocument();
+    expect(within(group).getByText("Other")).toBeInTheDocument();
   });
 });
