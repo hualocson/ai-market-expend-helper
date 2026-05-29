@@ -10,9 +10,10 @@ import {
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
-  const id = parsePositiveIntParam(params.id, "Invalid budget id");
+  const { id: rawId } = await params;
+  const id = parsePositiveIntParam(rawId, "Invalid budget id");
   if ("error" in id) {
     return apiError("INVALID_PAYLOAD", id.error, 400);
   }
@@ -46,9 +47,10 @@ export const PATCH = async (
 
 export const DELETE = async (
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
-  const id = parsePositiveIntParam(params.id, "Invalid budget id");
+  const { id: rawId } = await params;
+  const id = parsePositiveIntParam(rawId, "Invalid budget id");
   if ("error" in id) {
     return apiError("INVALID_PAYLOAD", id.error, 400);
   }

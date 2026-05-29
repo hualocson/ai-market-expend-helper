@@ -10,7 +10,7 @@ import { verifyInternalToken } from "@/lib/internal-auth";
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   const authResult = verifyInternalToken(request);
   if (!authResult.ok) {
@@ -20,7 +20,8 @@ export const PATCH = async (
     );
   }
 
-  const id = parsePositiveIntParam(params.id, "Invalid budget id");
+  const { id: rawId } = await params;
+  const id = parsePositiveIntParam(rawId, "Invalid budget id");
   if ("error" in id) {
     return NextResponse.json({ error: id.error }, { status: 400 });
   }
@@ -62,7 +63,7 @@ export const PATCH = async (
 
 export const DELETE = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   const authResult = verifyInternalToken(request);
   if (!authResult.ok) {
@@ -72,7 +73,8 @@ export const DELETE = async (
     );
   }
 
-  const id = parsePositiveIntParam(params.id, "Invalid budget id");
+  const { id: rawId } = await params;
+  const id = parsePositiveIntParam(rawId, "Invalid budget id");
   if ("error" in id) {
     return NextResponse.json({ error: id.error }, { status: 400 });
   }

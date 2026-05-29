@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import {
   DEFAULT_BUDGET_COLOR,
   DEFAULT_BUDGET_ICON,
@@ -94,6 +95,7 @@ describe("internal budget routes", () => {
       name: "Groceries",
       icon: "🛒",
       color: "emerald",
+      category: Category.FOOD,
       amount: 1000000,
       period: "month",
       periodStartDate: "2026-05-01",
@@ -123,6 +125,7 @@ describe("internal budget routes", () => {
       ...payload,
       icon: DEFAULT_BUDGET_ICON,
       color: DEFAULT_BUDGET_COLOR,
+      category: Category.OTHER,
     };
     const created = { id: 10, ...expectedPayload };
     mocks.createBudget.mockResolvedValue(created);
@@ -177,7 +180,7 @@ describe("internal budget routes", () => {
         payload,
         "PATCH"
       ),
-      { params: { id: "10" } }
+      { params: Promise.resolve({ id: "10" }) }
     );
 
     expect(response.status).toBe(200);

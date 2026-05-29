@@ -1,6 +1,7 @@
 import React from "react";
 import type { ReactNode } from "react";
 
+import { Category } from "@/enums";
 import { DEFAULT_BUDGET_ICON } from "@/lib/budget-appearance";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { render, screen, within } from "@testing-library/react";
@@ -307,6 +308,7 @@ const groceryBudget = (): BudgetListItem => ({
   name: "Groceries",
   icon: "🛒",
   color: "emerald",
+  category: Category.FOOD,
   amount: 500000,
   spent: 120000,
   remaining: 380000,
@@ -374,6 +376,19 @@ describe("BudgetWeeklyBudgetsClient budget appearance controls", () => {
     expect(
       screen.getByRole("button", { name: /budget color emerald/i })
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("renders the category icon on the budget card", () => {
+    overviewData.budgets = [groceryBudget()];
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-04-01" />);
+
+    expect(screen.getAllByTestId("expense-item-icon").length).toBeGreaterThan(
+      0
+    );
+    // The grocery budget has category Food — confirm the icon stub renders its value
+    const icons = screen.getAllByTestId("expense-item-icon");
+    expect(icons.some((el) => el.textContent === Category.FOOD)).toBe(true);
   });
 
   it("resets create defaults after closing and reopening", async () => {

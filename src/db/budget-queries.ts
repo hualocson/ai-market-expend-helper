@@ -116,6 +116,7 @@ export const getWeeklyBudgetReport = async (
       name: budgets.name,
       icon: budgets.icon,
       color: budgets.color,
+      category: budgets.category,
       amount: budgets.amount,
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
@@ -220,6 +221,7 @@ export const getWeeklyBudgetReport = async (
       name: budget.name,
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
+      category: budget.category,
       amount,
       spent,
       remaining: amount - spent,
@@ -256,6 +258,7 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
       name: budgets.name,
       icon: budgets.icon,
       color: budgets.color,
+      category: budgets.category,
       amount: budgets.amount,
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
@@ -281,6 +284,7 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
       budgets.name,
       budgets.icon,
       budgets.color,
+      budgets.category,
       budgets.amount,
       budgets.period,
       budgets.periodStartDate,
@@ -300,6 +304,7 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
       name: budget.name,
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
+      category: budget.category,
       amount,
       spent,
       remaining: amount - spent,
@@ -340,6 +345,7 @@ export const getTransferCandidates = async (
       name: budgets.name,
       icon: budgets.icon,
       color: budgets.color,
+      category: budgets.category,
       amount: budgets.amount,
       period: budgets.period,
       periodStartDate: budgets.periodStartDate,
@@ -366,6 +372,7 @@ export const getTransferCandidates = async (
       budgets.name,
       budgets.icon,
       budgets.color,
+      budgets.category,
       budgets.amount,
       budgets.period,
       budgets.periodStartDate,
@@ -382,6 +389,7 @@ export const getTransferCandidates = async (
       name: budget.name,
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
+      category: budget.category,
       amount,
       spent,
       remaining: amount - spent,
@@ -406,6 +414,7 @@ export const createBudget = async (input: BudgetCreateInput) => {
       name: input.name.trim(),
       icon: normalizeBudgetIcon(input.icon),
       color: normalizeBudgetColor(input.color),
+      category: input.category,
       amount: input.amount,
       period: input.period,
       periodStartDate: normalized.periodStartDate,
@@ -431,6 +440,9 @@ export const updateBudget = async (id: number, input: BudgetUpdateInput) => {
   }
   if (typeof input.color === "string") {
     updates.color = normalizeBudgetColor(input.color);
+  }
+  if (typeof input.category === "string") {
+    updates.category = input.category;
   }
   if (typeof input.amount === "number") {
     updates.amount = input.amount;

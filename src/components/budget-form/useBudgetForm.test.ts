@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +29,7 @@ const groceryBudget = (): BudgetListItem => ({
   name: "Groceries",
   icon: "🛒",
   color: "emerald",
+  category: Category.FOOD,
   amount: 500_000,
   spent: 120_000,
   remaining: 380_000,
@@ -55,6 +57,7 @@ describe("useBudgetForm", () => {
     expect(result.current.periodStartDate).toBe("2026-05-11");
     expect(result.current.icon).toBe("💰");
     expect(result.current.color).toBe("lime");
+    expect(result.current.category).toBe(Category.OTHER);
     expect(result.current.isEdit).toBe(false);
     expect(result.current.canSubmit).toBe(false);
   });
@@ -75,6 +78,7 @@ describe("useBudgetForm", () => {
     expect(result.current.periodEndDate).toBe("2026-05-10");
     expect(result.current.icon).toBe("🛒");
     expect(result.current.color).toBe("emerald");
+    expect(result.current.category).toBe(Category.FOOD);
     expect(result.current.isEdit).toBe(true);
     expect(result.current.canSubmit).toBe(true);
   });
@@ -141,9 +145,30 @@ describe("useBudgetForm", () => {
         periodEndDate: null,
         icon: "💰",
         color: "lime",
+        category: Category.OTHER,
       })
     );
     expect(toastSuccess).toHaveBeenCalledWith("Budget created.");
+  });
+
+  it("submits the selected category in the create payload", async () => {
+    const { result } = renderHook(() =>
+      useBudgetForm({ budget: null, weekStartDate: "2026-05-11", open: true })
+    );
+
+    act(() => {
+      result.current.setName("Coffee");
+      result.current.setAmount(200_000);
+      result.current.setCategory(Category.ENTERTAINMENT);
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(mutationMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ category: Category.ENTERTAINMENT })
+    );
   });
 
   it("submits the update payload with the budget id in edit mode", async () => {

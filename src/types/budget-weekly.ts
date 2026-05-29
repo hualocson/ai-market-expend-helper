@@ -1,3 +1,4 @@
+import type { Category } from "@/enums";
 import type { BudgetColorId } from "@/lib/budget-appearance";
 
 export type BudgetPeriod = "week" | "month" | "custom";
@@ -14,6 +15,7 @@ export type BudgetListItem = {
   name: string;
   icon: string;
   color: BudgetColorId;
+  category: Category;
   amount: number;
   spent: number;
   remaining: number;
@@ -58,6 +60,7 @@ export type BudgetCreateInput = {
   name: string;
   icon: string;
   color: BudgetColorId;
+  category: Category;
   amount: number;
   period: BudgetPeriod;
   periodStartDate: string;
@@ -68,6 +71,7 @@ export type BudgetUpdateInput = {
   name?: string;
   icon?: string;
   color?: BudgetColorId;
+  category?: Category;
   amount?: number;
   period?: BudgetPeriod;
   periodStartDate?: string;

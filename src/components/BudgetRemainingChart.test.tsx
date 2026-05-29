@@ -1,5 +1,6 @@
 import React from "react";
 
+import { Category } from "@/enums";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -11,6 +12,7 @@ const makeBudget = (overrides: Partial<BudgetListItem>): BudgetListItem => ({
   name: "Budget",
   icon: "💰",
   color: "lime",
+  category: Category.OTHER,
   amount: 1000,
   spent: 0,
   remaining: 1000,

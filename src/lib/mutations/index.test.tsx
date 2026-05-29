@@ -1,6 +1,6 @@
 import React, { type PropsWithChildren } from "react";
 
-import { PaidBy } from "@/enums";
+import { Category, PaidBy } from "@/enums";
 import {
   useAssignTransactionBudgetMutation,
   useCreateBudgetMutation,
@@ -388,6 +388,7 @@ describe("mutation hooks", () => {
         name: "Dining",
         icon: "💰",
         color: "lime",
+        category: Category.OTHER,
         amount: 200000,
         period: "month",
         periodStartDate: "2026-05-01",
@@ -403,6 +404,7 @@ describe("mutation hooks", () => {
           name: "Dining",
           icon: "💰",
           color: "lime",
+          category: Category.OTHER,
           amount: 200000,
           period: "month",
           periodStartDate: "2026-05-01",
@@ -528,6 +530,7 @@ describe("mutation hooks", () => {
         name: "Dining",
         icon: "💰",
         color: "lime",
+        category: Category.OTHER,
         amount: 200000,
         period: "month",
         periodStartDate: "2026-05-01",

@@ -140,6 +140,7 @@ const budgetOption = (
   amount: 100000,
   spent: 0,
   remaining: 100000,
+  category: Category.OTHER,
   ...override,
 });
 
@@ -567,6 +568,7 @@ describe("QuickExpenseDrawer — budget suggestion", () => {
       amount: 300000,
       spent: 125000,
       remaining: 175000,
+      category: Category.ENTERTAINMENT,
     }),
     budgetOption({
       id: 8,
@@ -579,6 +581,7 @@ describe("QuickExpenseDrawer — budget suggestion", () => {
       amount: 800000,
       spent: 250000,
       remaining: 550000,
+      category: Category.TRANSPORT,
     }),
   ];
 
@@ -938,6 +941,80 @@ describe("QuickExpenseDrawer — budget suggestion", () => {
         },
       ],
     });
+  });
+
+  it("applies the suggested budget's category to the expense", async () => {
+    const user = await openDrawerWithBudgets();
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 7,
+      confidence: "high",
+      reason: "Coffee expense",
+    });
+
+    const note = screen.getByPlaceholderText(/what did you spend on/i);
+    await user.type(note, "coffee with team");
+    await user.tab();
+
+    const budgetGroup = screen.getByRole("radiogroup", { name: /^budget$/i });
+    expect(
+      await within(budgetGroup).findByRole("button", {
+        name: /coffee/i,
+        pressed: true,
+      })
+    ).toBeInTheDocument();
+
+    const categoryGroup = screen.getByRole("radiogroup", {
+      name: /^category$/i,
+    });
+    expect(
+      within(categoryGroup).getByRole("button", { name: /entertainment/i })
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("applies a manually selected budget's category to the expense", async () => {
+    const user = await openDrawerWithBudgets();
+
+    const budgetGroup = screen.getByRole("radiogroup", { name: /^budget$/i });
+    await user.click(
+      within(budgetGroup).getByRole("button", { name: /no budget/i })
+    );
+    await user.click(
+      await within(budgetGroup).findByRole("button", { name: /coffee/i })
+    );
+
+    const categoryGroup = screen.getByRole("radiogroup", {
+      name: /^category$/i,
+    });
+    expect(
+      within(categoryGroup).getByRole("button", { name: /entertainment/i })
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("does not overwrite a user-selected category when a budget is applied", async () => {
+    const user = await openDrawerWithBudgets();
+
+    const categoryGroup = screen.getByRole("radiogroup", {
+      name: /^category$/i,
+    });
+    await user.click(
+      within(categoryGroup).getByRole("button", { name: /food/i })
+    );
+    await user.click(
+      await within(categoryGroup).findByRole("button", { name: /giving/i })
+    );
+
+    const budgetGroup = screen.getByRole("radiogroup", { name: /^budget$/i });
+    await user.click(
+      within(budgetGroup).getByRole("button", { name: /no budget/i })
+    );
+    await user.click(
+      await within(budgetGroup).findByRole("button", { name: /coffee/i })
+    );
+
+    expect(
+      within(categoryGroup).getByRole("button", { name: /giving/i })
+    ).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -1618,6 +1695,35 @@ describe("QuickExpenseDrawer — edit mode", () => {
 
     expect(mutationMocks.updateMutateAsync).not.toHaveBeenCalled();
     expect(toastMock.error).toHaveBeenCalledWith("Failed to update expense");
+  });
+
+  it("does not change the category when the budget changes in edit mode", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({
+        id: 2,
+        name: "Sports week",
+        category: Category.BADMINTON,
+      }),
+      budgetOption({ id: 7, name: "Coffee", category: Category.ENTERTAINMENT }),
+    ]);
+    const user = userEvent.setup();
+    renderEditDrawer();
+    await screen.findByPlaceholderText(/what did you spend on/i);
+
+    const budgetGroup = screen.getByRole("radiogroup", { name: /^budget$/i });
+    await user.click(
+      await within(budgetGroup).findByRole("button", { name: /sports week/i })
+    );
+    await user.click(
+      await within(budgetGroup).findByRole("button", { name: /coffee/i })
+    );
+
+    const categoryGroup = screen.getByRole("radiogroup", {
+      name: /^category$/i,
+    });
+    expect(
+      within(categoryGroup).getByRole("button", { name: /badminton/i })
+    ).toHaveAttribute("aria-pressed", "true");
   });
 });
 

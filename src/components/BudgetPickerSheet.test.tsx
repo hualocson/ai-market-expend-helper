@@ -1,5 +1,6 @@
 import React from "react";
 
+import { Category } from "@/enums";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -35,6 +36,7 @@ const weeklyBudgetOptionsMock = vi.hoisted(() =>
         remaining: 100,
         icon: "🍜",
         color: "rose",
+        category: Category.FOOD,
       },
       {
         id: 2,
@@ -47,6 +49,7 @@ const weeklyBudgetOptionsMock = vi.hoisted(() =>
         remaining: 300,
         icon: "🏠",
         color: "sky",
+        category: Category.HOUSING,
       },
     ]
   )
