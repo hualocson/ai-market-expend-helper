@@ -39,6 +39,7 @@ import {
   Plus,
   SaveIcon,
   Trash2,
+  Wallet,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -861,15 +862,16 @@ const BudgetWeeklyBudgetsClient = ({
           </h1>
           <Button
             onClick={openCreate}
+            variant="ghost"
             size="icon"
             aria-label="Add budget"
-            className="h-11 w-11 rounded-xl active:scale-[0.97]"
+            className="text-primary hover:text-primary h-11 w-11 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
           >
-            <Plus className="h-5 w-5" />
+            <Wallet className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="border-border/45 bg-muted/30 mt-3 rounded-xl border p-1.5">
+        <div className="bg-muted/40 mt-3 rounded-[14px] p-1.5">
           <div
             className="relative grid grid-cols-3 rounded-lg"
             role="tablist"
@@ -878,7 +880,7 @@ const BudgetWeeklyBudgetsClient = ({
             <span
               aria-hidden
               className={cn(
-                "bg-card ring-border/70 pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 rounded-lg shadow-xs ring-1",
+                "bg-secondary pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 rounded-lg shadow-[0_1px_2px_color-mix(in_srgb,var(--background)_70%,transparent),0_5px_12px_color-mix(in_srgb,var(--background)_50%,transparent)]",
                 "transition-transform duration-300 ease-out motion-reduce:transition-none"
               )}
               style={{ transform: `translateX(${activeTabIndex * 100}%)` }}

@@ -43,7 +43,7 @@ const BudgetRemainingChart = ({
             )} remaining`}
             style={{ height: `${bar.heightPx}px` }}
             className={cn(
-              "flex w-[88px] flex-none flex-col items-center justify-end rounded-[22px] px-2 pb-3 transition-transform active:scale-[0.98]",
+              "flex w-[82px] flex-none flex-col items-center justify-end rounded-[22px] px-2 pb-3 transition-transform active:scale-[0.98]",
               "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
               bar.isOver
                 ? "bg-destructive text-destructive-foreground"
