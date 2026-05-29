@@ -82,8 +82,8 @@ const BudgetFormDrawer = ({
             {description}
           </DrawerDescription>
         </DrawerHeader>
-        <div className="no-scrollbar flex max-h-[98svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
-          <div className="flex items-center justify-between gap-2">
+        <div className="no-scrollbar flex max-h-[98svh] flex-col gap-4 overflow-x-hidden overflow-y-auto pb-4">
+          <div className="flex items-center justify-between gap-2 px-4">
             <input
               id="budget-name-input"
               aria-label="Budget name"
@@ -113,19 +113,9 @@ const BudgetFormDrawer = ({
             <BudgetColorList value={form.color} onChange={form.setColor} />
           </div>
 
-          <div>
-            <label className="text-foreground text-sm font-medium">
-              Category
-            </label>
-            <div className="mt-2">
-              <CategoryChipRow
-                value={form.category}
-                onChange={form.setCategory}
-              />
-            </div>
-          </div>
+          <CategoryChipRow value={form.category} onChange={form.setCategory} />
 
-          <div>
+          <div className="px-4">
             <label htmlFor="budget-amount-input" className="sr-only">
               Amount
             </label>
@@ -160,7 +150,7 @@ const BudgetFormDrawer = ({
             ) : null}
           </div>
 
-          <div>
+          <div className="px-4">
             <label className="text-foreground text-sm font-medium">
               Period
             </label>
@@ -186,7 +176,7 @@ const BudgetFormDrawer = ({
             </div>
           </div>
 
-          <div>
+          <div className="px-4">
             <div className="grid w-full gap-3 sm:grid-cols-2">
               <div className="flex w-full flex-col gap-2">
                 <span className="text-foreground text-sm font-medium">
