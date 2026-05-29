@@ -1,6 +1,7 @@
 # AGENTS Notes
 
 - Before editing, read the relevant project rules in `.agents/rules/`.
+- Branch names must always start with the `dev-` prefix (e.g. `dev-polish-budgets-page`). When creating a new branch off `main`, use this prefix.
 - Before changing optimistic mutations, background submits, persisted recovery state, or mutation lifecycle ownership, read `LEARNINGS.md`.
 - For app-owned data reads/writes, do not add or use Server Actions. Use REST API routes plus TanStack Query query factories and mutation hooks.
 - The project is dark-mode only. Do not add light-mode support, theme switching, or persisted theme selection unless explicitly requested.
