@@ -5,7 +5,7 @@ import type { ExpenseListResult } from "@/lib/services/expenses";
 import { syncRepository } from "@/lib/sync/core/repository";
 import type { InfiniteData } from "@tanstack/react-query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -263,27 +263,163 @@ describe("ExpenseList", () => {
     expect(screen.queryByText(/-240\.000/)).not.toBeInTheDocument();
   });
 
-  it("gates load more while the initial expense sync cursor is missing", async () => {
+  it("gates manual load more while the initial expense sync cursor is missing", async () => {
     globalThis.React = React;
     await syncRepository.testing.clearSyncDb();
 
-    let observerCallback:
-      | ((entries: IntersectionObserverEntry[]) => void)
-      | undefined;
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const firstPage: ExpenseListResult = {
+      ...buildPage(),
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: true,
+      },
+    };
+    queryClient.setQueryData<InfiniteData<ExpenseListResult, number>>(
+      queries.expenses.list(params).queryKey,
+      { pageParams: [0], pages: [firstPage] }
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    expect(
+      await screen.findByText("Syncing all expenses before loading more.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load more" })
+    ).not.toBeInTheDocument();
+
+    const cachedData = queryClient.getQueryData<
+      InfiniteData<ExpenseListResult, number>
+    >(queries.expenses.list(params).queryKey);
+    expect(cachedData?.pages).toHaveLength(1);
+
+    await syncRepository.testing.clearSyncDb();
+  });
+
+  it("fetches exactly one next page when Load more is clicked", async () => {
+    globalThis.React = React;
+    await syncRepository.testing.clearSyncDb();
+    await syncRepository.metadata.setCursor(
+      "expenses",
+      "2026-05-24T10:00:00.000Z"
+    );
+    await syncRepository.records.putMany(
+      Array.from({ length: 61 }, (_, index) => ({
+        entity: "expenses",
+        clientId: `client-${index}`,
+        serverId: 100 + index,
+        syncStatus: "synced",
+        lastError: null,
+        updatedAt: "2026-05-24T10:00:00.000Z",
+        serverUpdatedAt: "2026-05-24T10:00:00.000Z",
+        payload: {
+          date: "2026-05-24",
+          amount: 50000 + index,
+          note: `Local expense ${index}`,
+          category: "Food",
+          paidBy: "Cubi",
+          budgetId: null,
+          budgetName: null,
+          budgetIcon: null,
+          budgetColor: null,
+        },
+      }))
+    );
+
+    const user = userEvent.setup();
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const firstPage: ExpenseListResult = {
+      ...buildPage(),
+      pagination: {
+        limit: 30,
+        offset: 0,
+        hasMore: true,
+      },
+    };
+    queryClient.setQueryData<InfiniteData<ExpenseListResult, number>>(
+      queries.expenses.list(params).queryKey,
+      { pageParams: [0], pages: [firstPage] }
+    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
+
+    const loadMoreButton = await screen.findByRole("button", {
+      name: "Load more",
+    });
+    expect(
+      queryClient.getQueryData<InfiniteData<ExpenseListResult, number>>(
+        queries.expenses.list(params).queryKey
+      )?.pages
+    ).toHaveLength(1);
+
+    await user.click(loadMoreButton);
+
+    await waitFor(() => {
+      const cachedData = queryClient.getQueryData<
+        InfiniteData<ExpenseListResult, number>
+      >(queries.expenses.list(params).queryKey);
+
+      expect(cachedData?.pages).toHaveLength(2);
+      expect(cachedData?.pages[1]?.pagination).toMatchObject({
+        limit: 30,
+        offset: 30,
+        hasMore: true,
+      });
+      expect(cachedData?.pages[1]?.rows).toHaveLength(30);
+      expect(cachedData?.pages[1]?.rows[0]).toEqual(
+        expect.objectContaining({
+          id: 130,
+          note: "Local expense 30",
+        })
+      );
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(
+      queryClient.getQueryData<InfiniteData<ExpenseListResult, number>>(
+        queries.expenses.list(params).queryKey
+      )?.pages
+    ).toHaveLength(2);
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    await syncRepository.testing.clearSyncDb();
+  });
+
+  it("does not create an IntersectionObserver for manual load more", async () => {
+    globalThis.React = React;
+    await syncRepository.testing.clearSyncDb();
+    await syncRepository.metadata.setCursor(
+      "expenses",
+      "2026-05-24T10:00:00.000Z"
+    );
+
     const observe = vi.fn();
     const originalIntersectionObserver = globalThis.IntersectionObserver;
-    globalThis.IntersectionObserver = vi.fn((callback) => {
-      observerCallback = callback;
-      return {
-        observe,
-        unobserve: vi.fn(),
-        disconnect: vi.fn(),
-        root: null,
-        rootMargin: "",
-        thresholds: [],
-        takeRecords: () => [],
-      };
-    }) as unknown as typeof IntersectionObserver;
+    globalThis.IntersectionObserver = vi.fn(() => ({
+      observe,
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+      root: null,
+      rootMargin: "",
+      thresholds: [],
+      takeRecords: () => [],
+    })) as unknown as typeof IntersectionObserver;
 
     const queryClient = buildClient();
     const params = { limit: 30 };
@@ -308,25 +444,17 @@ describe("ExpenseList", () => {
       );
 
       expect(
-        await screen.findByText("Syncing all expenses before loading more.")
+        await screen.findByRole("button", { name: "Load more" })
       ).toBeInTheDocument();
+      expect(globalThis.IntersectionObserver).not.toHaveBeenCalled();
       expect(observe).not.toHaveBeenCalled();
-
-      observerCallback?.([
-        { isIntersecting: true } as IntersectionObserverEntry,
-      ]);
-
-      const cachedData = queryClient.getQueryData<
-        InfiniteData<ExpenseListResult, number>
-      >(queries.expenses.list(params).queryKey);
-      expect(cachedData?.pages).toHaveLength(1);
     } finally {
       globalThis.IntersectionObserver = originalIntersectionObserver;
       await syncRepository.testing.clearSyncDb();
     }
   });
 
-  it("fetches the next page when the bottom sentinel intersects", async () => {
+  it("retries next-page loading only after Retry loading more is clicked", async () => {
     globalThis.React = React;
     await syncRepository.testing.clearSyncDb();
     await syncRepository.metadata.setCursor(
@@ -336,16 +464,16 @@ describe("ExpenseList", () => {
     await syncRepository.records.putMany(
       Array.from({ length: 31 }, (_, index) => ({
         entity: "expenses",
-        clientId: `client-${index}`,
-        serverId: 100 + index,
+        clientId: `retry-client-${index}`,
+        serverId: 200 + index,
         syncStatus: "synced",
         lastError: null,
         updatedAt: "2026-05-24T10:00:00.000Z",
         serverUpdatedAt: "2026-05-24T10:00:00.000Z",
         payload: {
           date: "2026-05-24",
-          amount: 50000 + index,
-          note: `Local expense ${index}`,
+          amount: 60000 + index,
+          note: `Retry expense ${index}`,
           category: "Food",
           paidBy: "Cubi",
           budgetId: null,
@@ -356,25 +484,7 @@ describe("ExpenseList", () => {
       }))
     );
 
-    let observerCallback:
-      | ((entries: IntersectionObserverEntry[]) => void)
-      | undefined;
-    const observe = vi.fn();
-    const disconnect = vi.fn();
-    const originalIntersectionObserver = globalThis.IntersectionObserver;
-    globalThis.IntersectionObserver = vi.fn((callback) => {
-      observerCallback = callback;
-      return {
-        observe,
-        unobserve: vi.fn(),
-        disconnect,
-        root: null,
-        rootMargin: "",
-        thresholds: [],
-        takeRecords: () => [],
-      };
-    }) as unknown as typeof IntersectionObserver;
-
+    const user = userEvent.setup();
     const queryClient = buildClient();
     const params = { limit: 30 };
     const firstPage: ExpenseListResult = {
@@ -389,44 +499,51 @@ describe("ExpenseList", () => {
       queries.expenses.list(params).queryKey,
       { pageParams: [0], pages: [firstPage] }
     );
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const recordsListSpy = vi
+      .spyOn(syncRepository.records, "list")
+      .mockRejectedValueOnce(new Error("IndexedDB unavailable"));
 
-    try {
-      render(
-        <QueryClientProvider client={queryClient}>
-          <ExpenseList />
-        </QueryClientProvider>
-      );
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+      </QueryClientProvider>
+    );
 
-      await waitFor(() => {
-        expect(observe).toHaveBeenCalled();
+    await user.click(await screen.findByRole("button", { name: "Load more" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Retry loading more" })
+    ).toBeInTheDocument();
+    expect(
+      queryClient.getQueryData<InfiniteData<ExpenseListResult, number>>(
+        queries.expenses.list(params).queryKey
+      )?.pages
+    ).toHaveLength(1);
+
+    recordsListSpy.mockRestore();
+    await user.click(
+      screen.getByRole("button", { name: "Retry loading more" })
+    );
+
+    await waitFor(() => {
+      const cachedData = queryClient.getQueryData<
+        InfiniteData<ExpenseListResult, number>
+      >(queries.expenses.list(params).queryKey);
+
+      expect(cachedData?.pages).toHaveLength(2);
+      expect(cachedData?.pages[1]?.pagination).toMatchObject({
+        limit: 30,
+        offset: 30,
+        hasMore: false,
       });
-      observerCallback?.([
-        { isIntersecting: true } as IntersectionObserverEntry,
+      expect(cachedData?.pages[1]?.rows).toEqual([
+        expect.objectContaining({
+          id: 200,
+          note: "Retry expense 0",
+        }),
       ]);
+    });
 
-      await waitFor(() => {
-        const cachedData = queryClient.getQueryData<
-          InfiniteData<ExpenseListResult, number>
-        >(queries.expenses.list(params).queryKey);
-
-        expect(cachedData?.pages).toHaveLength(2);
-        expect(cachedData?.pages[1]?.pagination).toMatchObject({
-          limit: 30,
-          offset: 30,
-          hasMore: false,
-        });
-        expect(cachedData?.pages[1]?.rows).toEqual([
-          expect.objectContaining({
-            id: 100,
-            note: "Local expense 0",
-          }),
-        ]);
-      });
-      expect(fetchSpy).not.toHaveBeenCalled();
-    } finally {
-      globalThis.IntersectionObserver = originalIntersectionObserver;
-      await syncRepository.testing.clearSyncDb();
-    }
+    await syncRepository.testing.clearSyncDb();
   });
 });
