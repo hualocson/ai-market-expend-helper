@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import dayjs from "@/configs/date";
+import { Category } from "@/enums";
 import {
   type BudgetColorId,
   DEFAULT_BUDGET_COLOR,
@@ -36,6 +37,7 @@ export const useBudgetForm = ({
   const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
   const [icon, setIcon] = useState(DEFAULT_BUDGET_ICON);
   const [color, setColor] = useState<BudgetColorId>(DEFAULT_BUDGET_COLOR);
+  const [category, setCategory] = useState<Category>(Category.OTHER);
   const [isSaving, setIsSaving] = useState(false);
 
   const createBudgetMutation = useCreateBudgetMutation();
@@ -58,6 +60,7 @@ export const useBudgetForm = ({
       setPeriodEndDate(budget.periodEndDate ?? null);
       setIcon(normalizeBudgetIcon(budget.icon));
       setColor(normalizeBudgetColor(budget.color));
+      setCategory(budget.category);
     } else {
       setName("");
       setAmount(0);
@@ -66,6 +69,7 @@ export const useBudgetForm = ({
       setPeriodEndDate(null);
       setIcon(DEFAULT_BUDGET_ICON);
       setColor(DEFAULT_BUDGET_COLOR);
+      setCategory(Category.OTHER);
     }
     setIsSaving(false);
   }, [open, budget, weekStartDate]);
@@ -161,6 +165,7 @@ export const useBudgetForm = ({
         periodEndDate: period === "custom" ? periodEndDate : null,
         icon,
         color,
+        category,
       };
       if (budget) {
         await updateBudgetMutation.mutateAsync({ id: budget.id, input });
@@ -187,12 +192,14 @@ export const useBudgetForm = ({
     periodEndDate,
     icon,
     color,
+    category,
     isSaving,
     isEdit,
     setName,
     setAmount,
     setIcon,
     setColor,
+    setCategory,
     handlePeriodChange,
     handleStartDateChange,
     handleEndDateChange,
