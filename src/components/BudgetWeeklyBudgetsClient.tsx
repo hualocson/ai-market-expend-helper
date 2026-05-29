@@ -125,6 +125,9 @@ const DASHBOARD_TABS: Array<{ id: DashboardTab; label: string }> = [
   { id: "custom", label: "Custom" },
 ];
 
+const VIEW_SELECT_TRIGGER_CLASS =
+  "bg-secondary hover:bg-surface-3 h-10 w-fit gap-1.5 rounded-full border-0 px-4 text-sm font-semibold shadow-none transition active:scale-[0.97]";
+
 const DETAIL_PAGE_SIZE = 20;
 const WEEKLY_FILTER_LIMIT = 5;
 const CATEGORY_VALUES = new Set(Object.values(Category));
@@ -248,45 +251,6 @@ const getBudgetStatus = (budget: BudgetListItem): BudgetStatus => {
     isOver,
     isNearLimit,
   };
-};
-
-const useHorizontalFadeMask = (deps: unknown[] = []) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const handleScroll = () => {
-      const { scrollLeft, scrollWidth, clientWidth } = container;
-      setShowLeftFade(scrollLeft > 10);
-      setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
-    };
-
-    handleScroll();
-    container.addEventListener("scroll", handleScroll);
-    window.addEventListener("resize", handleScroll);
-
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, deps);
-
-  const maskImage =
-    showLeftFade && showRightFade
-      ? "linear-gradient(to right, transparent, black 1.5rem, black calc(100% - 1.5rem), transparent)"
-      : showLeftFade && !showRightFade
-        ? "linear-gradient(to right, transparent, black 1.5rem, black 100%)"
-        : !showLeftFade && showRightFade
-          ? "linear-gradient(to right, black 0%, black calc(100% - 1.5rem), transparent)"
-          : "none";
-
-  return { scrollContainerRef, maskImage };
 };
 
 const BudgetWeeklyBudgetsClient = ({
@@ -454,8 +418,6 @@ const BudgetWeeklyBudgetsClient = ({
     }
   }, [monthFilter, monthKeys]);
 
-  const monthFade = useHorizontalFadeMask([monthOptions.length, monthFilter]);
-
   const activeMonthKey = monthFilter === "all" ? null : monthFilter;
   const activeMonthLabel =
     monthFilter === "all"
@@ -530,8 +492,6 @@ const BudgetWeeklyBudgetsClient = ({
         };
       });
   }, [weeklyBudgets]);
-
-  const weekFade = useHorizontalFadeMask([weeklyGroups.length, activeWeekKey]);
 
   const activeWeekGroup = useMemo(
     () => weeklyGroups.find((group) => group.key === activeWeekKey) ?? null,
@@ -865,7 +825,7 @@ const BudgetWeeklyBudgetsClient = ({
     <section className="relative flex flex-col pb-6">
       <div className="app-header-blur sticky top-0 z-20 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-foreground text-xl leading-none font-semibold">
+          <h1 className="text-foreground text-2xl leading-none font-bold">
             Budgets
           </h1>
           <Button
@@ -879,14 +839,14 @@ const BudgetWeeklyBudgetsClient = ({
           </Button>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 flex items-center gap-2">
           <Select
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as DashboardTab)}
           >
             <SelectTrigger
               aria-label="Budget dashboard view"
-              className="bg-secondary hover:bg-surface-3 h-10 w-fit gap-1.5 rounded-full border-0 px-4 text-sm font-semibold shadow-none transition active:scale-[0.97]"
+              className={VIEW_SELECT_TRIGGER_CLASS}
             >
               <SelectValue />
             </SelectTrigger>
@@ -898,6 +858,45 @@ const BudgetWeeklyBudgetsClient = ({
               ))}
             </SelectContent>
           </Select>
+
+          {activeTab === "month" ? (
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger
+                aria-label="Select month"
+                className={VIEW_SELECT_TRIGGER_CLASS}
+              >
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          {activeTab === "week" && weeklyGroups.length ? (
+            <Select
+              value={activeWeekKey ?? undefined}
+              onValueChange={setActiveWeekKey}
+            >
+              <SelectTrigger
+                aria-label="Select week"
+                className={VIEW_SELECT_TRIGGER_CLASS}
+              >
+                <SelectValue placeholder="Week" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
+                {weeklyGroups.map((group) => (
+                  <SelectItem key={group.key} value={group.key}>
+                    {group.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
         </div>
       </div>
 
@@ -926,33 +925,6 @@ const BudgetWeeklyBudgetsClient = ({
           <>
             {activeTab === "month" ? (
               <div className="space-y-2.5">
-                <div
-                  ref={monthFade.scrollContainerRef}
-                  className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1"
-                  style={{
-                    maskImage: monthFade.maskImage,
-                    WebkitMaskImage: monthFade.maskImage,
-                  }}
-                >
-                  {monthOptions.map((option) => (
-                    <Button
-                      key={option.id}
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setMonthFilter(option.id)}
-                      className={cn(
-                        "h-11 snap-center rounded-xl px-3.5 text-xs font-medium",
-                        monthFilter === option.id
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground bg-muted/40 hover:bg-muted/60"
-                      )}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </div>
-
                 <BudgetRemainingChart
                   budgets={filteredMonthlyBudgets}
                   onSelect={openBudgetDetail}
@@ -983,33 +955,6 @@ const BudgetWeeklyBudgetsClient = ({
               <div className="space-y-2.5">
                 {weeklyGroups.length ? (
                   <>
-                    <div
-                      ref={weekFade.scrollContainerRef}
-                      className="no-scrollbar flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1"
-                      style={{
-                        maskImage: weekFade.maskImage,
-                        WebkitMaskImage: weekFade.maskImage,
-                      }}
-                    >
-                      {weeklyGroups.map((group) => (
-                        <Button
-                          key={group.key}
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => setActiveWeekKey(group.key)}
-                          className={cn(
-                            "h-11 snap-center rounded-xl px-3.5 text-xs font-medium",
-                            activeWeekKey === group.key
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground bg-muted/40 hover:bg-muted/60"
-                          )}
-                        >
-                          {group.shortLabel}
-                        </Button>
-                      ))}
-                    </div>
-
                     <BudgetRemainingChart
                       budgets={activeWeekGroup?.budgets ?? []}
                       onSelect={openBudgetDetail}
