@@ -62,6 +62,13 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import BudgetBadge from "@/components/BudgetBadge";
 import BudgetColorList from "@/components/BudgetColorList";
@@ -296,10 +303,6 @@ const BudgetWeeklyBudgetsClient = ({
 
   const budgets = overview.budgets;
   const [activeTab, setActiveTab] = useState<DashboardTab>("week");
-  const activeTabIndex = Math.max(
-    DASHBOARD_TABS.findIndex((tab) => tab.id === activeTab),
-    0
-  );
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -860,7 +863,7 @@ const BudgetWeeklyBudgetsClient = ({
 
   return (
     <section className="relative flex flex-col pb-6">
-      <div className="sticky top-0 z-20 -mx-4 bg-transparent px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+      <div className="app-header-blur sticky top-0 z-20 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-foreground text-xl leading-none font-semibold">
             Budgets
@@ -876,39 +879,25 @@ const BudgetWeeklyBudgetsClient = ({
           </Button>
         </div>
 
-        <div className="bg-muted/40 mt-3 rounded-[14px] p-1.5">
-          <div
-            className="relative grid grid-cols-3 rounded-lg"
-            role="tablist"
-            aria-label="Budget dashboard view"
+        <div className="mt-3">
+          <Select
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as DashboardTab)}
           >
-            <span
-              aria-hidden
-              className={cn(
-                "bg-secondary pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 rounded-lg shadow-[0_1px_2px_color-mix(in_srgb,var(--background)_70%,transparent),0_5px_12px_color-mix(in_srgb,var(--background)_50%,transparent)]",
-                "transition-transform duration-300 ease-out motion-reduce:transition-none"
-              )}
-              style={{ transform: `translateX(${activeTabIndex * 100}%)` }}
-            />
-            {DASHBOARD_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={cn(
-                  "relative z-10 h-11 rounded-lg text-xs font-semibold tracking-[0.01em] transition-colors duration-200 active:scale-[0.985]",
-                  "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none",
-                  activeTab === tab.id
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground/80"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            <SelectTrigger
+              aria-label="Budget dashboard view"
+              className="bg-secondary hover:bg-surface-3 h-10 w-fit gap-1.5 rounded-full border-0 px-4 text-sm font-semibold shadow-none transition active:scale-[0.97]"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border rounded-2xl shadow-xl">
+              {DASHBOARD_TABS.map((tab) => (
+                <SelectItem key={tab.id} value={tab.id}>
+                  {tab.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
