@@ -637,50 +637,55 @@ const BudgetWeeklyBudgetsClient = ({
     summary: BudgetSectionSummary,
     title: string,
     subtitle: string
-  ) => (
-    <div className="border-border/45 bg-card/70 rounded-2xl border px-4 py-3">
-      <div className="mb-2.5 flex items-center justify-between">
-        <div>
-          <h3 className="text-foreground text-sm font-semibold">{title}</h3>
-          <p className="text-muted-foreground text-[11px]">{subtitle}</p>
+  ) => {
+    const spentRatio =
+      summary.totalBudget > 0
+        ? Math.min(Math.max(summary.totalSpent / summary.totalBudget, 0), 1)
+        : 0;
+    const isOver = summary.totalRemaining < 0;
+
+    return (
+      <div className="bg-card/70 rounded-2xl px-4 py-3.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--background)_70%,transparent),0_12px_28px_color-mix(in_srgb,var(--background)_55%,transparent)]">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-foreground text-sm font-semibold">{title}</h3>
+            <p className="text-muted-foreground text-[11px]">{subtitle}</p>
+          </div>
+          <span className="text-muted-foreground bg-muted/50 rounded-full px-2 py-0.5 text-[11px]">
+            {summary.count} budgets
+          </span>
         </div>
-        <span className="text-muted-foreground border-border/45 rounded-full border px-2 py-0.5 text-[11px]">
-          {summary.count} budgets
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-            Budgeted
-          </p>
-          <p className="text-foreground mt-0.5 text-sm font-semibold">
-            {formatVnd(summary.totalBudget)}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-            Spent
-          </p>
-          <p className="text-foreground mt-0.5 text-sm font-semibold">
-            {formatVnd(summary.totalSpent)}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+
+        <div className="mt-3">
+          <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
             Remaining
           </p>
           <p
             className={cn(
-              "mt-0.5 text-sm font-semibold",
-              summary.totalRemaining < 0 ? "text-destructive" : "text-success"
+              "mt-0.5 text-2xl leading-none font-bold tabular-nums",
+              isOver ? "text-destructive" : "text-success"
             )}
           >
             {formatVndSigned(summary.totalRemaining)}
           </p>
+          <p className="text-muted-foreground mt-1.5 text-xs tabular-nums">
+            {formatVnd(summary.totalSpent)} spent of{" "}
+            {formatVnd(summary.totalBudget)}
+          </p>
+        </div>
+
+        <div className="bg-muted/60 mt-2.5 h-1.5 overflow-hidden rounded-full">
+          <div
+            className={cn(
+              "h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+              isOver ? "bg-destructive" : "bg-success"
+            )}
+            style={{ width: `${Math.round(spentRatio * 100)}%` }}
+          />
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderEmptyState = (title: string, description: string) => (
     <div className="border-border/55 bg-card/40 rounded-2xl border border-dashed px-4 py-5 text-center">
