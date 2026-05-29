@@ -772,8 +772,8 @@ const QuickExpenseDrawer = ({
         disabled={!canSubmit}
         className={cn(
           isKeyboardPlacement
-            ? "h-10 w-10 shrink-0 rounded-full"
-            : "h-10 flex-1 rounded-xl text-base font-medium"
+            ? "h-12 w-12 shrink-0 rounded-full"
+            : "h-12 flex-1 rounded-xl text-base font-medium"
         )}
       >
         {isKeyboardPlacement ? <Check className="h-4 w-4" /> : submitText}
@@ -834,7 +834,7 @@ const QuickExpenseDrawer = ({
                 />
               </label>
             ) : null}
-            <DrawerClose className="ring-offset-background rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
+            <DrawerClose className="ring-offset-background rounded-full p-3 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
               <XIcon className="size-4" />
               <span className="sr-only">Close</span>
             </DrawerClose>

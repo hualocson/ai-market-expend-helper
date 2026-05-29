@@ -69,7 +69,7 @@ const CategoryChipRow = ({ value, onChange }: TCategoryChipRowProps) => {
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.5, ease: EASE_OUT }}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-full border-none px-3 py-2 text-sm font-medium",
+                "flex shrink-0 items-center gap-2 rounded-full border-none px-3 py-2.5 text-sm font-medium",
                 isActive ? "bg-white/10" : "bg-muted/50 hover:bg-muted",
                 isFirstItem && "ml-4"
               )}

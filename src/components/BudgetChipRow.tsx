@@ -185,7 +185,7 @@ const BudgetChipRow = ({
             animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, x: -12, filter: "blur(2px)" }}
             transition={{ duration: 0.3, ease: EASE_OUT }}
-            className="text-muted-foreground bg-muted/50 ml-4 grid size-9 shrink-0 place-items-center rounded-full border-none"
+            className="text-muted-foreground bg-muted/50 ml-4 grid size-10 shrink-0 place-items-center rounded-full border-none"
           >
             <span className="bg-background/30 grid size-5 shrink-0 place-items-center rounded-full">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -212,7 +212,7 @@ const BudgetChipRow = ({
               whileTap={{ scale: option.kind === "loading" ? 1 : 0.97 }}
               transition={{ duration: 0.5, ease: EASE_OUT }}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-full border-none px-3 py-2 text-sm font-medium",
+                "flex shrink-0 items-center gap-2 rounded-full border-none px-3 py-2.5 text-sm font-medium",
                 getButtonToneClassName(option, isActive),
                 isFirstItem && !suggesting && "ml-4"
               )}
