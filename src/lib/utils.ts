@@ -22,6 +22,18 @@ export const formatVndSigned = (amount: number) => {
   return normalized < 0 ? `-${formatted}` : formatted;
 };
 
+const compactVndFormatter = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+export const formatVndCompact = (amount: number) => {
+  if (!Number.isFinite(amount)) {
+    return "";
+  }
+  return compactVndFormatter.format(Math.trunc(amount));
+};
+
 export const parseVndInput = (raw: string) => {
   const digits = raw.replace(/[^\d]/g, "");
   if (!digits) {

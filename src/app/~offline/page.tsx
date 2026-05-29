@@ -1,13 +1,10 @@
 import Link from "next/link";
 
 import { CloudOff, RefreshCw, Wifi } from "lucide-react";
-import PageEnterAnimation, {
-  PageEnterSection,
-} from "@/components/PageEnterAnimation";
 
 export default function OfflinePage() {
   return (
-    <PageEnterAnimation className="bg-background text-foreground relative min-h-svh overflow-hidden">
+    <div className="bg-background text-foreground relative min-h-svh overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
         <div className="bg-primary/20 absolute top-12 -left-24 h-64 w-64 rounded-full blur-3xl" />
         <div className="bg-success/20 absolute top-40 right-0 h-48 w-48 rounded-full blur-3xl" />
@@ -15,9 +12,9 @@ export default function OfflinePage() {
       </div>
 
       <main className="relative mx-auto flex min-h-svh max-w-lg flex-col gap-6 px-4 pt-8 pb-16 sm:px-6">
-        <PageEnterSection>
+        <div>
           <header className="flex items-center gap-4">
-            <div className="bg-card/80 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 shadow-lg">
+            <div className="bg-card/80 border-border/70 flex h-12 w-12 items-center justify-center rounded-2xl border shadow-lg">
               <CloudOff className="text-primary h-6 w-6" />
             </div>
             <div>
@@ -27,11 +24,11 @@ export default function OfflinePage() {
               <h1 className="text-3xl font-semibold">You&apos;re offline</h1>
             </div>
           </header>
-        </PageEnterSection>
+        </div>
 
         <section className="grid gap-4">
-          <PageEnterSection>
-            <div className="bg-card/70 rounded-3xl border border-border/70 p-6 shadow-xl backdrop-blur">
+          <div>
+            <div className="bg-card/70 border-border/70 rounded-3xl border p-6 shadow-xl backdrop-blur">
               <h2 className="text-lg font-semibold">What still works</h2>
               <p className="text-muted-foreground mt-2 text-sm">
                 Spendly keeps recent data on-device so you can stay in flow.
@@ -61,10 +58,10 @@ export default function OfflinePage() {
                 </li>
               </ul>
             </div>
-          </PageEnterSection>
+          </div>
 
-          <PageEnterSection>
-            <div className="bg-background/60 rounded-3xl border border-border/70 p-6 shadow-lg backdrop-blur-sm">
+          <div>
+            <div className="bg-background/60 border-border/70 rounded-3xl border p-6 shadow-lg backdrop-blur-sm">
               <h2 className="text-lg font-semibold">Get back online</h2>
               <p className="text-muted-foreground mt-2 text-sm">
                 Check your connection or move closer to a stronger signal.
@@ -78,23 +75,23 @@ export default function OfflinePage() {
                   Back to dashboard
                 </Link>
                 <Link
-                  className="bg-card/70 text-foreground hover:bg-card inline-flex items-center justify-center rounded-2xl border border-border/70 px-5 py-3 text-sm font-semibold transition"
+                  className="bg-card/70 text-foreground hover:bg-card border-border/70 inline-flex items-center justify-center rounded-2xl border px-5 py-3 text-sm font-semibold transition"
                   href="/"
                 >
                   Browse transactions
                 </Link>
               </div>
             </div>
-          </PageEnterSection>
+          </div>
         </section>
 
-        <PageEnterSection>
-          <footer className="bg-card/60 text-muted-foreground mt-auto rounded-3xl border border-border/70 p-5 text-xs">
+        <div>
+          <footer className="bg-card/60 text-muted-foreground border-border/70 mt-auto rounded-3xl border p-5 text-xs">
             Tip: Keep this app pinned. Spendly will sync quietly in the
             background when your connection returns.
           </footer>
-        </PageEnterSection>
+        </div>
       </main>
-    </PageEnterAnimation>
+    </div>
   );
 }

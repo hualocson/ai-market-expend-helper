@@ -102,7 +102,7 @@ describe("SpendingDashboardHeaderClient", () => {
     expect(aiLink).toHaveAttribute("href", "/ai");
     expect(amountBlock).toHaveClass("items-start");
     expect(amountBlock).toHaveClass("fixed");
-    expect(amountBlock).toHaveClass("spending-header-gradient");
+    expect(amountBlock).toHaveClass("app-header-blur");
     expect(amountBlock).not.toHaveClass("ds-glass");
     expect(screen.getByTestId("heatmap-chart")).toBeInTheDocument();
     expect(screen.queryByText(/total spent/i)).not.toBeInTheDocument();

@@ -22,9 +22,6 @@ import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
 import ExpenseListItem, {
   type ExpenseListItemData,
 } from "@/components/ExpenseListItem";
-import PageEnterAnimation, {
-  PageEnterSection,
-} from "@/components/PageEnterAnimation";
 import VndSymbol from "@/components/VndSymbol";
 
 type DailyReportContentProps = {
@@ -57,11 +54,11 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
         : "text-muted-foreground";
 
   return (
-    <PageEnterAnimation className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col gap-4 px-4 pt-6 pb-6 sm:px-6">
+    <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col gap-4 px-4 pt-6 pb-6 sm:px-6">
       <div className="bg-success/15 pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full blur-3xl" />
       <div className="bg-accent/20 pointer-events-none absolute top-24 right-6 h-24 w-24 rounded-full blur-2xl" />
 
-      <PageEnterSection>
+      <div>
         <div className="relative z-10 flex shrink-0 items-center gap-2">
           <Link href="/">
             <Button variant="ghost" size="icon" className="active:scale-[0.97]">
@@ -77,10 +74,10 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
             </p>
           </div>
         </div>
-      </PageEnterSection>
+      </div>
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
-        <PageEnterSection>
+        <div>
           <div className="bg-card/80 border-border/70 rounded-3xl border p-4 shadow-[0_16px_40px_-24px_color-mix(in_srgb,var(--background)_72%,transparent)] sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -207,16 +204,16 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
               </div>
             </div>
           </div>
-        </PageEnterSection>
+        </div>
 
-        <PageEnterSection>
+        <div>
           <CategorySpendPieChart
             totals={report.dailyCategoryTotals}
             monthLabel={`${activeDate.format("DD MMM YYYY")}`}
           />
-        </PageEnterSection>
+        </div>
 
-        <PageEnterSection>
+        <div>
           <div className="bg-card/80 border-border/70 rounded-3xl border px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -249,14 +246,14 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
               )}
             </div>
           </div>
-        </PageEnterSection>
+        </div>
       </div>
       <ExpenseEditSheetHost
         expense={editingExpense}
         open={Boolean(editingExpense)}
         onOpenChange={handleEditOpenChange}
       />
-    </PageEnterAnimation>
+    </div>
   );
 };
 

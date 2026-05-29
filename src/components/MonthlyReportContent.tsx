@@ -13,9 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
 import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
-import PageEnterAnimation, {
-  PageEnterSection,
-} from "@/components/PageEnterAnimation";
 import PaidByIcon from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
 
@@ -53,8 +50,8 @@ const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
   });
 
   return (
-    <PageEnterAnimation className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col items-stretch gap-3 overflow-y-auto px-4 pt-6 sm:px-6">
-      <PageEnterSection>
+    <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col items-stretch gap-3 overflow-y-auto px-4 pt-6 sm:px-6">
+      <div>
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/">
             <Button variant="ghost" size="icon" className="active:scale-[0.97]">
@@ -68,19 +65,19 @@ const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
             {activeMonth.format("MMM YYYY")}
           </span>
         </div>
-      </PageEnterSection>
+      </div>
 
-      <PageEnterSection className="shrink-0">
+      <div className="shrink-0">
         <ExpenseMonthTabs items={monthItems} />
-      </PageEnterSection>
+      </div>
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
-        <PageEnterSection>
+        <div>
           <CategorySpendPieChart
             totals={report.categoryTotals}
             monthLabel={`${activeMonth.format("MMM YYYY")} - All`}
           />
-        </PageEnterSection>
+        </div>
 
         {report.paidByCategoryTotals.length ? (
           Array.from(
@@ -93,23 +90,23 @@ const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
           )
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([paidBy, totals]) => (
-              <PageEnterSection key={paidBy}>
+              <div key={paidBy}>
                 <CategorySpendPieChart
                   totals={totals}
                   monthLabel={`${activeMonth.format("MMM YYYY")} - ${paidBy}`}
                 />
-              </PageEnterSection>
+              </div>
             ))
         ) : (
-          <PageEnterSection>
+          <div>
             <CategorySpendPieChart
               totals={[]}
               monthLabel={activeMonth.format("MMM YYYY")}
             />
-          </PageEnterSection>
+          </div>
         )}
 
-        <PageEnterSection>
+        <div>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>Spending by payer</CardTitle>
@@ -147,9 +144,9 @@ const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
               )}
             </CardContent>
           </Card>
-        </PageEnterSection>
+        </div>
       </div>
-    </PageEnterAnimation>
+    </div>
   );
 };
 

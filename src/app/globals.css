@@ -361,11 +361,11 @@
     animation-delay: calc(var(--digit-stagger) * var(--digit-stagger-index, 0));
   }
 
-  .spending-header-gradient {
+  .app-header-blur {
     isolation: isolate;
   }
 
-  .spending-header-gradient::before {
+  .app-header-blur::before {
     position: absolute;
     inset: 0;
     z-index: -1;

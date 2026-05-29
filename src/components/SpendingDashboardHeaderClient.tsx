@@ -66,7 +66,7 @@ const SpendingDashboardHeaderClient = ({
 
   return (
     <>
-      <div className="spending-header-gradient fixed top-0 right-0 left-0 z-30 flex w-dvw flex-col items-start gap-3 px-4 py-6">
+      <div className="app-header-blur fixed top-0 right-0 left-0 z-30 flex w-dvw flex-col items-start gap-3 px-4 py-6">
         <m.p
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -87,7 +87,7 @@ const SpendingDashboardHeaderClient = ({
             <Select value={activePayer} onValueChange={setActivePayer}>
               <SelectTrigger
                 aria-label="Select expense payer"
-                className="bg-surface-3/85 border-border/70 hover:bg-secondary focus-visible:border-ring/40 focus-visible:ring-ring/30 h-8 min-w-20 rounded-full px-3 text-xs font-semibold shadow-none transition"
+                className="bg-secondary hover:bg-surface-3 focus-visible:ring-ring/30 h-8 min-w-20 rounded-full border-0 px-3 text-xs font-semibold shadow-none transition"
               >
                 <SelectValue placeholder="All" />
               </SelectTrigger>
