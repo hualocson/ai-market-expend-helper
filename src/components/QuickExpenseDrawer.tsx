@@ -626,6 +626,7 @@ const QuickExpenseDrawer = ({
           category: detail.category
             ? normalizeCategory(detail.category)
             : prev.category,
+          date: detail.date ? formatDraftDate(detail.date) : prev.date,
         };
         resetSuggestionTracking(nextDraft, "none");
         return nextDraft;
