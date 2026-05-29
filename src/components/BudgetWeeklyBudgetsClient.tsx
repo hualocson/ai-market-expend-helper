@@ -68,6 +68,7 @@ import {
 import BudgetBadge from "@/components/BudgetBadge";
 import BudgetColorList from "@/components/BudgetColorList";
 import BudgetEmojiPickerSheet from "@/components/BudgetEmojiPickerSheet";
+import BudgetRemainingChart from "@/components/BudgetRemainingChart";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import DatePickerSheet from "@/components/DatePickerSheet";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
@@ -318,6 +319,11 @@ const BudgetWeeklyBudgetsClient = ({
 
   const [activeBudget, setActiveBudget] = useState<BudgetListItem | null>(null);
   const [detailBudget, setDetailBudget] = useState<BudgetListItem | null>(null);
+
+  const openBudgetDetail = (budget: BudgetListItem) => {
+    setDetailBudget(budget);
+    setDetailOpen(true);
+  };
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(0);
@@ -580,10 +586,7 @@ const BudgetWeeklyBudgetsClient = ({
       <button
         key={budget.id}
         type="button"
-        onClick={() => {
-          setDetailBudget(budget);
-          setDetailOpen(true);
-        }}
+        onClick={() => openBudgetDetail(budget)}
         className={cn(
           "group bg-card/80 relative flex flex-col gap-2 rounded-3xl px-4 py-4 text-left shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_42%,transparent)] transition-[transform,box-shadow,background-color] active:scale-[0.99]",
           "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
@@ -973,6 +976,11 @@ const BudgetWeeklyBudgetsClient = ({
                   ))}
                 </div>
 
+                <BudgetRemainingChart
+                  budgets={filteredMonthlyBudgets}
+                  onSelect={openBudgetDetail}
+                />
+
                 {renderSectionSummary(
                   monthSummary,
                   "Month summary",
@@ -1025,6 +1033,11 @@ const BudgetWeeklyBudgetsClient = ({
                       ))}
                     </div>
 
+                    <BudgetRemainingChart
+                      budgets={activeWeekGroup?.budgets ?? []}
+                      onSelect={openBudgetDetail}
+                    />
+
                     {activeWeekGroup
                       ? renderSectionSummary(
                           activeWeekGroup.summary,
@@ -1055,6 +1068,11 @@ const BudgetWeeklyBudgetsClient = ({
 
             {activeTab === "custom" ? (
               <div className="space-y-2.5">
+                <BudgetRemainingChart
+                  budgets={sortedCustomBudgets}
+                  onSelect={openBudgetDetail}
+                />
+
                 {renderSectionSummary(
                   customSummary,
                   "Custom budget ranges",
