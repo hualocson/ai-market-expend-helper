@@ -1,7 +1,6 @@
 import dayjs from "@/configs/date";
 import { db } from "@/db";
 import { budgets, expenseBudgets, expenses } from "@/db/schema";
-import { Category } from "@/enums";
 import {
   normalizeBudgetColor,
   normalizeBudgetIcon,
@@ -222,7 +221,7 @@ export const getWeeklyBudgetReport = async (
       name: budget.name,
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
-      category: budget.category as Category,
+      category: budget.category,
       amount,
       spent,
       remaining: amount - spent,
@@ -285,6 +284,7 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
       budgets.name,
       budgets.icon,
       budgets.color,
+      budgets.category,
       budgets.amount,
       budgets.period,
       budgets.periodStartDate,
@@ -304,7 +304,7 @@ export const getBudgetOverview = async (): Promise<BudgetOverviewReport> => {
       name: budget.name,
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
-      category: budget.category as Category,
+      category: budget.category,
       amount,
       spent,
       remaining: amount - spent,
@@ -372,6 +372,7 @@ export const getTransferCandidates = async (
       budgets.name,
       budgets.icon,
       budgets.color,
+      budgets.category,
       budgets.amount,
       budgets.period,
       budgets.periodStartDate,
@@ -388,7 +389,7 @@ export const getTransferCandidates = async (
       name: budget.name,
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
-      category: budget.category as Category,
+      category: budget.category,
       amount,
       spent,
       remaining: amount - spent,

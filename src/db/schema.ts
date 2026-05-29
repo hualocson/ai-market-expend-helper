@@ -82,7 +82,10 @@ export const budgets = pgTable(
       .notNull()
       .default(DEFAULT_BUDGET_COLOR),
 
-    category: text("category").notNull().default(Category.OTHER),
+    category: text("category")
+      .$type<Category>()
+      .notNull()
+      .default(Category.OTHER),
 
     period: budgetPeriod("period").notNull(),
 
