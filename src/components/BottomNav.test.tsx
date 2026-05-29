@@ -1,6 +1,6 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -43,6 +43,11 @@ vi.mock("@/components/QuickExpenseDrawer", () => ({
       Add expense
     </button>
   ),
+}));
+
+vi.mock("@/components/ReceiptScanDrawer", () => ({
+  default: ({ open }: { open: boolean; onOpenChange: (v: boolean) => void }) =>
+    open ? <div>Scan a receipt</div> : null,
 }));
 
 const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
@@ -209,5 +214,16 @@ describe("BottomNav", () => {
 
     expect(hapticsMock.impact).toHaveBeenCalledTimes(1);
     expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+  });
+
+  it("renders a scan-receipt button and opens the scan drawer", async () => {
+    render(<BottomNav />);
+
+    const scanButton = screen.getByRole("button", { name: /scan receipt/i });
+    expect(scanButton).toBeInTheDocument();
+
+    fireEvent.click(scanButton);
+
+    expect(await screen.findByText(/scan a receipt/i)).toBeInTheDocument();
   });
 });
