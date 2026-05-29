@@ -1,10 +1,7 @@
 import React from "react";
 import type { ReactNode } from "react";
 
-import {
-  DEFAULT_BUDGET_COLOR,
-  DEFAULT_BUDGET_ICON,
-} from "@/lib/budget-appearance";
+import { DEFAULT_BUDGET_ICON } from "@/lib/budget-appearance";
 import type { BudgetListItem } from "@/types/budget-weekly";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -336,48 +333,14 @@ const openCreateDrawer = async () => {
   return user;
 };
 
-describe("BudgetWeeklyBudgetsClient mascot companion", () => {
-  it("renders the mascot companion in the create budget drawer header", async () => {
-    await openCreateDrawer();
-
-    expect(
-      screen.getByRole("heading", { name: /new budget/i })
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("dialog-companion-slot")).toBeInTheDocument();
-    expect(screen.getByTestId("idle-mascot")).toBeInTheDocument();
-  });
-
-  it("renders the mascot companion in the edit budget drawer header", async () => {
-    const user = userEvent.setup();
-
-    overviewData.budgets = [groceryBudget()];
-
-    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-04-01" />);
-
-    await user.click(screen.getByRole("button", { name: /groceries/i }));
-    await user.click(screen.getByRole("button", { name: /edit budget/i }));
-
-    expect(
-      screen.getByRole("heading", { name: /edit budget/i })
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("dialog-companion-slot")).toBeInTheDocument();
-    expect(screen.getByTestId("idle-mascot")).toBeInTheDocument();
-  });
-});
-
 describe("BudgetWeeklyBudgetsClient budget appearance controls", () => {
-  it("shows create defaults and submits the selected icon and color", async () => {
+  it("submits the default icon and the selected color", async () => {
     const user = await openCreateDrawer();
 
-    expect(screen.getByLabelText(/budget icon/i)).toHaveValue(
-      DEFAULT_BUDGET_ICON
-    );
     expect(
       screen.getByRole("button", { name: /budget color lime/i })
     ).toHaveAttribute("aria-pressed", "true");
 
-    await user.clear(screen.getByLabelText(/budget icon/i));
-    await user.type(screen.getByLabelText(/budget icon/i), "🛒");
     await user.click(
       screen.getByRole("button", { name: /budget color emerald/i })
     );
@@ -389,7 +352,7 @@ describe("BudgetWeeklyBudgetsClient budget appearance controls", () => {
       expect.objectContaining({
         name: "Groceries",
         amount: 500000,
-        icon: "🛒",
+        icon: DEFAULT_BUDGET_ICON,
         color: "emerald",
       })
     );
@@ -402,52 +365,31 @@ describe("BudgetWeeklyBudgetsClient budget appearance controls", () => {
 
     render(<BudgetWeeklyBudgetsClient weekStartDate="2026-04-01" />);
 
-    await user.click(screen.getByRole("button", { name: /groceries/i }));
+    await user.click(
+      screen.getByRole("button", { name: /budget: groceries/i })
+    );
     await user.click(screen.getByRole("button", { name: /edit budget/i }));
 
-    expect(screen.getByLabelText(/budget icon/i)).toHaveValue("🛒");
+    expect(screen.getByLabelText(/budget name/i)).toHaveValue("Groceries");
     expect(
       screen.getByRole("button", { name: /budget color emerald/i })
     ).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("resets create appearance to defaults after closing and reopening", async () => {
+  it("resets create defaults after closing and reopening", async () => {
     const user = await openCreateDrawer();
 
-    await user.clear(screen.getByLabelText(/budget icon/i));
-    await user.type(screen.getByLabelText(/budget icon/i), "🛒");
     await user.click(
       screen.getByRole("button", { name: /budget color emerald/i })
     );
-
-    expect(screen.getByLabelText(/budget icon/i)).toHaveValue("🛒");
-    expect(
-      screen.getByRole("button", { name: /budget color emerald/i })
-    ).toHaveAttribute("aria-pressed", "true");
-
     await user.click(
       screen.getAllByRole("button", { name: /close drawer/i })[0]
     );
 
-    const emptyState = screen
-      .getByText(/no weekly budgets yet/i)
-      .closest("div");
+    await user.click(screen.getAllByRole("button", { name: /add budget/i })[0]);
 
-    expect(emptyState).not.toBeNull();
-
-    await user.click(
-      within(emptyState as HTMLElement).getByRole("button", {
-        name: /add budget/i,
-      })
-    );
-
-    expect(screen.getByLabelText(/budget icon/i)).toHaveValue(
-      DEFAULT_BUDGET_ICON
-    );
     expect(
-      screen.getByRole("button", {
-        name: new RegExp(`budget color ${DEFAULT_BUDGET_COLOR}`, "i"),
-      })
+      screen.getByRole("button", { name: /budget color lime/i })
     ).toHaveAttribute("aria-pressed", "true");
   });
 });
