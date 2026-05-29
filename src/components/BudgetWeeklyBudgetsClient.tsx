@@ -822,7 +822,7 @@ const BudgetWeeklyBudgetsClient = ({
   const showErrorFallback = isError;
 
   return (
-    <section className="relative flex flex-col pb-6">
+    <section className="relative flex flex-col">
       <div className="app-header-blur sticky top-0 z-20 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-foreground text-2xl leading-none font-bold">
@@ -900,7 +900,7 @@ const BudgetWeeklyBudgetsClient = ({
         </div>
       </div>
 
-      <div className="space-y-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+40px)]">
+      <div className="standalone:pb-[calc(env(safe-area-inset-bottom))] space-y-4">
         {showErrorFallback ? (
           <div className="border-destructive/35 bg-destructive/10 rounded-2xl border px-4 py-4">
             <p className="text-destructive-foreground text-sm font-semibold">

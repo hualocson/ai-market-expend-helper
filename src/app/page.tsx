@@ -29,7 +29,7 @@ export default function Home() {
   void queryClient.prefetchInfiniteQuery(expenseListOptions);
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col items-stretch px-4 pt-6 pb-28 sm:px-6 sm:pt-8">
+    <div className="standalone:pb-[calc(env(safe-area-inset-bottom))] mx-auto flex min-h-svh max-w-md flex-col items-stretch px-4 pt-6 sm:px-6 sm:pt-8">
       <div className="flex flex-col items-stretch gap-6">
         <HydrationBoundary state={dehydrate(queryClient)}>
           <SpendingDashboardHeader />
