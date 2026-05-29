@@ -489,13 +489,20 @@ const BudgetWeeklyBudgetsClient = ({
         )}
       >
         <div className="flex w-full items-center justify-between gap-3">
-          <BudgetBadge
-            icon={budget.icon}
-            color={budget.color}
-            name={budget.name}
-            className="max-w-[68%] px-2.5 py-1"
-            nameClassName="text-sm font-semibold sm:text-base"
-          />
+          <div className="flex min-w-0 items-center gap-2">
+            <BudgetBadge
+              icon={budget.icon}
+              color={budget.color}
+              name={budget.name}
+              className="max-w-[68%] px-2.5 py-1"
+              nameClassName="text-sm font-semibold sm:text-base"
+            />
+            <ExpenseItemIcon
+              category={budget.category}
+              size="sm"
+              className="shrink-0"
+            />
+          </div>
           <p
             className={cn(
               "text-sm font-semibold",
