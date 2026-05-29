@@ -1,29 +1,17 @@
 "use client";
 
 import React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
-import {
-  type BudgetColorId,
-  DEFAULT_BUDGET_COLOR,
-  DEFAULT_BUDGET_ICON,
-  normalizeBudgetColor,
-  normalizeBudgetIcon,
-} from "@/lib/budget-appearance";
-import {
-  useCreateBudgetMutation,
-  useDeleteBudgetMutation,
-  useUpdateBudgetMutation,
-} from "@/lib/mutations";
+import { useDeleteBudgetMutation } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
-import { cn, formatVnd, formatVndSigned, parseVndInput } from "@/lib/utils";
+import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
   BudgetAssignedTransaction,
   BudgetListItem,
-  BudgetPeriod,
   BudgetTransactionsResponse,
 } from "@/types/budget-weekly";
 import {
@@ -34,13 +22,11 @@ import {
 } from "@tanstack/react-query";
 import {
   ArrowDown,
-  Calendar,
   Loader2,
   Plus,
   SaveIcon,
   Trash2,
   Wallet,
-  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,7 +41,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
@@ -71,14 +56,11 @@ import {
 } from "@/components/ui/select";
 
 import BudgetBadge from "@/components/BudgetBadge";
-import BudgetColorList from "@/components/BudgetColorList";
-import BudgetEmojiPickerSheet from "@/components/BudgetEmojiPickerSheet";
 import BudgetRemainingChart from "@/components/BudgetRemainingChart";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
-import DatePickerSheet from "@/components/DatePickerSheet";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
 import PaidByIcon, { getPaidByPalette } from "@/components/PaidByIcon";
-import VndSymbol from "@/components/VndSymbol";
+import BudgetFormDrawer from "@/components/budget-form/BudgetFormDrawer";
 
 type BudgetWeeklyBudgetsClientProps = {
   weekStartDate: string;
@@ -108,16 +90,6 @@ type BudgetStatus = {
   isOver: boolean;
   isNearLimit: boolean;
 };
-
-const PERIOD_OPTIONS: Array<{
-  value: BudgetPeriod;
-  label: string;
-  hint: string;
-}> = [
-  { value: "week", label: "Weekly", hint: "Resets every week" },
-  { value: "month", label: "Monthly", hint: "Best for fixed bills" },
-  { value: "custom", label: "Custom", hint: "Flexible date range" },
-];
 
 const DASHBOARD_TABS: Array<{ id: DashboardTab; label: string }> = [
   { id: "week", label: "Weekly" },
@@ -204,35 +176,6 @@ const formatBudgetPeriodRange = (budget: BudgetListItem) => {
   return `${weekStartDate.format("DD MMM YYYY")} - ${weekEndDate.format("DD MMM YYYY")}`;
 };
 
-const resolvePeriodStart = (periodValue: BudgetPeriod, dateValue: string) => {
-  const parsed = dayjs(dateValue, "YYYY-MM-DD", true);
-  const base = parsed.isValid() ? parsed : dayjs();
-  if (periodValue === "month") {
-    return base.startOf("month").format("YYYY-MM-DD");
-  }
-  if (periodValue === "week") {
-    return getWeekRange(base).weekStartDate.format("YYYY-MM-DD");
-  }
-  return base.format("YYYY-MM-DD");
-};
-
-const formatDatePickerValue = (dateValue: string) => {
-  const parsed = dayjs(dateValue, "YYYY-MM-DD", true);
-  return parsed.isValid()
-    ? parsed.format("DD/MM/YYYY")
-    : dayjs().format("DD/MM/YYYY");
-};
-
-const parseDatePickerValue = (dateValue: string) => {
-  const parsed = dayjs(dateValue, "DD/MM/YYYY", true);
-  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : dateValue;
-};
-
-const formatStartDateLabel = (dateValue: string) => {
-  const parsed = dayjs(dateValue, "YYYY-MM-DD", true);
-  return parsed.isValid() ? parsed.format("DD/MM/YYYY") : "Pick date";
-};
-
 const getBudgetStatus = (budget: BudgetListItem): BudgetStatus => {
   const spentRate = budget.amount > 0 ? budget.spent / budget.amount : 0;
   const percentSpent = Math.max(Math.round(spentRate * 100), 0);
@@ -268,12 +211,10 @@ const BudgetWeeklyBudgetsClient = ({
   const budgets = overview.budgets;
   const [activeTab, setActiveTab] = useState<DashboardTab>("week");
 
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
-  const [startDateOpen, setStartDateOpen] = useState(false);
-  const [endDateOpen, setEndDateOpen] = useState(false);
   const [transferDestination, setTransferDestination] =
     useState<BudgetListItem | null>(null);
 
@@ -282,7 +223,11 @@ const BudgetWeeklyBudgetsClient = ({
     setTransferOpen(true);
   };
 
-  const [activeBudget, setActiveBudget] = useState<BudgetListItem | null>(null);
+  // Target for the form drawer (edit) and the delete-confirm dialog.
+  const [editingBudget, setEditingBudget] = useState<BudgetListItem | null>(
+    null
+  );
+  const [isSaving, setIsSaving] = useState(false);
   const [detailBudget, setDetailBudget] = useState<BudgetListItem | null>(null);
 
   const openBudgetDetail = (budget: BudgetListItem) => {
@@ -290,17 +235,6 @@ const BudgetWeeklyBudgetsClient = ({
     setDetailOpen(true);
   };
 
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState(0);
-  const amountRef = useRef<HTMLInputElement>(null);
-  const [period, setPeriod] = useState<BudgetPeriod>("week");
-  const [periodStartDate, setPeriodStartDate] = useState(weekStartDate);
-  const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
-  const [icon, setIcon] = useState(DEFAULT_BUDGET_ICON);
-  const [color, setColor] = useState<BudgetColorId>(DEFAULT_BUDGET_COLOR);
-  const [isSaving, setIsSaving] = useState(false);
-  const createBudgetMutation = useCreateBudgetMutation();
-  const updateBudgetMutation = useUpdateBudgetMutation();
   const deleteBudgetMutation = useDeleteBudgetMutation();
 
   const currentMonthKey = dayjs().format("YYYY-MM");
@@ -309,22 +243,6 @@ const BudgetWeeklyBudgetsClient = ({
     weekStartDate
   );
 
-  const formTitle = activeBudget ? "Edit budget" : "New budget";
-  const submitLabel = activeBudget ? "Save changes" : "Create budget";
-  const formDescription = activeBudget
-    ? "Adjust the limit and schedule for this budget."
-    : "Set a spending cap and period to track this category.";
-  const trimmedName = name.trim();
-  const parsedStart = dayjs(periodStartDate, "YYYY-MM-DD", true);
-  const parsedEnd = periodEndDate
-    ? dayjs(periodEndDate, "YYYY-MM-DD", true)
-    : null;
-  const hasValidPeriod =
-    parsedStart.isValid() &&
-    (period !== "custom" ||
-      (parsedEnd?.isValid() && !parsedEnd.isBefore(parsedStart, "day")));
-  const isValid = trimmedName.length > 0 && amount > 0 && hasValidPeriod;
-  const canSubmit = isValid && !isSaving;
   const budgetTransactionsQuery = queries.budgets.transactions(
     detailBudget?.id ?? 0,
     {
@@ -361,25 +279,6 @@ const BudgetWeeklyBudgetsClient = ({
         ? lastPage.pagination.offset + lastPage.pagination.limit
         : undefined,
   });
-
-  const periodRangeLabel = useMemo(() => {
-    const start = dayjs(periodStartDate, "YYYY-MM-DD", true);
-    const end = periodEndDate ? dayjs(periodEndDate, "YYYY-MM-DD", true) : null;
-    if (!start.isValid()) {
-      return "Select a valid start date.";
-    }
-    if (period === "month") {
-      return `${start.startOf("month").format("DD MMM YYYY")} - ${start.endOf("month").format("DD MMM YYYY")}`;
-    }
-    if (period === "custom") {
-      if (!end?.isValid()) {
-        return "Select an end date.";
-      }
-      return `${start.format("DD MMM YYYY")} - ${end.format("DD MMM YYYY")}`;
-    }
-    const { weekStartDate: startDate, weekEndDate } = getWeekRange(start);
-    return `${startDate.format("DD MMM YYYY")} - ${weekEndDate.format("DD MMM YYYY")}`;
-  }, [period, periodEndDate, periodStartDate]);
 
   const monthKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -540,6 +439,39 @@ const BudgetWeeklyBudgetsClient = ({
     });
   }, [weekStartDate, weeklyGroups]);
 
+  const openCreate = () => {
+    setEditingBudget(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (budget: BudgetListItem) => {
+    setEditingBudget(budget);
+    setFormOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!editingBudget) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await deleteBudgetMutation.mutateAsync(editingBudget.id);
+      toast.success("Budget deleted.");
+
+      setConfirmOpen(false);
+      setFormOpen(false);
+      setDetailOpen(false);
+      setDetailBudget(null);
+      setEditingBudget(null);
+    } catch (deleteError) {
+      console.error(deleteError);
+      toast.error("Failed to delete budget.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const renderBudgetItem = (budget: BudgetListItem) => {
     const status = getBudgetStatus(budget);
 
@@ -665,157 +597,6 @@ const BudgetWeeklyBudgetsClient = ({
       </Button>
     </div>
   );
-
-  const resetBudgetAppearance = () => {
-    setIcon(DEFAULT_BUDGET_ICON);
-    setColor(DEFAULT_BUDGET_COLOR);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    setSheetOpen(open);
-    if (!open) {
-      setActiveBudget(null);
-      setName("");
-      setAmount(0);
-      setPeriod("week");
-      setPeriodStartDate(weekStartDate);
-      setPeriodEndDate(null);
-      resetBudgetAppearance();
-    }
-  };
-
-  const openCreate = () => {
-    setActiveBudget(null);
-    setName("");
-    setAmount(0);
-    setPeriod("week");
-    setPeriodStartDate(weekStartDate);
-    setPeriodEndDate(null);
-    resetBudgetAppearance();
-    setSheetOpen(true);
-  };
-
-  const openEdit = (budget: BudgetListItem) => {
-    setActiveBudget(budget);
-    setName(budget.name);
-    setAmount(budget.amount);
-    setPeriod(budget.period);
-    setPeriodStartDate(budget.periodStartDate);
-    setPeriodEndDate(budget.periodEndDate ?? null);
-    setIcon(normalizeBudgetIcon(budget.icon));
-    setColor(normalizeBudgetColor(budget.color));
-    setSheetOpen(true);
-  };
-
-  const handlePeriodChange = (nextPeriod: BudgetPeriod) => {
-    const nextStart = resolvePeriodStart(
-      nextPeriod,
-      periodStartDate || weekStartDate
-    );
-    setPeriod(nextPeriod);
-    setPeriodStartDate(nextStart);
-    if (nextPeriod === "custom") {
-      setPeriodEndDate((current) => {
-        if (!current) {
-          return nextStart;
-        }
-        const parsedCurrent = dayjs(current, "YYYY-MM-DD", true);
-        if (!parsedCurrent.isValid()) {
-          return nextStart;
-        }
-        return parsedCurrent.isBefore(dayjs(nextStart), "day")
-          ? nextStart
-          : current;
-      });
-    } else {
-      setPeriodEndDate(null);
-    }
-  };
-
-  const handleStartDateChange = (value: string) => {
-    setPeriodStartDate(value);
-    if (period === "custom" && periodEndDate) {
-      const parsedCurrentEnd = dayjs(periodEndDate, "YYYY-MM-DD", true);
-      const parsedCurrentStart = dayjs(value, "YYYY-MM-DD", true);
-      if (
-        parsedCurrentEnd.isValid() &&
-        parsedCurrentStart.isValid() &&
-        parsedCurrentEnd.isBefore(parsedCurrentStart, "day")
-      ) {
-        setPeriodEndDate(value);
-      }
-    }
-  };
-
-  const handleEndDateChange = (value: string) => {
-    setPeriodEndDate(value);
-  };
-
-  const handleSubmit = async () => {
-    if (!canSubmit) {
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      if (activeBudget) {
-        await updateBudgetMutation.mutateAsync({
-          id: activeBudget.id,
-          input: {
-            name,
-            amount,
-            period,
-            periodStartDate,
-            periodEndDate: period === "custom" ? periodEndDate : null,
-            icon,
-            color,
-          },
-        });
-        toast.success("Budget updated.");
-      } else {
-        await createBudgetMutation.mutateAsync({
-          name,
-          amount,
-          period,
-          periodStartDate,
-          periodEndDate: period === "custom" ? periodEndDate : null,
-          icon,
-          color,
-        });
-        toast.success("Budget created.");
-      }
-
-      setSheetOpen(false);
-    } catch (submitError) {
-      console.error(submitError);
-      toast.error("Failed to save budget.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!activeBudget) {
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      await deleteBudgetMutation.mutateAsync(activeBudget.id);
-      toast.success("Budget deleted.");
-
-      setConfirmOpen(false);
-      setSheetOpen(false);
-      setDetailOpen(false);
-      setDetailBudget(null);
-      setActiveBudget(null);
-    } catch (deleteError) {
-      console.error(deleteError);
-      toast.error("Failed to delete budget.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const errorMessage =
     error instanceof Error ? error.message : "Failed to load budgets.";
@@ -1248,7 +1029,7 @@ const BudgetWeeklyBudgetsClient = ({
                 if (!detailBudget) {
                   return;
                 }
-                setActiveBudget(detailBudget);
+                setEditingBudget(detailBudget);
                 setConfirmOpen(true);
               }}
               disabled={isSaving}
@@ -1260,208 +1041,16 @@ const BudgetWeeklyBudgetsClient = ({
         </DrawerContent>
       </Drawer>
 
-      <Drawer
-        open={sheetOpen}
-        onOpenChange={handleOpenChange}
-        repositionInputs={false}
-      >
-        <DrawerContent hideIndicator className="rounded-t-3xl! border-t-0!">
-          <DrawerHeader>
-            <div className="flex items-center justify-between gap-2">
-              <DrawerTitle className="text-2xl">{formTitle}</DrawerTitle>
-              <DrawerClose className="quick-expense-enter-group quick-expense-enter-delay-1 ring-offset-background absolute top-4 right-4 z-60 rounded-full p-2 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none">
-                <XIcon className="size-4" />
-                <span className="sr-only">Close</span>
-              </DrawerClose>
-            </div>
-            <DrawerDescription className="sr-only">
-              {formDescription}
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="no-scrollbar flex max-h-[98svh] flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4">
-            <div className="flex items-center justify-between gap-2">
-              <input
-                id="budget-name-input"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Budget name"
-                maxLength={36}
-                className="placeholder:text-muted-foreground inline-flex min-h-12 w-full overflow-hidden border-none bg-transparent px-0 py-2 text-xl font-semibold whitespace-nowrap focus-visible:ring-0 focus-visible:outline-none"
-                tabIndex={0}
-              />
-              <BudgetEmojiPickerSheet
-                value={icon}
-                color={color}
-                onSelect={(nextIcon) => setIcon(normalizeBudgetIcon(nextIcon))}
-              />
-              <BudgetBadge
-                icon={icon}
-                color={color}
-                name={trimmedName || "Budget"}
-                className="h-8 shrink-0"
-              />
-            </div>
-
-            <div>
-              <BudgetColorList value={color} onChange={setColor} />
-            </div>
-
-            <div>
-              <label htmlFor="budget-amount-input" className="sr-only">
-                Amount
-              </label>
-              <div className="flex items-baseline gap-1 py-1">
-                <VndSymbol className="text-muted-foreground text-4xl font-semibold tracking-tight" />
-                <input
-                  ref={amountRef}
-                  id="budget-amount-input"
-                  inputMode="numeric"
-                  value={amount ? formatVnd(amount) : ""}
-                  onChange={(event) =>
-                    setAmount(parseVndInput(event.target.value))
-                  }
-                  placeholder="0"
-                  className="flex-1 border-0 bg-transparent px-0 text-left text-4xl font-semibold tracking-tight focus-visible:ring-0 focus-visible:outline-none"
-                  onFocus={() => {
-                    amountRef.current?.select();
-                  }}
-                />
-              </div>
-              {activeBudget ? (
-                <button
-                  type="button"
-                  className="text-primary mt-2 text-[11px] font-medium underline-offset-2 hover:underline"
-                  onClick={() => {
-                    if (!activeBudget) {
-                      return;
-                    }
-                    setSheetOpen(false);
-                    openTransfer(activeBudget);
-                  }}
-                >
-                  Move from another budget →
-                </button>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="text-foreground text-sm font-medium">
-                Period
-              </label>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {PERIOD_OPTIONS.map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handlePeriodChange(option.value)}
-                    aria-pressed={period === option.value}
-                    className={cn(
-                      "h-9 w-full rounded-full px-3 text-xs font-medium",
-                      period === option.value
-                        ? "bg-primary text-primary-foreground shadow-[0_8px_20px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
-                        : "text-muted-foreground bg-muted/35 hover:bg-muted/55"
-                    )}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="grid w-full gap-3 sm:grid-cols-2">
-                <div className="flex w-full flex-col gap-2">
-                  <span className="text-foreground text-sm font-medium">
-                    Start date
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 justify-start rounded-xl px-3 text-sm font-medium"
-                    aria-label={`Start date: ${formatStartDateLabel(periodStartDate)}`}
-                    onPointerDown={(event) => {
-                      event.preventDefault();
-                      setStartDateOpen(true);
-                    }}
-                    onClick={() => setStartDateOpen(true)}
-                  >
-                    <Calendar className="h-4 w-4" />
-                    <span>{formatStartDateLabel(periodStartDate)}</span>
-                  </Button>
-                </div>
-                {period === "custom" ? (
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <span className="text-foreground text-sm font-medium">
-                      End date
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 justify-start rounded-xl px-3 text-sm font-medium"
-                      aria-label={`End date: ${formatStartDateLabel(periodEndDate ?? periodStartDate)}`}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        setEndDateOpen(true);
-                      }}
-                      onClick={() => setEndDateOpen(true)}
-                    >
-                      <Calendar className="h-4 w-4" />
-                      <span>
-                        {formatStartDateLabel(periodEndDate ?? periodStartDate)}
-                      </span>
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-              <p
-                className={cn(
-                  "mt-3 text-xs",
-                  hasValidPeriod ? "text-muted-foreground" : "text-destructive"
-                )}
-              >
-                {periodRangeLabel}
-              </p>
-            </div>
-          </div>
-          <DrawerFooter className="border-border/45 gap-2 border-t">
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              className="h-11 rounded-2xl"
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <SaveIcon />
-              )}
-              {isSaving ? "Saving..." : submitLabel}
-            </Button>
-          </DrawerFooter>
-        </DrawerContent>
-        <DatePickerSheet
-          open={startDateOpen}
-          onOpenChange={setStartDateOpen}
-          value={formatDatePickerValue(periodStartDate)}
-          onChange={(nextDate) =>
-            handleStartDateChange(parseDatePickerValue(nextDate))
-          }
-          title="Start date"
-          description="Pick the budget start date."
-        />
-        <DatePickerSheet
-          open={endDateOpen}
-          onOpenChange={setEndDateOpen}
-          value={formatDatePickerValue(periodEndDate ?? periodStartDate)}
-          onChange={(nextDate) =>
-            handleEndDateChange(parseDatePickerValue(nextDate))
-          }
-          title="End date"
-          description="Pick the budget end date."
-        />
-      </Drawer>
+      <BudgetFormDrawer
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        budget={editingBudget}
+        weekStartDate={weekStartDate}
+        onMoveFunds={(budget) => {
+          setFormOpen(false);
+          openTransfer(budget);
+        }}
+      />
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
