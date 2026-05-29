@@ -3,8 +3,6 @@
 import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import Link from "next/link";
-
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import {
@@ -36,7 +34,6 @@ import {
 } from "@tanstack/react-query";
 import {
   ArrowDown,
-  ArrowLeftIcon,
   Calendar,
   Loader2,
   Plus,
@@ -859,32 +856,16 @@ const BudgetWeeklyBudgetsClient = ({
     <section className="relative flex flex-col pb-6">
       <div className="sticky top-0 z-20 -mx-4 bg-transparent px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Link href="/" aria-label="Back to home">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 rounded-xl active:scale-[0.97]"
-              >
-                <ArrowLeftIcon />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-foreground text-lg leading-none font-semibold sm:text-xl">
-                Budgets
-              </h1>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Compact view with detail drawer for each budget
-              </p>
-            </div>
-          </div>
+          <h1 className="text-foreground text-xl leading-none font-semibold">
+            Budgets
+          </h1>
           <Button
             onClick={openCreate}
-            size="sm"
-            className="hidden h-11 rounded-xl px-3 sm:flex"
+            size="icon"
+            aria-label="Add budget"
+            className="h-11 w-11 rounded-xl active:scale-[0.97]"
           >
-            <Plus className="h-4 w-4" />
-            Add budget
+            <Plus className="h-5 w-5" />
           </Button>
         </div>
 
@@ -1092,18 +1073,6 @@ const BudgetWeeklyBudgetsClient = ({
             ) : null}
           </>
         ) : null}
-      </div>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+102px)] z-40 flex justify-center px-4 sm:hidden">
-        <div className="w-full max-w-lg">
-          <Button
-            onClick={openCreate}
-            className="pointer-events-auto h-11 w-full rounded-xl text-sm font-semibold shadow-md shadow-black/20"
-          >
-            <Plus className="h-4 w-4" />
-            Add budget
-          </Button>
-        </div>
       </div>
 
       <Drawer
