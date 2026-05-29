@@ -1,6 +1,8 @@
+import { Category } from "@/enums";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createBudget,
   deleteBudget,
   getWeeklyBudgetReport,
   setExpenseBudget,
@@ -19,6 +21,7 @@ vi.mock("@/db", () => ({
     delete: vi.fn(() => ({
       where: dbMocks.deleteWhere,
     })),
+    insert: vi.fn(),
     select: dbMocks.select,
     update: vi.fn(() => ({
       set: dbMocks.updateSet,
@@ -111,6 +114,48 @@ describe("updateBudget", () => {
       updatedAt: expect.any(Date),
     });
     expect(touchWhere).toHaveBeenCalled();
+  });
+});
+
+describe("createBudget category", () => {
+  it("persists the category on insert", async () => {
+    const insertValues = vi.fn();
+    const insertReturning = vi.fn().mockResolvedValue([{ id: 1 }]);
+    insertValues.mockReturnValue({ returning: insertReturning });
+    const dbModule = await import("@/db");
+    (dbModule.db as unknown as { insert: ReturnType<typeof vi.fn> }).insert =
+      vi.fn(() => ({ values: insertValues }));
+
+    await createBudget({
+      name: "Coffee",
+      icon: "💰",
+      color: "lime",
+      category: Category.FOOD,
+      amount: 200_000,
+      period: "week",
+      periodStartDate: "2026-05-11",
+      periodEndDate: null,
+    });
+
+    expect(insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ category: Category.FOOD })
+    );
+  });
+});
+
+describe("updateBudget category", () => {
+  it("updates category without touching linked expenses", async () => {
+    const budgetWhere = vi.fn();
+    const budgetReturning = vi.fn().mockResolvedValue([{ id: 10 }]);
+    dbMocks.updateSet.mockReturnValueOnce({ where: budgetWhere });
+    budgetWhere.mockReturnValue({ returning: budgetReturning });
+
+    await updateBudget(10, { category: Category.SHOPPING });
+
+    expect(dbMocks.updateSet).toHaveBeenCalledTimes(1);
+    expect(dbMocks.updateSet).toHaveBeenNthCalledWith(1, {
+      category: Category.SHOPPING,
+    });
   });
 });
 
