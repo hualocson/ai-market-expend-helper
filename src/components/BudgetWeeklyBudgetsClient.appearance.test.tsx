@@ -378,6 +378,19 @@ describe("BudgetWeeklyBudgetsClient budget appearance controls", () => {
     ).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("renders the category icon on the budget card", () => {
+    overviewData.budgets = [groceryBudget()];
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-04-01" />);
+
+    expect(screen.getAllByTestId("expense-item-icon").length).toBeGreaterThan(
+      0
+    );
+    // The grocery budget has category Food — confirm the icon stub renders its value
+    const icons = screen.getAllByTestId("expense-item-icon");
+    expect(icons.some((el) => el.textContent === Category.FOOD)).toBe(true);
+  });
+
   it("resets create defaults after closing and reopening", async () => {
     const user = await openCreateDrawer();
 

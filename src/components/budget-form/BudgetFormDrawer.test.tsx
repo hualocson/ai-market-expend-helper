@@ -148,4 +148,34 @@ describe("BudgetFormDrawer", () => {
     expect(group).toBeInTheDocument();
     expect(within(group).getByText("Other")).toBeInTheDocument();
   });
+
+  it("changes category selection when a different chip is picked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BudgetFormDrawer
+        open
+        onOpenChange={vi.fn()}
+        budget={null}
+        weekStartDate="2026-05-11"
+        onMoveFunds={vi.fn()}
+      />
+    );
+
+    const group = screen.getByRole("radiogroup", { name: "Category" });
+
+    // Collapsed by default — only the active "Other" chip is visible
+    const otherChip = within(group).getByRole("button", { name: /other/i });
+    expect(otherChip).toHaveAttribute("aria-pressed", "true");
+
+    // First click expands the full list
+    await user.click(otherChip);
+
+    // Second click selects "Food"
+    await user.click(within(group).getByRole("button", { name: /^food$/i }));
+
+    // After selection the picker collapses; the active chip now shows "Food"
+    const foodChip = within(group).getByRole("button", { name: /^food$/i });
+    expect(foodChip).toHaveAttribute("aria-pressed", "true");
+  });
 });

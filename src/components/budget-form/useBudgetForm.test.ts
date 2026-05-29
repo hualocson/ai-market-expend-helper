@@ -57,6 +57,7 @@ describe("useBudgetForm", () => {
     expect(result.current.periodStartDate).toBe("2026-05-11");
     expect(result.current.icon).toBe("💰");
     expect(result.current.color).toBe("lime");
+    expect(result.current.category).toBe(Category.OTHER);
     expect(result.current.isEdit).toBe(false);
     expect(result.current.canSubmit).toBe(false);
   });
@@ -77,6 +78,7 @@ describe("useBudgetForm", () => {
     expect(result.current.periodEndDate).toBe("2026-05-10");
     expect(result.current.icon).toBe("🛒");
     expect(result.current.color).toBe("emerald");
+    expect(result.current.category).toBe(Category.FOOD);
     expect(result.current.isEdit).toBe(true);
     expect(result.current.canSubmit).toBe(true);
   });

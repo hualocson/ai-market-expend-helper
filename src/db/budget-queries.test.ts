@@ -167,6 +167,7 @@ describe("getWeeklyBudgetReport", () => {
         name: "Meals",
         icon: "🍜",
         color: "rose",
+        category: Category.FOOD,
         amount: 500000,
         period: "week",
         periodStartDate: "2026-05-18",
