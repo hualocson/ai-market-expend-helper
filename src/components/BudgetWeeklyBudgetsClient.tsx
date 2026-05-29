@@ -614,9 +614,9 @@ const BudgetWeeklyBudgetsClient = ({
             variant="ghost"
             size="icon"
             aria-label="Add budget"
-            className="text-primary hover:text-primary h-11 w-11 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
+            className="text-primary hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
           >
-            <Wallet className="h-5 w-5" />
+            <Wallet className="size-5" />
           </Button>
         </div>
 
