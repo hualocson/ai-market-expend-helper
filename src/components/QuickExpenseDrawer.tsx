@@ -322,6 +322,7 @@ const QuickExpenseDrawer = ({
   const currentSuggestionCandidateKeyRef = useRef("");
   const lastSuggestionSnapshotRef = useRef<string | null>(null);
   const suggestionRequestIdRef = useRef(0);
+  const categoryUserEditedRef = useRef(false);
   const previousControlledOpenRef = useRef(open);
   drawerOpenRef.current = drawerOpen;
   currentNoteRef.current = draft.note;
@@ -339,7 +340,11 @@ const QuickExpenseDrawer = ({
     lastSuggestionSnapshotRef.current = null;
     suggestionRequestIdRef.current += 1;
     setIsSuggestingBudget(false);
+    categoryUserEditedRef.current = false;
   };
+
+  const shouldApplyBudgetCategory = () =>
+    !isEditMode && !categoryUserEditedRef.current;
 
   const handleOpenChange = (next: boolean) => {
     if (typeof open !== "boolean") {
@@ -671,6 +676,7 @@ const QuickExpenseDrawer = ({
       budgetName: selected.name ?? null,
       budgetIcon: selected.icon ?? null,
       budgetColor: selected.color ?? null,
+      category: shouldApplyBudgetCategory() ? selected.category : prev.category,
     }));
     budgetSelectionSourceRef.current = "ai";
   };
@@ -1008,12 +1014,19 @@ const QuickExpenseDrawer = ({
                       budgetIcon: id === null ? null : (selected?.icon ?? null),
                       budgetColor:
                         id === null ? null : (selected?.color ?? null),
+                      category:
+                        id !== null && selected && shouldApplyBudgetCategory()
+                          ? selected.category
+                          : prev.category,
                     }));
                   }}
                 />
                 <CategoryChipRow
                   value={draft.category}
-                  onChange={(c) => setField("category", c)}
+                  onChange={(c) => {
+                    categoryUserEditedRef.current = true;
+                    setField("category", c);
+                  }}
                 />
               </div>
             </div>
