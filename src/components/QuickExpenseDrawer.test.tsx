@@ -1245,14 +1245,14 @@ describe("QuickExpenseDrawer — keep open", () => {
   it("shows the keep-open toggle in create mode", async () => {
     await openDrawer();
     expect(
-      screen.getByRole("switch", { name: /keep open/i })
+      screen.getByRole("switch", { name: /create more/i })
     ).toBeInTheDocument();
   });
 
   it("keeps the drawer open and resets the draft after saving when enabled", async () => {
     const user = await openDrawer();
 
-    await user.click(screen.getByRole("switch", { name: /keep open/i }));
+    await user.click(screen.getByRole("switch", { name: /create more/i }));
 
     // Change the date to a non-today value to prove it carries over.
     await user.click(screen.getByRole("button", { name: /^date:/i }));
@@ -1322,7 +1322,7 @@ describe("QuickExpenseDrawer — keep open", () => {
 
     await screen.findByPlaceholderText(/what did you spend on/i);
     expect(
-      screen.queryByRole("switch", { name: /keep open/i })
+      screen.queryByRole("switch", { name: /create more/i })
     ).not.toBeInTheDocument();
   });
 
@@ -1352,7 +1352,7 @@ describe("QuickExpenseDrawer — keep open", () => {
 
     await screen.findByPlaceholderText(/what did you spend on/i);
     expect(
-      screen.queryByRole("switch", { name: /keep open/i })
+      screen.queryByRole("switch", { name: /create more/i })
     ).not.toBeInTheDocument();
   });
 });

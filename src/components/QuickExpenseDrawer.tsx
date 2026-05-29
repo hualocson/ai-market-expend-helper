@@ -821,13 +821,16 @@ const QuickExpenseDrawer = ({
         >
           <div className="quick-expense-enter-group quick-expense-enter-delay-1 absolute top-4 right-4 z-60 flex items-center gap-2">
             {showKeepOpenToggle ? (
-              <label className="bg-surface-3/60 flex items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3 text-xs font-medium opacity-70 shadow-md ring-1 ring-white/10">
-                <span>Keep open</span>
+              <label
+                className="flex items-center gap-2 py-1.5 pr-1.5 pl-3 text-xs font-medium opacity-70"
+                onPointerDown={(event) => event.preventDefault()}
+              >
+                <span>Create more</span>
                 <Switch
                   checked={keepDrawerOpen}
                   onCheckedChange={setKeepDrawerOpen}
                   onPointerDown={(event) => event.preventDefault()}
-                  aria-label="Keep open"
+                  aria-label="Create more"
                 />
               </label>
             ) : null}
