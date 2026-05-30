@@ -25,6 +25,10 @@ import { toast } from "sonner";
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import QuickExpenseDrawer from "./QuickExpenseDrawer";
+import {
+  QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS,
+  QuickExpenseSuccessToast,
+} from "./QuickExpenseSuccessToast";
 import { Button } from "./ui/button";
 import PixelLoader from "./ui/pixel-loader/PixelLoader";
 import { Textarea } from "./ui/textarea";
@@ -179,7 +183,7 @@ const AIExpenseChat = () => {
       isDateWithinBudgetPeriod(budget, isoDate);
 
     if (canAutoAdd && budget && isoDate) {
-      await createExpense({
+      const payload = {
         date: isoDate,
         amount: expense.amount,
         note: expense.note,
@@ -189,7 +193,8 @@ const AIExpenseChat = () => {
         budgetName: budget.name,
         budgetIcon: budget.icon,
         budgetColor: budget.color,
-      });
+      };
+      await createExpense(payload);
       const summary = `Added ${formatVnd(expense.amount)}₫ to ${budget.name}`;
       replaceMessage(assistantId, {
         id: assistantId,
@@ -197,7 +202,10 @@ const AIExpenseChat = () => {
         variant: "added",
         summary,
       });
-      toast.success(summary);
+      toast.success(
+        <QuickExpenseSuccessToast draft={payload} />,
+        QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
+      );
       haptics.success();
       return;
     }
