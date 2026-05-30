@@ -36,18 +36,6 @@ vi.mock("@/components/providers/StoreProvider", () => ({
   useSettingsStore: () => "Cubi",
 }));
 
-vi.mock("@/components/ExpenseListItem", () => ({
-  default: ({ expense }: { expense: { note: string } }) => (
-    <div data-testid="expense-row">{expense.note}</div>
-  ),
-}));
-
-vi.mock("@/components/AIEntrySkeleton", () => ({
-  default: ({ input }: { input: string }) => (
-    <div data-ai-entry-skeleton>{input}</div>
-  ),
-}));
-
 beforeEach(() => {
   vi.useFakeTimers();
   mockPathname = "/";
@@ -61,11 +49,23 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const openOverlay = () => {
+  act(() => {
+    useAIQuickEntryStore.getState().setOpen(true);
+  });
+};
+
 const typeAndSend = (text: string) => {
   fireEvent.change(screen.getByLabelText("Describe your expense"), {
     target: { value: text },
   });
   fireEvent.click(screen.getByLabelText("Send expense"));
+};
+
+const advanceParse = async () => {
+  await act(async () => {
+    vi.advanceTimersByTime(1300);
+  });
 };
 
 describe("AIQuickEntry", () => {
@@ -76,23 +76,13 @@ describe("AIQuickEntry", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the composer when opened", () => {
-    render(<AIQuickEntry />);
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
-    expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
-  });
-
-  it("focuses the composer without scrolling when opened", () => {
+  it("shows and focuses the composer when opened", () => {
     const focusSpy = vi
       .spyOn(HTMLInputElement.prototype, "focus")
       .mockImplementation(() => {});
 
     render(<AIQuickEntry />);
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
+    openOverlay();
 
     expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
@@ -102,68 +92,128 @@ describe("AIQuickEntry", () => {
 
   it("disables send for empty input", () => {
     render(<AIQuickEntry />);
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
+    openOverlay();
+
     expect(screen.getByLabelText("Send expense")).toBeDisabled();
   });
 
-  it("appends a pending entry then resolves to an expense row", async () => {
+  it("renders one pending row and clears the composer after submit", () => {
     render(<AIQuickEntry />);
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
+    openOverlay();
 
     act(() => {
       typeAndSend("Cà phê 35k");
     });
 
-    expect(
-      document.querySelector("[data-ai-entry-skeleton]")
-    ).toBeInTheDocument();
-    expect(
-      document.querySelector("[data-ai-entry-skeleton]")
-    ).toHaveTextContent("Cà phê 35k");
-    expect(screen.getAllByText("Cà phê 35k")).toHaveLength(1);
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByText("--")).toBeInTheDocument();
+    expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
+    expect(screen.queryByText(/\+1 parsing/)).not.toBeInTheDocument();
+  });
+
+  it("collapses multiple pending entries and expands them on stack tap", () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("first");
+      typeAndSend("second");
+      typeAndSend("third");
+      typeAndSend("newest");
+    });
+
+    expect(screen.getByText("newest")).toBeInTheDocument();
+    expect(screen.queryByText("first")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("ai-pending-stack-card")).toHaveLength(3);
+    expect(screen.getByText("+3 parsing")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Expand 4 pending expenses"));
+
+    expect(screen.getByText("newest")).toBeInTheDocument();
+    expect(screen.getByText("third")).toBeInTheDocument();
+    expect(screen.getByText("second")).toBeInTheDocument();
+    expect(screen.getByText("first")).toBeInTheDocument();
+  });
+
+  it("shows resolved rows for 3 seconds then moves them behind the status bar", async () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k");
+    });
+
+    await advanceParse();
+
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByText("-35K")).toBeInTheDocument();
 
     await act(async () => {
-      vi.advanceTimersByTime(1300);
+      vi.advanceTimersByTime(3000);
     });
+
+    expect(screen.queryByText("Cà phê 35k")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Show completed entries/));
+
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+  });
+
+  it("does not duplicate active resolved rows when completed entries are opened", async () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k");
+    });
+
+    await advanceParse();
+
+    fireEvent.click(screen.getByLabelText(/Show completed entries/));
+
+    expect(screen.getAllByText("Cà phê 35k")).toHaveLength(1);
+  });
+
+  it("keeps pending stack updated when one entry resolves", async () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("first");
+      typeAndSend("second");
+    });
+
+    await advanceParse();
 
     vi.useRealTimers();
     await waitFor(() => {
-      expect(screen.getByTestId("expense-row")).toHaveTextContent("Cà phê 35k");
+      expect(screen.queryByText("+1 parsing")).not.toBeInTheDocument();
     });
   });
 
   it("clears entries when reopened", async () => {
     render(<AIQuickEntry />);
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
+    openOverlay();
+
     act(() => {
       typeAndSend("first");
     });
-    await act(async () => {
-      vi.advanceTimersByTime(1300);
-    });
+    await advanceParse();
 
     act(() => {
       useAIQuickEntryStore.getState().setOpen(false);
     });
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
+    openOverlay();
 
-    expect(screen.queryByTestId("expense-row")).not.toBeInTheDocument();
+    expect(screen.queryByText("first")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/AI quick entry status/)).toBeNull();
   });
 
   it("renders nothing on the /ai route", () => {
     mockPathname = "/ai";
     render(<AIQuickEntry />);
-    act(() => {
-      useAIQuickEntryStore.getState().setOpen(true);
-    });
+    openOverlay();
+
     expect(
       screen.queryByLabelText("Describe your expense")
     ).not.toBeInTheDocument();

@@ -6,6 +6,7 @@ import React, {
   type KeyboardEvent,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -19,27 +20,23 @@ import { cn } from "@/lib/utils";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 import { ArrowUp } from "lucide-react";
 
-import AIEntrySkeleton from "@/components/AIEntrySkeleton";
-import ExpenseListItem, {
-  type ExpenseListItemData,
-} from "@/components/ExpenseListItem";
+import AIQuickEntryPendingStack from "@/components/ai-quick-entry/AIQuickEntryPendingStack";
+import AIQuickEntryRow from "@/components/ai-quick-entry/AIQuickEntryRow";
+import AIQuickEntryStatusBar from "@/components/ai-quick-entry/AIQuickEntryStatusBar";
+import type { QuickEntry } from "@/components/ai-quick-entry/types";
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 const HIDDEN_PATHS = ["/ai"];
 
 const RESOLVE_DELAY_MS = 1200;
-
-type QuickEntry = {
-  id: string;
-  input: string;
-  status: "pending" | "resolved";
-  result?: ExpenseListItemData;
-};
+const RESOLVED_VISIBLE_MS = 3000;
 
 const createEntryId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const newestFirst = (entries: QuickEntry[]) => [...entries].reverse();
 
 const AIQuickEntry = () => {
   const pathname = usePathname();
@@ -52,6 +49,11 @@ const AIQuickEntry = () => {
 
   const [composer, setComposer] = useState("");
   const [entries, setEntries] = useState<QuickEntry[]>([]);
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const [pendingStackExpanded, setPendingStackExpanded] = useState(false);
+  const [visibleResolvedIds, setVisibleResolvedIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -59,10 +61,19 @@ const AIQuickEntry = () => {
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 
+  const clearTimers = () => {
+    timersRef.current.forEach((timer) => clearTimeout(timer));
+    timersRef.current = [];
+  };
+
   useEffect(() => {
     if (open) {
+      clearTimers();
       setEntries([]);
       setComposer("");
+      setCompletedOpen(false);
+      setPendingStackExpanded(false);
+      setVisibleResolvedIds(new Set());
     }
   }, [open]);
 
@@ -76,10 +87,46 @@ const AIQuickEntry = () => {
 
   useEffect(
     () => () => {
-      timersRef.current.forEach((timer) => clearTimeout(timer));
+      clearTimers();
     },
     []
   );
+
+  const pendingEntries = useMemo(
+    () => entries.filter((entry) => entry.status === "pending"),
+    [entries]
+  );
+  const activeResolvedEntries = useMemo(
+    () =>
+      entries.filter(
+        (entry) =>
+          entry.status === "resolved" && visibleResolvedIds.has(entry.id)
+      ),
+    [entries, visibleResolvedIds]
+  );
+  const completedEntries = useMemo(
+    () =>
+      newestFirst(
+        entries.filter(
+          (entry) =>
+            entry.status === "failed" ||
+            (entry.status === "resolved" && !visibleResolvedIds.has(entry.id))
+        )
+      ),
+    [entries, visibleResolvedIds]
+  );
+  const failedCount = entries.filter(
+    (entry) => entry.status === "failed"
+  ).length;
+  const completedCount = entries.filter(
+    (entry) => entry.status === "resolved"
+  ).length;
+
+  useEffect(() => {
+    if (pendingEntries.length === 0) {
+      setPendingStackExpanded(false);
+    }
+  }, [pendingEntries.length]);
 
   if (hidden || !open) {
     return null;
@@ -101,7 +148,7 @@ const AIQuickEntry = () => {
     setComposer("");
     haptics.impact("medium");
 
-    const timer = setTimeout(() => {
+    const parseTimer = setTimeout(() => {
       setEntries((current) =>
         current.map((entry) =>
           entry.id === id
@@ -113,8 +160,18 @@ const AIQuickEntry = () => {
             : entry
         )
       );
+      setVisibleResolvedIds((current) => new Set(current).add(id));
+
+      const hideTimer = setTimeout(() => {
+        setVisibleResolvedIds((current) => {
+          const next = new Set(current);
+          next.delete(id);
+          return next;
+        });
+      }, RESOLVED_VISIBLE_MS);
+      timersRef.current.push(hideTimer);
     }, RESOLVE_DELAY_MS);
-    timersRef.current.push(timer);
+    timersRef.current.push(parseTimer);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -130,6 +187,7 @@ const AIQuickEntry = () => {
   };
 
   const canSend = composer.trim().length > 0;
+  const hasEntries = entries.length > 0;
 
   return (
     <div
@@ -149,19 +207,40 @@ const AIQuickEntry = () => {
         style={{ paddingBottom: keyboardOffset } as CSSProperties}
       >
         <div className="no-scrollbar mx-auto flex max-h-[50vh] w-full max-w-[390px] flex-col gap-2.5 overflow-y-auto px-4 pb-2">
-          {entries.map((entry) => (
-            <div key={entry.id}>
-              {entry.status === "resolved" && entry.result ? (
-                <ExpenseListItem
-                  expense={entry.result}
-                  onEditExpense={() => {}}
-                  className="bg-surface-2/95"
+          {hasEntries ? (
+            <AIQuickEntryStatusBar
+              totalCount={entries.length}
+              pendingCount={pendingEntries.length}
+              completedCount={completedCount}
+              failedCount={failedCount}
+              completedOpen={completedOpen}
+              onToggleCompleted={() => setCompletedOpen((current) => !current)}
+            />
+          ) : null}
+
+          {completedOpen && completedEntries.length > 0 ? (
+            <div className="no-scrollbar max-h-44 space-y-2 overflow-y-auto">
+              {completedEntries.map((entry) => (
+                <AIQuickEntryRow
+                  key={entry.id}
+                  entry={entry}
+                  variant={entry.status === "failed" ? "failed" : "resolved"}
                 />
-              ) : (
-                <AIEntrySkeleton input={entry.input} />
-              )}
+              ))}
             </div>
+          ) : null}
+
+          {activeResolvedEntries.map((entry) => (
+            <AIQuickEntryRow key={entry.id} entry={entry} variant="resolved" />
           ))}
+
+          <AIQuickEntryPendingStack
+            pendingEntries={pendingEntries}
+            expanded={pendingStackExpanded}
+            onToggleExpanded={() =>
+              setPendingStackExpanded((current) => !current)
+            }
+          />
         </div>
 
         <div className="px-4 pb-2">
@@ -187,7 +266,8 @@ const AIQuickEntry = () => {
               disabled={!canSend}
               onPointerDown={(event) => event.preventDefault()}
               className={cn(
-                "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity"
+                "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
+                !canSend && "opacity-40"
               )}
             >
               <ArrowUp className="size-4" />
