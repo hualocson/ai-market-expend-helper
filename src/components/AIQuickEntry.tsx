@@ -4,6 +4,7 @@ import React, {
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -61,21 +62,24 @@ const AIQuickEntry = () => {
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     timersRef.current.forEach((timer) => clearTimeout(timer));
     timersRef.current = [];
-  };
+  }, []);
 
   useEffect(() => {
-    if (open) {
-      clearTimers();
-      setEntries([]);
-      setComposer("");
-      setCompletedOpen(false);
-      setPendingStackExpanded(false);
-      setVisibleResolvedIds(new Set());
+    clearTimers();
+
+    if (!open) {
+      return;
     }
-  }, [open]);
+
+    setEntries([]);
+    setComposer("");
+    setCompletedOpen(false);
+    setPendingStackExpanded(false);
+    setVisibleResolvedIds(new Set());
+  }, [clearTimers, open]);
 
   useEffect(() => {
     if (!open || hidden) {
@@ -89,7 +93,7 @@ const AIQuickEntry = () => {
     () => () => {
       clearTimers();
     },
-    []
+    [clearTimers]
   );
 
   const pendingEntries = useMemo(

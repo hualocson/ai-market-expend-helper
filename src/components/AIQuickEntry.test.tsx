@@ -1,5 +1,6 @@
 import React from "react";
 
+import { mockParseExpense } from "@/lib/ai/mock-parse-expense";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 import {
   act,
@@ -32,6 +33,16 @@ vi.mock("@/hooks/useKeyboardOffset", () => ({
   useKeyboardOffset: () => 0,
 }));
 
+vi.mock("@/lib/ai/mock-parse-expense", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/ai/mock-parse-expense")>();
+
+  return {
+    ...actual,
+    mockParseExpense: vi.fn(actual.mockParseExpense),
+  };
+});
+
 vi.mock("@/components/providers/StoreProvider", () => ({
   useSettingsStore: () => "Cubi",
 }));
@@ -39,6 +50,7 @@ vi.mock("@/components/providers/StoreProvider", () => ({
 beforeEach(() => {
   vi.useFakeTimers();
   mockPathname = "/";
+  vi.mocked(mockParseExpense).mockClear();
   useAIQuickEntryStore.getState().setOpen(false);
 });
 
@@ -189,6 +201,22 @@ describe("AIQuickEntry", () => {
     await waitFor(() => {
       expect(screen.queryByText("+1 parsing")).not.toBeInTheDocument();
     });
+  });
+
+  it("cancels pending parse timers when dismissed", async () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k");
+      useAIQuickEntryStore.getState().setOpen(false);
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1300);
+    });
+
+    expect(mockParseExpense).not.toHaveBeenCalled();
   });
 
   it("clears entries when reopened", async () => {
