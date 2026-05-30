@@ -1,99 +1,104 @@
 import React from "react";
 
 import { Category } from "@/enums";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { queries } from "@/lib/queries";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AIExpenseChat from "./AIExpenseChat";
 
-const { hapticsMock } = vi.hoisted(() => ({
-  hapticsMock: {
+const { createExpenseMock, dispatchExpensePrefillMock } = vi.hoisted(() => ({
+  createExpenseMock: vi.fn(),
+  dispatchExpensePrefillMock: vi.fn(),
+}));
+
+vi.mock("@/lib/mutations", () => ({
+  useCreateExpenseMutation: () => ({ mutateAsync: createExpenseMock }),
+}));
+
+vi.mock("@/lib/expense-prefill", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/expense-prefill")>();
+  return { ...actual, dispatchExpensePrefill: dispatchExpensePrefillMock };
+});
+
+vi.mock("@/components/providers/StoreProvider", () => ({
+  useSettingsStore: (selector: (store: { paidBy: string }) => unknown) =>
+    selector({ paidBy: "Cubi" }),
+}));
+
+vi.mock("@/hooks/useAppHaptics", () => ({
+  useAppHaptics: () => ({
     success: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
     selection: vi.fn(),
     impact: vi.fn(),
     trigger: vi.fn(),
-  },
+  }),
 }));
 
-vi.mock("@/hooks/useAppHaptics", () => ({
-  useAppHaptics: () => hapticsMock,
+// Mount-only stub for the review drawer so the chat test stays focused.
+vi.mock("@/components/QuickExpenseDrawer", () => ({
+  __esModule: true,
+  default: () => <div data-testid="quick-expense-drawer" />,
 }));
 
-vi.mock("./ManualExpenseForm", () => ({
-  default: ({
-    initialMode,
-    initialExpense,
-    prefillExpense,
-  }: {
-    initialMode?: string;
-    initialExpense?: TExpense | null;
-    prefillExpense?: Partial<
-      Pick<TExpense, "amount" | "note" | "category">
-    > | null;
-  }) => (
-    <div
-      data-testid="manual-expense-form"
-      data-initial-mode={initialMode}
-      data-initial-expense={
-        typeof initialExpense !== "undefined"
-          ? JSON.stringify(initialExpense)
-          : undefined
-      }
-      data-prefill-expense={
-        typeof prefillExpense !== "undefined"
-          ? JSON.stringify(prefillExpense)
-          : undefined
-      }
-    />
-  ),
-}));
+const TODAY = "2026-05-30";
+const WEEK_START = "2026-05-24"; // Sunday-start week for Sat 2026-05-30
 
-const createJsonResponse = (
-  body: unknown,
-  init: ResponseInit = { status: 200 }
-) =>
-  new Response(JSON.stringify(body), {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
-
-const expectParseExpenseRequest = (input: string) => {
-  expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-
-  const [endpoint, init] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
-
-  expect(endpoint).toBe("/api/ai/parse-expense");
-  expect(init).toMatchObject({
-    method: "POST",
-  });
-  expect(JSON.parse(String(init?.body))).toMatchObject({
-    input,
-  });
+const budgetOption = {
+  id: 2,
+  name: "Cà phê",
+  icon: "☕",
+  color: "lime" as const,
+  period: "week" as const,
+  periodStartDate: "2026-05-24",
+  periodEndDate: "2026-05-30",
+  amount: 100000,
+  spent: 0,
+  remaining: 100000,
+  category: Category.FOOD,
 };
 
-const expectParseExpenseRequestAtCall = (callIndex: number, input: string) => {
-  const [endpoint, init] =
-    vi.mocked(globalThis.fetch).mock.calls[callIndex] ?? [];
+const renderChat = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  queryClient.setQueryData(
+    queries.budgetWeekly.options(WEEK_START, TODAY).queryKey,
+    [budgetOption]
+  );
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AIExpenseChat />
+    </QueryClientProvider>
+  );
+};
 
-  expect(endpoint).toBe("/api/ai/parse-expense");
-  expect(init).toMatchObject({
-    method: "POST",
-  });
-  expect(JSON.parse(String(init?.body))).toMatchObject({
-    input,
-  });
+const mockParseResponse = (data: unknown, status = 200) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      status,
+      json: vi.fn().mockResolvedValue({ success: true, data }),
+    })
+  );
 };
 
 const originalGlobalReact = globalThis.React;
 
 beforeEach(() => {
   globalThis.React = React;
+  vi.setSystemTime(new Date(`${TODAY}T08:00:00.000Z`));
+  createExpenseMock.mockReset().mockResolvedValue(undefined);
+  dispatchExpensePrefillMock.mockReset();
 });
 
 afterEach(() => {
@@ -102,329 +107,120 @@ afterEach(() => {
   } else {
     globalThis.React = originalGlobalReact;
   }
-
-  hapticsMock.success.mockReset();
-  hapticsMock.warning.mockReset();
-  hapticsMock.error.mockReset();
-  hapticsMock.selection.mockReset();
-  hapticsMock.impact.mockReset();
-  hapticsMock.trigger.mockReset();
-
-  vi.restoreAllMocks();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
+const submit = (text: string) => {
+  const input = screen.getByRole("textbox");
+  fireEvent.change(input, { target: { value: text } });
+  fireEvent.submit(input.closest("form")!);
+};
+
 describe("AIExpenseChat", () => {
-  it("renders the welcome message and example prompts", () => {
-    render(<AIExpenseChat />);
+  it("auto-adds a high-confidence draft with a resolved in-period budget", async () => {
+    mockParseResponse({
+      status: "success",
+      originalInput: "cf 35k",
+      expense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê sữa đá",
+        budgetId: 2,
+        confidence: "high",
+        reason: "Matched coffee.",
+      },
+    });
+    renderChat();
 
-    const timeline = screen.getByRole("log", {
-      name: /ai expense conversation/i,
+    await act(async () => {
+      submit("cf 35k");
     });
 
-    expect(timeline).toBeInTheDocument();
-    expect(timeline).toHaveAttribute("aria-live", "polite");
-    expect(timeline).toHaveAttribute("aria-relevant", "additions text");
-    expect(screen.getByText(/tell me what you spent/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /lunch with team 120k today/i })
-    ).toBeInTheDocument();
-  });
-
-  it("submits a message and renders a preview card for a successful parse", async () => {
-    const user = userEvent.setup();
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse({
-        success: true,
-        data: {
-          status: "success",
-          originalInput: "Lunch with team 120k today",
-          expense: {
-            date: "24/04/2026",
-            amount: 120000,
-            note: "Lunch with team",
-            category: Category.FOOD,
-          },
-        },
-      })
-    );
-
-    render(<AIExpenseChat />);
-
-    await user.type(
-      screen.getByLabelText(/message spendly ai/i),
-      "Lunch with team 120k today"
-    );
-    await user.click(screen.getByRole("button", { name: /send message/i }));
-
-    expectParseExpenseRequest("Lunch with team 120k today");
-    expect(screen.getByText("Lunch with team 120k today")).toBeInTheDocument();
-    expect(
-      await screen.findByText(/review ai suggestion/i)
-    ).toBeInTheDocument();
-    expect(hapticsMock.success).toHaveBeenCalledTimes(1);
-    expect(hapticsMock.warning).not.toHaveBeenCalled();
-    expect(hapticsMock.error).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /continue to form/i }));
-
-    const form = await screen.findByTestId("manual-expense-form");
-    const initialExpense = JSON.parse(
-      form.getAttribute("data-initial-expense") ?? "null"
-    ) as TExpense;
-
-    expect(initialExpense).toMatchObject({
-      date: "24/04/2026",
-      amount: 120000,
-      note: "Lunch with team",
-      category: Category.FOOD,
-    });
-  });
-
-  it("sends a trimmed message with Enter", async () => {
-    const user = userEvent.setup();
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse({
-        success: true,
-        data: {
-          status: "fallback",
-          originalInput: "Coffee 45k",
-          reason: "schema_mismatch",
-          prefill: {
-            note: "Coffee 45k",
-            amount: 45000,
-          },
-        },
-      })
-    );
-
-    render(<AIExpenseChat />);
-
-    await user.type(
-      screen.getByLabelText(/message spendly ai/i),
-      "  Coffee 45k  {Enter}"
-    );
-
-    expectParseExpenseRequest("Coffee 45k");
-    expect(
-      await screen.findByTestId("manual-expense-form")
-    ).toBeInTheDocument();
-    expect(screen.getByText("Coffee 45k")).toBeInTheDocument();
-  });
-
-  it("keeps Shift+Enter as a newline without submitting", async () => {
-    const user = userEvent.setup();
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse({
-        success: true,
-        data: {
-          status: "fallback",
-          originalInput: "Coffee 45k",
-          reason: "schema_mismatch",
-          prefill: {
-            note: "Coffee 45k",
-          },
-        },
-      })
-    );
-
-    render(<AIExpenseChat />);
-
-    const composer = screen.getByLabelText(/message spendly ai/i);
-
-    await user.type(composer, "Coffee 45k");
-    await user.keyboard("{Shift>}{Enter}{/Shift}");
-
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(composer).toHaveValue("Coffee 45k\n");
-  });
-
-  it("does not submit whitespace-only input", async () => {
-    const user = userEvent.setup();
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse({
-        success: true,
-        data: {
-          status: "fallback",
-          originalInput: "",
-          reason: "schema_mismatch",
-          prefill: {},
-        },
-      })
-    );
-
-    render(<AIExpenseChat />);
-
-    const composer = screen.getByLabelText(/message spendly ai/i);
-
-    await user.type(composer, "   ");
-    await user.keyboard("{Enter}");
-
-    expect(
-      screen.getByRole("button", { name: /send message/i })
-    ).toBeDisabled();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-  });
-
-  it("renders the manual form inline for fallback responses", async () => {
-    const user = userEvent.setup();
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse({
-        success: true,
-        data: {
-          status: "fallback",
-          originalInput: "Taxi 45k home",
-          reason: "schema_mismatch",
-          prefill: {
-            note: "Taxi 45k home",
-            amount: 45000,
-          },
-        },
-      })
-    );
-
-    render(<AIExpenseChat />);
-
-    await user.type(
-      screen.getByLabelText(/message spendly ai/i),
-      "Taxi 45k home"
-    );
-    await user.click(screen.getByRole("button", { name: /send message/i }));
-
-    expectParseExpenseRequest("Taxi 45k home");
-
-    const form = await screen.findByTestId("manual-expense-form");
-    const prefillExpense = JSON.parse(
-      form.getAttribute("data-prefill-expense") ?? "null"
-    ) as Record<string, unknown>;
-
-    expect(form).toHaveAttribute("data-initial-mode", "quick");
-    expect(prefillExpense).toMatchObject({
-      note: "Taxi 45k home",
-      amount: 45000,
-    });
-    expect(hapticsMock.warning).toHaveBeenCalledTimes(1);
-    expect(hapticsMock.success).not.toHaveBeenCalled();
-    expect(hapticsMock.error).not.toHaveBeenCalled();
-    expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
-  });
-
-  it("retries the failed input from the assistant error action", async () => {
-    const user = userEvent.setup();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        createJsonResponse(
-          {
-            success: false,
-            error: {
-              code: "PARSE_EXPENSE_FAILED",
-              message: "Failed to parse expense",
-            },
-          },
-          { status: 500 }
-        )
+    await waitFor(() =>
+      expect(createExpenseMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: "2026-05-30",
+          amount: 35000,
+          note: "Cà phê sữa đá",
+          category: Category.FOOD,
+          budgetId: 2,
+          budgetName: "Cà phê",
+          budgetIcon: "☕",
+          budgetColor: "lime",
+        })
       )
-      .mockResolvedValueOnce(
-        createJsonResponse(
-          {
-            success: false,
-            error: {
-              code: "PARSE_EXPENSE_FAILED",
-              message: "Failed to parse expense",
-            },
-          },
-          { status: 500 }
-        )
-      );
+    );
+    expect(dispatchExpensePrefillMock).not.toHaveBeenCalled();
+  });
 
-    render(<AIExpenseChat />);
+  it("opens the drawer for a medium-confidence draft", async () => {
+    mockParseResponse({
+      status: "success",
+      originalInput: "cf 35k",
+      expense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê",
+        budgetId: 2,
+        confidence: "medium",
+        reason: "Unsure.",
+      },
+    });
+    renderChat();
 
-    const composer = screen.getByLabelText(/message spendly ai/i);
+    await act(async () => {
+      submit("cf 35k");
+    });
 
-    await user.type(composer, "Dinner");
-    await user.click(screen.getByRole("button", { name: /send message/i }));
-
-    expectParseExpenseRequest("Dinner");
-    expect(
-      await screen.findByText(/could not parse that expense/i)
-    ).toBeInTheDocument();
-    expect(hapticsMock.error).toHaveBeenCalledTimes(1);
-    expect(hapticsMock.success).not.toHaveBeenCalled();
-    expect(hapticsMock.warning).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalledWith(
+    await waitFor(() => expect(dispatchExpensePrefillMock).toHaveBeenCalled());
+    expect(createExpenseMock).not.toHaveBeenCalled();
+    expect(dispatchExpensePrefillMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        code: "PARSE_EXPENSE_FAILED",
-        message: "Failed to parse expense",
-        status: 500,
+        budgetId: 2,
+        budgetName: "Cà phê",
+        date: "30/05/2026",
       })
     );
-    expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /try again/i }));
-
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    expectParseExpenseRequestAtCall(1, "Dinner");
-    expect(consoleError).toHaveBeenCalledTimes(2);
-    expect(composer).toHaveValue("");
   });
 
-  it("dismisses the assistant preview result", async () => {
-    const user = userEvent.setup();
+  it("opens the drawer when a high-confidence budget falls outside its period", async () => {
+    mockParseResponse({
+      status: "success",
+      originalInput: "cf last week",
+      expense: {
+        date: "15/05/2026",
+        amount: 35000,
+        note: "Cà phê",
+        budgetId: 2,
+        confidence: "high",
+        reason: "Matched coffee.",
+      },
+    });
+    renderChat();
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      createJsonResponse({
-        success: true,
-        data: {
-          status: "success",
-          originalInput: "Lunch with team 120k today",
-          expense: {
-            date: "24/04/2026",
-            amount: 120000,
-            note: "Lunch with team",
-            category: Category.FOOD,
-          },
-        },
-      })
-    );
+    await act(async () => {
+      submit("cf last week");
+    });
 
-    render(<AIExpenseChat />);
-
-    await user.type(
-      screen.getByLabelText(/message spendly ai/i),
-      "Lunch with team 120k today"
-    );
-    await user.click(screen.getByRole("button", { name: /send message/i }));
-
-    expect(
-      await screen.findByText(/review ai suggestion/i)
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /dismiss/i }));
-
-    expect(screen.queryByText(/review ai suggestion/i)).not.toBeInTheDocument();
-    expect(screen.queryByTestId("manual-expense-form")).not.toBeInTheDocument();
+    await waitFor(() => expect(dispatchExpensePrefillMock).toHaveBeenCalled());
+    expect(createExpenseMock).not.toHaveBeenCalled();
   });
 
-  it("uses an example prompt as composer text", async () => {
-    const user = userEvent.setup();
+  it("opens the drawer with safe prefill on a fallback", async () => {
+    mockParseResponse({
+      status: "fallback",
+      originalInput: "??? 35",
+      prefill: { note: "??? 35" },
+      reason: "schema_mismatch",
+    });
+    renderChat();
 
-    render(<AIExpenseChat />);
+    await act(async () => {
+      submit("??? 35");
+    });
 
-    await user.click(
-      screen.getByRole("button", { name: /groceries 450k yesterday/i })
-    );
-
-    expect(screen.getByLabelText(/message spendly ai/i)).toHaveValue(
-      "Groceries 450k yesterday"
-    );
+    await waitFor(() => expect(dispatchExpensePrefillMock).toHaveBeenCalled());
+    expect(createExpenseMock).not.toHaveBeenCalled();
   });
 });
