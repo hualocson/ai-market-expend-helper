@@ -148,6 +148,7 @@ const AIQuickEntry = () => {
     }
 
     const id = createEntryId();
+    setCompletedOpen(false);
     setEntries((current) => [...current, { id, input, status: "pending" }]);
     setComposer("");
     haptics.impact("medium");

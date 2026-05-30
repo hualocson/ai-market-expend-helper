@@ -224,6 +224,36 @@ describe("AIQuickEntry", () => {
     expect(screen.getAllByText("Cà phê 35k")).toHaveLength(1);
   });
 
+  it("collapses the completed list when a new entry is submitted", async () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k");
+    });
+    await advanceParse();
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    fireEvent.click(screen.getByLabelText(/Show completed entries/));
+
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-quick-entry-list")).toHaveClass(
+      "max-h-[50svh]"
+    );
+
+    act(() => {
+      typeAndSend("Bánh mì 25k");
+    });
+
+    expect(screen.getByTestId("ai-quick-entry-list")).not.toHaveClass(
+      "max-h-[50svh]"
+    );
+    expect(screen.queryByText("Cà phê 35k")).not.toBeInTheDocument();
+    expect(screen.getByText("Bánh mì 25k")).toBeInTheDocument();
+  });
+
   it("keeps pending stack updated when one entry resolves", async () => {
     render(<AIQuickEntry />);
     openOverlay();
