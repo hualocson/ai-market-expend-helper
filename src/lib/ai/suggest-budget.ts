@@ -8,7 +8,7 @@ import {
 
 // Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
 // (src/lib/ai/core/openrouter.ts) on unavailability / error / 429.
-const MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
+const MODEL = "google/gemma-4-31b-it:free";
 
 const MODEL_JSON_SCHEMA: OpenRouterJsonSchema = {
   name: "suggest_budget",

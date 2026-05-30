@@ -6,9 +6,9 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // in order and falls back to the next when a model is unavailable, errors, or is
 // rate-limited (429). Curated from the options tried for these AI tasks.
 export const OPENROUTER_MODELS = [
+  "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "nvidia/nemotron-nano-9b-v2:free",
+  "openai/gpt-oss-120b:free",
 ];
 
 // Build the routing list for a request: the caller's primary first, then the

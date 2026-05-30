@@ -13,7 +13,7 @@ import {
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
 // (src/lib/ai/core/openrouter.ts) if this one is rate-limited or errors.
-const MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
+const MODEL = "google/gemma-4-31b-it:free";
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
 
