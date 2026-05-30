@@ -1,3 +1,5 @@
+import React from "react";
+
 const AIEntrySkeleton = () => (
   <div
     data-ai-entry-skeleton
