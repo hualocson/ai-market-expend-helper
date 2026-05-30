@@ -1,59 +1,67 @@
-import { Category } from "@/enums";
-
+import { withFallbackModels } from "./core/openrouter";
 import type {
+  ParseExpenseBudget,
+  ParseExpenseConfidence,
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "./parse-expense-contract";
+import {
+  PARSE_EXPENSE_DATE_PATTERN,
+  PARSE_EXPENSE_MIN_AMOUNT,
+} from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "openai/gpt-oss-20b:free";
-const CATEGORY_VALUES = Object.values(Category);
-const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
+// Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
+// (src/lib/ai/core/openrouter.ts) if this one is rate-limited or errors.
+const MODEL = "google/gemma-4-31b-it:free";
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
 
 const SYSTEM_PROMPT = `
-You extract a single expense draft from short natural-language text.
+You extract a single expense draft from short natural-language text and pick the best-matching budget.
 
 Rules:
 - Return only one JSON object.
-- Output fields: date, amount, note, category.
+- Output fields: date, amount, note, budgetId, confidence, reason.
 - date must be DD/MM/YYYY.
-- amount must be a positive number.
-- note must be short.
-- category must be exactly one of: ${CATEGORY_VALUES.join(", ")}.
+- If the text states or implies a date — including relative dates such as "yesterday", "hôm qua", "thứ 3 tuần trước" — resolve it to DD/MM/YYYY relative to today.
+- If the text mentions no date at all, return date as null. Do not guess a date.
+- amount is Vietnamese dong (VND): a whole number, minimum 1000. Expand shorthand: "35k" = 35000, "1.2tr" = 1200000.
+- note must be a short, natural Vietnamese phrase. Normalize shorthand, e.g. "cf sua da" -> "Cà phê sữa đá".
+- budgetId must be exactly one of the provided budget ids, or null when none plausibly matches. Never invent an id.
+- Match using the budget name first and its category as secondary context. Match Vietnamese with or without diacritics, and common shorthand (cf = coffee, xang = fuel, grab = transport or food).
+- confidence is "high" only when amount, note, and a non-null budgetId are all confidently determined; a missing date does not lower confidence because today is used by default. Otherwise "medium" or "low".
+- reason is a short explanation of the budget match.
 `.trim();
+
+const buildUserContent = (
+  input: string,
+  budgets: ParseExpenseBudget[],
+  today: string
+) => {
+  const budgetLines = budgets.length
+    ? budgets
+        .map(
+          (budget) =>
+            `- id ${budget.id}: ${budget.name} (category: ${budget.category})`
+        )
+        .join("\n")
+    : "(no budgets available)";
+
+  return `Today is ${today}.\n\nText: ${input}\n\nBudgets:\n${budgetLines}`;
+};
 
 const extractJsonObject = (value: string) => {
   const start = value.indexOf("{");
   const end = value.lastIndexOf("}");
-
   if (start === -1 || end === -1 || end < start) {
     return null;
   }
-
   return value.slice(start, end + 1);
 };
 
-const readContent = (content: unknown) => {
-  if (typeof content === "string") {
-    return content.trim();
-  }
-
-  return null;
-};
-
-const normalizeCategory = (value: unknown) => {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-
-  return (
-    CATEGORY_VALUES.find(
-      (category) => category.toLowerCase() === normalized
-    ) ?? null
-  );
-};
+const readContent = (content: unknown) =>
+  typeof content === "string" ? content.trim() : null;
 
 const shapeFallbackNote = (originalInput: string) => {
   const note = originalInput.trim();
@@ -62,25 +70,20 @@ const shapeFallbackNote = (originalInput: string) => {
 
 const extractAmountFromInput = (input: string) => {
   const match = input.match(/(\d+(?:\.\d+)?)(k|tr)?/i);
-
   if (!match) {
     return undefined;
   }
-
   const numeric = Number(match[1]);
   if (!Number.isFinite(numeric)) {
     return undefined;
   }
-
   const suffix = match[2]?.toLowerCase();
   if (suffix === "k") {
     return numeric * 1000;
   }
-
   if (suffix === "tr") {
     return numeric * 1000000;
   }
-
   return numeric;
 };
 
@@ -99,12 +102,25 @@ const buildFallback = (
 
 type ParseExpenseArgs = {
   input: string;
+  budgets: ParseExpenseBudget[];
+  today: string;
   apiKey: string;
   fetchFn?: typeof fetch;
 };
 
+const CONFIDENCE_VALUES: ReadonlyArray<ParseExpenseConfidence> = [
+  "high",
+  "medium",
+  "low",
+];
+
+const isConfidence = (value: unknown): value is ParseExpenseConfidence =>
+  CONFIDENCE_VALUES.includes(value as ParseExpenseConfidence);
+
 export const parseExpenseWithOpenRouter = async ({
   input,
+  budgets,
+  today,
   apiKey,
   fetchFn = fetch,
 }: ParseExpenseArgs): Promise<ParseExpenseResponse> => {
@@ -118,10 +134,10 @@ export const parseExpenseWithOpenRouter = async ({
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: MODEL,
+        models: withFallbackModels(MODEL),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: input },
+          { role: "user", content: buildUserContent(input, budgets, today) },
         ],
       }),
     });
@@ -133,10 +149,7 @@ export const parseExpenseWithOpenRouter = async ({
     return buildFallback(input, "request_failed");
   }
 
-  let payload: {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
-
+  let payload: { choices?: Array<{ message?: { content?: unknown } }> };
   try {
     payload = (await response.json()) as typeof payload;
   } catch {
@@ -164,20 +177,43 @@ export const parseExpenseWithOpenRouter = async ({
     date?: unknown;
     amount?: unknown;
     note?: unknown;
-    category?: unknown;
+    budgetId?: unknown;
+    confidence?: unknown;
+    reason?: unknown;
   };
 
-  const category = normalizeCategory(expense.category);
   const amount = Number(expense.amount);
   const note = String(expense.note ?? "").trim();
-  const date = String(expense.date ?? "").trim();
+  const rawDate = expense.date;
+  const date =
+    rawDate === null || rawDate === undefined || String(rawDate).trim() === ""
+      ? today
+      : String(rawDate).trim();
+  const reason = String(expense.reason ?? "").trim();
+  const confidence = expense.confidence;
+
+  const allowedIds = new Set(budgets.map((budget) => budget.id));
+  let budgetId: number | null;
+  const rawBudgetId = expense.budgetId;
+  if (rawBudgetId === null || rawBudgetId === undefined) {
+    budgetId = null;
+  } else if (
+    typeof rawBudgetId !== "number" ||
+    !Number.isInteger(rawBudgetId) ||
+    !allowedIds.has(rawBudgetId)
+  ) {
+    return buildFallback(input, "schema_mismatch");
+  } else {
+    budgetId = rawBudgetId;
+  }
 
   if (
-    !category ||
-    !DATE_PATTERN.test(date) ||
+    !PARSE_EXPENSE_DATE_PATTERN.test(date) ||
     !Number.isFinite(amount) ||
-    amount <= 0 ||
-    note.length === 0
+    !Number.isInteger(amount) ||
+    amount < PARSE_EXPENSE_MIN_AMOUNT ||
+    note.length === 0 ||
+    !isConfidence(confidence)
   ) {
     return buildFallback(input, "schema_mismatch");
   }
@@ -189,7 +225,9 @@ export const parseExpenseWithOpenRouter = async ({
       date,
       amount,
       note,
-      category,
+      budgetId,
+      confidence,
+      reason: reason.length > 0 ? reason : "Matched from input.",
     },
   };
 };

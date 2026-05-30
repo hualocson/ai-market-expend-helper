@@ -2,6 +2,22 @@ import type { z } from "zod";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// Ordered free OpenRouter model candidates. OpenRouter routes the `models` array
+// in order and falls back to the next when a model is unavailable, errors, or is
+// rate-limited (429). Curated from the options tried for these AI tasks.
+export const OPENROUTER_MODELS = [
+  "google/gemma-4-31b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+];
+
+// Build the routing list for a request: the caller's primary first, then the
+// remaining shared candidates (deduped).
+export const withFallbackModels = (primary: string): string[] => [
+  primary,
+  ...OPENROUTER_MODELS.filter((model) => model !== primary),
+];
+
 export type OpenRouterMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -75,7 +91,7 @@ export const callOpenRouterJson = async <TSchema extends z.ZodType>({
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model,
+        models: withFallbackModels(model),
         messages,
         response_format: {
           type: "json_schema",

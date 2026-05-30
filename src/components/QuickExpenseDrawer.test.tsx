@@ -1,5 +1,6 @@
 import React from "react";
 
+import dayjs from "@/configs/date";
 import { Category, PaidBy } from "@/enums";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
@@ -1738,7 +1739,6 @@ describe("QuickExpenseDrawer — prefill", () => {
       dispatchExpensePrefill({
         amount: 25000,
         note: "Lunch",
-        category: "Food",
       });
     });
 
@@ -1746,5 +1746,111 @@ describe("QuickExpenseDrawer — prefill", () => {
     expect(note).toHaveValue("Lunch");
     const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
     expect(amount.value).toMatch(/25[.,]?000/);
+  });
+});
+
+describe("QuickExpenseDrawer — AI prefill", () => {
+  const today = dayjs().format("DD/MM/YYYY");
+
+  it("applies an AI budget prefill and does not re-suggest", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({
+        id: 2,
+        name: "Cà phê",
+        icon: "☕",
+        color: "amber",
+        category: Category.FOOD,
+      }),
+    ]);
+    renderDrawer();
+
+    act(() => {
+      dispatchExpensePrefill({
+        amount: 35000,
+        note: "Cà phê sữa đá",
+        date: today,
+        budgetId: 2,
+        budgetName: "Cà phê",
+        budgetIcon: "☕",
+        budgetColor: "amber",
+        source: "ai",
+      });
+    });
+
+    const note = await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(note).toHaveValue("Cà phê sữa đá");
+    const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
+    expect(amount.value).toMatch(/35[.,]?000/);
+
+    // The prefilled AI budget must stay selected once the options resolve.
+    expect(
+      await screen.findByRole("button", { name: /cà phê/i, pressed: true })
+    ).toBeInTheDocument();
+
+    // No suggestion fires as a direct result of the prefill flow.
+    expect(mutationMocks.suggestBudgetMutateAsync).not.toHaveBeenCalled();
+
+    // A later note blur must not trigger re-suggestion: the ai-prefill source
+    // is locked, so the prefilled AI budget stays selected and no suggest
+    // request is dispatched as a result of the blur.
+    fireEvent.blur(note);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /cà phê/i, pressed: true })
+      ).toBeInTheDocument()
+    );
+    expect(mutationMocks.suggestBudgetMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("lets the drawer suggest when prefilled budgetId is null", async () => {
+    weeklyBudgetOptionsMock.mockResolvedValue([
+      budgetOption({
+        id: 7,
+        name: "Coffee",
+        icon: "☕",
+        color: "amber",
+        category: Category.ENTERTAINMENT,
+      }),
+    ]);
+    mutationMocks.suggestBudgetMutateAsync.mockResolvedValue({
+      status: "success",
+      budgetId: 7,
+      confidence: "high",
+      reason: "Coffee expense",
+    });
+    renderDrawer();
+
+    act(() => {
+      dispatchExpensePrefill({
+        amount: 50000,
+        note: "Mua sách",
+        budgetId: null,
+        source: "ai",
+      });
+    });
+
+    const note = await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(note).toHaveValue("Mua sách");
+    const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
+    expect(amount.value).toMatch(/50[.,]?000/);
+
+    // budgetId null means no AI lock; the drawer remains free to suggest.
+    expect(
+      screen.getByRole("button", { name: /no budget/i, pressed: true })
+    ).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("radiogroup", { name: /^budget$/i })
+      ).toHaveAttribute("aria-busy", "false")
+    );
+
+    fireEvent.blur(note);
+
+    await waitFor(() =>
+      expect(mutationMocks.suggestBudgetMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ note: "Mua sách" })
+      )
+    );
   });
 });

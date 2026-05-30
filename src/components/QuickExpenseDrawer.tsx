@@ -61,12 +61,15 @@ import { Switch } from "@/components/ui/switch";
 
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
-import BudgetBadge from "./BudgetBadge";
 import BudgetChipRow from "./BudgetChipRow";
 import CategoryChipRow from "./CategoryChipRow";
 import DatePickerSheet from "./DatePickerSheet";
 import ExpenseItemIcon from "./ExpenseItemIcon";
 import PaidByPickerSheet from "./PaidByPickerSheet";
+import {
+  QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS,
+  QuickExpenseSuccessToast,
+} from "./QuickExpenseSuccessToast";
 import VndSymbol from "./VndSymbol";
 
 export type TQuickExpenseDrawerProps = {
@@ -100,41 +103,13 @@ export type TQuickExpenseDrawerInitialExpense = {
 
 export type TExpenseDraft = TQuickExpenseDraft;
 type TRestorableInputFocus = "note" | "amount" | null;
-type BudgetSelectionSource = "none" | "manual" | "ai";
+type BudgetSelectionSource = "none" | "manual" | "ai" | "ai-prefill";
 
-const QuickExpenseSuccessToast = ({ draft }: { draft: TExpenseDraft }) => {
-  const note = draft.note?.trim() || "No note";
-  const hasBudget = draft.budgetId !== null;
+const isBudgetSelectionLocked = (source: BudgetSelectionSource) =>
+  source === "manual" || source === "ai-prefill";
 
-  return (
-    <div className="flex w-[min(78vw,340px)] max-w-full items-center gap-2">
-      {hasBudget ? (
-        <BudgetBadge
-          icon={draft.budgetIcon}
-          color={draft.budgetColor}
-          name={draft.budgetName}
-          iconOnly
-          className="size-6 shrink-0 justify-center gap-0 rounded-full px-0 py-0"
-          iconClassName="size-auto text-sm"
-        />
-      ) : (
-        <ExpenseItemIcon
-          category={draft.category}
-          size="sm"
-          className="shrink-0"
-        />
-      )}
-      <span className="text-foreground/90 min-w-0 flex-1 truncate">{note}</span>
-      <span className="bg-destructive/15 text-destructive inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-semibold tabular-nums">
-        {formatVnd(draft.amount)}
-        <VndSymbol className="ml-0.5" />
-      </span>
-    </div>
-  );
-};
-
-const isManualBudgetSelectionSource = (source: BudgetSelectionSource) =>
-  source === "manual";
+const isAiBudgetSelectionSource = (source: BudgetSelectionSource) =>
+  source === "ai" || source === "ai-prefill";
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
@@ -483,13 +458,10 @@ const QuickExpenseDrawer = ({
             toast.success("Expense updated.");
             return;
           }
-          toast.success(<QuickExpenseSuccessToast draft={submittedDraft} />, {
-            icon: null,
-            classNames: {
-              title:
-                "!min-w-0 !w-auto !max-w-[min(78vw,340px)] !overflow-visible !whitespace-normal !text-clip",
-            },
-          });
+          toast.success(
+            <QuickExpenseSuccessToast draft={submittedDraft} />,
+            QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
+          );
         })
         .catch(() => {
           toast.error(
@@ -623,16 +595,20 @@ const QuickExpenseDrawer = ({
       if (!detail) {
         return;
       }
+      const hasBudget =
+        detail.budgetId !== null && detail.budgetId !== undefined;
       setDraft((prev) => {
-        const nextDraft = {
+        const nextDraft: TExpenseDraft = {
           ...prev,
           amount: detail.amount,
           note: detail.note,
-          category: detail.category
-            ? normalizeCategory(detail.category)
-            : prev.category,
+          date: detail.date ? formatDraftDate(detail.date) : prev.date,
+          budgetId: hasBudget ? (detail.budgetId ?? null) : null,
+          budgetName: hasBudget ? (detail.budgetName ?? null) : null,
+          budgetIcon: hasBudget ? (detail.budgetIcon ?? null) : null,
+          budgetColor: hasBudget ? (detail.budgetColor ?? null) : null,
         };
-        resetSuggestionTracking(nextDraft, "none");
+        resetSuggestionTracking(nextDraft, hasBudget ? "ai-prefill" : "none");
         return nextDraft;
       });
       if (typeof open !== "boolean") {
@@ -648,7 +624,8 @@ const QuickExpenseDrawer = ({
     if (draft.budgetId === null || !budgetOptionsQuery.isSuccess) {
       return;
     }
-    if (!budgetOptions.some((budget) => budget.id === draft.budgetId)) {
+    const option = budgetOptions.find((budget) => budget.id === draft.budgetId);
+    if (!option) {
       setDraft((prev) => ({
         ...prev,
         budgetId: null,
@@ -656,9 +633,19 @@ const QuickExpenseDrawer = ({
         budgetIcon: null,
         budgetColor: null,
       }));
-      if (budgetSelectionSourceRef.current === "ai") {
+      if (isAiBudgetSelectionSource(budgetSelectionSourceRef.current)) {
         budgetSelectionSourceRef.current = "none";
       }
+      return;
+    }
+    if (isAiBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+      setDraft((prev) => ({
+        ...prev,
+        budgetName: option.name,
+        budgetIcon: option.icon,
+        budgetColor: option.color,
+        category: shouldApplyBudgetCategory() ? option.category : prev.category,
+      }));
     }
   }, [draft.budgetId, budgetOptions, budgetOptionsQuery.isSuccess]);
 
@@ -693,7 +680,7 @@ const QuickExpenseDrawer = ({
     if (!suggestionCandidates.length) {
       return;
     }
-    if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+    if (isBudgetSelectionLocked(budgetSelectionSourceRef.current)) {
       return;
     }
 
@@ -726,7 +713,7 @@ const QuickExpenseDrawer = ({
       if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
         return;
       }
-      if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+      if (isBudgetSelectionLocked(budgetSelectionSourceRef.current)) {
         return;
       }
       if (result.status === "no_match") {

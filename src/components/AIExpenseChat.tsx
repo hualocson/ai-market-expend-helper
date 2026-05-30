@@ -3,62 +3,60 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 
-import { Category } from "@/enums";
+import dayjs from "@/configs/date";
+import { PaidBy } from "@/enums";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
-import type {
-  ParseExpenseFallbackResponse,
-  ParseExpenseResponse,
-} from "@/lib/ai/parse-expense-contract";
+import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
 import { unwrapApiResponse } from "@/lib/api/api-response";
+import {
+  type TBudgetOption,
+  isDateWithinBudgetPeriod,
+  isExpenseDateSuspicious,
+} from "@/lib/budget-options";
+import { dispatchExpensePrefill } from "@/lib/expense-prefill";
+import { useCreateExpenseMutation } from "@/lib/mutations";
+import { queries } from "@/lib/queries";
 import { formatVnd } from "@/lib/utils";
-import { ArrowUp, Loader2, PencilLine, RefreshCw } from "lucide-react";
+import { getWeekRange } from "@/lib/week";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-import ExpenseItemIcon from "./ExpenseItemIcon";
-import ManualExpenseForm from "./ManualExpenseForm";
-import VndSymbol from "./VndSymbol";
+import { useSettingsStore } from "@/components/providers/StoreProvider";
+
+import QuickExpenseDrawer from "./QuickExpenseDrawer";
+import {
+  QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS,
+  QuickExpenseSuccessToast,
+} from "./QuickExpenseSuccessToast";
 import { Button } from "./ui/button";
 import PixelLoader from "./ui/pixel-loader/PixelLoader";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "./ui/sheet";
 import { Textarea } from "./ui/textarea";
 
 const examplePrompts = [
-  "Lunch with team 120k today",
-  "Groceries 450k yesterday",
-  "Coffee 45k this morning",
+  "Cà phê sữa đá 35k sáng nay",
+  "Ăn trưa 90k hôm nay",
+  "Đổ xăng 60k chiều qua",
 ];
+
+const ALLOWED_PAID_BY = [PaidBy.CUBI, PaidBy.EMBE, PaidBy.OTHER];
+
+const resolvePaidBy = (value: string | undefined): PaidBy =>
+  ALLOWED_PAID_BY.find((option) => option === value) ?? PaidBy.OTHER;
+
+const toIsoDate = (ddmmyyyy: string): string | null => {
+  const parsed = dayjs(ddmmyyyy, "DD/MM/YYYY", true);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
+};
 
 type ChatMessage = {
   id: string;
 } & (
-  | {
-      role: "user";
-      text: string;
-    }
-  | {
-      role: "assistant";
-      variant: "pending";
-    }
-  | {
-      role: "assistant";
-      variant: "success";
-      expense: TExpense;
-    }
-  | {
-      role: "assistant";
-      variant: "fallback";
-      prefill: ParseExpenseFallbackResponse["prefill"];
-    }
-  | {
-      role: "assistant";
-      variant: "error";
-      retryInput: string;
-    }
+  | { role: "user"; text: string }
+  | { role: "assistant"; variant: "pending" }
+  | { role: "assistant"; variant: "added"; summary: string }
+  | { role: "assistant"; variant: "review" }
+  | { role: "assistant"; variant: "error"; retryInput: string }
 );
 
 const createId = () =>
@@ -68,10 +66,14 @@ const createId = () =>
 
 const AIExpenseChat = () => {
   const composerId = useId();
+  const queryClient = useQueryClient();
+  const settingsPaidBy = useSettingsStore((state) => state.paidBy);
+  const { mutateAsync: createExpense } = useCreateExpenseMutation();
+  const haptics = useAppHaptics();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [composer, setComposer] = useState("");
   const [loading, setLoading] = useState(false);
-  const haptics = useAppHaptics();
   const logRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -100,8 +102,124 @@ const AIExpenseChat = () => {
     );
   };
 
-  const dismissMessage = (id: string) => {
-    setMessages((current) => current.filter((message) => message.id !== id));
+  const loadTodayBudgets = async (): Promise<TBudgetOption[]> => {
+    const today = dayjs().format("YYYY-MM-DD");
+    const weekStart = getWeekRange(dayjs()).weekStartDate.format("YYYY-MM-DD");
+    return queryClient.ensureQueryData(
+      queries.budgetWeekly.options(weekStart, today)
+    );
+  };
+
+  const openForReview = (
+    prefill: { amount: number; note: string; date?: string },
+    budget: TBudgetOption | null
+  ) => {
+    dispatchExpensePrefill({
+      amount: prefill.amount,
+      note: prefill.note,
+      date: prefill.date,
+      budgetId: budget?.id ?? null,
+      budgetName: budget?.name ?? null,
+      budgetIcon: budget?.icon ?? null,
+      budgetColor: budget?.color ?? null,
+      source: "ai",
+    });
+  };
+
+  const handleResult = async (
+    result: ParseExpenseResponse,
+    assistantId: string,
+    budgetOptions: TBudgetOption[]
+  ) => {
+    if (result.status === "fallback") {
+      openForReview(
+        { amount: result.prefill.amount ?? 0, note: result.prefill.note ?? "" },
+        null
+      );
+      replaceMessage(assistantId, {
+        id: assistantId,
+        role: "assistant",
+        variant: "review",
+      });
+      haptics.warning();
+      return;
+    }
+
+    const { expense } = result;
+    const isoDate = toIsoDate(expense.date);
+    const budget =
+      expense.budgetId !== null
+        ? (budgetOptions.find((option) => option.id === expense.budgetId) ??
+          null)
+        : null;
+
+    const now = dayjs();
+    if (
+      isoDate !== null &&
+      isExpenseDateSuspicious(isoDate, now.format("YYYY-MM-DD"))
+    ) {
+      openForReview(
+        {
+          amount: expense.amount,
+          note: expense.note,
+          date: now.format("DD/MM/YYYY"),
+        },
+        budget
+      );
+      replaceMessage(assistantId, {
+        id: assistantId,
+        role: "assistant",
+        variant: "review",
+      });
+      haptics.warning();
+      return;
+    }
+
+    const canAutoAdd =
+      expense.confidence === "high" &&
+      isoDate !== null &&
+      expense.note.trim().length > 0 &&
+      budget !== null &&
+      isDateWithinBudgetPeriod(budget, isoDate);
+
+    if (canAutoAdd && budget && isoDate) {
+      const payload = {
+        date: isoDate,
+        amount: expense.amount,
+        note: expense.note,
+        category: budget.category,
+        paidBy: resolvePaidBy(settingsPaidBy),
+        budgetId: budget.id,
+        budgetName: budget.name,
+        budgetIcon: budget.icon,
+        budgetColor: budget.color,
+      };
+      await createExpense(payload);
+      const summary = `Added ${formatVnd(expense.amount)}₫ to ${budget.name}`;
+      replaceMessage(assistantId, {
+        id: assistantId,
+        role: "assistant",
+        variant: "added",
+        summary,
+      });
+      toast.success(
+        <QuickExpenseSuccessToast draft={payload} />,
+        QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
+      );
+      haptics.success();
+      return;
+    }
+
+    openForReview(
+      { amount: expense.amount, note: expense.note, date: expense.date },
+      budget
+    );
+    replaceMessage(assistantId, {
+      id: assistantId,
+      role: "assistant",
+      variant: "review",
+    });
+    haptics.warning();
   };
 
   const sendInput = async ({
@@ -125,56 +243,38 @@ const AIExpenseChat = () => {
         role: "assistant",
         variant: "pending",
       };
-
       if (!appendUserMessage) {
         return current.map((message) =>
           message.id === assistantId ? pendingMessage : message
         );
       }
-
       return [
         ...current,
-        {
-          id: createId(),
-          role: "user",
-          text: input,
-        },
+        { id: createId(), role: "user", text: input },
         pendingMessage,
       ];
     });
 
     try {
+      const budgetOptions = await loadTodayBudgets();
       const response = await fetch("/api/ai/parse-expense", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ input }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input,
+          today: dayjs().format("DD/MM/YYYY"),
+          budgets: budgetOptions.map((option) => ({
+            id: option.id,
+            name: option.name,
+            category: option.category,
+          })),
+        }),
       });
-
       const payload = unwrapApiResponse<ParseExpenseResponse>(
         await response.json(),
         response.status
       );
-
-      if (payload.status === "success") {
-        replaceMessage(assistantId, {
-          id: assistantId,
-          role: "assistant",
-          variant: "success",
-          expense: payload.expense,
-        });
-        haptics.success();
-        return;
-      }
-
-      replaceMessage(assistantId, {
-        id: assistantId,
-        role: "assistant",
-        variant: "fallback",
-        prefill: payload.prefill,
-      });
-      haptics.warning();
+      await handleResult(payload, assistantId, budgetOptions);
     } catch (requestError) {
       console.error(requestError);
       replaceMessage(assistantId, {
@@ -190,20 +290,10 @@ const AIExpenseChat = () => {
   };
 
   const submitMessage = async () => {
-    const input = composer.trim();
-
     await sendInput({
-      input,
+      input: composer.trim(),
       assistantId: createId(),
       appendUserMessage: true,
-    });
-  };
-
-  const retryMessage = async (input: string, assistantId: string) => {
-    await sendInput({
-      input,
-      assistantId,
-      appendUserMessage: false,
     });
   };
 
@@ -233,29 +323,17 @@ const AIExpenseChat = () => {
             Reading the expense...
           </span>
         );
-      case "success":
+      case "added":
         return (
-          <SuccessBubble
-            expense={message.expense}
-            onDismiss={() => dismissMessage(message.id)}
-          />
+          <p className="text-foreground text-[15px] font-medium tracking-tight">
+            {message.summary}
+          </p>
         );
-      case "fallback":
+      case "review":
         return (
-          <div className="space-y-3">
-            <div>
-              <p className="text-foreground text-[15px] font-medium tracking-tight">
-                I need a little help with this one.
-              </p>
-              <p className="text-muted-foreground text-sm leading-6">
-                I started a quick form with what I could confidently read.
-              </p>
-            </div>
-            <ManualExpenseForm
-              initialMode="quick"
-              prefillExpense={message.prefill}
-            />
-          </div>
+          <p className="text-muted-foreground text-sm leading-6">
+            I opened a draft for you to review and save.
+          </p>
         );
       case "error":
         return (
@@ -263,18 +341,20 @@ const AIExpenseChat = () => {
             <p className="text-foreground text-[15px] font-medium tracking-tight">
               I could not parse that expense.
             </p>
-            <p className="text-muted-foreground text-sm leading-6">
-              Try the same message again or rephrase it below.
-            </p>
             <Button
               type="button"
               variant="secondary"
               size="sm"
               disabled={loading}
               className="gap-1.5 rounded-full"
-              onClick={() => void retryMessage(message.retryInput, message.id)}
+              onClick={() =>
+                void sendInput({
+                  input: message.retryInput,
+                  assistantId: message.id,
+                  appendUserMessage: false,
+                })
+              }
             >
-              <RefreshCw className="size-3.5" />
               Try again
             </Button>
           </div>
@@ -355,7 +435,7 @@ const AIExpenseChat = () => {
             value={composer}
             onChange={(event) => setComposer(event.target.value)}
             onKeyDown={handleComposerKeyDown}
-            placeholder="Dinner pho 90k tonight"
+            placeholder="Cà phê 35k sáng nay"
             rows={1}
             className="text-foreground placeholder:text-muted-foreground/70 max-h-32 min-h-9 resize-none border-0 !bg-transparent p-0 py-2 text-base leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-[15px] dark:!bg-transparent"
           />
@@ -374,93 +454,9 @@ const AIExpenseChat = () => {
           </Button>
         </form>
       </div>
+
+      <QuickExpenseDrawer showTrigger={false} />
     </section>
-  );
-};
-
-const SuccessBubble = ({
-  expense,
-  onDismiss,
-}: {
-  expense: TExpense;
-  onDismiss: () => void;
-}) => {
-  const [editOpen, setEditOpen] = useState(false);
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-foreground text-[15px] font-semibold tracking-tight">
-          I found an expense draft.
-        </p>
-        <p className="text-muted-foreground mt-1 text-sm leading-6">
-          Tap the card to review or edit before saving.
-        </p>
-      </div>
-
-      <p className="sr-only">Review AI suggestion</p>
-
-      <button
-        type="button"
-        aria-label="Continue to form"
-        onClick={() => setEditOpen(true)}
-        className="ds-surface-2 border-border/70 hover:border-primary/50 hover:bg-surface-3 focus-visible:ring-ring/40 group relative w-full rounded-2xl border px-3 py-3 text-left transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out focus-visible:ring-[3px] focus-visible:outline-none active:scale-[0.99]"
-      >
-        <div className="flex items-center gap-3">
-          <ExpenseItemIcon category={expense.category as Category} />
-          <div className="min-w-0 flex-1">
-            <p className="text-foreground truncate text-sm font-medium">
-              {expense.note}
-            </p>
-            <p className="text-muted-foreground mt-0.5 truncate text-[11px] tracking-wide uppercase">
-              {expense.category} · {expense.date}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-0.5">
-            <p className="text-foreground font-mono text-sm font-semibold tabular-nums">
-              {formatVnd(expense.amount)}
-              <span className="text-muted-foreground ml-1 text-[10px] font-medium">
-                <VndSymbol />
-              </span>
-            </p>
-            <span className="text-muted-foreground/80 group-hover:text-primary inline-flex items-center gap-1 text-[10px] font-medium tracking-wide uppercase transition">
-              <PencilLine className="size-3" />
-              Tap to edit
-            </span>
-          </div>
-        </div>
-      </button>
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="text-muted-foreground hover:text-foreground text-xs font-medium transition"
-        >
-          Dismiss
-        </button>
-      </div>
-
-      <Sheet open={editOpen} onOpenChange={setEditOpen} modal>
-        <SheetContent className="h-full w-[90svw] gap-0">
-          <SheetHeader className="text-left">
-            <SheetTitle>Edit expense</SheetTitle>
-            <SheetDescription>
-              Adjust the AI draft before saving it.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="no-scrollbar overflow-y-auto px-2 pb-4">
-            <ManualExpenseForm
-              initialExpense={expense}
-              onSuccess={() => setEditOpen(false)}
-              showBudgetSelect
-              isSheetOpen={editOpen}
-              autoSelectDefaultBudget
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-    </div>
   );
 };
 

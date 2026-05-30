@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { type OpenRouterJsonSchema, callOpenRouterJson } from "./openrouter";
+import {
+  type OpenRouterJsonSchema,
+  callOpenRouterJson,
+  withFallbackModels,
+} from "./openrouter";
 
 const suggestionSchema = z.object({
   status: z.literal("success"),
@@ -68,7 +72,7 @@ describe("callOpenRouterJson", () => {
       })
     );
     expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
-      model: "test/model",
+      models: withFallbackModels("test/model"),
       messages: [{ role: "user", content: "coffee" }],
       response_format: {
         type: "json_schema",

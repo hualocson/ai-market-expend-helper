@@ -1,10 +1,11 @@
 export type QuickAddMode = "quick" | "advanced";
 
-export type QuickAddSource = "manual" | "repeat_entry";
+export type QuickAddSource = "manual" | "repeat_entry" | "ai";
 
 const QUICK_ADD_SOURCES: readonly QuickAddSource[] = [
   "manual",
   "repeat_entry",
+  "ai",
 ];
 
 export const normalizePrefillSource = (

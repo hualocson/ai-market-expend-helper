@@ -4,7 +4,10 @@ import type { BudgetWeeklyOption } from "@/lib/queries/budget-weekly";
 export type TBudgetOption = BudgetWeeklyOption;
 export type TBudgetOptionGroupKey = "week" | "month" | "custom";
 
-export type TBudgetOptionGroups = Record<TBudgetOptionGroupKey, TBudgetOption[]>;
+export type TBudgetOptionGroups = Record<
+  TBudgetOptionGroupKey,
+  TBudgetOption[]
+>;
 
 export const budgetGroupLabels: Record<TBudgetOptionGroupKey, string> = {
   week: "Weekly budgets",
@@ -60,10 +63,14 @@ export const sortBudgetOptions = (items: TBudgetOption[]) =>
     if (!leftDate && rightDate) {
       return 1;
     }
-    return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
+    return left.name.localeCompare(right.name, undefined, {
+      sensitivity: "base",
+    });
   });
 
-export const groupBudgetOptions = (items: TBudgetOption[]): TBudgetOptionGroups => {
+export const groupBudgetOptions = (
+  items: TBudgetOption[]
+): TBudgetOptionGroups => {
   const groups: TBudgetOptionGroups = { week: [], month: [], custom: [] };
   items.forEach((budget) => {
     if (budget.period === "week" || budget.period === "month") {
@@ -84,3 +91,34 @@ export const pickDefaultBudget = (groups: TBudgetOptionGroups) =>
 
 export const hasAnyBudgetOption = (groups: TBudgetOptionGroups) =>
   groups.week.length > 0 || groups.month.length > 0 || groups.custom.length > 0;
+
+export const isDateWithinBudgetPeriod = (
+  budget: TBudgetOption,
+  isoDate: string
+): boolean => {
+  const target = dayjs(isoDate, "YYYY-MM-DD", true);
+  if (!target.isValid()) {
+    return false;
+  }
+  const start = parseBudgetDate(budget.periodStartDate);
+  if (!start) {
+    return true;
+  }
+  const end = parseBudgetDate(budget.periodEndDate) ?? start;
+  return !target.isBefore(start, "day") && !target.isAfter(end, "day");
+};
+
+export const isExpenseDateSuspicious = (
+  isoDate: string,
+  todayIso: string
+): boolean => {
+  const target = dayjs(isoDate, "YYYY-MM-DD", true);
+  const today = dayjs(todayIso, "YYYY-MM-DD", true);
+  if (!target.isValid() || !today.isValid()) {
+    return false;
+  }
+  return (
+    target.isBefore(today.subtract(1, "month"), "day") ||
+    target.isAfter(today.add(1, "month"), "day")
+  );
+};
