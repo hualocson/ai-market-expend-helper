@@ -623,16 +623,20 @@ const QuickExpenseDrawer = ({
       if (!detail) {
         return;
       }
+      const hasBudget =
+        detail.budgetId !== null && detail.budgetId !== undefined;
       setDraft((prev) => {
-        const nextDraft = {
+        const nextDraft: TExpenseDraft = {
           ...prev,
           amount: detail.amount,
           note: detail.note,
-          category: detail.category
-            ? normalizeCategory(detail.category)
-            : prev.category,
+          date: detail.date ? formatDraftDate(detail.date) : prev.date,
+          budgetId: hasBudget ? (detail.budgetId ?? null) : null,
+          budgetName: hasBudget ? (detail.budgetName ?? null) : null,
+          budgetIcon: hasBudget ? (detail.budgetIcon ?? null) : null,
+          budgetColor: hasBudget ? (detail.budgetColor ?? null) : null,
         };
-        resetSuggestionTracking(nextDraft, "none");
+        resetSuggestionTracking(nextDraft, hasBudget ? "ai" : "none");
         return nextDraft;
       });
       if (typeof open !== "boolean") {
@@ -648,7 +652,8 @@ const QuickExpenseDrawer = ({
     if (draft.budgetId === null || !budgetOptionsQuery.isSuccess) {
       return;
     }
-    if (!budgetOptions.some((budget) => budget.id === draft.budgetId)) {
+    const option = budgetOptions.find((budget) => budget.id === draft.budgetId);
+    if (!option) {
       setDraft((prev) => ({
         ...prev,
         budgetId: null,
@@ -659,6 +664,16 @@ const QuickExpenseDrawer = ({
       if (budgetSelectionSourceRef.current === "ai") {
         budgetSelectionSourceRef.current = "none";
       }
+      return;
+    }
+    if (budgetSelectionSourceRef.current === "ai") {
+      setDraft((prev) => ({
+        ...prev,
+        budgetName: option.name,
+        budgetIcon: option.icon,
+        budgetColor: option.color,
+        category: shouldApplyBudgetCategory() ? option.category : prev.category,
+      }));
     }
   }, [draft.budgetId, budgetOptions, budgetOptionsQuery.isSuccess]);
 
