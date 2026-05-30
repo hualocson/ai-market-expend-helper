@@ -1,3 +1,4 @@
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import type { QuickAddSource } from "@/lib/quick-add-mode";
 
 export const EXPENSE_PREFILL_EVENT = "expense-prefill";
@@ -5,7 +6,11 @@ export const EXPENSE_PREFILL_EVENT = "expense-prefill";
 export type ExpensePrefillPayload = {
   amount: number;
   note: string;
-  category: string;
+  date?: string;
+  budgetId?: number | null;
+  budgetName?: string | null;
+  budgetIcon?: string | null;
+  budgetColor?: BudgetColorId | null;
   source?: QuickAddSource;
 };
 
