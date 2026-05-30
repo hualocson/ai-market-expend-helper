@@ -43,8 +43,8 @@ Current canonical category values:
 
 Notes:
 
-- Internal API currently validates `category` as `string` only.
-- Recommended: send one of the canonical values above for consistency in UI/reporting.
+- Transaction endpoints validate `category` as a free `string` (any non-empty value). Sending a canonical value above is recommended for consistent UI/reporting.
+- Budget endpoints validate `category` strictly against the canonical list above (enum); an unlisted value returns `400 { "error": "Invalid payload" }`. Budget `category` defaults to `Other` when omitted on create.
 
 ### PaidBy list
 
@@ -104,6 +104,42 @@ Validation:
 - Budget create requests may omit `icon` and `color`; the route applies the defaults above.
 - Budget update requests may include either field.
 
+## Reference Data: Transaction Row
+
+Source of truth: `expenses` table in `src/db/schema.ts`.
+
+Create / update / delete transaction endpoints return the raw `expenses` row:
+
+```json
+{
+  "id": 101,
+  "clientId": null,
+  "date": "2026-03-07",
+  "amount": 120000,
+  "note": "Lunch",
+  "category": "Food",
+  "paidBy": "Cubi",
+  "createdAt": "2026-03-07T03:11:00.000Z",
+  "updatedAt": "2026-03-07T03:11:00.000Z",
+  "isDeleted": false,
+  "deletedAt": null
+}
+```
+
+Notes:
+
+- The returned row does **not** include `budgetId`. Budget linkage is stored in a separate relation; send `budgetId` on create/update to set it, `null` to clear it.
+- `date` is returned in `YYYY-MM-DD` form (DB `date` column), even though it is **sent** as `DD/MM/YYYY`.
+- `clientId` is **always `null`** for rows created through the internal API. It is a web-app-only field (used by the browser's offline sync); internal callers neither send nor receive a meaningful value.
+
+## Reference Data: clientId (web-only)
+
+`clientId` is a browser-generated key used **only** by the web app's offline expense sync engine (`POST /api/expenses/sync`) to de-duplicate retried writes.
+
+- The internal API does **not** need `clientId`. Do not send it. Rows created through the internal API always have `clientId: null`.
+- If `clientId` is sent anyway, it is unnecessary on create and ignored on update (the target row is selected solely by the path `:id`).
+- The public app endpoints (`POST /api/expenses`, `PATCH /api/expenses/:id`, `DELETE /api/expenses/:id`) share the same domain logic (`createExpense` / `updateExpense` / `softDeleteExpense`). Internal endpoints differ only in token auth, raw (non-enveloped) responses, and that they do not call `revalidatePath`.
+
 ## Endpoint: Create Transaction
 
 - Method: `POST`
@@ -125,18 +161,22 @@ Validation:
 
 Fields:
 
-- `date` (required, string): format `DD/MM/YYYY`
+- `date` (required, string): format `DD/MM/YYYY`. Strictly parsed by the service; an unparseable date fails with `Failed to create transaction`.
 - `amount` (required, number)
 - `category` (required, string): recommended values are listed in `Category list`
 - `paidBy` (required, enum): values listed in `PaidBy list`
-- `note` (optional, string)
-- `budgetId` (optional, number or null)
+- `note` (optional, string): defaults to `""`
+- `budgetId` (optional, number or null): sets budget linkage; not part of the returned row
+
+Do not send `clientId` — it is web-only (see `clientId (web-only)`) and unnecessary here; internal rows are always created with `clientId: null`.
+
+Unknown fields are ignored. In particular, denormalized budget fields (`budgetName`, `budgetIcon`, `budgetColor`) are accepted but dropped — only `budgetId` drives budget linkage.
 
 ### Responses
 
-- `201`: created transaction row
+- `201`: created transaction row (see `Reference Data: Transaction Row`)
 - `400 { "error": "Invalid payload" }`: request body shape/type is invalid
-- `400 { "error": "Failed to create transaction" }`: failed while creating
+- `400 { "error": "Failed to create transaction" }`: failed while creating (includes an unparseable `date`)
 
 ### cURL example
 
@@ -232,22 +272,23 @@ curl "http://localhost:3000/api/internal/transactions?from=2026-03-01&to=2026-03
 }
 ```
 
-Fields:
+Fields (same schema as create — send the full payload, not a partial patch):
 
-- `date` (required, string): format `DD/MM/YYYY`
+- `date` (required, string): format `DD/MM/YYYY`. Strictly parsed; an unparseable date fails with `Failed to update transaction`.
 - `amount` (required, number)
 - `category` (required, string): recommended values are listed in `Category list`
 - `paidBy` (required, enum): values listed in `PaidBy list`
-- `note` (optional, string)
-- `budgetId` (optional, number or null)
+- `note` (optional, string): defaults to `""`
+- `budgetId` (optional, number or null): re-links the budget when present; omit to leave linkage unchanged, send `null` to clear it
+- Do not send `clientId` — it is web-only (see `clientId (web-only)`) and ignored on update; the target row is chosen by the path `:id`
 
 ### Responses
 
-- `200`: updated transaction row
+- `200`: updated transaction row (see `Reference Data: Transaction Row`)
 - `400 { "error": "Invalid transaction id" }`
 - `400 { "error": "Invalid payload" }`
 - `404 { "error": "Expense not found" }`
-- `400 { "error": "Failed to update transaction" }`
+- `400 { "error": "Failed to update transaction" }` (includes an unparseable `date`)
 
 ### cURL example
 
@@ -307,7 +348,7 @@ curl -X DELETE "http://localhost:3000/api/internal/transactions/12" \
 - `200`: budget overview object or weekly budget report object
 - `400 { "error": "Failed to fetch budgets" }`
 
-Budget item shape:
+Budget item shape (computed overview/report item — includes `spent`/`remaining`):
 
 ```json
 {
@@ -315,6 +356,7 @@ Budget item shape:
   "name": "Groceries",
   "icon": "🛒",
   "color": "emerald",
+  "category": "Food",
   "amount": 2000000,
   "spent": 650000,
   "remaining": 1350000,
@@ -323,6 +365,8 @@ Budget item shape:
   "periodEndDate": "2026-03-31"
 }
 ```
+
+Note: this computed item differs from the raw budget row returned by create/update/delete (see `Endpoint: Create Budget`), which carries `createdAt`/`updatedAt` but no `spent`/`remaining`.
 
 ### cURL examples
 
@@ -353,6 +397,7 @@ curl "http://localhost:3000/api/internal/budgets?weekStart=2026-03-02&q=food" \
   "name": "Groceries",
   "icon": "🛒",
   "color": "emerald",
+  "category": "Food",
   "amount": 2000000,
   "period": "month",
   "periodStartDate": "2026-03-01",
@@ -365,14 +410,17 @@ Fields:
 - `name` (required, string)
 - `icon` (optional, string): defaults to `💰`
 - `color` (optional, enum): values listed in `Budget Appearance`; defaults to `lime`
+- `category` (optional, enum): one of the canonical `Category` values; strictly validated; defaults to `Other`
 - `amount` (required, number)
 - `period` (required, enum): `week | month | custom`
 - `periodStartDate` (required, string): format `YYYY-MM-DD`
 - `periodEndDate` (optional, string or null): required logically for `custom`
 
+Period dates are normalized on write (for `week`/`month` the stored range is snapped to the period bounds; a `custom` period requires `periodEndDate`).
+
 ### Responses
 
-- `201`: created budget row
+- `201`: created budget row — the raw `budgets` row, including `category`, `createdAt`, and `updatedAt` (no `spent`/`remaining`)
 - `400 { "error": "Invalid payload" }`
 - `400 { "error": "Failed to create budget" }`
 
@@ -386,6 +434,7 @@ curl -X POST "http://localhost:3000/api/internal/budgets" \
     "name":"Groceries",
     "icon":"🛒",
     "color":"emerald",
+    "category":"Food",
     "amount":2000000,
     "period":"month",
     "periodStartDate":"2026-03-01"
@@ -409,14 +458,21 @@ Any subset of:
 - `name` (string)
 - `icon` (string)
 - `color` (`lime | sky | violet | rose | amber | emerald | cyan | fuchsia | orange | teal | indigo | slate`)
+- `category` (enum): one of the canonical `Category` values; strictly validated
 - `amount` (number)
 - `period` (`week | month | custom`)
 - `periodStartDate` (string, `YYYY-MM-DD`)
 - `periodEndDate` (string or null)
 
+Notes:
+
+- At least one field is required. An empty body (or a body whose keys are all unknown and stripped) returns `400 { "error": "No fields provided for update" }`.
+- Changing `name`, `icon`, or `color` propagates the new budget appearance to linked expenses' denormalized metadata (their `updatedAt` is bumped so the change flows through expense sync).
+- `period` / `periodStartDate` / `periodEndDate` are merged with the budget's existing period values and re-normalized; sending any one of the three triggers a re-read of the other two. A resulting `custom` period requires an end date.
+
 ### Responses
 
-- `200`: updated budget row
+- `200`: updated budget row (raw `budgets` row, including `category`/`createdAt`/`updatedAt`)
 - `400 { "error": "Invalid budget id" }`
 - `400 { "error": "Invalid payload" }`
 - `400 { "error": "No fields provided for update" }`
@@ -441,7 +497,7 @@ curl -X PATCH "http://localhost:3000/api/internal/budgets/12" \
 
 - Method: `DELETE`
 - Path: `/api/internal/budgets/:id`
-- Purpose: delete a budget
+- Purpose: hard-delete a budget (removed from the table — this is **not** a soft delete)
 
 ### Path params
 
@@ -453,6 +509,10 @@ curl -X PATCH "http://localhost:3000/api/internal/budgets/12" \
 - `400 { "error": "Invalid budget id" }`
 - `404 { "error": "Budget not found" }`
 - `400 { "error": "Failed to delete budget" }`
+
+Notes:
+
+- Linked expenses are touched first (their `updatedAt` is bumped so the unlink propagates through expense sync). The expense rows are **not** deleted; only their budget links are removed via the `expense_budgets` cascade.
 
 ### cURL example
 
