@@ -143,8 +143,8 @@
     0 26px 48px 0 color-mix(in srgb, #020617 54%, transparent),
     0 10px 20px -8px color-mix(in srgb, #b8f34a 16%, transparent);
   --shadow-2xl: 0 30px 60px 0 color-mix(in srgb, #020617 48%, transparent);
-  --glass-bg: color-mix(in srgb, var(--surface-2) 88%, #000000 12%);
-  --glass-bg-strong: color-mix(in srgb, var(--surface-3) 92%, #000000 8%);
+  --glass-bg: color-mix(in srgb, var(--surface-2) 58%, transparent);
+  --glass-bg-strong: color-mix(in srgb, var(--surface-3) 72%, transparent);
   --glass-border: color-mix(in srgb, var(--accent) 22%, #cfd7e3 22%);
   --glass-highlight: color-mix(in srgb, var(--accent) 18%, transparent);
   --glass-shadow:
@@ -388,27 +388,33 @@
   }
 
   .ds-glass {
-    background: linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--glass-bg) 90%, #ffffff 5%),
-      var(--glass-bg)
-    );
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, #ffffff 10%, transparent),
+        color-mix(in srgb, #ffffff 2%, transparent) 38%,
+        transparent 100%
+      ),
+      var(--glass-bg);
     border-color: color-mix(in srgb, var(--glass-border) 10%, transparent);
     box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(26px) saturate(1.25);
+    -webkit-backdrop-filter: blur(26px) saturate(1.25);
   }
 
   .ds-glass-strong {
-    background: linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--glass-bg-strong) 88%, #ffffff 4%),
-      var(--glass-bg-strong)
-    );
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, #ffffff 8%, transparent),
+        color-mix(in srgb, #ffffff 2%, transparent) 40%,
+        transparent 100%
+      ),
+      var(--glass-bg-strong);
     border-color: color-mix(in srgb, var(--glass-border) 10%, transparent);
     box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(30px) saturate(1.2);
+    -webkit-backdrop-filter: blur(30px) saturate(1.2);
   }
 
   .ds-surface-1 {
@@ -472,6 +478,12 @@
     animation: ball2 1s infinite;
     background-color: var(--loader-secondary);
     box-shadow: var(--dot-offset) 0 0 var(--loader-primary);
+  }
+
+  .glass-border {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #ffffff 20%, transparent),
+      0 20px 46px color-mix(in srgb, #000000 58%, transparent);
   }
 }
 

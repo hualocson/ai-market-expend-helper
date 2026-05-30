@@ -169,10 +169,10 @@ const AIQuickEntry = () => {
           ))}
         </div>
 
-        <div className="px-4">
+        <div className="px-4 pb-2">
           <form
             onSubmit={handleSubmit}
-            className="ds-glass mx-auto mb-2 flex w-full max-w-[390px] items-center gap-2 rounded-[28px] p-1.5 pl-4"
+            className="flex w-full max-w-[390px] items-center gap-2"
           >
             <label htmlFor={inputId} className="sr-only">
               Describe your expense
@@ -184,7 +184,7 @@ const AIQuickEntry = () => {
               onChange={(event) => setComposer(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Cà phê 35k sáng nay"
-              className="text-foreground placeholder:text-muted-foreground/70 flex-1 border-0 bg-transparent text-base outline-none"
+              className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
             />
             <button
               type="submit"
@@ -192,7 +192,7 @@ const AIQuickEntry = () => {
               disabled={!canSend}
               onPointerDown={(event) => event.preventDefault()}
               className={cn(
-                "bg-primary text-primary-foreground grid size-10 shrink-0 place-items-center rounded-full transition-opacity",
+                "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
                 !canSend && "opacity-40"
               )}
             >

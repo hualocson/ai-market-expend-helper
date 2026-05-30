@@ -150,7 +150,7 @@ const BottomNav = () => {
         <div
           ref={navRef}
           className={cn(
-            "relative grid w-[236px] items-end overflow-hidden rounded-[34px] bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl select-none active:scale-[1.02] active:bg-white/10",
+            "ds-glass glass-border relative grid w-[236px] items-end overflow-hidden rounded-[34px] bg-transparent select-none active:scale-[1.02]",
             expanded ? "gap-2 p-2" : "gap-0 p-1.5"
           )}
           style={
