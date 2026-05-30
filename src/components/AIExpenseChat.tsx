@@ -24,7 +24,6 @@ import { toast } from "sonner";
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 import QuickExpenseDrawer from "./QuickExpenseDrawer";
-import VndSymbol from "./VndSymbol";
 import { Button } from "./ui/button";
 import PixelLoader from "./ui/pixel-loader/PixelLoader";
 import { Textarea } from "./ui/textarea";
@@ -296,7 +295,6 @@ const AIExpenseChat = () => {
         return (
           <p className="text-foreground text-[15px] font-medium tracking-tight">
             {message.summary}
-            <VndSymbol className="ml-0.5" />
           </p>
         );
       case "review":
