@@ -6,7 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
-import { BarChart3, ChevronsUpDown, Cog, Home, Wallet } from "lucide-react";
+import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
+import {
+  BarChart3,
+  ChevronsUpDown,
+  Cog,
+  Home,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 
 import QuickExpenseDrawer from "@/components/QuickExpenseDrawer";
 
@@ -86,6 +94,7 @@ const BottomNav = () => {
   const SecondaryIcon = secondaryItems.find((i) => i.id === activeItem)?.icon;
 
   const haptics = useAppHaptics();
+  const openAIQuickEntry = useAIQuickEntryStore((state) => state.setOpen);
   const navRef = useRef<HTMLDivElement>(null);
   const secondaryId = useId();
 
@@ -244,6 +253,18 @@ const BottomNav = () => {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          aria-label="Open AI quick entry"
+          onClick={() => {
+            haptics.impact("medium");
+            openAIQuickEntry(true);
+          }}
+          className="text-primary grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.96]"
+        >
+          <Sparkles className="size-6" />
+        </button>
 
         <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
           <QuickExpenseDrawer

@@ -1,5 +1,6 @@
 import React from "react";
 
+import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,6 +59,7 @@ beforeEach(() => {
   hapticsMock.selection.mockReset();
   hapticsMock.impact.mockReset();
   hapticsMock.trigger.mockReset();
+  useAIQuickEntryStore.getState().setOpen(false);
 });
 
 afterEach(() => {
@@ -209,5 +211,32 @@ describe("BottomNav", () => {
 
     expect(hapticsMock.impact).toHaveBeenCalledTimes(1);
     expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+  });
+
+  it("opens AI quick entry when the AI button is tapped", async () => {
+    const user = userEvent.setup();
+
+    render(<BottomNav />);
+
+    await user.click(
+      screen.getByRole("button", { name: /open ai quick entry/i })
+    );
+
+    expect(useAIQuickEntryStore.getState().open).toBe(true);
+    expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+  });
+
+  it("renders the AI button before the Add button", () => {
+    render(<BottomNav />);
+
+    const aiButton = screen.getByRole("button", {
+      name: /open ai quick entry/i,
+    });
+    const addButton = screen.getByRole("button", { name: /add expense/i });
+
+    expect(
+      aiButton.compareDocumentPosition(addButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });
