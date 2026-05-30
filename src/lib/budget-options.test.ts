@@ -7,6 +7,7 @@ import {
   formatBudgetRange,
   groupBudgetOptions,
   isDateWithinBudgetPeriod,
+  isExpenseDateSuspicious,
   pickDefaultBudget,
   sortBudgetOptions,
 } from "./budget-options";
@@ -126,5 +127,31 @@ describe("isDateWithinBudgetPeriod", () => {
         "2026-01-01"
       )
     ).toBe(true);
+  });
+});
+
+describe("isExpenseDateSuspicious", () => {
+  const today = "2026-05-30";
+
+  it("is not suspicious for today", () => {
+    expect(isExpenseDateSuspicious("2026-05-30", today)).toBe(false);
+  });
+
+  it("is not suspicious within one month either direction", () => {
+    expect(isExpenseDateSuspicious("2026-05-01", today)).toBe(false);
+    expect(isExpenseDateSuspicious("2026-06-29", today)).toBe(false);
+  });
+
+  it("is suspicious more than a month in the past", () => {
+    expect(isExpenseDateSuspicious("2026-04-01", today)).toBe(true);
+  });
+
+  it("is suspicious more than a month in the future", () => {
+    expect(isExpenseDateSuspicious("2027-11-12", today)).toBe(true);
+  });
+
+  it("is not suspicious when either date is unparseable", () => {
+    expect(isExpenseDateSuspicious("not-a-date", today)).toBe(false);
+    expect(isExpenseDateSuspicious("2026-05-30", "nope")).toBe(false);
   });
 });

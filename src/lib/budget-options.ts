@@ -107,3 +107,18 @@ export const isDateWithinBudgetPeriod = (
   const end = parseBudgetDate(budget.periodEndDate) ?? start;
   return !target.isBefore(start, "day") && !target.isAfter(end, "day");
 };
+
+export const isExpenseDateSuspicious = (
+  isoDate: string,
+  todayIso: string
+): boolean => {
+  const target = dayjs(isoDate, "YYYY-MM-DD", true);
+  const today = dayjs(todayIso, "YYYY-MM-DD", true);
+  if (!target.isValid() || !today.isValid()) {
+    return false;
+  }
+  return (
+    target.isBefore(today.subtract(1, "month"), "day") ||
+    target.isAfter(today.add(1, "month"), "day")
+  );
+};
