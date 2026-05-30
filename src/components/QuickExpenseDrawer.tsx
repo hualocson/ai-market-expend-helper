@@ -100,7 +100,7 @@ export type TQuickExpenseDrawerInitialExpense = {
 
 export type TExpenseDraft = TQuickExpenseDraft;
 type TRestorableInputFocus = "note" | "amount" | null;
-type BudgetSelectionSource = "none" | "manual" | "ai";
+type BudgetSelectionSource = "none" | "manual" | "ai" | "ai-prefill";
 
 const QuickExpenseSuccessToast = ({ draft }: { draft: TExpenseDraft }) => {
   const note = draft.note?.trim() || "No note";
@@ -133,8 +133,11 @@ const QuickExpenseSuccessToast = ({ draft }: { draft: TExpenseDraft }) => {
   );
 };
 
-const isManualBudgetSelectionSource = (source: BudgetSelectionSource) =>
-  source === "manual";
+const isBudgetSelectionLocked = (source: BudgetSelectionSource) =>
+  source === "manual" || source === "ai-prefill";
+
+const isAiBudgetSelectionSource = (source: BudgetSelectionSource) =>
+  source === "ai" || source === "ai-prefill";
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
@@ -636,7 +639,7 @@ const QuickExpenseDrawer = ({
           budgetIcon: hasBudget ? (detail.budgetIcon ?? null) : null,
           budgetColor: hasBudget ? (detail.budgetColor ?? null) : null,
         };
-        resetSuggestionTracking(nextDraft, hasBudget ? "ai" : "none");
+        resetSuggestionTracking(nextDraft, hasBudget ? "ai-prefill" : "none");
         return nextDraft;
       });
       if (typeof open !== "boolean") {
@@ -661,12 +664,12 @@ const QuickExpenseDrawer = ({
         budgetIcon: null,
         budgetColor: null,
       }));
-      if (budgetSelectionSourceRef.current === "ai") {
+      if (isAiBudgetSelectionSource(budgetSelectionSourceRef.current)) {
         budgetSelectionSourceRef.current = "none";
       }
       return;
     }
-    if (budgetSelectionSourceRef.current === "ai") {
+    if (isAiBudgetSelectionSource(budgetSelectionSourceRef.current)) {
       setDraft((prev) => ({
         ...prev,
         budgetName: option.name,
@@ -708,7 +711,7 @@ const QuickExpenseDrawer = ({
     if (!suggestionCandidates.length) {
       return;
     }
-    if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+    if (isBudgetSelectionLocked(budgetSelectionSourceRef.current)) {
       return;
     }
 
@@ -741,7 +744,7 @@ const QuickExpenseDrawer = ({
       if (currentSuggestionCandidateKeyRef.current !== requestCandidateKey) {
         return;
       }
-      if (isManualBudgetSelectionSource(budgetSelectionSourceRef.current)) {
+      if (isBudgetSelectionLocked(budgetSelectionSourceRef.current)) {
         return;
       }
       if (result.status === "no_match") {

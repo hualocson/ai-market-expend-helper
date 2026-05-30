@@ -1790,14 +1790,16 @@ describe("QuickExpenseDrawer — AI prefill", () => {
     // No suggestion fires as a direct result of the prefill flow.
     expect(mutationMocks.suggestBudgetMutateAsync).not.toHaveBeenCalled();
 
-    // A later note blur (here resolving to a no_match) must not override the
-    // prefilled AI budget — it stays selected.
+    // A later note blur must not trigger re-suggestion: the ai-prefill source
+    // is locked, so the prefilled AI budget stays selected and no suggest
+    // request is dispatched as a result of the blur.
     fireEvent.blur(note);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: /cà phê/i, pressed: true })
       ).toBeInTheDocument()
     );
+    expect(mutationMocks.suggestBudgetMutateAsync).not.toHaveBeenCalled();
   });
 
   it("lets the drawer suggest when prefilled budgetId is null", async () => {
