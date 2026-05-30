@@ -7,7 +7,8 @@ import type {
 import { PARSE_EXPENSE_MIN_AMOUNT } from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "openai/gpt-oss-20b:free";
+// Keep this aligned with the suggest-budget model (src/lib/ai/suggest-budget.ts).
+const MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
 const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
