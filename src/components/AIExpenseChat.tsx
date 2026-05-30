@@ -149,13 +149,16 @@ const AIExpenseChat = () => {
           null)
         : null;
 
-    const todayIso = dayjs().format("YYYY-MM-DD");
-    if (isoDate !== null && isExpenseDateSuspicious(isoDate, todayIso)) {
+    const now = dayjs();
+    if (
+      isoDate !== null &&
+      isExpenseDateSuspicious(isoDate, now.format("YYYY-MM-DD"))
+    ) {
       openForReview(
         {
           amount: expense.amount,
           note: expense.note,
-          date: dayjs().format("DD/MM/YYYY"),
+          date: now.format("DD/MM/YYYY"),
         },
         budget
       );
