@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { Toaster } from "@/components/ui/sonner";
 
+import AIQuickEntry from "@/components/AIQuickEntry";
 import AppMain from "@/components/AppMain";
 import BottomNav from "@/components/BottomNav";
 import CssPropertyRegistry from "@/components/CssPropertyRegistry";
@@ -304,6 +305,7 @@ export default function RootLayout({
                 height="120px"
               />
               <BottomNav />
+              <AIQuickEntry />
             </SettingsStoreProvider>
           </ThemeProvider>
 
