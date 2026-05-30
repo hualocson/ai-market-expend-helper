@@ -18,12 +18,12 @@ type AIQuickEntryRowProps = {
 };
 
 const rowClassName =
-  "bg-surface-2/95 glass-border grid min-h-12 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2 rounded-[18px] px-2.5 py-2 shadow-[0_12px_28px_color-mix(in_srgb,var(--background)_50%,transparent)]";
+  "bg-surface-3/80 ds-glass-strong glass-border flex items-center gap-2 rounded-[24px] p-2";
 
 const PendingIndicator = () => (
   <span
     aria-hidden
-    className="bg-muted mx-auto block size-8 animate-pulse rounded-full"
+    className="bg-muted block size-8 shrink-0 animate-pulse rounded-full"
   />
 );
 
@@ -38,7 +38,7 @@ const PendingAmountSkeleton = () => (
 const FailedIndicator = () => (
   <span
     aria-hidden
-    className="text-destructive bg-destructive/15 mx-auto grid size-8 place-items-center rounded-full"
+    className="text-destructive bg-destructive/15 grid size-8 shrink-0 place-items-center rounded-full"
   >
     <AlertTriangle className="size-4" />
   </span>
@@ -76,7 +76,7 @@ const AIQuickEntryRow = ({
         <ExpenseItemIcon
           category={entry.result.category as Category}
           size="sm"
-          className="mx-auto size-8 [&_svg]:size-4"
+          className="size-8 shrink-0 [&_svg]:size-4"
         />
       ) : variant === "failed" ? (
         <FailedIndicator />
@@ -84,7 +84,7 @@ const AIQuickEntryRow = ({
         <PendingIndicator />
       )}
 
-      <p className="text-foreground/90 min-w-0 truncate text-sm font-semibold">
+      <p className="text-foreground/90 min-w-0 grow truncate text-sm font-semibold">
         {note}
       </p>
 
