@@ -1,59 +1,55 @@
-import { Category } from "@/enums";
-
 import type {
+  ParseExpenseBudget,
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "./parse-expense-contract";
+import { PARSE_EXPENSE_MIN_AMOUNT } from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "openai/gpt-oss-20b:free";
-const CATEGORY_VALUES = Object.values(Category);
 const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
 
 const SYSTEM_PROMPT = `
-You extract a single expense draft from short natural-language text.
+You extract a single expense draft from short natural-language text and pick the best-matching budget.
 
 Rules:
 - Return only one JSON object.
-- Output fields: date, amount, note, category.
+- Output fields: date, amount, note, budgetId, confidence, reason.
 - date must be DD/MM/YYYY.
-- amount must be a positive number.
-- note must be short.
-- category must be exactly one of: ${CATEGORY_VALUES.join(", ")}.
+- amount is Vietnamese dong (VND): a whole number, minimum 1000. Expand shorthand: "35k" = 35000, "1.2tr" = 1200000.
+- note must be a short, natural Vietnamese phrase. Normalize shorthand, e.g. "cf sua da" -> "Cà phê sữa đá".
+- budgetId must be exactly one of the provided budget ids, or null when none plausibly matches. Never invent an id.
+- Match using the budget name first and its category as secondary context. Match Vietnamese with or without diacritics, and common shorthand (cf = coffee, xang = fuel, grab = transport or food).
+- confidence is "high" only when amount, date, note, and a non-null budgetId are all confidently determined; otherwise "medium" or "low".
+- reason is a short explanation of the budget match.
 `.trim();
+
+const buildUserContent = (input: string, budgets: ParseExpenseBudget[]) => {
+  const budgetLines = budgets.length
+    ? budgets
+        .map(
+          (budget) =>
+            `- id ${budget.id}: ${budget.name} (category: ${budget.category})`
+        )
+        .join("\n")
+    : "(no budgets available)";
+
+  return `Text: ${input}\n\nBudgets:\n${budgetLines}`;
+};
 
 const extractJsonObject = (value: string) => {
   const start = value.indexOf("{");
   const end = value.lastIndexOf("}");
-
   if (start === -1 || end === -1 || end < start) {
     return null;
   }
-
   return value.slice(start, end + 1);
 };
 
-const readContent = (content: unknown) => {
-  if (typeof content === "string") {
-    return content.trim();
-  }
-
-  return null;
-};
-
-const normalizeCategory = (value: unknown) => {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-
-  return (
-    CATEGORY_VALUES.find(
-      (category) => category.toLowerCase() === normalized
-    ) ?? null
-  );
-};
+const readContent = (content: unknown) =>
+  typeof content === "string" ? content.trim() : null;
 
 const shapeFallbackNote = (originalInput: string) => {
   const note = originalInput.trim();
@@ -62,25 +58,20 @@ const shapeFallbackNote = (originalInput: string) => {
 
 const extractAmountFromInput = (input: string) => {
   const match = input.match(/(\d+(?:\.\d+)?)(k|tr)?/i);
-
   if (!match) {
     return undefined;
   }
-
   const numeric = Number(match[1]);
   if (!Number.isFinite(numeric)) {
     return undefined;
   }
-
   const suffix = match[2]?.toLowerCase();
   if (suffix === "k") {
     return numeric * 1000;
   }
-
   if (suffix === "tr") {
     return numeric * 1000000;
   }
-
   return numeric;
 };
 
@@ -99,12 +90,17 @@ const buildFallback = (
 
 type ParseExpenseArgs = {
   input: string;
+  budgets: ParseExpenseBudget[];
   apiKey: string;
   fetchFn?: typeof fetch;
 };
 
+const isConfidence = (value: unknown): value is "high" | "medium" | "low" =>
+  value === "high" || value === "medium" || value === "low";
+
 export const parseExpenseWithOpenRouter = async ({
   input,
+  budgets,
   apiKey,
   fetchFn = fetch,
 }: ParseExpenseArgs): Promise<ParseExpenseResponse> => {
@@ -121,7 +117,7 @@ export const parseExpenseWithOpenRouter = async ({
         model: MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: input },
+          { role: "user", content: buildUserContent(input, budgets) },
         ],
       }),
     });
@@ -133,10 +129,7 @@ export const parseExpenseWithOpenRouter = async ({
     return buildFallback(input, "request_failed");
   }
 
-  let payload: {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
-
+  let payload: { choices?: Array<{ message?: { content?: unknown } }> };
   try {
     payload = (await response.json()) as typeof payload;
   } catch {
@@ -164,20 +157,37 @@ export const parseExpenseWithOpenRouter = async ({
     date?: unknown;
     amount?: unknown;
     note?: unknown;
-    category?: unknown;
+    budgetId?: unknown;
+    confidence?: unknown;
+    reason?: unknown;
   };
 
-  const category = normalizeCategory(expense.category);
   const amount = Number(expense.amount);
   const note = String(expense.note ?? "").trim();
   const date = String(expense.date ?? "").trim();
+  const reason = String(expense.reason ?? "").trim();
+  const confidence = expense.confidence;
+
+  const allowedIds = new Set(budgets.map((budget) => budget.id));
+  let budgetId: number | null;
+  const rawBudgetId = expense.budgetId;
+  if (rawBudgetId === null || rawBudgetId === undefined) {
+    budgetId = null;
+  } else {
+    const numericId = Number(rawBudgetId);
+    if (!Number.isInteger(numericId) || !allowedIds.has(numericId)) {
+      return buildFallback(input, "schema_mismatch");
+    }
+    budgetId = numericId;
+  }
 
   if (
-    !category ||
     !DATE_PATTERN.test(date) ||
     !Number.isFinite(amount) ||
-    amount <= 0 ||
-    note.length === 0
+    !Number.isInteger(amount) ||
+    amount < PARSE_EXPENSE_MIN_AMOUNT ||
+    note.length === 0 ||
+    !isConfidence(confidence)
   ) {
     return buildFallback(input, "schema_mismatch");
   }
@@ -189,7 +199,9 @@ export const parseExpenseWithOpenRouter = async ({
       date,
       amount,
       note,
-      category,
+      budgetId,
+      confidence,
+      reason: reason.length > 0 ? reason : "Matched from input.",
     },
   };
 };
