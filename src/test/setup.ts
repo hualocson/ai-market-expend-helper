@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+
 import { afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
 
 if (typeof Element !== "undefined") {
   if (!Element.prototype.setPointerCapture) {
@@ -14,10 +15,7 @@ if (typeof Element !== "undefined") {
   }
 }
 
-if (
-  typeof window !== "undefined" &&
-  typeof window.getComputedStyle === "function"
-) {
+if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
   const originalGetComputedStyle = window.getComputedStyle.bind(window);
   window.getComputedStyle = ((
     ...args: Parameters<typeof originalGetComputedStyle>
@@ -35,15 +33,6 @@ if (
     }
     return style;
   }) as typeof window.getComputedStyle;
-}
-
-// jsdom does not implement URL.createObjectURL / revokeObjectURL.
-// Provide stubs so tests can spy on them without "does not exist" errors.
-if (typeof URL.createObjectURL === "undefined") {
-  URL.createObjectURL = () => "";
-}
-if (typeof URL.revokeObjectURL === "undefined") {
-  URL.revokeObjectURL = () => {};
 }
 
 afterEach(() => {

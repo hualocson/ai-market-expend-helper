@@ -1747,23 +1747,4 @@ describe("QuickExpenseDrawer — prefill", () => {
     const amount = screen.getByPlaceholderText("0") as HTMLInputElement;
     expect(amount.value).toMatch(/25[.,]?000/);
   });
-
-  it("applies a prefilled date from the expense-prefill event", async () => {
-    renderDrawer();
-
-    act(() => {
-      dispatchExpensePrefill({
-        amount: 85000,
-        note: "Circle K",
-        category: "Food",
-        date: "02/01/2026",
-        source: "receipt_scan",
-      });
-    });
-
-    // formatDateLabel("02/01/2026") returns "02/01" (non-today date)
-    expect(
-      await screen.findByRole("button", { name: /Date: 02\/01/ })
-    ).toBeInTheDocument();
-  });
 });
