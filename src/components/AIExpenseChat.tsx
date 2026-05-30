@@ -11,6 +11,7 @@ import { unwrapApiResponse } from "@/lib/api/api-response";
 import {
   type TBudgetOption,
   isDateWithinBudgetPeriod,
+  isExpenseDateSuspicious,
 } from "@/lib/budget-options";
 import { dispatchExpensePrefill } from "@/lib/expense-prefill";
 import { useCreateExpenseMutation } from "@/lib/mutations";
@@ -148,6 +149,25 @@ const AIExpenseChat = () => {
           null)
         : null;
 
+    const todayIso = dayjs().format("YYYY-MM-DD");
+    if (isoDate !== null && isExpenseDateSuspicious(isoDate, todayIso)) {
+      openForReview(
+        {
+          amount: expense.amount,
+          note: expense.note,
+          date: dayjs().format("DD/MM/YYYY"),
+        },
+        budget
+      );
+      replaceMessage(assistantId, {
+        id: assistantId,
+        role: "assistant",
+        variant: "review",
+      });
+      haptics.warning();
+      return;
+    }
+
     const canAutoAdd =
       expense.confidence === "high" &&
       isoDate !== null &&
@@ -231,6 +251,7 @@ const AIExpenseChat = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           input,
+          today: dayjs().format("DD/MM/YYYY"),
           budgets: budgetOptions.map((option) => ({
             id: option.id,
             name: option.name,
