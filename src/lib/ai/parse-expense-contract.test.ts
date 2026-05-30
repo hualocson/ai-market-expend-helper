@@ -31,7 +31,11 @@ describe("parseExpenseRequestSchema", () => {
 
   it("rejects empty input", () => {
     expect(
-      parseExpenseRequestSchema.safeParse({ input: "   ", budgets: [] }).success
+      parseExpenseRequestSchema.safeParse({
+        input: "   ",
+        today: "30/05/2026",
+        budgets: [],
+      }).success
     ).toBe(false);
   });
 
@@ -39,6 +43,7 @@ describe("parseExpenseRequestSchema", () => {
     expect(
       parseExpenseRequestSchema.safeParse({
         input: "lunch 50k",
+        today: "30/05/2026",
         budgets: [{ id: 1, name: "Food", category: "Travel" }],
       }).success
     ).toBe(false);
@@ -55,8 +60,11 @@ describe("parseExpenseRequestSchema", () => {
     );
 
     expect(
-      parseExpenseRequestSchema.safeParse({ input: "lunch 50k", budgets })
-        .success
+      parseExpenseRequestSchema.safeParse({
+        input: "lunch 50k",
+        today: "30/05/2026",
+        budgets,
+      }).success
     ).toBe(false);
   });
 
