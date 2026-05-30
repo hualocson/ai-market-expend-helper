@@ -59,10 +59,10 @@ describe("AIQuickEntryStatusBar", () => {
     );
 
     expect(screen.getByRole("button")).toHaveClass(
-      "glass-border-b",
-      "bg-black/90",
-      "text-white",
-      "shadow-[0_14px_36px_color-mix(in_srgb,#000000_70%,transparent)]"
+      "glass-border",
+      "ds-glass",
+      "bg-black/85",
+      "text-white"
     );
   });
 

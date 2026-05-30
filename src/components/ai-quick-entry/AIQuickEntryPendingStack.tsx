@@ -68,7 +68,7 @@ const AIQuickEntryPendingStack = ({
       )}
       data-ai-pending-stack-state="collapsed"
     >
-      <div className="relative">
+      <div className="relative isolate">
         {visibleStackCards
           .slice(1)
           .reverse()
@@ -78,9 +78,9 @@ const AIQuickEntryPendingStack = ({
               data-testid="ai-pending-stack-card"
               aria-hidden
               className={cn(
-                "bg-surface-2/60 glass-border absolute inset-x-1 top-0 h-12 rounded-[18px]",
-                index === 0 && "translate-y-2 scale-[0.98]",
-                index === 1 && "translate-y-4 scale-[0.96]"
+                "bg-surface-3/80 ds-glass glass-border-b absolute inset-x-1 top-0 h-12 rounded-[24px]",
+                index === 0 && "-z-10 translate-y-2 scale-[0.98]",
+                index === 1 && "-z-20 translate-y-4 scale-[0.96]"
               )}
             />
           ))}
