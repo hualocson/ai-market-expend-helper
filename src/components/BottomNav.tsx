@@ -6,17 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
-import {
-  BarChart3,
-  ChevronsUpDown,
-  Cog,
-  Home,
-  ScanLine,
-  Wallet,
-} from "lucide-react";
+import { BarChart3, ChevronsUpDown, Cog, Home, Wallet } from "lucide-react";
 
 import QuickExpenseDrawer from "@/components/QuickExpenseDrawer";
-import ReceiptScanDrawer from "@/components/ReceiptScanDrawer";
 
 type TBottomNavItemId = "home" | "budgets" | "reports" | "settings";
 
@@ -90,7 +82,6 @@ const BottomNav = () => {
   const [activeItem, setActiveItem] = useState<TBottomNavItemId>(() =>
     getActiveItemId(pathname)
   );
-  const [scanOpen, setScanOpen] = useState(false);
 
   const SecondaryIcon = secondaryItems.find((i) => i.id === activeItem)?.icon;
 
@@ -254,28 +245,12 @@ const BottomNav = () => {
           )}
         </div>
 
-        <div className="flex shrink-0 items-end gap-3">
-          <button
-            type="button"
-            aria-label="Scan receipt"
-            onClick={() => {
-              haptics.impact("light");
-              setScanOpen(true);
-            }}
-            className="grid size-14 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform duration-200 ease-out active:scale-[0.96]"
-          >
-            <ScanLine className="size-6" />
-          </button>
-
-          <div className="grid size-14 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
-            <QuickExpenseDrawer
-              compact
-              onTriggerClick={() => haptics.impact("medium")}
-            />
-          </div>
+        <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
+          <QuickExpenseDrawer
+            compact
+            onTriggerClick={() => haptics.impact("medium")}
+          />
         </div>
-
-        <ReceiptScanDrawer open={scanOpen} onOpenChange={setScanOpen} />
       </div>
     </nav>
   );

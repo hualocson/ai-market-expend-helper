@@ -6,7 +6,6 @@ export type ExpensePrefillPayload = {
   amount: number;
   note: string;
   category: string;
-  date?: string;
   source?: QuickAddSource;
 };
 
