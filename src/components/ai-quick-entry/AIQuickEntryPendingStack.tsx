@@ -27,7 +27,6 @@ const AIQuickEntryPendingStack = ({
   const orderedEntries = newestFirst(pendingEntries);
   const frontEntry = orderedEntries[0];
   const visibleStackCards = orderedEntries.slice(0, 3);
-  const hiddenPendingCount = Math.max(0, pendingEntries.length - 1);
   const canExpand = pendingEntries.length > 1;
 
   if (expanded && canExpand) {
@@ -92,11 +91,6 @@ const AIQuickEntryPendingStack = ({
           <AIQuickEntryRow entry={frontEntry} variant="pending" />
         </div>
       </div>
-      {hiddenPendingCount > 0 ? (
-        <span className="text-muted-foreground mt-1 block px-3 text-xs font-medium">
-          +{hiddenPendingCount} parsing
-        </span>
-      ) : null}
     </button>
   );
 };

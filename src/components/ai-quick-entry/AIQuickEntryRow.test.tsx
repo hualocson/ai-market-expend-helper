@@ -40,11 +40,14 @@ describe("AIQuickEntryRow", () => {
       "pending"
     );
     expect(screen.getByText("Bánh mì 25k")).toBeInTheDocument();
-    expect(screen.getByText("--")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("ai-quick-entry-amount-skeleton")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("--")).toBeNull();
     expect(screen.queryByTestId("ai-quick-entry-row-secondary")).toBeNull();
   });
 
-  it("renders a resolved entry with note and compact amount", () => {
+  it("renders a resolved entry with note and toast-style amount", () => {
     render(<AIQuickEntryRow entry={resolvedEntry} variant="resolved" />);
 
     expect(screen.getByTestId("ai-quick-entry-row")).toHaveAttribute(
@@ -52,7 +55,8 @@ describe("AIQuickEntryRow", () => {
       "resolved"
     );
     expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
-    expect(screen.getByText("-35K")).toBeInTheDocument();
+    expect(screen.getByText("35.000")).toBeInTheDocument();
+    expect(screen.queryByText("-35K")).toBeNull();
     expect(screen.queryByTestId("expense-row")).toBeNull();
   });
 

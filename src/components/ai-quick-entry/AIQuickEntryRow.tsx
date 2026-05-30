@@ -3,7 +3,7 @@
 import React from "react";
 
 import { Category } from "@/enums";
-import { cn, formatVndCompact } from "@/lib/utils";
+import { cn, formatVnd } from "@/lib/utils";
 import { AlertTriangle } from "lucide-react";
 
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
@@ -27,6 +27,14 @@ const PendingIndicator = () => (
   />
 );
 
+const PendingAmountSkeleton = () => (
+  <span
+    aria-hidden
+    data-testid="ai-quick-entry-amount-skeleton"
+    className="bg-muted h-6 w-16 shrink-0 animate-pulse rounded-full"
+  />
+);
+
 const FailedIndicator = () => (
   <span
     aria-hidden
@@ -37,8 +45,9 @@ const FailedIndicator = () => (
 );
 
 const CompactAmount = ({ amount }: { amount: number }) => (
-  <span className="text-destructive shrink-0 text-right text-sm font-semibold tabular-nums">
-    -{formatVndCompact(amount)} <VndSymbol />
+  <span className="bg-destructive/15 text-destructive inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-semibold tabular-nums">
+    {formatVnd(amount)}
+    <VndSymbol className="ml-0.5" />
   </span>
 );
 
@@ -59,9 +68,7 @@ const AIQuickEntryRow = ({
           ? `Parsing expense: ${entry.input}`
           : variant === "failed"
             ? `Expense needs review: ${entry.input}`
-            : `Parsed expense: ${note}, ${formatVndCompact(
-                entry.result?.amount ?? 0
-              )}`
+            : `Parsed expense: ${note}, ${formatVnd(entry.result?.amount ?? 0)}`
       }
       className={cn(rowClassName, className)}
     >
@@ -88,9 +95,7 @@ const AIQuickEntryRow = ({
           Review
         </span>
       ) : (
-        <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
-          --
-        </span>
+        <PendingAmountSkeleton />
       )}
     </div>
   );

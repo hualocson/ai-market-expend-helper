@@ -118,7 +118,10 @@ describe("AIQuickEntry", () => {
     });
 
     expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
-    expect(screen.getByText("--")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("ai-quick-entry-amount-skeleton")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("--")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
     expect(screen.queryByText(/\+1 parsing/)).not.toBeInTheDocument();
   });
@@ -137,7 +140,7 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("newest")).toBeInTheDocument();
     expect(screen.queryByText("first")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("ai-pending-stack-card")).toHaveLength(3);
-    expect(screen.getByText("+3 parsing")).toBeInTheDocument();
+    expect(screen.queryByText("+3 parsing")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("Expand 4 pending expenses"));
 
@@ -158,17 +161,26 @@ describe("AIQuickEntry", () => {
     await advanceParse();
 
     expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
-    expect(screen.getByText("-35K")).toBeInTheDocument();
+    expect(screen.getByText("35.000")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-quick-entry-status-top")).toContainElement(
+      screen.getByLabelText(/AI quick entry status/)
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(3000);
     });
 
     expect(screen.queryByText("Cà phê 35k")).not.toBeInTheDocument();
+    expect(screen.getByTestId("ai-quick-entry-list")).not.toHaveClass(
+      "max-h-[50svh]"
+    );
 
     fireEvent.click(screen.getByLabelText(/Show completed entries/));
 
     expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-quick-entry-list")).toHaveClass(
+      "max-h-[50svh]"
+    );
   });
 
   it("does not duplicate active resolved rows when completed entries are opened", async () => {

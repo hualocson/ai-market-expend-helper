@@ -206,24 +206,35 @@ const AIQuickEntry = () => {
         className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
       />
 
+      {hasEntries ? (
+        <div
+          data-testid="ai-quick-entry-status-top"
+          className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-10 px-4"
+        >
+          <AIQuickEntryStatusBar
+            totalCount={entries.length}
+            pendingCount={pendingEntries.length}
+            completedCount={completedCount}
+            failedCount={failedCount}
+            completedOpen={completedOpen}
+            onToggleCompleted={() => setCompletedOpen((current) => !current)}
+          />
+        </div>
+      ) : null}
+
       <div
         className="absolute inset-x-0 bottom-0 flex flex-col"
         style={{ paddingBottom: keyboardOffset } as CSSProperties}
       >
-        <div className="no-scrollbar mx-auto flex max-h-[50vh] w-full max-w-[390px] flex-col gap-2.5 overflow-y-auto px-4 pb-2">
-          {hasEntries ? (
-            <AIQuickEntryStatusBar
-              totalCount={entries.length}
-              pendingCount={pendingEntries.length}
-              completedCount={completedCount}
-              failedCount={failedCount}
-              completedOpen={completedOpen}
-              onToggleCompleted={() => setCompletedOpen((current) => !current)}
-            />
-          ) : null}
-
+        <div
+          data-testid="ai-quick-entry-list"
+          className={cn(
+            "no-scrollbar mx-auto flex w-full max-w-[390px] flex-col gap-2.5 overflow-y-auto px-4 pb-2 transition-[max-height] duration-200 ease-out",
+            completedOpen ? "max-h-[50svh]" : "max-h-[36svh]"
+          )}
+        >
           {completedOpen && completedEntries.length > 0 ? (
-            <div className="no-scrollbar max-h-44 space-y-2 overflow-y-auto">
+            <div className="space-y-2">
               {completedEntries.map((entry) => (
                 <AIQuickEntryRow
                   key={entry.id}

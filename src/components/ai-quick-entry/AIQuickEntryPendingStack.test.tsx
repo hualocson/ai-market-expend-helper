@@ -38,7 +38,7 @@ describe("AIQuickEntryPendingStack", () => {
     expect(screen.queryByText(/\+1 parsing/)).toBeNull();
   });
 
-  it("collapses many pending entries to at most three visible stack cards", () => {
+  it("collapses many pending entries to at most three visible stack cards without a hidden count", () => {
     render(
       <AIQuickEntryPendingStack
         pendingEntries={[
@@ -55,7 +55,7 @@ describe("AIQuickEntryPendingStack", () => {
     expect(screen.getByText("Newest")).toBeInTheDocument();
     expect(screen.queryByText("First")).toBeNull();
     expect(screen.getAllByTestId("ai-pending-stack-card")).toHaveLength(3);
-    expect(screen.getByText("+3 parsing")).toBeInTheDocument();
+    expect(screen.queryByText("+3 parsing")).toBeNull();
   });
 
   it("toggles expansion when the collapsed stack is clicked", () => {
