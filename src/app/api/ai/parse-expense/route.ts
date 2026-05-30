@@ -31,6 +31,7 @@ export const POST = async (request: Request) => {
     const result = await parseExpenseWithOpenRouter({
       input: parsedRequest.data.input,
       budgets: parsedRequest.data.budgets,
+      today: parsedRequest.data.today,
       apiKey,
     });
 

@@ -5,13 +5,15 @@ import type {
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "./parse-expense-contract";
-import { PARSE_EXPENSE_MIN_AMOUNT } from "./parse-expense-contract";
+import {
+  PARSE_EXPENSE_DATE_PATTERN,
+  PARSE_EXPENSE_MIN_AMOUNT,
+} from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
 // (src/lib/ai/core/openrouter.ts) if this one is rate-limited or errors.
 const MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
-const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
 
@@ -22,15 +24,21 @@ Rules:
 - Return only one JSON object.
 - Output fields: date, amount, note, budgetId, confidence, reason.
 - date must be DD/MM/YYYY.
+- If the text states or implies a date — including relative dates such as "yesterday", "hôm qua", "thứ 3 tuần trước" — resolve it to DD/MM/YYYY relative to today.
+- If the text mentions no date at all, return date as null. Do not guess a date.
 - amount is Vietnamese dong (VND): a whole number, minimum 1000. Expand shorthand: "35k" = 35000, "1.2tr" = 1200000.
 - note must be a short, natural Vietnamese phrase. Normalize shorthand, e.g. "cf sua da" -> "Cà phê sữa đá".
 - budgetId must be exactly one of the provided budget ids, or null when none plausibly matches. Never invent an id.
 - Match using the budget name first and its category as secondary context. Match Vietnamese with or without diacritics, and common shorthand (cf = coffee, xang = fuel, grab = transport or food).
-- confidence is "high" only when amount, date, note, and a non-null budgetId are all confidently determined; otherwise "medium" or "low".
+- confidence is "high" only when amount, note, and a non-null budgetId are all confidently determined; a missing date does not lower confidence because today is used by default. Otherwise "medium" or "low".
 - reason is a short explanation of the budget match.
 `.trim();
 
-const buildUserContent = (input: string, budgets: ParseExpenseBudget[]) => {
+const buildUserContent = (
+  input: string,
+  budgets: ParseExpenseBudget[],
+  today: string
+) => {
   const budgetLines = budgets.length
     ? budgets
         .map(
@@ -40,7 +48,7 @@ const buildUserContent = (input: string, budgets: ParseExpenseBudget[]) => {
         .join("\n")
     : "(no budgets available)";
 
-  return `Text: ${input}\n\nBudgets:\n${budgetLines}`;
+  return `Today is ${today}.\n\nText: ${input}\n\nBudgets:\n${budgetLines}`;
 };
 
 const extractJsonObject = (value: string) => {
@@ -95,6 +103,7 @@ const buildFallback = (
 type ParseExpenseArgs = {
   input: string;
   budgets: ParseExpenseBudget[];
+  today: string;
   apiKey: string;
   fetchFn?: typeof fetch;
 };
@@ -111,6 +120,7 @@ const isConfidence = (value: unknown): value is ParseExpenseConfidence =>
 export const parseExpenseWithOpenRouter = async ({
   input,
   budgets,
+  today,
   apiKey,
   fetchFn = fetch,
 }: ParseExpenseArgs): Promise<ParseExpenseResponse> => {
@@ -127,7 +137,7 @@ export const parseExpenseWithOpenRouter = async ({
         models: withFallbackModels(MODEL),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: buildUserContent(input, budgets) },
+          { role: "user", content: buildUserContent(input, budgets, today) },
         ],
       }),
     });
@@ -174,7 +184,11 @@ export const parseExpenseWithOpenRouter = async ({
 
   const amount = Number(expense.amount);
   const note = String(expense.note ?? "").trim();
-  const date = String(expense.date ?? "").trim();
+  const rawDate = expense.date;
+  const date =
+    rawDate === null || rawDate === undefined || String(rawDate).trim() === ""
+      ? today
+      : String(rawDate).trim();
   const reason = String(expense.reason ?? "").trim();
   const confidence = expense.confidence;
 
@@ -194,7 +208,7 @@ export const parseExpenseWithOpenRouter = async ({
   }
 
   if (
-    !DATE_PATTERN.test(date) ||
+    !PARSE_EXPENSE_DATE_PATTERN.test(date) ||
     !Number.isFinite(amount) ||
     !Number.isInteger(amount) ||
     amount < PARSE_EXPENSE_MIN_AMOUNT ||

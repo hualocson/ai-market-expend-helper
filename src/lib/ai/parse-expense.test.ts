@@ -36,6 +36,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "cf sua da 35k sang nay",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -71,6 +72,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "sach 50k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -98,6 +100,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "cf 35k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -125,6 +128,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "cf 35",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -152,6 +156,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "cf 35k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -167,6 +172,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "coffee 45k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -184,6 +190,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "Milk 25k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -201,6 +208,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "Bread 20k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -216,6 +224,7 @@ describe("parseExpenseWithOpenRouter", () => {
       parseExpenseWithOpenRouter({
         input: "cf 35k",
         budgets,
+        today: "29/05/2026",
         apiKey: "test-key",
         fetchFn,
       })
@@ -239,6 +248,7 @@ describe("parseExpenseWithOpenRouter", () => {
     await parseExpenseWithOpenRouter({
       input: "cf 35k",
       budgets,
+      today: "29/05/2026",
       apiKey: "test-key",
       fetchFn,
     });
@@ -248,5 +258,60 @@ describe("parseExpenseWithOpenRouter", () => {
     expect(userMessage).toContain("Cà phê");
     expect(userMessage).toContain(Category.FOOD);
     expect(userMessage).toContain("id 2");
+  });
+
+  it("defaults a null date to today", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createOpenRouterResponse(
+        JSON.stringify({
+          date: null,
+          amount: 35000,
+          note: "Cà phê sữa đá",
+          budgetId: 2,
+          confidence: "high",
+          reason: "Matched coffee.",
+        })
+      )
+    );
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "cf sua da 35k",
+        budgets,
+        today: "30/05/2026",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "success",
+      expense: { date: "30/05/2026", confidence: "high" },
+    });
+  });
+
+  it("injects today into the prompt for relative date resolution", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createOpenRouterResponse(
+        JSON.stringify({
+          date: "29/05/2026",
+          amount: 35000,
+          note: "Cà phê",
+          budgetId: 2,
+          confidence: "high",
+          reason: "ok",
+        })
+      )
+    );
+
+    await parseExpenseWithOpenRouter({
+      input: "cf hom qua 35k",
+      budgets,
+      today: "30/05/2026",
+      apiKey: "test-key",
+      fetchFn,
+    });
+
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const userMessage = body.messages[1].content as string;
+    expect(userMessage).toContain("Today is 30/05/2026");
   });
 });

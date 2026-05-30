@@ -92,6 +92,7 @@ describe("POST /api/ai/parse-expense", () => {
         method: "POST",
         body: JSON.stringify({
           input: "cf 35k",
+          today: "29/05/2026",
           budgets: [{ id: 2, name: "Cà phê", category: "Food" }],
         }),
       })
@@ -104,6 +105,7 @@ describe("POST /api/ai/parse-expense", () => {
     });
     expect(parseExpenseWithOpenRouter).toHaveBeenCalledWith({
       input: "cf 35k",
+      today: "29/05/2026",
       budgets: [{ id: 2, name: "Cà phê", category: "Food" }],
       apiKey: "test-key",
     });
@@ -117,6 +119,7 @@ describe("POST /api/ai/parse-expense", () => {
         method: "POST",
         body: JSON.stringify({
           input: "cf 35k",
+          today: "29/05/2026",
           budgets: [{ id: 2, name: "Cà phê", category: "Travel" }],
         }),
       })
@@ -146,7 +149,7 @@ describe("POST /api/ai/parse-expense", () => {
     const response = await POST(
       new Request("http://localhost/api/ai/parse-expense", {
         method: "POST",
-        body: JSON.stringify({ input: "Taxi 85k" }),
+        body: JSON.stringify({ input: "Taxi 85k", today: "29/05/2026" }),
       })
     );
 
@@ -161,7 +164,10 @@ describe("POST /api/ai/parse-expense", () => {
     const response = await POST(
       new Request("http://localhost/api/ai/parse-expense", {
         method: "POST",
-        body: JSON.stringify({ input: "Lunch 120k today" }),
+        body: JSON.stringify({
+          input: "Lunch 120k today",
+          today: "29/05/2026",
+        }),
       })
     );
 
@@ -184,7 +190,10 @@ describe("POST /api/ai/parse-expense", () => {
     const response = await POST(
       new Request("http://localhost/api/ai/parse-expense", {
         method: "POST",
-        body: JSON.stringify({ input: "Lunch 120k today" }),
+        body: JSON.stringify({
+          input: "Lunch 120k today",
+          today: "29/05/2026",
+        }),
       })
     );
 
