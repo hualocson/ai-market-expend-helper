@@ -1,18 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
-import {
-  Check,
-  ChevronDown,
-  LoaderCircle,
-  Sparkles,
-  TriangleAlert,
-} from "lucide-react";
+import { Check, ChevronDown, LoaderCircle, TriangleAlert } from "lucide-react";
 
 type AIQuickEntryStatusBarProps = {
-  totalCount: number;
   pendingCount: number;
   completedCount: number;
   failedCount: number;
@@ -20,17 +13,18 @@ type AIQuickEntryStatusBarProps = {
   onToggleCompleted: () => void;
 };
 
-const pluralize = (count: number, singular: string, plural = `${singular}s`) =>
-  `${count} ${count === 1 ? singular : plural}`;
+const animationVars = {
+  "--resize-dur": "300ms",
+  "--resize-ease": "cubic-bezier(0.22, 1, 0.36, 1)",
+} as CSSProperties;
 
 const buildAccessibleLabel = ({
-  totalCount,
   pendingCount,
   completedCount,
   failedCount,
   completedOpen,
 }: AIQuickEntryStatusBarProps) => {
-  const parts = [`${pluralize(totalCount, "entry", "entries")}`];
+  const parts = [];
 
   if (pendingCount > 0) {
     parts.push(`${pendingCount} parsing`);
@@ -75,15 +69,10 @@ const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
   const {
     completedOpen,
     onToggleCompleted,
-    totalCount,
     pendingCount,
     completedCount,
     failedCount,
   } = props;
-
-  if (totalCount <= 0) {
-    return null;
-  }
 
   return (
     <button
@@ -92,14 +81,14 @@ const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
       aria-label={buildAccessibleLabel(props)}
       onClick={onToggleCompleted}
       onPointerDown={(event) => event.preventDefault()}
-      className="glass-border ds-glass mx-auto flex h-9 max-w-[320px] items-center justify-center gap-1.5 rounded-full bg-black/85 px-4 text-xs font-semibold text-white"
+      className="glass-border ds-glass mx-auto flex h-9 max-w-[320px] min-w-[150px] items-center justify-center gap-1.5 rounded-full bg-black/85 px-4 text-xs font-semibold text-white"
+      style={{
+        ...animationVars,
+        transition: "width var(--resize-dur) var(--resize-ease)",
+        willChange: "width",
+      }}
     >
       <span className="flex items-center gap-2.5">
-        <StatusCount
-          icon={Sparkles}
-          count={totalCount}
-          testId="ai-status-total-count"
-        />
         {pendingCount > 0 ? (
           <StatusCount
             icon={LoaderCircle}

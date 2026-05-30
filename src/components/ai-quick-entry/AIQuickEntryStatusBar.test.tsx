@@ -6,10 +6,9 @@ import { describe, expect, it, vi } from "vitest";
 import AIQuickEntryStatusBar from "./AIQuickEntryStatusBar";
 
 describe("AIQuickEntryStatusBar", () => {
-  it("renders total, pending, and completed counts", () => {
+  it("renders pending and completed counts without total count text", () => {
     render(
       <AIQuickEntryStatusBar
-        totalCount={7}
         pendingCount={2}
         completedCount={5}
         failedCount={0}
@@ -18,7 +17,9 @@ describe("AIQuickEntryStatusBar", () => {
       />
     );
 
-    expect(screen.getByTestId("ai-status-total-count")).toHaveTextContent("7");
+    expect(
+      screen.queryByTestId("ai-status-total-count")
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("ai-status-pending-count")).toHaveTextContent(
       "2"
     );
@@ -30,14 +31,13 @@ describe("AIQuickEntryStatusBar", () => {
       /entries|parsing|done/
     );
     expect(screen.getByRole("button")).toHaveAccessibleName(
-      "AI quick entry status: 7 entries, 2 parsing, 5 completed. Show completed entries."
+      "AI quick entry status: 2 parsing, 5 completed. Show completed entries."
     );
   });
 
   it("renders failed count when present", () => {
     render(
       <AIQuickEntryStatusBar
-        totalCount={3}
         pendingCount={0}
         completedCount={2}
         failedCount={1}
@@ -46,7 +46,9 @@ describe("AIQuickEntryStatusBar", () => {
       />
     );
 
-    expect(screen.getByTestId("ai-status-total-count")).toHaveTextContent("3");
+    expect(
+      screen.queryByTestId("ai-status-total-count")
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("ai-status-pending-count")
     ).not.toBeInTheDocument();
@@ -59,14 +61,13 @@ describe("AIQuickEntryStatusBar", () => {
       /entries|done|failed/
     );
     expect(screen.getByRole("button")).toHaveAccessibleName(
-      "AI quick entry status: 3 entries, 2 completed, 1 failed. Hide completed entries."
+      "AI quick entry status: 2 completed, 1 failed. Hide completed entries."
     );
   });
 
   it("renders as a compact dark island", () => {
     render(
       <AIQuickEntryStatusBar
-        totalCount={2}
         pendingCount={1}
         completedCount={1}
         failedCount={0}
@@ -79,6 +80,7 @@ describe("AIQuickEntryStatusBar", () => {
       "glass-border",
       "ds-glass",
       "bg-black/85",
+      "min-w-[150px]",
       "text-white"
     );
   });
@@ -88,7 +90,6 @@ describe("AIQuickEntryStatusBar", () => {
 
     render(
       <AIQuickEntryStatusBar
-        totalCount={1}
         pendingCount={1}
         completedCount={0}
         failedCount={0}
