@@ -29,7 +29,7 @@ import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 const HIDDEN_PATHS = ["/ai"];
 
-const RESOLVE_DELAY_MS = 1200;
+const RESOLVE_DELAY_MS = 2500;
 const RESOLVED_VISIBLE_MS = 3000;
 
 const createEntryId = () =>

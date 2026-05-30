@@ -76,7 +76,7 @@ const typeAndSend = (text: string) => {
 
 const advanceParse = async () => {
   await act(async () => {
-    vi.advanceTimersByTime(1300);
+    vi.advanceTimersByTime(2600);
   });
 };
 
@@ -124,6 +124,32 @@ describe("AIQuickEntry", () => {
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
     expect(screen.queryByText(/\+1 parsing/)).not.toBeInTheDocument();
+  });
+
+  it("keeps mock entries pending for longer before resolving", async () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k");
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1300);
+    });
+
+    expect(mockParseExpense).not.toHaveBeenCalled();
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("ai-quick-entry-amount-skeleton")
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1200);
+    });
+
+    expect(mockParseExpense).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("35.000")).toBeInTheDocument();
   });
 
   it("collapses multiple pending entries and expands them on stack tap", () => {
@@ -225,7 +251,7 @@ describe("AIQuickEntry", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(1300);
+      vi.advanceTimersByTime(2600);
     });
 
     expect(mockParseExpense).not.toHaveBeenCalled();
