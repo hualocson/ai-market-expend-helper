@@ -1,3 +1,4 @@
+import { withFallbackModels } from "./core/openrouter";
 import type {
   ParseExpenseBudget,
   ParseExpenseConfidence,
@@ -7,7 +8,8 @@ import type {
 import { PARSE_EXPENSE_MIN_AMOUNT } from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-// Keep this aligned with the suggest-budget model (src/lib/ai/suggest-budget.ts).
+// Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
+// (src/lib/ai/core/openrouter.ts) if this one is rate-limited or errors.
 const MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
 const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
@@ -122,7 +124,7 @@ export const parseExpenseWithOpenRouter = async ({
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: MODEL,
+        models: withFallbackModels(MODEL),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: buildUserContent(input, budgets) },
