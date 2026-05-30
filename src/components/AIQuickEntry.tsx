@@ -150,12 +150,7 @@ const AIQuickEntry = () => {
       >
         <div className="no-scrollbar mx-auto flex max-h-[50vh] w-full max-w-[390px] flex-col gap-2.5 overflow-y-auto px-4 pb-2">
           {entries.map((entry) => (
-            <div key={entry.id} className="space-y-2.5">
-              <div className="flex justify-end">
-                <span className="bg-primary text-primary-foreground max-w-[82%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm font-medium">
-                  {entry.input}
-                </span>
-              </div>
+            <div key={entry.id}>
               {entry.status === "resolved" && entry.result ? (
                 <ExpenseListItem
                   expense={entry.result}
@@ -163,7 +158,7 @@ const AIQuickEntry = () => {
                   className="bg-surface-2/95"
                 />
               ) : (
-                <AIEntrySkeleton />
+                <AIEntrySkeleton input={entry.input} />
               )}
             </div>
           ))}
@@ -192,8 +187,7 @@ const AIQuickEntry = () => {
               disabled={!canSend}
               onPointerDown={(event) => event.preventDefault()}
               className={cn(
-                "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
-                !canSend && "opacity-40"
+                "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity"
               )}
             >
               <ArrowUp className="size-4" />

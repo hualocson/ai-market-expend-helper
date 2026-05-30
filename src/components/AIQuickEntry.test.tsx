@@ -43,7 +43,9 @@ vi.mock("@/components/ExpenseListItem", () => ({
 }));
 
 vi.mock("@/components/AIEntrySkeleton", () => ({
-  default: () => <div data-ai-entry-skeleton />,
+  default: ({ input }: { input: string }) => (
+    <div data-ai-entry-skeleton>{input}</div>
+  ),
 }));
 
 beforeEach(() => {
@@ -119,6 +121,10 @@ describe("AIQuickEntry", () => {
     expect(
       document.querySelector("[data-ai-entry-skeleton]")
     ).toBeInTheDocument();
+    expect(
+      document.querySelector("[data-ai-entry-skeleton]")
+    ).toHaveTextContent("Cà phê 35k");
+    expect(screen.getAllByText("Cà phê 35k")).toHaveLength(1);
 
     await act(async () => {
       vi.advanceTimersByTime(1300);
