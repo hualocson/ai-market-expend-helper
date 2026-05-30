@@ -1,5 +1,6 @@
 import type {
   ParseExpenseBudget,
+  ParseExpenseConfidence,
   ParseExpenseFallbackResponse,
   ParseExpenseResponse,
 } from "./parse-expense-contract";
@@ -95,8 +96,14 @@ type ParseExpenseArgs = {
   fetchFn?: typeof fetch;
 };
 
-const isConfidence = (value: unknown): value is "high" | "medium" | "low" =>
-  value === "high" || value === "medium" || value === "low";
+const CONFIDENCE_VALUES: ReadonlyArray<ParseExpenseConfidence> = [
+  "high",
+  "medium",
+  "low",
+];
+
+const isConfidence = (value: unknown): value is ParseExpenseConfidence =>
+  CONFIDENCE_VALUES.includes(value as ParseExpenseConfidence);
 
 export const parseExpenseWithOpenRouter = async ({
   input,
@@ -173,12 +180,14 @@ export const parseExpenseWithOpenRouter = async ({
   const rawBudgetId = expense.budgetId;
   if (rawBudgetId === null || rawBudgetId === undefined) {
     budgetId = null;
+  } else if (
+    typeof rawBudgetId !== "number" ||
+    !Number.isInteger(rawBudgetId) ||
+    !allowedIds.has(rawBudgetId)
+  ) {
+    return buildFallback(input, "schema_mismatch");
   } else {
-    const numericId = Number(rawBudgetId);
-    if (!Number.isInteger(numericId) || !allowedIds.has(numericId)) {
-      return buildFallback(input, "schema_mismatch");
-    }
-    budgetId = numericId;
+    budgetId = rawBudgetId;
   }
 
   if (

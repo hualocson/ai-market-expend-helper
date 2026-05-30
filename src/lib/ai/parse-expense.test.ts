@@ -207,6 +207,21 @@ describe("parseExpenseWithOpenRouter", () => {
     ).resolves.toMatchObject({ status: "fallback", reason: "empty_response" });
   });
 
+  it("returns request_failed when the upstream returns a non-OK status", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(createOpenRouterResponse("", false));
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "cf 35k",
+        budgets,
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({ status: "fallback", reason: "request_failed" });
+  });
+
   it("sends budget name and category context in the prompt", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       createOpenRouterResponse(
