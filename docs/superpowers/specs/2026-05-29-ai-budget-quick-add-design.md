@@ -2,7 +2,7 @@
 
 Date: 2026-05-29
 Last revised: 2026-05-30
-Status: Reviewed — ready for planning
+Status: Implemented
 
 ## Goal
 
@@ -168,6 +168,11 @@ they conflict.
    suggestion does not override it. When the prefilled `budgetId` is `null`, leave
    the source `"none"` so the drawer may still suggest. A manual budget change sets
    the source `"manual"` and locks it.
+
+   Implementation note: this suppression is realized with a dedicated
+   budget-selection source value `"ai-prefill"` in `QuickExpenseDrawer` (locked
+   against note-blur re-suggestion like `"manual"`), while the drawer's own
+   in-drawer suggestion keeps using `"ai"` and stays re-suggestable.
 
 ## Flow
 
