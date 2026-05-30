@@ -46,6 +46,26 @@ describe("AIQuickEntryStatusBar", () => {
     );
   });
 
+  it("renders as a compact dark island", () => {
+    render(
+      <AIQuickEntryStatusBar
+        totalCount={2}
+        pendingCount={1}
+        completedCount={1}
+        failedCount={0}
+        completedOpen={false}
+        onToggleCompleted={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button")).toHaveClass(
+      "glass-border-b",
+      "bg-black/90",
+      "text-white",
+      "shadow-[0_14px_36px_color-mix(in_srgb,#000000_70%,transparent)]"
+    );
+  });
+
   it("calls onToggleCompleted when clicked", () => {
     const onToggleCompleted = vi.fn();
 

@@ -86,7 +86,7 @@ const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
       aria-label={buildAccessibleLabel(props)}
       onClick={onToggleCompleted}
       onPointerDown={(event) => event.preventDefault()}
-      className="text-muted-foreground mx-auto flex h-8 max-w-[390px] items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium"
+      className="glass-border-b mx-auto flex h-9 max-w-[320px] items-center justify-center gap-1.5 rounded-full bg-black/90 px-4 text-xs font-semibold text-white shadow-[0_14px_36px_color-mix(in_srgb,#000000_70%,transparent)]"
     >
       <span>
         {buildVisibleLabel({
