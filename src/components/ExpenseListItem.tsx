@@ -35,6 +35,7 @@ export type ExpenseListItemData = {
 type ExpenseListItemProps = {
   expense: ExpenseListItemData;
   onEditExpense: (expense: ExpenseListItemData) => void;
+  className?: string;
 };
 
 const EXPENSE_SYNC_DOT_LABEL: Record<
@@ -117,7 +118,11 @@ const BudgetName = ({ name }: { name: string }) => (
   </span>
 );
 
-const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
+const ExpenseListItem = ({
+  expense,
+  onEditExpense,
+  className = "",
+}: ExpenseListItemProps) => {
   const formattedAmount = useMemo(
     () => formatVnd(expense.amount),
     [expense.amount]
@@ -151,7 +156,10 @@ const ExpenseListItem = ({ expense, onEditExpense }: ExpenseListItemProps) => {
 
   return (
     <div
-      className="bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
+      className={cn(
+        "bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]",
+        className
+      )}
       data-expense-list-item
     >
       <div

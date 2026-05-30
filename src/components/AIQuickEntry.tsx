@@ -55,6 +55,10 @@ const AIQuickEntry = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  const hidden = HIDDEN_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+
   useEffect(() => {
     if (open) {
       setEntries([]);
@@ -62,15 +66,19 @@ const AIQuickEntry = () => {
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open || hidden) {
+      return;
+    }
+
+    inputRef.current?.focus({ preventScroll: true });
+  }, [hidden, open]);
+
   useEffect(
     () => () => {
       timersRef.current.forEach((timer) => clearTimeout(timer));
     },
     []
-  );
-
-  const hidden = HIDDEN_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 
   if (hidden || !open) {
@@ -152,6 +160,7 @@ const AIQuickEntry = () => {
                 <ExpenseListItem
                   expense={entry.result}
                   onEditExpense={() => {}}
+                  className="bg-surface-2/95"
                 />
               ) : (
                 <AIEntrySkeleton />
@@ -160,35 +169,37 @@ const AIQuickEntry = () => {
           ))}
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="ds-glass border-border/80 mx-auto mb-2 flex w-full max-w-[390px] items-center gap-2 rounded-[28px] border p-1.5 pl-4"
-        >
-          <label htmlFor={inputId} className="sr-only">
-            Describe your expense
-          </label>
-          <input
-            id={inputId}
-            ref={inputRef}
-            value={composer}
-            onChange={(event) => setComposer(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Cà phê 35k sáng nay"
-            className="text-foreground placeholder:text-muted-foreground/70 flex-1 border-0 bg-transparent text-base outline-none"
-          />
-          <button
-            type="submit"
-            aria-label="Send expense"
-            disabled={!canSend}
-            onPointerDown={(event) => event.preventDefault()}
-            className={cn(
-              "bg-primary text-primary-foreground grid size-10 shrink-0 place-items-center rounded-full transition-opacity",
-              !canSend && "opacity-40"
-            )}
+        <div className="px-4">
+          <form
+            onSubmit={handleSubmit}
+            className="ds-glass mx-auto mb-2 flex w-full max-w-[390px] items-center gap-2 rounded-[28px] p-1.5 pl-4"
           >
-            <ArrowUp className="size-4" />
-          </button>
-        </form>
+            <label htmlFor={inputId} className="sr-only">
+              Describe your expense
+            </label>
+            <input
+              id={inputId}
+              ref={inputRef}
+              value={composer}
+              onChange={(event) => setComposer(event.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Cà phê 35k sáng nay"
+              className="text-foreground placeholder:text-muted-foreground/70 flex-1 border-0 bg-transparent text-base outline-none"
+            />
+            <button
+              type="submit"
+              aria-label="Send expense"
+              disabled={!canSend}
+              onPointerDown={(event) => event.preventDefault()}
+              className={cn(
+                "bg-primary text-primary-foreground grid size-10 shrink-0 place-items-center rounded-full transition-opacity",
+                !canSend && "opacity-40"
+              )}
+            >
+              <ArrowUp className="size-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

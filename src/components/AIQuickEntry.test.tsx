@@ -82,6 +82,22 @@ describe("AIQuickEntry", () => {
     expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
   });
 
+  it("focuses the composer without scrolling when opened", () => {
+    const focusSpy = vi
+      .spyOn(HTMLInputElement.prototype, "focus")
+      .mockImplementation(() => {});
+
+    render(<AIQuickEntry />);
+    act(() => {
+      useAIQuickEntryStore.getState().setOpen(true);
+    });
+
+    expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+
+    focusSpy.mockRestore();
+  });
+
   it("disables send for empty input", () => {
     render(<AIQuickEntry />);
     act(() => {

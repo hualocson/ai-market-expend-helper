@@ -3,7 +3,7 @@ import React from "react";
 const AIEntrySkeleton = () => (
   <div
     data-ai-entry-skeleton
-    className="bg-surface-2/65 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
+    className="bg-surface-2/95 relative isolate overflow-hidden rounded-[22px] px-3 py-3 shadow-[0_14px_30px_color-mix(in_srgb,var(--background)_52%,transparent)]"
   >
     <div className="flex items-center gap-4">
       <span className="bg-muted size-12 shrink-0 animate-pulse rounded-full" />
