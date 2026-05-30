@@ -697,32 +697,42 @@ git commit -m "feat(ai-quick-entry): add inline overlay with mock parse flow"
 
 - [ ] **Step 1: Write the failing test (extend existing file)**
 
-Add this block inside the existing `describe("BottomNav", ...)` in `src/components/BottomNav.test.tsx`. Also add the import at the top of the file (below the existing `import BottomNav from "./BottomNav";`):
+Add this import at the top of `src/components/BottomNav.test.tsx`, below the existing `import BottomNav from "./BottomNav";` (note: `useAIQuickEntryStore` is a real module-level store — do NOT mock it):
 
 ```tsx
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 ```
 
-New tests:
+Add this line at the end of the existing `beforeEach` (so AI-store state never leaks between tests):
 
 ```tsx
-  it("opens AI quick entry when the AI button is tapped", () => {
+  useAIQuickEntryStore.getState().setOpen(false);
+```
+
+Then add these two tests inside the existing `describe("BottomNav", ...)` block. The suite uses `userEvent` (set up per-test) and the `QuickExpenseDrawer` mock renders a button labeled "Add expense", so the position check references that label:
+
+```tsx
+  it("opens AI quick entry when the AI button is tapped", async () => {
+    const user = userEvent.setup();
+
     render(<BottomNav />);
 
-    fireEvent.click(screen.getByLabelText("Open AI quick entry"));
-    expect(useAIQuickEntryStore.getState().open).toBe(true);
+    await user.click(screen.getByRole("button", { name: /open ai quick entry/i }));
 
-    useAIQuickEntryStore.getState().setOpen(false);
+    expect(useAIQuickEntryStore.getState().open).toBe(true);
+    expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
   });
 
   it("renders the AI button before the Add button", () => {
     render(<BottomNav />);
 
-    const aiButton = screen.getByLabelText("Open AI quick entry");
-    const addTrigger = screen.getByTestId("quick-expense-trigger");
+    const aiButton = screen.getByRole("button", {
+      name: /open ai quick entry/i,
+    });
+    const addButton = screen.getByRole("button", { name: /add expense/i });
 
     expect(
-      aiButton.compareDocumentPosition(addTrigger) &
+      aiButton.compareDocumentPosition(addButton) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
@@ -731,7 +741,7 @@ New tests:
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `bunx vitest run src/components/BottomNav.test.tsx`
-Expected: FAIL — `Unable to find a label "Open AI quick entry"`.
+Expected: FAIL — `Unable to find an accessible element with the role "button" and name /open ai quick entry/i`.
 
 - [ ] **Step 3: Implement the change**
 
