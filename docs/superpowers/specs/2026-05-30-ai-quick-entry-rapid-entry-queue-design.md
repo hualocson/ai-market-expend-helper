@@ -16,9 +16,9 @@ There are two important interaction rules:
    `3s`, then hides from the active queue. The user can view completed entries
    by tapping the status bar.
 2. **Pending rows collapse into a Sonner-style stack.** If the user submits
-   faster than parsing resolves, pending entries do not render as a long list.
-   They group into a compact stacked presentation with the newest pending entry
-   in front and a count for the older pending entries behind it.
+   faster than parsing resolves, pending entries do not render as a long list by
+   default. They group into a compact stacked presentation with a maximum of
+   three visible stacked cards. Tapping the stack expands it into a pending list.
 
 Every visible entry row remains one line:
 
@@ -36,6 +36,7 @@ flows are out of scope.
 - Support fast entry of many expenses without the overlay growing vertically.
 - Keep the composer fixed above the keyboard and focused after every send.
 - Show pending work without listing every pending item at full height.
+- Let users tap the pending stack when they need to inspect every pending entry.
 - Confirm each resolved entry briefly, then clear it from the active queue.
 - Let users view completed session entries by tapping the status bar.
 - Keep each visible entry to one compact row.
@@ -79,7 +80,7 @@ The overlay behaves like a short-lived work queue with a tappable session status
 │  ◉ Cà phê sáng nay    -35k   │  <- resolved, visible for 3s
 │                             │
 │  ┌───────────────────────┐   │
-│  │ … Bánh mì 25k    --   │   │  <- newest pending row
+│  │ … Bánh mì 25k    --   │   │  <- pending stack, tap expands
 │  └───────────────────────┘   │
 │    +1 parsing                │  <- collapsed stack count
 │                             │
@@ -96,17 +97,20 @@ User flow:
 5. Composer clears and remains focused.
 6. User can immediately type another expense.
 7. Each pending entry resolves independently.
-8. When an entry resolves, its one-line resolved row appears for `3s`.
-9. After `3s`, the resolved row hides from the active queue.
-10. User taps the status bar to view completed session rows.
-11. Closing the overlay discards the local session.
+8. If multiple entries are pending, the stack stays collapsed by default and
+   shows at most three stacked compact cards.
+9. User can tap the pending stack to expand it into a one-line pending list.
+10. When an entry resolves, its one-line resolved row appears for `3s`.
+11. After `3s`, the resolved row hides from the active queue.
+12. User taps the status bar to view completed session rows.
+13. Closing the overlay discards the local session.
 
 ## Layout
 
 The overlay has three zones:
 
 1. **Status bar:** tappable session summary.
-2. **Active queue:** transient resolved rows plus collapsed pending stack.
+2. **Active queue:** transient resolved rows plus the pending stack.
 3. **Composer:** fixed input and send button above the keyboard.
 
 ### Status Bar
@@ -156,7 +160,7 @@ Purpose: show what is currently happening right now.
 Contents:
 
 - Recently resolved rows that are still within their `3s` visibility window.
-- Collapsed pending stack if there are pending entries.
+- Pending stack if there are pending entries.
 - Failed row if a future parser failure occurs and needs attention.
 
 Rules:
@@ -272,20 +276,26 @@ Details:
 - Still one line.
 - Detailed error handling is deferred to real parser integration.
 
-## Collapsed Pending Stack
+## Pending Stack
 
-When more than one entry is pending, display pending rows as a collapsed stack
-similar to Sonner toasts.
+When more than one entry is pending, display pending rows as a Sonner-style
+stack by default. The stack can expand into a pending list when the user taps
+it.
 
 ### Stack Rules
 
-- The newest pending entry is the front row.
-- Older pending entries appear as offset layers behind the front row.
-- Show at most three visual layers.
+- The newest pending entry is the front card in collapsed state.
+- Collapsed state shows at most three stacked compact cards.
+- The front card is fully readable.
+- The second and third cards are visually offset behind the front card; they can
+  show partial surfaces / clipped content but must not require reading to
+  understand the stack.
 - Show a compact count for hidden pending entries, for example `+3 parsing`.
 - Keep total stack height bounded; it should not grow linearly with pending
   count.
 - Pending entries still resolve independently in the background.
+- Tapping the stack expands it into a list of all pending entries.
+- Tapping the expanded stack header/front area collapses it again.
 
 ### Stack States
 
@@ -298,20 +308,44 @@ One pending entry:
 Two pending entries:
 
 ```txt
-[pulse]  Bánh mì 25k                              --
-  +1 parsing
+┌────────────────────────────────────────┐
+│ [pulse]  Bánh mì 25k              --   │
+└────────────────────────────────────────┘
+  [back card: 1 older pending]
 ```
 
 Many pending entries:
 
 ```txt
-[pulse]  Cơm trưa 60k                             --
+┌────────────────────────────────────────┐
+│ [pulse]  Cơm trưa 60k             --   │
+└────────────────────────────────────────┘
+  [back card]
+    [back card]
   +4 parsing
 ```
 
-The stack is collapsed by default. This phase does not need an expanded pending
-stack view because the user's main task is continuing to type. The status bar
-already provides session-level access once entries resolve.
+Collapsed state is the default. It keeps rapid entry fast and prevents the
+overlay from becoming a tall pending list.
+
+### Expanded Pending List
+
+Tapping the collapsed pending stack expands it into a list of all pending
+entries.
+
+Rules:
+
+- Expanded list rows are still one-line `AIQuickEntryRow` pending rows.
+- Order newest first.
+- The list is capped in height and scrollable if needed.
+- Expanded pending list appears in the active queue area, above the composer.
+- It does not show resolved entries; completed/resolved entries remain behind
+  the status bar.
+- The expanded list should preserve composer focus where practical. Use
+  `onPointerDown={(event) => event.preventDefault()}` on the stack toggle if
+  needed for iOS keyboard stability.
+- If all pending entries resolve while the list is expanded, the expanded list
+  closes automatically.
 
 ### Pending Resolution From Stack
 
@@ -321,6 +355,8 @@ When any pending entry resolves:
 - Show the resolved row in the active queue for `3s`.
 - If the resolved entry was not the front pending row, the front row remains the
   newest still-pending entry.
+- If the expanded pending list is open, remove only the resolved row from the
+  list and keep the list open while there are still pending entries.
 - Update status bar counts.
 
 ## Interaction
@@ -334,7 +370,7 @@ When any pending entry resolves:
 5. Trigger medium haptic feedback.
 6. Keep focus in the composer.
 7. Start the mock parse timer.
-8. Render/update the collapsed pending stack.
+8. Render/update the pending stack.
 
 ### Resolve
 
@@ -355,6 +391,16 @@ Tapping the status bar toggles completed session view:
 The composer should remain focused if possible. If opening the completed view
 causes scroll or focus changes on iOS, preserving a stable layout matters more
 than maintaining focus.
+
+### Pending Stack Tap
+
+Tapping the pending stack toggles pending list expansion:
+
+- Collapsed: shows up to three stacked compact cards.
+- Expanded: shows all pending entries as a one-line list.
+
+The toggle should not open a full expense card. It only changes how pending
+entries are displayed.
 
 ### Row Tap
 
@@ -382,13 +428,15 @@ Responsibilities:
 - Own mock parse timers.
 - Own resolved visibility timers.
 - Own completed-view open/closed state.
-- Render status bar, completed view, active queue, collapsed pending stack, and
+- Own pending-stack collapsed/expanded state.
+- Render status bar, completed view, active queue, pending stack, and
   composer.
 
 Suggested local state:
 
 ```ts
 const [completedOpen, setCompletedOpen] = useState(false);
+const [pendingStackExpanded, setPendingStackExpanded] = useState(false);
 const [visibleResolvedIds, setVisibleResolvedIds] = useState<Set<string>>(
   () => new Set()
 );
@@ -421,6 +469,8 @@ Derived collections:
 - `completedEntries`: resolved or failed entries retained for status view.
 - `frontPendingEntry`: newest pending entry.
 - `hiddenPendingCount`: `Math.max(0, pendingEntries.length - 1)`.
+- `visibleStackCards`: newest pending entries, capped at three, used for
+  collapsed stack visuals.
 
 ### `AIQuickEntryStatusBar.tsx`
 
@@ -471,16 +521,20 @@ Props:
 ```ts
 type AIQuickEntryPendingStackProps = {
   pendingEntries: QuickEntry[];
+  expanded: boolean;
+  onToggleExpanded: () => void;
 };
 ```
 
 Behavior:
 
 - Renders nothing when there are no pending entries.
-- Renders the newest pending entry as an `AIQuickEntryRow`.
-- Renders one or two decorative backplates when there are older pending entries.
-- Renders `+N parsing` for hidden pending count.
-- Does not expand in this phase.
+- Collapsed: renders up to three stacked compact cards, with the newest pending
+  entry in front.
+- Collapsed: renders `+N parsing` for hidden pending count.
+- Expanded: renders all pending entries as a one-line list, newest first.
+- Uses a button or button-like wrapper for the stack toggle with accessible
+  state.
 
 ### `AIEntrySkeleton.tsx`
 
@@ -499,13 +553,15 @@ flowchart TD
   B --> C["Composer focuses"]
   C --> D["User submits text"]
   D --> E["Append pending entry"]
-  E --> F["PendingStack shows newest pending + count"]
-  F --> G["Mock parse resolves one entry"]
-  G --> H["Remove entry from pending stack"]
-  H --> I["Show resolved row in active queue"]
-  I --> J["3s timer completes"]
-  J --> K["Hide resolved row from active queue"]
-  K --> L["Status bar can reveal completed rows"]
+  E --> F["Pending stack shows collapsed cards"]
+  F --> G["User may tap stack to expand pending list"]
+  F --> H["Mock parse resolves one entry"]
+  G --> H
+  H --> I["Remove entry from pending stack/list"]
+  I --> J["Show resolved row in active queue"]
+  J --> K["3s timer completes"]
+  K --> L["Hide resolved row from active queue"]
+  L --> M["Status bar can reveal completed rows"]
 ```
 
 No server state is introduced. No TanStack Query change is needed.
@@ -513,10 +569,13 @@ No server state is introduced. No TanStack Query change is needed.
 ## Visual Details
 
 - Active queue should feel compact and anchored above the composer.
-- Pending stack should visually borrow from Sonner: front row, subtle backplates,
-  small count text.
-- Backplates are decorative only and should not look like individual readable
-  rows.
+- Pending stack should visually borrow from Sonner: front card, offset stacked
+  cards behind it, small count text.
+- Collapsed stack shows maximum three visible compact cards.
+- Behind cards can be partially clipped/offset; the front card is the primary
+  readable row.
+- Expanded pending list should read as a lightweight list, not a modal or full
+  history surface.
 - Resolved rows should feel like brief confirmations.
 - Completed session view should feel like a lightweight drawer/list, not a full
   history page.
@@ -540,7 +599,10 @@ No server state is introduced. No TanStack Query change is needed.
 - Send button keeps `aria-label="Send expense"`.
 - Status bar is a real button with an accessible label, for example:
   `AI quick entry status: 7 entries, 2 parsing, 5 completed. Show completed entries.`
-- Pending stack exposes the newest pending entry and pending count.
+- Pending stack exposes whether it is collapsed or expanded.
+- Collapsed pending stack exposes the newest pending entry, visible stacked
+  count, and hidden pending count.
+- Expanded pending list exposes each pending entry in order.
 - Resolved rows expose text such as `Parsed expense: Cà phê, 35k`.
 - Hidden resolved rows should not be announced again when they merely move into
   completed view.
@@ -562,13 +624,19 @@ Allowed. Each submission gets its own id.
 
 ### Rapid Submits
 
-Allowed. Pending stack stays collapsed regardless of pending count.
+Allowed. Pending stack stays collapsed by default regardless of pending count.
+The user can tap it to inspect all pending entries.
 
 ### Resolve Order
 
 Entries may resolve out of order. The active resolved row should appear when its
 own parse completes. Pending stack should always show the newest still-pending
 entry.
+
+### Expanded Pending List Resolves To Empty
+
+If the pending list is expanded and the final pending entry resolves, close the
+expanded list automatically.
 
 ### Many Completed Entries
 
@@ -590,8 +658,12 @@ No change. The quick overlay remains hidden on `/ai`.
 - Renders nothing on `/ai`.
 - Submit appends a pending entry and clears composer.
 - One pending entry renders as one pending row.
-- Multiple pending entries render as a collapsed stack, not multiple rows.
-- Pending stack shows newest pending entry and hidden pending count.
+- Multiple pending entries render as a collapsed stack by default.
+- Collapsed pending stack shows at most three stacked compact cards.
+- Collapsed pending stack shows newest pending entry and hidden pending count.
+- Tapping pending stack expands all pending entries as a list.
+- Tapping expanded pending stack collapses it again.
+- Expanded pending list closes automatically when all pending entries resolve.
 - Rows resolve independently after timers advance.
 - Resolved row appears in active queue after resolve.
 - Resolved row hides from active queue after `3s`.
@@ -611,9 +683,11 @@ No change. The quick overlay remains hidden on `/ai`.
 
 - Renders nothing with no pending entries.
 - Renders one row with one pending entry.
-- Renders only the newest pending row when multiple entries are pending.
+- Collapsed state renders up to three stacked compact cards.
+- Collapsed state keeps newest pending row as the front card.
 - Renders hidden pending count.
-- Uses decorative backplates for collapsed state.
+- Expanded state renders all pending rows as a list.
+- Toggle exposes expanded/collapsed state accessibly.
 
 ### `AIQuickEntryStatusBar.test.tsx`
 
@@ -630,15 +704,19 @@ No change. The quick overlay remains hidden on `/ai`.
 ## Acceptance Criteria
 
 - User can submit many expenses rapidly without a tall pending list.
-- Multiple pending entries display as a collapsed Sonner-style stack.
-- The stack shows the newest pending entry and a hidden pending count.
+- Multiple pending entries display as a collapsed Sonner-style stack by default.
+- Collapsed stack shows maximum three visible compact cards.
+- The stack shows the newest pending entry and hidden pending count.
+- Tapping the pending stack expands all pending entries as a list.
+- Expanded pending list can collapse back to the stacked state.
 - Each resolved entry appears in the active queue for `3s`.
 - Resolved entries hide after `3s`.
 - Tapping the status bar reveals completed resolved rows.
 - Status bar toggles completed view open and closed.
 - Every row remains one line: icon/status, note/input, amount/status.
 - Composer remains fixed and focused after submit.
-- No chat bubbles, no full cards, and no row expansion are introduced.
+- No chat bubbles, no full cards, and no per-row full-card expansion are
+  introduced.
 - No real API call, mutation, sync, or persistence is introduced.
 - Mobile layout remains coherent on iPhone 13/14 width.
 - Targeted tests, Prettier, and ESLint pass for modified files.
@@ -652,8 +730,10 @@ This revision makes the following design decisions explicit:
 - **Resolved visibility duration:** active resolved rows hide after `3s`.
 - **Status bar as history access:** completed entries are reviewed by tapping the
   status bar.
-- **Collapsed pending stack:** many pending entries use a Sonner-style collapsed
-  stack instead of a list.
+- **Expandable pending stack:** many pending entries use a Sonner-style
+  collapsed stack by default, with up to three visible stacked cards.
+- **Pending list on tap:** tapping the pending stack expands pending entries as a
+  one-line list.
 - **One-line rows only:** no secondary metadata line.
 - **No `ExpenseListItem` in the quick queue:** use dedicated compact row
   components.
