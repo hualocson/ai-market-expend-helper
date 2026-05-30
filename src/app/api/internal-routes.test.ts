@@ -90,6 +90,55 @@ describe("internal budget routes", () => {
     await expect(response.json()).resolves.toEqual(payload);
   });
 
+  it("returns the weekly report when weekStart is provided", async () => {
+    const report = {
+      weekStartDate: "2026-05-04",
+      budgets: [],
+      transactions: [],
+    };
+    mocks.getWeeklyBudgetReport.mockResolvedValue(report);
+
+    const response = await getInternalBudgets(
+      internalRequest(
+        "http://localhost/api/internal/budgets?weekStart=2026-05-04&q=food"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(report);
+    expect(mocks.getWeeklyBudgetReport).toHaveBeenCalledWith(
+      "2026-05-04",
+      "food"
+    );
+    expect(mocks.getBudgetOverview).not.toHaveBeenCalled();
+  });
+
+  it("normalizes a blank q to undefined on the weekly report", async () => {
+    mocks.getWeeklyBudgetReport.mockResolvedValue({});
+
+    await getInternalBudgets(
+      internalRequest(
+        "http://localhost/api/internal/budgets?weekStart=2026-05-04&q=%20%20"
+      )
+    );
+
+    expect(mocks.getWeeklyBudgetReport).toHaveBeenCalledWith(
+      "2026-05-04",
+      undefined
+    );
+  });
+
+  it("falls back to the overview when weekStart is blank", async () => {
+    mocks.getBudgetOverview.mockResolvedValue({ summary: {}, budgets: [] });
+
+    await getInternalBudgets(
+      internalRequest("http://localhost/api/internal/budgets?weekStart=%20")
+    );
+
+    expect(mocks.getBudgetOverview).toHaveBeenCalled();
+    expect(mocks.getWeeklyBudgetReport).not.toHaveBeenCalled();
+  });
+
   it("creates a budget with internal appearance fields", async () => {
     const payload = {
       name: "Groceries",

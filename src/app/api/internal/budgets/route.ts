@@ -21,12 +21,20 @@ export const GET = async (request: Request) => {
   }
 
   const { searchParams } = new URL(request.url);
-  const weekStart = searchParams.get("weekStart");
-  const query = searchParams.get("q");
+  const weekStartParam = searchParams.get("weekStart");
+  const queryParam = searchParams.get("q");
+  const weekStart =
+    typeof weekStartParam === "string" && weekStartParam.trim().length
+      ? weekStartParam
+      : null;
+  const searchQuery =
+    typeof queryParam === "string" && queryParam.trim().length
+      ? queryParam
+      : undefined;
 
   try {
     if (weekStart) {
-      const report = await getWeeklyBudgetReport(weekStart, query ?? undefined);
+      const report = await getWeeklyBudgetReport(weekStart, searchQuery);
       return NextResponse.json(report);
     }
 

@@ -338,15 +338,66 @@ curl -X DELETE "http://localhost:3000/api/internal/transactions/12" \
 
 ### Query params
 
-- `weekStart` (optional): format `YYYY-MM-DD`
-  - when provided, returns weekly report payload
-  - when omitted, returns budget overview payload
-- `q` (optional): search query for weekly transactions (used only when `weekStart` is provided)
+- `weekStart` (optional): format `YYYY-MM-DD`. Blank/whitespace is treated as omitted.
+  - when provided (non-blank), returns the **weekly report** payload for that week
+  - when omitted or blank, returns the **budget overview** payload
+- `q` (optional): full-text search over that week's transactions; used only with `weekStart`. Blank/whitespace is ignored (no filter).
+
+Parity with the public read routes: the overview matches `GET /api/budgets` and the weekly report matches `GET /api/budget-weekly?weekStart=&q=` — same `getBudgetOverview` / `getWeeklyBudgetReport` services and the same `q` normalization. The only intentional difference: the public weekly route defaults a missing `weekStart` to the current week, whereas this combined endpoint returns the overview when `weekStart` is omitted.
 
 ### Responses
 
-- `200`: budget overview object or weekly budget report object
+- `200`: budget overview object (no `weekStart`) or weekly budget report object (with `weekStart`)
 - `400 { "error": "Failed to fetch budgets" }`
+
+Overview payload (no `weekStart`):
+
+```json
+{
+  "summary": {
+    "totalBudget": 2000000,
+    "totalSpent": 650000,
+    "totalRemaining": 1350000,
+    "budgetCount": 1
+  },
+  "budgets": [
+    /* budget items — see shape below */
+  ]
+}
+```
+
+Weekly report payload (with `weekStart`):
+
+```json
+{
+  "weekStartDate": "2026-03-02",
+  "weekEndDate": "2026-03-08",
+  "summary": {
+    "totalBudget": 2000000,
+    "totalSpentAssigned": 650000,
+    "unassignedSpent": 0,
+    "totalRemaining": 1350000
+  },
+  "budgets": [
+    /* budget items — see shape below */
+  ],
+  "transactions": [
+    {
+      "id": 101,
+      "date": "2026-03-07",
+      "note": "Lunch",
+      "amount": 120000,
+      "category": "Food",
+      "budgetId": 12,
+      "budgetName": "Groceries",
+      "budgetIcon": "🛒",
+      "budgetColor": "emerald"
+    }
+  ]
+}
+```
+
+The two summaries differ: the overview uses `totalSpent` + `budgetCount`; the weekly report uses `totalSpentAssigned` + `unassignedSpent` and adds `weekStartDate` / `weekEndDate` / `transactions`.
 
 Budget item shape (computed overview/report item — includes `spent`/`remaining`):
 
