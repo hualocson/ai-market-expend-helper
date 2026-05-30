@@ -288,6 +288,61 @@ describe("parseExpenseWithOpenRouter", () => {
     });
   });
 
+  it("defaults an omitted date to today", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createOpenRouterResponse(
+        JSON.stringify({
+          amount: 35000,
+          note: "Cà phê sữa đá",
+          budgetId: 2,
+          confidence: "high",
+          reason: "Matched coffee.",
+        })
+      )
+    );
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "cf sua da 35k",
+        budgets,
+        today: "30/05/2026",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "success",
+      expense: { date: "30/05/2026" },
+    });
+  });
+
+  it("defaults an empty-string date to today", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      createOpenRouterResponse(
+        JSON.stringify({
+          date: "",
+          amount: 35000,
+          note: "Cà phê sữa đá",
+          budgetId: 2,
+          confidence: "high",
+          reason: "Matched coffee.",
+        })
+      )
+    );
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "cf sua da 35k",
+        budgets,
+        today: "30/05/2026",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "success",
+      expense: { date: "30/05/2026" },
+    });
+  });
+
   it("injects today into the prompt for relative date resolution", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       createOpenRouterResponse(
