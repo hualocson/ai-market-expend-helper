@@ -71,16 +71,18 @@ describe("POST /api/ai/parse-expense", () => {
     });
   });
 
-  it("returns parser success payload for valid input", async () => {
+  it("returns parser success payload and forwards budgets", async () => {
     process.env.OPENROUTER_API_KEY = "test-key";
     const expectedParseResult = {
       status: "success",
-      originalInput: "Lunch 120k today",
+      originalInput: "cf 35k",
       expense: {
-        date: "12/04/2026",
-        amount: 120000,
-        note: "Lunch",
-        category: "Food",
+        date: "29/05/2026",
+        amount: 35000,
+        note: "Cà phê",
+        budgetId: 2,
+        confidence: "high",
+        reason: "Matched coffee.",
       },
     };
     parseExpenseWithOpenRouter.mockResolvedValue(expectedParseResult);
@@ -88,7 +90,10 @@ describe("POST /api/ai/parse-expense", () => {
     const response = await POST(
       new Request("http://localhost/api/ai/parse-expense", {
         method: "POST",
-        body: JSON.stringify({ input: "Lunch 120k today" }),
+        body: JSON.stringify({
+          input: "cf 35k",
+          budgets: [{ id: 2, name: "Cà phê", category: "Food" }],
+        }),
       })
     );
 
@@ -98,8 +103,29 @@ describe("POST /api/ai/parse-expense", () => {
       data: expectedParseResult,
     });
     expect(parseExpenseWithOpenRouter).toHaveBeenCalledWith({
-      input: "Lunch 120k today",
+      input: "cf 35k",
+      budgets: [{ id: 2, name: "Cà phê", category: "Food" }],
       apiKey: "test-key",
+    });
+  });
+
+  it("returns 400 when a budget category is invalid", async () => {
+    process.env.OPENROUTER_API_KEY = "test-key";
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/parse-expense", {
+        method: "POST",
+        body: JSON.stringify({
+          input: "cf 35k",
+          budgets: [{ id: 2, name: "Cà phê", category: "Travel" }],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: { code: "INVALID_PAYLOAD", message: "Invalid payload" },
     });
   });
 
