@@ -18,8 +18,16 @@ describe("AIQuickEntryStatusBar", () => {
       />
     );
 
-    expect(screen.getByRole("button")).toHaveTextContent(
-      "7 entries · 2 parsing · 5 done"
+    expect(screen.getByTestId("ai-status-total-count")).toHaveTextContent("7");
+    expect(screen.getByTestId("ai-status-pending-count")).toHaveTextContent(
+      "2"
+    );
+    expect(screen.getByTestId("ai-status-completed-count")).toHaveTextContent(
+      "5"
+    );
+    expect(screen.getByRole("button")).not.toHaveTextContent("·");
+    expect(screen.getByRole("button")).not.toHaveTextContent(
+      /entries|parsing|done/
     );
     expect(screen.getByRole("button")).toHaveAccessibleName(
       "AI quick entry status: 7 entries, 2 parsing, 5 completed. Show completed entries."
@@ -38,8 +46,17 @@ describe("AIQuickEntryStatusBar", () => {
       />
     );
 
-    expect(screen.getByRole("button")).toHaveTextContent(
-      "3 entries · 2 done · 1 failed"
+    expect(screen.getByTestId("ai-status-total-count")).toHaveTextContent("3");
+    expect(
+      screen.queryByTestId("ai-status-pending-count")
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("ai-status-completed-count")).toHaveTextContent(
+      "2"
+    );
+    expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent("1");
+    expect(screen.getByRole("button")).not.toHaveTextContent("·");
+    expect(screen.getByRole("button")).not.toHaveTextContent(
+      /entries|done|failed/
     );
     expect(screen.getByRole("button")).toHaveAccessibleName(
       "AI quick entry status: 3 entries, 2 completed, 1 failed. Hide completed entries."
