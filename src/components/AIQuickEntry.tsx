@@ -275,7 +275,9 @@ const AIQuickEntry = () => {
               className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
               onPointerDown={(e) => {
                 e.preventDefault();
-                inputRef.current.fo
+                inputRef.current?.focus({
+                  preventScroll: false,
+                });
               }}
             />
             <button
