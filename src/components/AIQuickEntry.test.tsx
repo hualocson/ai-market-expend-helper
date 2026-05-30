@@ -272,7 +272,10 @@ describe("AIQuickEntry", () => {
     openOverlay();
 
     expect(screen.queryByText("first")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/AI quick entry status/)).toBeNull();
+    expect(screen.getByLabelText(/AI quick entry status/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/AI quick entry status/)).toHaveClass(
+      "bg-black/85"
+    );
   });
 
   it("renders nothing on the /ai route", () => {

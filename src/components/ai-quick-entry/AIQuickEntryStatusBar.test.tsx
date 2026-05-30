@@ -9,6 +9,7 @@ describe("AIQuickEntryStatusBar", () => {
   it("renders pending and completed counts without total count text", () => {
     render(
       <AIQuickEntryStatusBar
+        totalCount={7}
         pendingCount={2}
         completedCount={5}
         failedCount={0}
@@ -38,6 +39,7 @@ describe("AIQuickEntryStatusBar", () => {
   it("renders failed count when present", () => {
     render(
       <AIQuickEntryStatusBar
+        totalCount={3}
         pendingCount={0}
         completedCount={2}
         failedCount={1}
@@ -68,6 +70,7 @@ describe("AIQuickEntryStatusBar", () => {
   it("renders as a compact dark island", () => {
     render(
       <AIQuickEntryStatusBar
+        totalCount={2}
         pendingCount={1}
         completedCount={1}
         failedCount={0}
@@ -79,7 +82,7 @@ describe("AIQuickEntryStatusBar", () => {
     expect(screen.getByRole("button")).toHaveClass(
       "glass-border",
       "ds-glass",
-      "bg-black/85",
+      "bg-amber-200/15",
       "min-w-[150px]",
       "text-white"
     );
@@ -90,6 +93,7 @@ describe("AIQuickEntryStatusBar", () => {
 
     render(
       <AIQuickEntryStatusBar
+        totalCount={1}
         pendingCount={1}
         completedCount={0}
         failedCount={0}

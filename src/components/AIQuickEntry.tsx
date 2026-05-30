@@ -191,7 +191,6 @@ const AIQuickEntry = () => {
   };
 
   const canSend = composer.trim().length > 0;
-  const hasEntries = entries.length > 0;
 
   return (
     <div
@@ -206,20 +205,19 @@ const AIQuickEntry = () => {
         className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
       />
 
-      {hasEntries ? (
-        <div
-          data-testid="ai-quick-entry-status-top"
-          className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-10 px-4"
-        >
-          <AIQuickEntryStatusBar
-            pendingCount={pendingEntries.length}
-            completedCount={completedCount}
-            failedCount={failedCount}
-            completedOpen={completedOpen}
-            onToggleCompleted={() => setCompletedOpen((current) => !current)}
-          />
-        </div>
-      ) : null}
+      <div
+        data-testid="ai-quick-entry-status-top"
+        className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-10 px-4"
+      >
+        <AIQuickEntryStatusBar
+          totalCount={entries.length}
+          pendingCount={pendingEntries.length}
+          completedCount={completedCount}
+          failedCount={failedCount}
+          completedOpen={completedOpen}
+          onToggleCompleted={() => setCompletedOpen((current) => !current)}
+        />
+      </div>
 
       <div
         className="absolute inset-x-0 bottom-0 flex flex-col"
@@ -273,12 +271,6 @@ const AIQuickEntry = () => {
               onKeyDown={handleKeyDown}
               placeholder="Cà phê 35k sáng nay"
               className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                inputRef.current?.focus({
-                  preventScroll: false,
-                });
-              }}
             />
             <button
               type="submit"
