@@ -128,6 +128,9 @@ const AIQuickEntry = () => {
   const markEntryForReviewInStore = useAIQuickEntryStore(
     (state) => state.markEntryForReview
   );
+  const clearSavedEntries = useAIQuickEntryStore(
+    (state) => state.clearSavedEntries
+  );
   const [activeDrawerItem, setActiveDrawerItem] =
     useState<ActiveQuickEntryDrawerItem>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -353,6 +356,11 @@ const AIQuickEntry = () => {
     setActiveDrawerItem({ kind: "saved", entryId: entry.id });
   };
 
+  const handleClearSavedEntries = () => {
+    clearSavedEntries();
+    haptics.selection();
+  };
+
   const handleQuickExpenseDrawerOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       return;
@@ -428,6 +436,7 @@ const AIQuickEntry = () => {
               onDone={returnToEntry}
               onSelectSavedEntry={openSavedEntry}
               onSelectReviewEntry={openReviewEntry}
+              onClearSavedEntries={handleClearSavedEntries}
             />
           ) : (
             <div className="relative h-dvh overflow-hidden">

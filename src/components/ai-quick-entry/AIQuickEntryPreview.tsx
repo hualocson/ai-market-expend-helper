@@ -3,7 +3,7 @@
 import React from "react";
 
 import { formatVnd } from "@/lib/utils";
-import { XIcon } from "lucide-react";
+import { Trash2Icon, XIcon } from "lucide-react";
 
 import ProgressiveBlur from "../ProgressiveBlur";
 import AIQuickEntryRow from "./AIQuickEntryRow";
@@ -16,6 +16,7 @@ type AIQuickEntryPreviewProps = {
   onDone: () => void;
   onSelectSavedEntry: (entry: QuickEntry) => void;
   onSelectReviewEntry: (entry: QuickEntry) => void;
+  onClearSavedEntries: () => void;
 };
 
 type PreviewSectionProps = {
@@ -23,6 +24,7 @@ type PreviewSectionProps = {
   entries: QuickEntry[];
   variant: "active" | "saved" | "needsReview";
   onSelectEntry?: (entry: QuickEntry) => void;
+  onClearEntries?: () => void;
 };
 
 const getEntryNote = (entry: QuickEntry) =>
@@ -54,6 +56,7 @@ const PreviewSection = ({
   entries,
   variant,
   onSelectEntry,
+  onClearEntries,
 }: PreviewSectionProps) => {
   if (entries.length === 0) {
     return null;
@@ -61,9 +64,22 @@ const PreviewSection = ({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-muted-foreground px-1 text-[11px] font-bold tracking-[0.12em] uppercase">
-        {title}
-      </h3>
+      <div className="flex min-h-11 items-center justify-between gap-2">
+        <h3 className="text-muted-foreground px-1 text-[11px] font-bold tracking-[0.12em] uppercase">
+          {title}
+        </h3>
+        {variant === "saved" && onClearEntries ? (
+          <button
+            type="button"
+            aria-label="Clear saved AI quick entries"
+            onClick={onClearEntries}
+            onPointerDown={(event) => event.preventDefault()}
+            className="text-muted-foreground hover:text-foreground -mr-2 grid size-11 place-items-center rounded-full transition-[color,transform] active:scale-[0.96]"
+          >
+            <Trash2Icon className="size-4" />
+          </button>
+        ) : null}
+      </div>
       <div className="space-y-2">
         {entries.map((entry) =>
           variant === "active" ? (
@@ -93,6 +109,7 @@ const AIQuickEntryPreview = ({
   onDone,
   onSelectSavedEntry,
   onSelectReviewEntry,
+  onClearSavedEntries,
 }: AIQuickEntryPreviewProps) => {
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-[390px] flex-col px-4 pt-[calc(env(safe-area-inset-top)+18px)] pb-0">
@@ -111,6 +128,7 @@ const AIQuickEntryPreview = ({
           entries={savedEntries}
           variant="saved"
           onSelectEntry={onSelectSavedEntry}
+          onClearEntries={onClearSavedEntries}
         />
         <PreviewSection
           title="Needs review"

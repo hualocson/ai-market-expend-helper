@@ -9,7 +9,34 @@ const createEntryId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const MAX_SAVED_QUICK_ENTRY_PREVIEW_ENTRIES = 9;
+
 type SavedQuickEntryExpense = NonNullable<QuickEntry["savedExpense"]>;
+
+const pruneSavedEntries = (entries: QuickEntry[]) => {
+  const savedEntries = entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => entry.status === "saved");
+
+  if (savedEntries.length <= MAX_SAVED_QUICK_ENTRY_PREVIEW_ENTRIES) {
+    return entries;
+  }
+
+  const keptSavedIds = new Set(
+    savedEntries
+      .sort(
+        (left, right) =>
+          right.entry.createdAt - left.entry.createdAt ||
+          right.index - left.index
+      )
+      .slice(0, MAX_SAVED_QUICK_ENTRY_PREVIEW_ENTRIES)
+      .map(({ entry }) => entry.id)
+  );
+
+  return entries.filter(
+    (entry) => entry.status !== "saved" || keptSavedIds.has(entry.id)
+  );
+};
 
 type AIQuickEntryState = {
   open: boolean;
@@ -27,6 +54,7 @@ type AIQuickEntryState = {
     reviewDraft: TQuickExpenseDrawerInitialExpense,
     errorReason: AIQuickEntryReviewReason
   ) => void;
+  clearSavedEntries: () => void;
   clearEntries: () => void;
 };
 
@@ -98,18 +126,20 @@ export const useAIQuickEntryStore = create<AIQuickEntryState>((set) => ({
         return state;
       }
 
+      const entries = state.entries.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              status: "saved" as const,
+              reviewDraft: undefined,
+              savedExpense,
+              errorReason: undefined,
+            }
+          : entry
+      );
+
       return {
-        entries: state.entries.map((entry) =>
-          entry.id === id
-            ? {
-                ...entry,
-                status: "saved",
-                reviewDraft: undefined,
-                savedExpense,
-                errorReason: undefined,
-              }
-            : entry
-        ),
+        entries: pruneSavedEntries(entries),
       };
     }),
   markEntryForReview: (id, reviewDraft, errorReason) =>
@@ -134,5 +164,9 @@ export const useAIQuickEntryStore = create<AIQuickEntryState>((set) => ({
         ),
       };
     }),
+  clearSavedEntries: () =>
+    set((state) => ({
+      entries: state.entries.filter((entry) => entry.status !== "saved"),
+    })),
   clearEntries: () => set({ entries: [] }),
 }));

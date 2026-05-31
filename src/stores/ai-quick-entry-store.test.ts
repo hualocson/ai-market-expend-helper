@@ -1,5 +1,5 @@
 import { Category, PaidBy } from "@/enums";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAIQuickEntryStore } from "./ai-quick-entry-store";
 
@@ -26,6 +26,7 @@ afterEach(() => {
   const store = useAIQuickEntryStore.getState();
   store.setOpen(false);
   store.clearEntries();
+  vi.restoreAllMocks();
 });
 
 describe("useAIQuickEntryStore", () => {
@@ -89,6 +90,64 @@ describe("useAIQuickEntryStore", () => {
       { id: first.id, status: "saved", savedExpense },
       {
         id: second.id,
+        status: "needsReview",
+        reviewDraft,
+        errorReason: "no_budget_match",
+      },
+    ]);
+  });
+
+  it("keeps only the newest 9 saved entries while preserving active and review entries", () => {
+    const store = useAIQuickEntryStore.getState();
+    const savedIds: string[] = [];
+
+    for (let index = 1; index <= 11; index += 1) {
+      vi.spyOn(Date, "now").mockReturnValueOnce(index);
+      const entry = store.enqueueEntry(`saved ${index}`);
+      store.markEntrySaved(entry.id, {
+        ...savedExpense,
+        id: index,
+        note: `saved ${index}`,
+      });
+      savedIds.push(entry.id);
+    }
+
+    const activeEntry = store.enqueueEntry("still parsing");
+    const reviewEntry = store.enqueueEntry("needs review");
+    store.markEntryForReview(reviewEntry.id, reviewDraft, "no_budget_match");
+
+    const entries = useAIQuickEntryStore.getState().entries;
+    expect(entries.map((entry) => entry.id)).toEqual([
+      ...savedIds.slice(2),
+      activeEntry.id,
+      reviewEntry.id,
+    ]);
+    expect(entries.filter((entry) => entry.status === "saved")).toHaveLength(9);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: activeEntry.id, status: "parsing" }),
+        expect.objectContaining({
+          id: reviewEntry.id,
+          status: "needsReview",
+        }),
+      ])
+    );
+  });
+
+  it("clears saved entries without removing active or review entries", () => {
+    const store = useAIQuickEntryStore.getState();
+    const savedEntry = store.enqueueEntry("saved");
+    const activeEntry = store.enqueueEntry("still parsing");
+    const reviewEntry = store.enqueueEntry("needs review");
+
+    store.markEntrySaved(savedEntry.id, savedExpense);
+    store.markEntryForReview(reviewEntry.id, reviewDraft, "no_budget_match");
+    store.clearSavedEntries();
+
+    expect(useAIQuickEntryStore.getState().entries).toMatchObject([
+      { id: activeEntry.id, status: "parsing" },
+      {
+        id: reviewEntry.id,
         status: "needsReview",
         reviewDraft,
         errorReason: "no_budget_match",

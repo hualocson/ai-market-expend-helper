@@ -63,6 +63,7 @@ describe("AIQuickEntryPreview", () => {
         onDone={() => {}}
         onSelectSavedEntry={() => {}}
         onSelectReviewEntry={() => {}}
+        onClearSavedEntries={() => {}}
       />
     );
 
@@ -98,6 +99,7 @@ describe("AIQuickEntryPreview", () => {
         onDone={() => {}}
         onSelectSavedEntry={() => {}}
         onSelectReviewEntry={() => {}}
+        onClearSavedEntries={() => {}}
       />
     );
 
@@ -117,6 +119,7 @@ describe("AIQuickEntryPreview", () => {
         onDone={onDone}
         onSelectSavedEntry={() => {}}
         onSelectReviewEntry={() => {}}
+        onClearSavedEntries={() => {}}
       />
     );
 
@@ -141,6 +144,7 @@ describe("AIQuickEntryPreview", () => {
         onDone={() => {}}
         onSelectSavedEntry={onSelectSavedEntry}
         onSelectReviewEntry={onSelectReviewEntry}
+        onClearSavedEntries={() => {}}
       />
     );
 
@@ -153,5 +157,27 @@ describe("AIQuickEntryPreview", () => {
 
     expect(onSelectSavedEntry).toHaveBeenCalledWith(savedEntry);
     expect(onSelectReviewEntry).toHaveBeenCalledWith(reviewEntry);
+  });
+
+  it("calls the clear-saved callback from the saved section action", () => {
+    const onClearSavedEntries = vi.fn();
+
+    render(
+      <AIQuickEntryPreview
+        activeEntries={[]}
+        savedEntries={[saved("2", "Cà phê 35k")]}
+        reviewEntries={[]}
+        onDone={() => {}}
+        onSelectSavedEntry={() => {}}
+        onSelectReviewEntry={() => {}}
+        onClearSavedEntries={onClearSavedEntries}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear saved AI quick entries" })
+    );
+
+    expect(onClearSavedEntries).toHaveBeenCalledTimes(1);
   });
 });

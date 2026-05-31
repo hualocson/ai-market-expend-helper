@@ -475,6 +475,58 @@ describe("AIQuickEntry", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears saved preview entries without clearing review entries", async () => {
+    mockParseResponse({
+      status: "fallback",
+      originalInput: "maybe coffee",
+      prefill: {
+        note: "maybe coffee",
+        amount: 35000,
+        date: "30/05/2026",
+        budgetId: null,
+      },
+      reason: "no_budget_match",
+    });
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("maybe coffee");
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent(
+        "1"
+      )
+    );
+
+    act(() => {
+      const savedEntry = useAIQuickEntryStore
+        .getState()
+        .enqueueEntry("saved coffee");
+      useAIQuickEntryStore.getState().markEntrySaved(
+        savedEntry.id,
+        savedLocalExpense({
+          note: "saved coffee",
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByText("saved coffee")).toBeInTheDocument();
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("maybe coffee")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear saved AI quick entries" })
+    );
+
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+    expect(screen.queryByText("saved coffee")).not.toBeInTheDocument();
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("maybe coffee")).toBeInTheDocument();
+  });
+
   it("keeps an active parse visible after the drawer closes and reopens", async () => {
     const parseResponse = mockDeferredParseResponse();
     renderQuickEntry();
