@@ -67,8 +67,6 @@ const secondaryItems: TBottomNavItem[] = [
 
 const menuItems = [...primaryItems, ...secondaryItems];
 
-const hiddenPaths = ["/ai"];
-
 const baseButtonClassName =
   "focus-visible:ring-ring/40 group grid shrink-0 place-items-center rounded-full text-foreground focus-visible:ring-2 focus-visible:outline-none";
 
@@ -123,14 +121,6 @@ const BottomNav = () => {
       document.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [expanded]);
-
-  if (
-    hiddenPaths.some(
-      (path) => pathname === path || pathname.startsWith(`${path}/`)
-    )
-  ) {
-    return null;
-  }
 
   const handleNavigate = (item: TBottomNavItem) => {
     setActiveItem(item.id);

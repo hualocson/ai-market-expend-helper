@@ -27,12 +27,6 @@ const { createExpenseMock, quickExpenseDrawerPropsMock, toastSuccessMock } =
     toastSuccessMock: vi.fn(),
   }));
 
-let mockPathname = "/";
-
-vi.mock("next/navigation", () => ({
-  usePathname: () => mockPathname,
-}));
-
 vi.mock("@/hooks/useAppHaptics", () => ({
   useAppHaptics: () => ({
     impact: vi.fn(),
@@ -214,7 +208,6 @@ const originalGlobalReact = globalThis.React;
 beforeEach(() => {
   globalThis.React = React;
   vi.setSystemTime(new Date(`${TODAY}T08:00:00.000Z`));
-  mockPathname = "/";
   createExpenseMock.mockReset().mockResolvedValue(savedLocalExpense());
   quickExpenseDrawerPropsMock.mockReset();
   toastSuccessMock.mockClear();
@@ -760,15 +753,5 @@ describe("AIQuickEntry", () => {
     expect(screen.getByLabelText(/AI quick entry status/)).toHaveClass(
       "bg-black/85"
     );
-  });
-
-  it("renders nothing on the /ai route", () => {
-    mockPathname = "/ai";
-    renderQuickEntry();
-    openOverlay();
-
-    expect(
-      screen.queryByLabelText("Describe your expense")
-    ).not.toBeInTheDocument();
   });
 });

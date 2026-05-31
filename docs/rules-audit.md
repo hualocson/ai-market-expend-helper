@@ -8,22 +8,20 @@
 
 ## Summary
 
-
 | Rule | Topic                   | Status    | Findings                                                                            |
 | ---- | ----------------------- | --------- | ----------------------------------------------------------------------------------- |
-| 1    | Server vs Client        | ✅ Pass    | 0 confirmed violations (37 `"use client"` files, all justified on review)           |
+| 1    | Server vs Client        | ✅ Pass   | 0 confirmed violations (37 `"use client"` files, all justified on review)           |
 | 2    | Data fetching           | ⚠️ Review | 1 (possible `useQuery` duplication)                                                 |
-| 3    | loading.tsx / error.tsx | ❌ Fail    | 4 routes missing                                                                    |
-| 4    | Components / forms      | ✅ Pass    | 0                                                                                   |
-| 5    | State management        | ✅ Pass    | 0                                                                                   |
-| 6    | Styling                 | ✅ Pass    | All `style={{...}}` use dynamic values (compliant per Rule 6)                       |
-| 7    | Performance             | ✅ Pass    | No `<img>`, no problematic barrels                                                  |
-| 8    | API & Server Actions    | ❌ Fail    | No Zod validation on any handler/action; 4 mutation routes missing `revalidatePath` |
-| 10   | TypeScript              | ✅ Pass    | No `any` / `as any` in `src/`                                                       |
+| 3    | loading.tsx / error.tsx | ❌ Fail   | 4 routes missing                                                                    |
+| 4    | Components / forms      | ✅ Pass   | 0                                                                                   |
+| 5    | State management        | ✅ Pass   | 0                                                                                   |
+| 6    | Styling                 | ✅ Pass   | All `style={{...}}` use dynamic values (compliant per Rule 6)                       |
+| 7    | Performance             | ✅ Pass   | No `<img>`, no problematic barrels                                                  |
+| 8    | API & Server Actions    | ❌ Fail   | No Zod validation on any handler/action; 4 mutation routes missing `revalidatePath` |
+| 10   | TypeScript              | ✅ Pass   | No `any` / `as any` in `src/`                                                       |
 | 11   | Testing                 | —         | Not audited (out of scope)                                                          |
 | 12   | Validation cmds         | —         | Documentation rule, no code to scan                                                 |
-| 13   | Anti-patterns           | ✅ Pass    | None observed                                                                       |
-
+| 13   | Anti-patterns           | ✅ Pass   | None observed                                                                       |
 
 **Overall:** 2 high-priority, 1 medium-priority, 1 review item.
 
@@ -79,16 +77,13 @@ Server Actions correctly revalidate (`expense-actions.ts`, `budget-weekly-action
 
 Only the root route (`src/app/loading.tsx`) has a Suspense fallback. Sub-routes that do server-side data fetching show no loading UI on slow networks.
 
-
 | Route                        | `loading.tsx` | `error.tsx` | Fetches data?             |
 | ---------------------------- | ------------- | ----------- | ------------------------- |
-| `src/app/budgets/`           | ❌             | ❌           | yes (`getBudgetOverview`) |
-| `src/app/transactions/`      | ❌             | ❌           | yes                       |
-| `src/app/report/`            | ❌             | ❌           | yes                       |
-| `src/app/report/day/[date]/` | ❌             | ❌           | yes                       |
-| `src/app/ai/`                | ❌             | ❌           | likely                    |
-| `src/app/settings/`          | ❌             | ❌           | unknown                   |
-
+| `src/app/budgets/`           | ❌            | ❌          | yes (`getBudgetOverview`) |
+| `src/app/transactions/`      | ❌            | ❌          | yes                       |
+| `src/app/report/`            | ❌            | ❌          | yes                       |
+| `src/app/report/day/[date]/` | ❌            | ❌          | yes                       |
+| `src/app/settings/`          | ❌            | ❌          | unknown                   |
 
 **Fix:** Add `loading.tsx` (skeleton) and `error.tsx` (client component with reset button) to each route that performs server data fetching. Start with `/budgets`, `/transactions`, `/report/day/[date]`.
 
@@ -132,4 +127,3 @@ Only the root route (`src/app/loading.tsx`) has a Suspense fallback. Sub-routes 
 - Rule 5 (state management thresholds) was not flagged, but `src/stores/` was not deeply reviewed for derived-state-in-store violations.
 - Test files were excluded from `any`/style scans.
 - The `~offline` route (Serwist offline shell) was not audited — likely intentional bypass.
-

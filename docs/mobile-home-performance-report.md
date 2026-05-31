@@ -12,32 +12,32 @@ Lighthouse still reports an acceptable score because the first content appears q
 
 ## Measurements
 
-| Metric | Result |
-| --- | ---: |
-| Lighthouse mobile performance | 87 |
-| First Contentful Paint | 1.2 s |
-| Largest Contentful Paint | 3.1 s |
-| Speed Index | 3.0 s |
-| Total Blocking Time | 290 ms |
-| Time to Interactive | 4.8 s |
-| Main-thread work | 8.1 s |
-| JavaScript boot-up | 5.8 s |
-| Total transfer size | 460 KB |
-| Requests | 37 |
+| Metric                             |       Result |
+| ---------------------------------- | -----------: |
+| Lighthouse mobile performance      |           87 |
+| First Contentful Paint             |        1.2 s |
+| Largest Contentful Paint           |        3.1 s |
+| Speed Index                        |        3.0 s |
+| Total Blocking Time                |       290 ms |
+| Time to Interactive                |        4.8 s |
+| Main-thread work                   |        8.1 s |
+| JavaScript boot-up                 |        5.8 s |
+| Total transfer size                |       460 KB |
+| Requests                           |           37 |
 | Live DOM after mobile network idle | 23,338 nodes |
-| Rendered expense rows | 924 |
-| Rendered day-group links | 141 |
+| Rendered expense rows              |          924 |
+| Rendered day-group links           |          141 |
 
 Largest observed payloads:
 
-| Resource | Transfer | Decoded |
-| --- | ---: | ---: |
-| `/_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js` | 55.9 KB | 173.0 KB |
-| `/_next/static/chunks/6061-77d32c99ef898cc7.js` | 47.6 KB | 177.5 KB |
-| `/_next/static/chunks/905-88617ef18fb0da98.js` | 38.8 KB | 112.1 KB |
-| `/_next/static/chunks/2898-9e2fc98dcb9f5d24.js` | 28.1 KB | 87.5 KB |
-| `/api/expenses/sync` | 25.7 KB | 258.6 KB |
-| Main CSS chunk | 23.8 KB | 144.6 KB |
+| Resource                                            | Transfer |  Decoded |
+| --------------------------------------------------- | -------: | -------: |
+| `/_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js` |  55.9 KB | 173.0 KB |
+| `/_next/static/chunks/6061-77d32c99ef898cc7.js`     |  47.6 KB | 177.5 KB |
+| `/_next/static/chunks/905-88617ef18fb0da98.js`      |  38.8 KB | 112.1 KB |
+| `/_next/static/chunks/2898-9e2fc98dcb9f5d24.js`     |  28.1 KB |  87.5 KB |
+| `/api/expenses/sync`                                |  25.7 KB | 258.6 KB |
+| Main CSS chunk                                      |  23.8 KB | 144.6 KB |
 
 The `/api/expenses/sync` response returned 941 changes in the test. Browser timing showed that request taking about 1.9-2.0 s.
 
@@ -96,11 +96,11 @@ The bottom nav imports `QuickExpenseDrawer` directly:
 
 That drawer pulls in date pickers, drawer/dialog primitives, budget chips, mutation hooks, toasts, haptics, and form logic on the home page before the user opens it.
 
-The visible "Spendly AI" link also uses default Next.js prefetching:
+The visible "Spendly AI" link also used default Next.js prefetching:
 
-- `src/components/SpendingDashboardHeaderClient.tsx:109` links to `/ai`.
+- `src/components/SpendingDashboardHeaderClient.tsx:109` linked to `/ai`.
 
-The network trace showed `/ai?_rsc=...` and the `/app/ai/page` chunk loading from the home page. It is not the biggest cost, but it is avoidable work during mobile startup.
+The network trace showed `/ai?_rsc=...` and the `/app/ai/page` chunk loading from the home page. That route and the header AI action have since been removed; Quick AI now lives in the bottom navigation.
 
 ### 5. Paint effects amplify the DOM problem
 

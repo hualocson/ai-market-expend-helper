@@ -12,8 +12,6 @@ import React, {
   useState,
 } from "react";
 
-import { usePathname } from "next/navigation";
-
 import dayjs from "@/configs/date";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
@@ -59,8 +57,6 @@ import {
 } from "@/components/ai-quick-entry/real-parse";
 import type { QuickEntry } from "@/components/ai-quick-entry/types";
 import { useSettingsStore } from "@/components/providers/StoreProvider";
-
-const HIDDEN_PATHS = ["/ai"];
 
 type AIQuickEntryMode = "entry" | "preview";
 
@@ -117,7 +113,6 @@ const parseQuickEntryExpense = async ({
 };
 
 const AIQuickEntry = () => {
-  const pathname = usePathname();
   const open = useAIQuickEntryStore((state) => state.open);
   const setOpen = useAIQuickEntryStore((state) => state.setOpen);
   const paidBy = useSettingsStore((state) => state.paidBy);
@@ -136,10 +131,6 @@ const AIQuickEntry = () => {
   const activeDrawerItemRef = useRef<ActiveQuickEntryDrawerItem>(null);
   const openRef = useRef(open);
   const sessionRef = useRef(0);
-
-  const hidden = HIDDEN_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
-  );
 
   useEffect(() => {
     if (activeDrawerItem) {
@@ -371,10 +362,6 @@ const AIQuickEntry = () => {
       queryClient,
     ]
   );
-
-  if (hidden) {
-    return null;
-  }
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {

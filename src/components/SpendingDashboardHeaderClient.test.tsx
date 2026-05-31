@@ -73,7 +73,7 @@ describe("SpendingDashboardHeaderClient", () => {
     expect(setItemSpy).not.toHaveBeenCalled();
   });
 
-  it("renders the large total with compact payer and AI actions", () => {
+  it("renders the large total with compact payer controls", () => {
     globalThis.React = React;
 
     render(
@@ -92,14 +92,14 @@ describe("SpendingDashboardHeaderClient", () => {
     const picker = screen.getByRole("combobox", {
       name: /select expense payer/i,
     });
-    const aiLink = screen.getByRole("link", {
-      name: /open spendly ai expense chat/i,
-    });
     const amountBlock = total.parentElement;
 
     expect(total).toBeInTheDocument();
     expect(picker).toBeInTheDocument();
-    expect(aiLink).toHaveAttribute("href", "/ai");
+    expect(
+      screen.queryByRole("button", { name: /open ai quick entry/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Spendly AI")).not.toBeInTheDocument();
     expect(amountBlock).toHaveClass("items-start");
     expect(amountBlock).toHaveClass("fixed");
     expect(amountBlock).toHaveClass("app-header-blur");

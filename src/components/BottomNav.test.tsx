@@ -72,14 +72,6 @@ afterEach(() => {
 });
 
 describe("BottomNav", () => {
-  it("does not render on hidden routes", () => {
-    pathnameState.value = "/ai";
-
-    render(<BottomNav />);
-
-    expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
-  });
-
   it("renders collapsed primary controls as buttons", () => {
     render(<BottomNav />);
 
