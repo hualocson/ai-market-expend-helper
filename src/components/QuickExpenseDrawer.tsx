@@ -80,6 +80,7 @@ export type TQuickExpenseDrawerProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialExpense?: TQuickExpenseDrawerInitialExpense | null;
+  initialExpenseKey?: string;
   recoveryDraft?: TQuickExpenseDraft | null;
   recoveryOperationId?: string;
   transactionId?: number;
@@ -254,6 +255,7 @@ const QuickExpenseDrawer = ({
   open,
   onOpenChange,
   initialExpense = null,
+  initialExpenseKey,
   recoveryDraft = null,
   recoveryOperationId,
   transactionId,
@@ -625,7 +627,7 @@ const QuickExpenseDrawer = ({
       return;
     }
 
-    const hydrationKey = `${initialExpenseIdentity}|${fallbackPaidBy}`;
+    const hydrationKey = `${initialExpenseKey ?? ""}|${initialExpenseIdentity}|${fallbackPaidBy}`;
     if (previousControlledCreateHydrationKeyRef.current === hydrationKey) {
       return;
     }
@@ -642,6 +644,7 @@ const QuickExpenseDrawer = ({
     fallbackPaidBy,
     initialExpense,
     initialExpenseIdentity,
+    initialExpenseKey,
     isEditMode,
     recoveryDraft,
   ]);

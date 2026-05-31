@@ -375,6 +375,42 @@ describe("QuickExpenseDrawer — controlled create initial expense", () => {
     ).toMatch(/25[.,]?000/);
   });
 
+  it("refreshes the controlled create draft when the active identity changes with the same initialExpense values", async () => {
+    const user = userEvent.setup();
+    const initialExpense = {
+      date: "30/05/2026",
+      amount: 35000,
+      note: "Cà phê",
+      category: Category.FOOD,
+      paidBy: PaidBy.CUBI,
+      budgetId: null,
+    };
+    const { rerenderDrawer } = renderDrawer({
+      showTrigger: false,
+      open: true,
+      onOpenChange: vi.fn(),
+      initialExpenseKey: "first",
+      initialExpense,
+    });
+
+    const note = await screen.findByPlaceholderText(/what did you spend on/i);
+    expect(note).toHaveValue("Cà phê");
+
+    await user.clear(note);
+    await user.type(note, "Locally edited note");
+    expect(note).toHaveValue("Locally edited note");
+
+    rerenderDrawer({
+      showTrigger: false,
+      open: true,
+      onOpenChange: vi.fn(),
+      initialExpenseKey: "second",
+      initialExpense: { ...initialExpense },
+    });
+
+    await waitFor(() => expect(note).toHaveValue("Cà phê"));
+  });
+
   it("calls onSuccess with the local expense returned by create", async () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
