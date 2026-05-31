@@ -80,13 +80,13 @@ const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
       onClick={onOpenPreview}
       onPointerDown={(event) => event.preventDefault()}
       className={cn(
-        "glass-border ds-glass mx-auto flex h-9 max-w-[320px] min-w-[150px] items-center justify-between gap-1.5 rounded-[20px] bg-black/85 px-4 text-xs font-semibold text-white",
+        "glass-border ds-glass mx-auto flex h-11 max-w-[320px] min-w-[150px] items-center justify-between gap-1.5 rounded-[20px] bg-black/85 px-4 text-xs font-semibold text-white",
         pendingCount > 0 && "bg-amber-200/15"
       )}
       style={{
         ...animationVars,
         width: pendingCount > 0 ? 250 : 150,
-        height: pendingCount > 0 ? 44 : 36,
+        height: 44,
         transition: "width var(--resize-dur) var(--resize-ease)",
         willChange: "width, height",
       }}

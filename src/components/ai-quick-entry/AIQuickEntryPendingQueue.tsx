@@ -53,7 +53,7 @@ const AIQuickEntryPendingQueue = ({
           onClick={onOpenPreview}
           onPointerDown={(event) => event.preventDefault()}
           className={cn(
-            "text-muted-foreground bg-surface-3/55 ds-glass glass-border flex h-9 w-full items-center rounded-[18px] px-4 text-left text-xs font-semibold"
+            "text-muted-foreground bg-surface-3/55 ds-glass glass-border flex min-h-11 w-full items-center rounded-[18px] px-4 text-left text-xs font-semibold"
           )}
         >
           +{hiddenCount} more parsing

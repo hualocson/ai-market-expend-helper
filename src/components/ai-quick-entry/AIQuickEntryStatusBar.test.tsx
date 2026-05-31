@@ -101,6 +101,20 @@ describe("AIQuickEntryStatusBar", () => {
     );
   });
 
+  it("keeps the preview opener at least 44px tall when no entries are pending", () => {
+    render(
+      <AIQuickEntryStatusBar
+        totalCount={3}
+        pendingCount={0}
+        completedCount={2}
+        failedCount={1}
+        onOpenPreview={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button")).toHaveStyle({ height: "44px" });
+  });
+
   it("calls onOpenPreview when clicked", () => {
     const onOpenPreview = vi.fn();
 

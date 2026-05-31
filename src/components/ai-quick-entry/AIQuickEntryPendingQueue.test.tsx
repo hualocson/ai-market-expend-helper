@@ -112,4 +112,21 @@ describe("AIQuickEntryPendingQueue", () => {
 
     expect(onOpenPreview).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the overflow preview opener at least 44px tall", () => {
+    render(
+      <AIQuickEntryPendingQueue
+        pendingEntries={[
+          pending("1", "First"),
+          pending("2", "Second"),
+          pending("3", "Newest"),
+        ]}
+        onOpenPreview={() => {}}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Preview 1 more parsing expense" })
+    ).toHaveClass("min-h-11");
+  });
 });
