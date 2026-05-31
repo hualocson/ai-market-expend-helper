@@ -254,6 +254,7 @@ describe("AIQuickEntry", () => {
     expect(
       screen.getByRole("button", { name: "Return to quick entry" })
     ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Close AI quick entry")).toBeNull();
     expect(screen.queryByLabelText(/AI quick entry status/)).toBeNull();
   });
 

@@ -216,12 +216,14 @@ const AIQuickEntry = () => {
             inputRef.current?.focus({ preventScroll: true });
           }}
         >
-          <DrawerClose
-            aria-label="Close AI quick entry"
-            className="ring-offset-background absolute top-4 right-4 z-60 rounded-full p-3 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none"
-          >
-            <XIcon className="size-4" />
-          </DrawerClose>
+          {mode === "entry" ? (
+            <DrawerClose
+              aria-label="Close AI quick entry"
+              className="ring-offset-background absolute top-4 right-4 z-60 rounded-full p-3 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none"
+            >
+              <XIcon className="size-4" />
+            </DrawerClose>
+          ) : null}
           <DrawerHeader
             data-testid="ai-quick-entry-drawer-header"
             className="absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-0"
