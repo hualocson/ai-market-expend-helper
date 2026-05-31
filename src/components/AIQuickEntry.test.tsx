@@ -121,10 +121,27 @@ type MockQuickExpenseDrawerProps = Record<string, unknown> & {
   onSuccess?: (expense: LocalExpense) => void;
 };
 
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+};
+
 const getLastQuickExpenseDrawerProps = () =>
   quickExpenseDrawerPropsMock.mock.calls.at(-1)?.[0] as
     | MockQuickExpenseDrawerProps
     | undefined;
+
+const createDeferred = <T,>(): Deferred<T> => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+};
 
 const renderQuickEntry = () => {
   const queryClient = new QueryClient({
@@ -163,6 +180,30 @@ const mockUnresolvedParseResponse = () => {
         })
     )
   );
+};
+
+const mockDeferredParseResponse = () => {
+  const deferred = createDeferred<{
+    status: number;
+    json: () => Promise<unknown>;
+  }>();
+
+  vi.stubGlobal("fetch", vi.fn().mockReturnValue(deferred.promise));
+
+  return deferred;
+};
+
+const trustedParseResponse = {
+  status: "success",
+  originalInput: "cf 35k",
+  expense: {
+    date: "30/05/2026",
+    amount: 35000,
+    note: "Cà phê sữa đá",
+    budgetId: 2,
+    confidence: "high",
+    reason: "Matched coffee budget.",
+  },
 };
 
 const originalGlobalReact = globalThis.React;
@@ -377,18 +418,7 @@ describe("AIQuickEntry", () => {
   });
 
   it("auto-saves a trusted parse, clears the composer, and shows the saved entry in preview", async () => {
-    mockParseResponse({
-      status: "success",
-      originalInput: "cf 35k",
-      expense: {
-        date: "30/05/2026",
-        amount: 35000,
-        note: "Cà phê sữa đá",
-        budgetId: 2,
-        confidence: "high",
-        reason: "Matched coffee budget.",
-      },
-    });
+    mockParseResponse(trustedParseResponse);
     renderQuickEntry();
     openOverlay();
 
@@ -445,6 +475,41 @@ describe("AIQuickEntry", () => {
         name: /Edit saved expense Cà phê sữa đá/,
       })
     ).toBeInTheDocument();
+  });
+
+  it("ignores stale parse results after the drawer closes and reopens", async () => {
+    const parseResponse = mockDeferredParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("cf 35k");
+    });
+
+    expect(screen.getByText("cf 35k")).toBeInTheDocument();
+
+    act(() => {
+      useAIQuickEntryStore.getState().setOpen(false);
+    });
+    openOverlay();
+
+    expect(screen.queryByText("cf 35k")).not.toBeInTheDocument();
+
+    await act(async () => {
+      parseResponse.resolve({
+        status: 200,
+        json: vi
+          .fn()
+          .mockResolvedValue({ success: true, data: trustedParseResponse }),
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(createExpenseMock).not.toHaveBeenCalled();
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(screen.queryByText("Cà phê sữa đá")).not.toBeInTheDocument();
   });
 
   it("moves a fallback parse to needs review without creating an expense", async () => {
@@ -518,18 +583,7 @@ describe("AIQuickEntry", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
     createExpenseMock.mockRejectedValue(new Error("create failed"));
-    mockParseResponse({
-      status: "success",
-      originalInput: "cf 35k",
-      expense: {
-        date: "30/05/2026",
-        amount: 35000,
-        note: "Cà phê sữa đá",
-        budgetId: 2,
-        confidence: "high",
-        reason: "Matched coffee budget.",
-      },
-    });
+    mockParseResponse(trustedParseResponse);
     renderQuickEntry();
     openOverlay();
 
@@ -552,18 +606,7 @@ describe("AIQuickEntry", () => {
   });
 
   it("opens the drawer from saved and review rows with stable initial expense keys", async () => {
-    mockParseResponse({
-      status: "success",
-      originalInput: "cf 35k",
-      expense: {
-        date: "30/05/2026",
-        amount: 35000,
-        note: "Cà phê sữa đá",
-        budgetId: 2,
-        confidence: "high",
-        reason: "Matched coffee budget.",
-      },
-    });
+    mockParseResponse(trustedParseResponse);
     renderQuickEntry();
     openOverlay();
 

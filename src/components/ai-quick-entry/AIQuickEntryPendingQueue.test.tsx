@@ -6,25 +6,26 @@ import { describe, expect, it, vi } from "vitest";
 import AIQuickEntryPendingQueue from "./AIQuickEntryPendingQueue";
 import type { QuickEntry } from "./types";
 
-const pending = (id: string, input: string): QuickEntry => ({
+const active = (id: string, input: string, createdAt: number): QuickEntry => ({
   id,
   input,
-  status: "pending",
+  status: "parsing",
+  createdAt,
 });
 
 describe("AIQuickEntryPendingQueue", () => {
-  it("renders nothing with no pending entries", () => {
+  it("renders nothing with no active entries", () => {
     const { container } = render(
-      <AIQuickEntryPendingQueue pendingEntries={[]} onOpenPreview={() => {}} />
+      <AIQuickEntryPendingQueue activeEntries={[]} onOpenPreview={() => {}} />
     );
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders one compact pending row", () => {
+  it("renders one compact active row", () => {
     render(
       <AIQuickEntryPendingQueue
-        pendingEntries={[pending("1", "Cà phê 35k")]}
+        activeEntries={[active("1", "Cà phê 35k", 1)]}
         onOpenPreview={() => {}}
       />
     );
@@ -33,13 +34,13 @@ describe("AIQuickEntryPendingQueue", () => {
     expect(
       screen.getByTestId("ai-quick-entry-amount-skeleton")
     ).toBeInTheDocument();
-    expect(screen.queryByText(/more parsing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/more active/)).not.toBeInTheDocument();
   });
 
-  it("renders two newest pending rows without overflow", () => {
+  it("renders two newest active rows without overflow", () => {
     render(
       <AIQuickEntryPendingQueue
-        pendingEntries={[pending("1", "Older"), pending("2", "Newest")]}
+        activeEntries={[active("1", "Older", 1), active("2", "Newest", 2)]}
         onOpenPreview={() => {}}
       />
     );
@@ -49,17 +50,17 @@ describe("AIQuickEntryPendingQueue", () => {
     expect(
       screen.getAllByTestId("ai-quick-entry-row").map((row) => row.textContent)
     ).toEqual(["Newest", "Older"]);
-    expect(screen.queryByText(/more parsing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/more active/)).not.toBeInTheDocument();
   });
 
-  it("renders two newest rows plus overflow when more than two are pending", () => {
+  it("renders two newest rows plus overflow when more than two are active", () => {
     render(
       <AIQuickEntryPendingQueue
-        pendingEntries={[
-          pending("1", "First"),
-          pending("2", "Second"),
-          pending("3", "Third"),
-          pending("4", "Newest"),
+        activeEntries={[
+          active("1", "First", 1),
+          active("2", "Second", 2),
+          active("3", "Third", 3),
+          active("4", "Newest", 4),
         ]}
         onOpenPreview={() => {}}
       />
@@ -72,21 +73,21 @@ describe("AIQuickEntryPendingQueue", () => {
     ).toEqual(["Newest", "Third"]);
     expect(screen.queryByText("Second")).not.toBeInTheDocument();
     expect(screen.queryByText("First")).not.toBeInTheDocument();
-    expect(screen.getByText("+2 more parsing")).toBeInTheDocument();
+    expect(screen.getByText("+2 more active")).toBeInTheDocument();
   });
 
-  it("opens preview when a pending row is tapped", () => {
+  it("opens preview when an active row is tapped", () => {
     const onOpenPreview = vi.fn();
 
     render(
       <AIQuickEntryPendingQueue
-        pendingEntries={[pending("1", "Cà phê 35k")]}
+        activeEntries={[active("1", "Cà phê 35k", 1)]}
         onOpenPreview={onOpenPreview}
       />
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: /preview pending expense/i })
+      screen.getByRole("button", { name: /preview active expense/i })
     );
 
     expect(onOpenPreview).toHaveBeenCalledTimes(1);
@@ -97,17 +98,17 @@ describe("AIQuickEntryPendingQueue", () => {
 
     render(
       <AIQuickEntryPendingQueue
-        pendingEntries={[
-          pending("1", "First"),
-          pending("2", "Second"),
-          pending("3", "Newest"),
+        activeEntries={[
+          active("1", "First", 1),
+          active("2", "Second", 2),
+          active("3", "Newest", 3),
         ]}
         onOpenPreview={onOpenPreview}
       />
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Preview 1 more parsing expense" })
+      screen.getByRole("button", { name: "Preview 1 more active expense" })
     );
 
     expect(onOpenPreview).toHaveBeenCalledTimes(1);
@@ -116,17 +117,17 @@ describe("AIQuickEntryPendingQueue", () => {
   it("keeps the overflow preview opener at least 44px tall", () => {
     render(
       <AIQuickEntryPendingQueue
-        pendingEntries={[
-          pending("1", "First"),
-          pending("2", "Second"),
-          pending("3", "Newest"),
+        activeEntries={[
+          active("1", "First", 1),
+          active("2", "Second", 2),
+          active("3", "Newest", 3),
         ]}
         onOpenPreview={() => {}}
       />
     );
 
     expect(
-      screen.getByRole("button", { name: "Preview 1 more parsing expense" })
+      screen.getByRole("button", { name: "Preview 1 more active expense" })
     ).toHaveClass("min-h-11");
   });
 });

@@ -118,6 +118,8 @@ const AIQuickEntry = () => {
     useState<ActiveQuickEntryDrawerItem>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeDrawerItemRef = useRef<ActiveQuickEntryDrawerItem>(null);
+  const openRef = useRef(open);
+  const sessionRef = useRef(0);
 
   const hidden = HIDDEN_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
@@ -130,7 +132,12 @@ const AIQuickEntry = () => {
   }, [activeDrawerItem]);
 
   useEffect(() => {
+    openRef.current = open;
+    sessionRef.current += 1;
+
     if (!open) {
+      setActiveDrawerItem(null);
+      activeDrawerItemRef.current = null;
       return;
     }
 
@@ -140,6 +147,11 @@ const AIQuickEntry = () => {
     setActiveDrawerItem(null);
     activeDrawerItemRef.current = null;
   }, [open]);
+
+  const isCurrentSession = useCallback(
+    (sessionId: number) => openRef.current && sessionRef.current === sessionId,
+    []
+  );
 
   const activeEntries = useMemo(
     () =>
@@ -216,7 +228,7 @@ const AIQuickEntry = () => {
   );
 
   const runEntry = useCallback(
-    async (entryId: string, input: string) => {
+    async (entryId: string, input: string, sessionId: number) => {
       const today = dayjs();
       const todayIso = today.format("YYYY-MM-DD");
       const todayDisplay = today.format("DD/MM/YYYY");
@@ -228,6 +240,9 @@ const AIQuickEntry = () => {
         const budgetOptions = await queryClient.ensureQueryData(
           queries.budgetWeekly.options(weekStart, todayIso)
         );
+        if (!isCurrentSession(sessionId)) {
+          return;
+        }
 
         errorReason = "request_failed";
         const parseResult = await parseQuickEntryExpense({
@@ -239,6 +254,9 @@ const AIQuickEntry = () => {
             category: budget.category,
           })),
         });
+        if (!isCurrentSession(sessionId)) {
+          return;
+        }
 
         const decision = evaluateAIQuickEntryParse({
           input,
@@ -251,6 +269,9 @@ const AIQuickEntry = () => {
         reviewDraft = decision.initialExpense;
 
         if (decision.kind === "review") {
+          if (!isCurrentSession(sessionId)) {
+            return;
+          }
           markEntryForReview({
             entryId,
             reviewDraft: decision.initialExpense,
@@ -260,6 +281,9 @@ const AIQuickEntry = () => {
           return;
         }
 
+        if (!isCurrentSession(sessionId)) {
+          return;
+        }
         setEntries((current) =>
           current.map((entry) =>
             entry.id === entryId
@@ -273,7 +297,13 @@ const AIQuickEntry = () => {
         );
 
         errorReason = "create_error";
+        if (!isCurrentSession(sessionId)) {
+          return;
+        }
         const localExpense = await createExpense(decision.payload);
+        if (!isCurrentSession(sessionId)) {
+          return;
+        }
         const savedExpense = localExpenseToSavedExpense(localExpense);
 
         setEntries((current) =>
@@ -296,6 +326,9 @@ const AIQuickEntry = () => {
         );
         haptics.success();
       } catch (error) {
+        if (!isCurrentSession(sessionId)) {
+          return;
+        }
         console.error(error);
         markEntryForReview({
           entryId,
@@ -311,7 +344,14 @@ const AIQuickEntry = () => {
         haptics.error();
       }
     },
-    [createExpense, haptics, markEntryForReview, paidBy, queryClient]
+    [
+      createExpense,
+      haptics,
+      isCurrentSession,
+      markEntryForReview,
+      paidBy,
+      queryClient,
+    ]
   );
 
   if (hidden) {
@@ -319,6 +359,11 @@ const AIQuickEntry = () => {
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      openRef.current = false;
+      sessionRef.current += 1;
+    }
+
     setOpen(nextOpen);
     if (nextOpen) {
       return;
@@ -345,13 +390,14 @@ const AIQuickEntry = () => {
     }
 
     const id = createEntryId();
+    const sessionId = sessionRef.current;
     setEntries((current) => [
       ...current,
       { id, input, status: "parsing", createdAt: Date.now() },
     ]);
     setComposer("");
     haptics.impact("medium");
-    void runEntry(id, input);
+    void runEntry(id, input, sessionId);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
