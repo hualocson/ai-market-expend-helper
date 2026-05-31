@@ -15,8 +15,8 @@ Preview Mode inside the same drawer.
 The entry surface has only one pending display style:
 
 ```txt
-[pulse] Cơm trưa 60k        --
-[pulse] Bánh mì 25k         --
+[pulse] Cơm trưa 60k        [skeleton]
+[pulse] Bánh mì 25k         [skeleton]
 +3 more parsing
 
 [ Cà phê 35k sáng nay    ↑ ]
@@ -97,14 +97,14 @@ The pending queue is not a stack, not expandable inline, and not scrollable.
 Pending rows reuse the compact one-line row style:
 
 ```txt
-[pulse] submitted input        --
+[pulse] submitted input        [skeleton]
 ```
 
 Rules:
 
 - Left: pending indicator.
 - Middle: submitted input, one line, truncated if needed.
-- Right: muted pending amount placeholder.
+- Right: muted amount-width skeleton, matching the current pending row shape.
 - Row height stays around `44-48px`.
 - Hit target is at least `44px`.
 
