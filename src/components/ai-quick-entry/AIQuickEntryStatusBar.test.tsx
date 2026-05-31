@@ -13,8 +13,7 @@ describe("AIQuickEntryStatusBar", () => {
         pendingCount={2}
         completedCount={5}
         failedCount={0}
-        completedOpen={false}
-        onToggleCompleted={() => {}}
+        onOpenPreview={() => {}}
       />
     );
 
@@ -32,7 +31,7 @@ describe("AIQuickEntryStatusBar", () => {
       /entries|parsing|done/
     );
     expect(screen.getByRole("button")).toHaveAccessibleName(
-      "AI quick entry status: 2 parsing, 5 completed. Show completed entries."
+      "AI quick entry status: 2 parsing, 5 completed. Open preview."
     );
   });
 
@@ -43,8 +42,7 @@ describe("AIQuickEntryStatusBar", () => {
         pendingCount={0}
         completedCount={2}
         failedCount={1}
-        completedOpen={true}
-        onToggleCompleted={() => {}}
+        onOpenPreview={() => {}}
       />
     );
 
@@ -63,7 +61,23 @@ describe("AIQuickEntryStatusBar", () => {
       /entries|done|failed/
     );
     expect(screen.getByRole("button")).toHaveAccessibleName(
-      "AI quick entry status: 2 completed, 1 failed. Hide completed entries."
+      "AI quick entry status: 2 completed, 1 failed. Open preview."
+    );
+  });
+
+  it("announces no entries when empty", () => {
+    render(
+      <AIQuickEntryStatusBar
+        totalCount={0}
+        pendingCount={0}
+        completedCount={0}
+        failedCount={0}
+        onOpenPreview={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      "AI quick entry status: no entries. Open preview."
     );
   });
 
@@ -74,8 +88,7 @@ describe("AIQuickEntryStatusBar", () => {
         pendingCount={1}
         completedCount={1}
         failedCount={0}
-        completedOpen={false}
-        onToggleCompleted={() => {}}
+        onOpenPreview={() => {}}
       />
     );
 
@@ -88,8 +101,8 @@ describe("AIQuickEntryStatusBar", () => {
     );
   });
 
-  it("calls onToggleCompleted when clicked", () => {
-    const onToggleCompleted = vi.fn();
+  it("calls onOpenPreview when clicked", () => {
+    const onOpenPreview = vi.fn();
 
     render(
       <AIQuickEntryStatusBar
@@ -97,13 +110,12 @@ describe("AIQuickEntryStatusBar", () => {
         pendingCount={1}
         completedCount={0}
         failedCount={0}
-        completedOpen={false}
-        onToggleCompleted={onToggleCompleted}
+        onOpenPreview={onOpenPreview}
       />
     );
 
     fireEvent.click(screen.getByRole("button"));
 
-    expect(onToggleCompleted).toHaveBeenCalledTimes(1);
+    expect(onOpenPreview).toHaveBeenCalledTimes(1);
   });
 });

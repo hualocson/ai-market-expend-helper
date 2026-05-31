@@ -10,8 +10,7 @@ type AIQuickEntryStatusBarProps = {
   pendingCount: number;
   completedCount: number;
   failedCount: number;
-  completedOpen: boolean;
-  onToggleCompleted: () => void;
+  onOpenPreview: () => void;
 };
 
 const animationVars = {
@@ -23,7 +22,6 @@ const buildAccessibleLabel = ({
   pendingCount,
   completedCount,
   failedCount,
-  completedOpen,
 }: AIQuickEntryStatusBarProps) => {
   const parts = [];
 
@@ -37,9 +35,9 @@ const buildAccessibleLabel = ({
     parts.push(`${failedCount} failed`);
   }
 
-  return `AI quick entry status: ${parts.join(", ")}. ${
-    completedOpen ? "Hide" : "Show"
-  } completed entries.`;
+  return `AI quick entry status: ${
+    parts.length > 0 ? parts.join(", ") : "no entries"
+  }. Open preview.`;
 };
 
 type StatusCountProps = {
@@ -69,8 +67,7 @@ const StatusCount = ({
 const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
   const {
     totalCount,
-    completedOpen,
-    onToggleCompleted,
+    onOpenPreview,
     pendingCount,
     completedCount,
     failedCount,
@@ -79,9 +76,8 @@ const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
   return (
     <button
       type="button"
-      aria-expanded={completedOpen}
       aria-label={buildAccessibleLabel(props)}
-      onClick={onToggleCompleted}
+      onClick={onOpenPreview}
       onPointerDown={(event) => event.preventDefault()}
       className={cn(
         "glass-border ds-glass mx-auto flex h-9 max-w-[320px] min-w-[150px] items-center justify-between gap-1.5 rounded-[20px] bg-black/85 px-4 text-xs font-semibold text-white",
@@ -124,8 +120,7 @@ const AIQuickEntryStatusBar = (props: AIQuickEntryStatusBarProps) => {
         aria-hidden
         className={cn(
           "size-3.5 transition-transform duration-150 ease-out",
-          totalCount === 0 && "opacity-0",
-          completedOpen && "rotate-180"
+          totalCount === 0 && "opacity-0"
         )}
       />
     </button>
