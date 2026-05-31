@@ -1,5 +1,8 @@
 import { Category, PaidBy } from "@/enums";
-import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
+import {
+  PARSE_EXPENSE_MIN_AMOUNT,
+  type ParseExpenseResponse,
+} from "@/lib/ai/parse-expense-contract";
 import type { TBudgetOption } from "@/lib/budget-options";
 import { describe, expect, it } from "vitest";
 
@@ -140,6 +143,46 @@ describe("evaluateAIQuickEntryParse", () => {
       initialExpense: {
         date: "30/05/2026",
         amount: 0,
+        note: "Cà phê sữa đá",
+      },
+    });
+  });
+
+  it("returns review for an amount below the parser minimum", () => {
+    const result = evaluateAIQuickEntryParse({
+      input: "cf 999",
+      parseResult: successResponse({ amount: PARSE_EXPENSE_MIN_AMOUNT - 1 }),
+      budgetOptions: [budgetOption()],
+      paidBy: PaidBy.CUBI,
+      todayIso: "2026-05-30",
+    });
+
+    expect(result).toMatchObject({
+      kind: "review",
+      reason: "parse_error",
+      initialExpense: {
+        date: "30/05/2026",
+        amount: PARSE_EXPENSE_MIN_AMOUNT - 1,
+        note: "Cà phê sữa đá",
+      },
+    });
+  });
+
+  it("returns review for a fractional VND amount", () => {
+    const result = evaluateAIQuickEntryParse({
+      input: "cf 35000.5",
+      parseResult: successResponse({ amount: 35000.5 }),
+      budgetOptions: [budgetOption()],
+      paidBy: PaidBy.CUBI,
+      todayIso: "2026-05-30",
+    });
+
+    expect(result).toMatchObject({
+      kind: "review",
+      reason: "parse_error",
+      initialExpense: {
+        date: "30/05/2026",
+        amount: 35000.5,
         note: "Cà phê sữa đá",
       },
     });

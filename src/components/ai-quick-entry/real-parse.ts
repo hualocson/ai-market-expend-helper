@@ -1,7 +1,10 @@
 import dayjs from "@/configs/date";
 import type { CreateExpenseInput } from "@/db/type";
 import { Category, PaidBy } from "@/enums";
-import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
+import {
+  PARSE_EXPENSE_MIN_AMOUNT,
+  type ParseExpenseResponse,
+} from "@/lib/ai/parse-expense-contract";
 import type { TBudgetOption } from "@/lib/budget-options";
 import {
   isDateWithinBudgetPeriod,
@@ -211,7 +214,10 @@ export const evaluateAIQuickEntryParse = ({
     paidBy: normalizedPaidBy,
     budget,
   });
-  const hasValidAmount = Number.isFinite(expense.amount) && expense.amount > 0;
+  const hasValidAmount =
+    Number.isFinite(expense.amount) &&
+    Number.isInteger(expense.amount) &&
+    expense.amount >= PARSE_EXPENSE_MIN_AMOUNT;
   const hasSuspiciousDate = isoDate
     ? isExpenseDateSuspicious(isoDate, todayIso)
     : false;
