@@ -509,6 +509,119 @@ describe("AIQuickEntry", () => {
     await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
   });
 
+  it("auto-saves a trusted parse while closed and shows it after reopen", async () => {
+    const parseResponse = mockDeferredParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("cf 35k");
+    });
+
+    act(() => {
+      useAIQuickEntryStore.getState().setOpen(false);
+    });
+
+    await act(async () => {
+      parseResponse.resolve({
+        status: 200,
+        json: vi
+          .fn()
+          .mockResolvedValue({ success: true, data: trustedParseResponse }),
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
+    expect(toastSuccessMock).toHaveBeenCalledTimes(1);
+
+    openOverlay();
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /Edit saved expense Cà phê sữa đá.*35\.000/,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("moves a fallback parse to needs review while closed and shows it after reopen", async () => {
+    const parseResponse = mockDeferredParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("maybe coffee");
+    });
+
+    act(() => {
+      useAIQuickEntryStore.getState().setOpen(false);
+    });
+
+    await act(async () => {
+      parseResponse.resolve({
+        status: 200,
+        json: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            status: "fallback",
+            originalInput: "maybe coffee",
+            prefill: {
+              note: "maybe coffee",
+              amount: 35000,
+              date: "30/05/2026",
+              budgetId: null,
+            },
+            reason: "no_budget_match",
+          },
+        }),
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(createExpenseMock).not.toHaveBeenCalled();
+
+    openOverlay();
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("maybe coffee")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /Review expense maybe coffee.*35\.000/,
+      })
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Review expense maybe coffee.*35\.000/,
+      })
+    );
+
+    expect(screen.getByTestId("quick-expense-drawer")).toHaveAttribute(
+      "data-mode",
+      "create"
+    );
+    expect(quickExpenseDrawerPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        open: true,
+        mode: "create",
+        transactionId: undefined,
+        initialExpenseKey: expect.stringMatching(/^review:/),
+        initialExpense: expect.objectContaining({
+          note: "maybe coffee",
+          amount: 35000,
+        }),
+      })
+    );
+  });
+
   it("moves a fallback parse to needs review without creating an expense", async () => {
     mockParseResponse({
       status: "fallback",
@@ -590,6 +703,52 @@ describe("AIQuickEntry", () => {
 
     await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
 
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /Review expense Cà phê sữa đá.*35\.000/,
+      })
+    ).toBeInTheDocument();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("moves a create failure to needs review while closed", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    createExpenseMock.mockRejectedValue(new Error("create failed"));
+    const parseResponse = mockDeferredParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("cf 35k");
+    });
+
+    act(() => {
+      useAIQuickEntryStore.getState().setOpen(false);
+    });
+
+    await act(async () => {
+      parseResponse.resolve({
+        status: 200,
+        json: vi
+          .fn()
+          .mockResolvedValue({ success: true, data: trustedParseResponse }),
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
+
+    openOverlay();
     fireEvent.click(screen.getByLabelText(/Open preview/));
 
     expect(screen.getByText("Needs review")).toBeInTheDocument();
