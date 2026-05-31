@@ -305,6 +305,122 @@ describe("QuickExpenseDrawer — open/close", () => {
   });
 });
 
+describe("QuickExpenseDrawer — controlled create initial expense", () => {
+  it("hydrates create mode from initialExpense when controlled open", async () => {
+    renderDrawer({
+      showTrigger: false,
+      open: true,
+      onOpenChange: vi.fn(),
+      initialExpense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê sữa đá",
+        category: Category.FOOD,
+        paidBy: PaidBy.CUBI,
+        budgetId: 2,
+        budgetName: "Cà phê",
+        budgetIcon: "☕",
+        budgetColor: "lime",
+      },
+    });
+
+    expect(
+      await screen.findByPlaceholderText(/what did you spend on/i)
+    ).toHaveValue("Cà phê sữa đá");
+    expect(
+      (screen.getByPlaceholderText("0") as HTMLInputElement).value
+    ).toMatch(/35[.,]?000/);
+  });
+
+  it("refreshes the controlled create draft when initialExpense changes", async () => {
+    const { rerenderDrawer } = renderDrawer({
+      showTrigger: false,
+      open: true,
+      onOpenChange: vi.fn(),
+      initialExpense: {
+        id: 1,
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê",
+        category: Category.FOOD,
+        paidBy: PaidBy.CUBI,
+        budgetId: null,
+      },
+    });
+
+    expect(
+      await screen.findByPlaceholderText(/what did you spend on/i)
+    ).toHaveValue("Cà phê");
+
+    rerenderDrawer({
+      showTrigger: false,
+      open: true,
+      onOpenChange: vi.fn(),
+      initialExpense: {
+        id: 2,
+        date: "30/05/2026",
+        amount: 25000,
+        note: "Bánh mì",
+        category: Category.FOOD,
+        paidBy: PaidBy.EMBE,
+        budgetId: null,
+      },
+    });
+
+    expect(
+      await screen.findByPlaceholderText(/what did you spend on/i)
+    ).toHaveValue("Bánh mì");
+    expect(
+      (screen.getByPlaceholderText("0") as HTMLInputElement).value
+    ).toMatch(/25[.,]?000/);
+  });
+
+  it("calls onSuccess with the local expense returned by create", async () => {
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+    const localExpense = {
+      entity: "expenses",
+      clientId: "client-created",
+      serverId: null,
+      date: "2026-05-30",
+      amount: 35000,
+      note: "Cà phê",
+      category: Category.FOOD,
+      paidBy: PaidBy.CUBI,
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
+      syncStatus: "pending",
+      lastError: null,
+      updatedAt: "2026-05-30T00:00:00.000Z",
+      serverUpdatedAt: null,
+    };
+    mutationMocks.createMutateAsync.mockResolvedValueOnce(localExpense);
+
+    renderDrawer({
+      showTrigger: false,
+      open: true,
+      onOpenChange: vi.fn(),
+      onSuccess,
+      initialExpense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê",
+        category: Category.FOOD,
+        paidBy: PaidBy.CUBI,
+        budgetId: null,
+      },
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /^save expense$/i })
+    );
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(localExpense));
+  });
+});
+
 describe("QuickExpenseDrawer — fields", () => {
   const openDrawer = async () => {
     const user = userEvent.setup();
