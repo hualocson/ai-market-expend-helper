@@ -92,7 +92,15 @@ const BottomNav = () => {
   const SecondaryIcon = secondaryItems.find((i) => i.id === activeItem)?.icon;
 
   const haptics = useAppHaptics();
+  const aiQuickEntryOpen = useAIQuickEntryStore((state) => state.open);
+  const hasActiveAIQuickEntryWork = useAIQuickEntryStore((state) =>
+    state.entries.some(
+      (entry) => entry.status === "parsing" || entry.status === "saving"
+    )
+  );
   const openAIQuickEntry = useAIQuickEntryStore((state) => state.setOpen);
+  const showAIQuickEntryPending =
+    !aiQuickEntryOpen && hasActiveAIQuickEntryWork;
   const navRef = useRef<HTMLDivElement>(null);
   const secondaryId = useId();
 
@@ -246,14 +254,25 @@ const BottomNav = () => {
 
         <button
           type="button"
-          aria-label="Open AI quick entry"
+          aria-label={
+            showAIQuickEntryPending
+              ? "Open AI quick entry, background work in progress"
+              : "Open AI quick entry"
+          }
           onClick={() => {
             haptics.impact("medium");
             openAIQuickEntry(true);
           }}
-          className="text-primary grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.96]"
+          className="text-primary relative grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.96]"
         >
           <Sparkles className="size-6" />
+          {showAIQuickEntryPending && (
+            <span
+              aria-hidden="true"
+              data-testid="ai-quick-entry-pending-indicator"
+              className="bg-primary before:bg-primary absolute top-1.5 right-1.5 size-3 rounded-full shadow-[0_0_0_3px_color-mix(in_srgb,var(--surface-3)_82%,transparent),0_0_18px_color-mix(in_srgb,var(--primary)_75%,transparent)] before:absolute before:inset-0 before:animate-ping before:rounded-full before:opacity-45 before:content-['']"
+            />
+          )}
         </button>
 
         <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
