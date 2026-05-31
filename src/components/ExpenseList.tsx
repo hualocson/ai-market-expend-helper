@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
+import { Category } from "@/enums";
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import type {
@@ -32,6 +33,13 @@ type ExpenseListProps = {
   mode?: "full" | "recent";
   recentDays?: number;
   pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  categories?: Category[];
+  budgetIds?: number[];
+  hasBudget?: boolean;
+  amountMin?: number;
+  amountMax?: number;
 };
 
 const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
@@ -80,6 +88,13 @@ const ExpenseList = ({
   mode,
   recentDays,
   pageSize = 30,
+  dateFrom,
+  dateTo,
+  categories,
+  budgetIds,
+  hasBudget,
+  amountMin,
+  amountMax,
 }: ExpenseListProps) => {
   const resolvedMode = mode ?? "full";
   const params: ExpenseListQueryParams = {
@@ -88,6 +103,13 @@ const ExpenseList = ({
     mode,
     recentDays,
     limit: pageSize,
+    dateFrom,
+    dateTo,
+    categories,
+    budgetIds,
+    hasBudget,
+    amountMin,
+    amountMax,
   };
   const expenseListQuery = queries.expenses.list(params);
   const [editingExpense, setEditingExpense] =
