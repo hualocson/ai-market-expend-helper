@@ -212,11 +212,13 @@ beforeEach(() => {
   quickExpenseDrawerPropsMock.mockReset();
   toastSuccessMock.mockClear();
   useAIQuickEntryStore.getState().setOpen(false);
+  useAIQuickEntryStore.getState().clearEntries();
 });
 
 afterEach(() => {
   act(() => {
     useAIQuickEntryStore.getState().setOpen(false);
+    useAIQuickEntryStore.getState().clearEntries();
   });
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
@@ -473,7 +475,7 @@ describe("AIQuickEntry", () => {
     ).toBeInTheDocument();
   });
 
-  it("ignores stale parse results after the drawer closes and reopens", async () => {
+  it("keeps an active parse visible after the drawer closes and reopens", async () => {
     const parseResponse = mockDeferredParseResponse();
     renderQuickEntry();
     openOverlay();
@@ -489,7 +491,8 @@ describe("AIQuickEntry", () => {
     });
     openOverlay();
 
-    expect(screen.queryByText("cf 35k")).not.toBeInTheDocument();
+    expect(screen.getByText("cf 35k")).toBeInTheDocument();
+    expect(createExpenseMock).not.toHaveBeenCalled();
 
     await act(async () => {
       parseResponse.resolve({
@@ -503,9 +506,7 @@ describe("AIQuickEntry", () => {
       await Promise.resolve();
     });
 
-    expect(createExpenseMock).not.toHaveBeenCalled();
-    expect(toastSuccessMock).not.toHaveBeenCalled();
-    expect(screen.queryByText("Cà phê sữa đá")).not.toBeInTheDocument();
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
   });
 
   it("moves a fallback parse to needs review without creating an expense", async () => {
@@ -724,7 +725,7 @@ describe("AIQuickEntry", () => {
     );
   });
 
-  it("clears entries when reopened", async () => {
+  it("keeps review entries available after the drawer closes and reopens", async () => {
     mockParseResponse({
       status: "fallback",
       originalInput: "first",
@@ -748,10 +749,11 @@ describe("AIQuickEntry", () => {
     });
     openOverlay();
 
-    expect(screen.queryByText("first")).not.toBeInTheDocument();
     expect(screen.getByLabelText(/AI quick entry status/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/AI quick entry status/)).toHaveClass(
-      "bg-black/85"
-    );
+    expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent("1");
+
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("first")).toBeInTheDocument();
   });
 });

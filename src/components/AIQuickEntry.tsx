@@ -65,11 +65,6 @@ type ActiveQuickEntryDrawerItem =
   | { kind: "saved"; entryId: string }
   | null;
 
-const createEntryId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
 const newestFirst = (entries: QuickEntry[]) =>
   [...entries].sort((left, right) => right.createdAt - left.createdAt);
 
@@ -124,13 +119,19 @@ const AIQuickEntry = () => {
 
   const [mode, setMode] = useState<AIQuickEntryMode>("entry");
   const [composer, setComposer] = useState("");
-  const [entries, setEntries] = useState<QuickEntry[]>([]);
+  const entries = useAIQuickEntryStore((state) => state.entries);
+  const enqueueEntry = useAIQuickEntryStore((state) => state.enqueueEntry);
+  const markEntrySaving = useAIQuickEntryStore(
+    (state) => state.markEntrySaving
+  );
+  const markEntrySaved = useAIQuickEntryStore((state) => state.markEntrySaved);
+  const markEntryForReviewInStore = useAIQuickEntryStore(
+    (state) => state.markEntryForReview
+  );
   const [activeDrawerItem, setActiveDrawerItem] =
     useState<ActiveQuickEntryDrawerItem>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeDrawerItemRef = useRef<ActiveQuickEntryDrawerItem>(null);
-  const openRef = useRef(open);
-  const sessionRef = useRef(0);
 
   useEffect(() => {
     if (activeDrawerItem) {
@@ -139,9 +140,6 @@ const AIQuickEntry = () => {
   }, [activeDrawerItem]);
 
   useEffect(() => {
-    openRef.current = open;
-    sessionRef.current += 1;
-
     if (!open) {
       setActiveDrawerItem(null);
       activeDrawerItemRef.current = null;
@@ -149,16 +147,10 @@ const AIQuickEntry = () => {
     }
 
     setMode("entry");
-    setEntries([]);
     setComposer("");
     setActiveDrawerItem(null);
     activeDrawerItemRef.current = null;
   }, [open]);
-
-  const isCurrentSession = useCallback(
-    (sessionId: number) => openRef.current && sessionRef.current === sessionId,
-    []
-  );
 
   const activeEntries = useMemo(
     () =>
@@ -217,25 +209,13 @@ const AIQuickEntry = () => {
       reviewDraft: TQuickExpenseDrawerInitialExpense;
       errorReason: AIQuickEntryReviewReason;
     }) => {
-      setEntries((current) =>
-        current.map((entry) =>
-          entry.id === entryId
-            ? {
-                ...entry,
-                status: "needsReview",
-                reviewDraft,
-                savedExpense: undefined,
-                errorReason,
-              }
-            : entry
-        )
-      );
+      markEntryForReviewInStore(entryId, reviewDraft, errorReason);
     },
-    []
+    [markEntryForReviewInStore]
   );
 
   const runEntry = useCallback(
-    async (entryId: string, input: string, sessionId: number) => {
+    async (entryId: string, input: string) => {
       const today = dayjs();
       const todayIso = today.format("YYYY-MM-DD");
       const todayDisplay = today.format("DD/MM/YYYY");
@@ -247,9 +227,6 @@ const AIQuickEntry = () => {
         const budgetOptions = await queryClient.ensureQueryData(
           queries.budgetWeekly.options(weekStart, todayIso)
         );
-        if (!isCurrentSession(sessionId)) {
-          return;
-        }
 
         errorReason = "request_failed";
         const parseResult = await parseQuickEntryExpense({
@@ -261,9 +238,6 @@ const AIQuickEntry = () => {
             category: budget.category,
           })),
         });
-        if (!isCurrentSession(sessionId)) {
-          return;
-        }
 
         const decision = evaluateAIQuickEntryParse({
           input,
@@ -276,9 +250,6 @@ const AIQuickEntry = () => {
         reviewDraft = decision.initialExpense;
 
         if (decision.kind === "review") {
-          if (!isCurrentSession(sessionId)) {
-            return;
-          }
           markEntryForReview({
             entryId,
             reviewDraft: decision.initialExpense,
@@ -288,44 +259,13 @@ const AIQuickEntry = () => {
           return;
         }
 
-        if (!isCurrentSession(sessionId)) {
-          return;
-        }
-        setEntries((current) =>
-          current.map((entry) =>
-            entry.id === entryId
-              ? {
-                  ...entry,
-                  status: "saving",
-                  reviewDraft: decision.initialExpense,
-                }
-              : entry
-          )
-        );
+        markEntrySaving(entryId, decision.initialExpense);
 
         errorReason = "create_error";
-        if (!isCurrentSession(sessionId)) {
-          return;
-        }
         const localExpense = await createExpense(decision.payload);
-        if (!isCurrentSession(sessionId)) {
-          return;
-        }
         const savedExpense = localExpenseToSavedExpense(localExpense);
 
-        setEntries((current) =>
-          current.map((entry) =>
-            entry.id === entryId
-              ? {
-                  ...entry,
-                  status: "saved",
-                  reviewDraft: undefined,
-                  savedExpense,
-                  errorReason: undefined,
-                }
-              : entry
-          )
-        );
+        markEntrySaved(entryId, savedExpense);
 
         toast.success(
           <QuickExpenseSuccessToast
@@ -335,9 +275,6 @@ const AIQuickEntry = () => {
         );
         haptics.success();
       } catch (error) {
-        if (!isCurrentSession(sessionId)) {
-          return;
-        }
         console.error(error);
         markEntryForReview({
           entryId,
@@ -356,19 +293,15 @@ const AIQuickEntry = () => {
     [
       createExpense,
       haptics,
-      isCurrentSession,
       markEntryForReview,
+      markEntrySaved,
+      markEntrySaving,
       paidBy,
       queryClient,
     ]
   );
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      openRef.current = false;
-      sessionRef.current += 1;
-    }
-
     setOpen(nextOpen);
     if (nextOpen) {
       return;
@@ -394,15 +327,10 @@ const AIQuickEntry = () => {
       return;
     }
 
-    const id = createEntryId();
-    const sessionId = sessionRef.current;
-    setEntries((current) => [
-      ...current,
-      { id, input, status: "parsing", createdAt: Date.now() },
-    ]);
+    const entry = enqueueEntry(input);
     setComposer("");
     haptics.impact("medium");
-    void runEntry(id, input, sessionId);
+    void runEntry(entry.id, input);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -440,19 +368,7 @@ const AIQuickEntry = () => {
     }
 
     const savedExpense = localExpenseToSavedExpense(expense);
-    setEntries((current) =>
-      current.map((entry) =>
-        entry.id === drawerItem.entryId
-          ? {
-              ...entry,
-              status: "saved",
-              reviewDraft: undefined,
-              savedExpense,
-              errorReason: undefined,
-            }
-          : entry
-      )
-    );
+    markEntrySaved(drawerItem.entryId, savedExpense);
     activeDrawerItemRef.current = null;
   };
 
