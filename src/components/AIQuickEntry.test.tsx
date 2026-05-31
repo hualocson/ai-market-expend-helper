@@ -1,8 +1,17 @@
 import React from "react";
 
-import { mockParseExpense } from "@/lib/ai/mock-parse-expense";
+import { Category, PaidBy } from "@/enums";
+import { queries } from "@/lib/queries";
+import type { LocalExpense } from "@/lib/sync/expenses/types";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AIQuickEntry from "./AIQuickEntry";
@@ -11,9 +20,14 @@ import {
   QuickExpenseSuccessToast,
 } from "./QuickExpenseSuccessToast";
 
-let mockPathname = "/";
+const { createExpenseMock, quickExpenseDrawerPropsMock, toastSuccessMock } =
+  vi.hoisted(() => ({
+    createExpenseMock: vi.fn(),
+    quickExpenseDrawerPropsMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }));
 
-const toastSuccessMock = vi.hoisted(() => vi.fn());
+let mockPathname = "/";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -26,11 +40,16 @@ vi.mock("@/hooks/useAppHaptics", () => ({
     success: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
+    trigger: vi.fn(),
   }),
 }));
 
 vi.mock("@/hooks/useKeyboardOffset", () => ({
   useKeyboardOffset: () => 0,
+}));
+
+vi.mock("@/lib/mutations", () => ({
+  useCreateExpenseMutation: () => ({ mutateAsync: createExpenseMock }),
 }));
 
 vi.mock("sonner", () => ({
@@ -39,25 +58,122 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/ai/mock-parse-expense", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/ai/mock-parse-expense")>();
-
-  return {
-    ...actual,
-    mockParseExpense: vi.fn(actual.mockParseExpense),
-  };
-});
-
 vi.mock("@/components/providers/StoreProvider", () => ({
-  useSettingsStore: () => "Cubi",
+  useSettingsStore: (selector: (store: { paidBy: PaidBy }) => unknown) =>
+    selector({ paidBy: PaidBy.CUBI }),
 }));
 
+vi.mock("@/components/QuickExpenseDrawer", () => ({
+  __esModule: true,
+  default: (props: Record<string, unknown>) => {
+    quickExpenseDrawerPropsMock(props);
+
+    return (
+      <div
+        data-testid="quick-expense-drawer"
+        data-open={String(props.open)}
+        data-mode={String(props.mode)}
+      />
+    );
+  },
+}));
+
+const TODAY = "2026-05-30";
+const WEEK_START = "2026-05-24";
+
+const budgetOption = {
+  id: 2,
+  name: "Cà phê",
+  icon: "☕",
+  color: "lime" as const,
+  period: "week" as const,
+  periodStartDate: "2026-05-24",
+  periodEndDate: "2026-05-30",
+  amount: 100000,
+  spent: 0,
+  remaining: 100000,
+  category: Category.FOOD,
+};
+
+const savedLocalExpense = (
+  overrides: Partial<LocalExpense> = {}
+): LocalExpense => ({
+  id: "local-1",
+  clientId: "client-1",
+  serverId: 101,
+  entity: "expenses",
+  syncStatus: "pending",
+  createdAt: "2026-05-30T08:00:00.000Z",
+  updatedAt: "2026-05-30T08:00:00.000Z",
+  date: TODAY,
+  amount: 35000,
+  note: "Cà phê sữa đá",
+  category: Category.FOOD,
+  paidBy: PaidBy.CUBI,
+  budgetId: 2,
+  budgetName: "Cà phê",
+  budgetIcon: "☕",
+  budgetColor: "lime",
+  ...overrides,
+});
+
+type MockQuickExpenseDrawerProps = Record<string, unknown> & {
+  onSuccess?: (expense: LocalExpense) => void;
+};
+
+const getLastQuickExpenseDrawerProps = () =>
+  quickExpenseDrawerPropsMock.mock.calls.at(-1)?.[0] as
+    | MockQuickExpenseDrawerProps
+    | undefined;
+
+const renderQuickEntry = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  queryClient.setQueryData(
+    queries.budgetWeekly.options(WEEK_START, TODAY).queryKey,
+    [budgetOption]
+  );
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AIQuickEntry />
+    </QueryClientProvider>
+  );
+};
+
+const mockParseResponse = (data: unknown, status = 200) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      status,
+      json: vi.fn().mockResolvedValue({ success: true, data }),
+    })
+  );
+};
+
+const mockUnresolvedParseResponse = () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(
+      () =>
+        new Promise(() => {
+          // Keep the request unresolved so active rows remain visible.
+        })
+    )
+  );
+};
+
+const originalGlobalReact = globalThis.React;
+
 beforeEach(() => {
-  vi.useFakeTimers();
+  globalThis.React = React;
+  vi.setSystemTime(new Date(`${TODAY}T08:00:00.000Z`));
   mockPathname = "/";
+  createExpenseMock.mockReset().mockResolvedValue(savedLocalExpense());
+  quickExpenseDrawerPropsMock.mockReset();
   toastSuccessMock.mockClear();
-  vi.mocked(mockParseExpense).mockClear();
   useAIQuickEntryStore.getState().setOpen(false);
 });
 
@@ -65,7 +181,13 @@ afterEach(() => {
   act(() => {
     useAIQuickEntryStore.getState().setOpen(false);
   });
+  if (typeof originalGlobalReact === "undefined") {
+    Reflect.deleteProperty(globalThis, "React");
+  } else {
+    globalThis.React = originalGlobalReact;
+  }
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 const openOverlay = () => {
@@ -81,15 +203,9 @@ const typeAndSend = (text: string) => {
   fireEvent.click(screen.getByLabelText("Send expense"));
 };
 
-const advanceParse = async () => {
-  await act(async () => {
-    vi.advanceTimersByTime(2600);
-  });
-};
-
 describe("AIQuickEntry", () => {
   it("renders nothing when closed", () => {
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     expect(
       screen.queryByLabelText("Describe your expense")
     ).not.toBeInTheDocument();
@@ -100,7 +216,7 @@ describe("AIQuickEntry", () => {
       .spyOn(HTMLInputElement.prototype, "focus")
       .mockImplementation(() => {});
 
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
 
     expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
@@ -111,7 +227,7 @@ describe("AIQuickEntry", () => {
   });
 
   it("dismisses from the fullscreen drawer close button", () => {
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
 
     fireEvent.click(screen.getByLabelText("Close AI quick entry"));
@@ -122,7 +238,7 @@ describe("AIQuickEntry", () => {
   });
 
   it("renders the status bar inside the drawer header", () => {
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
 
     expect(screen.getByTestId("ai-quick-entry-drawer-header")).toContainElement(
@@ -132,7 +248,7 @@ describe("AIQuickEntry", () => {
   });
 
   it("uses a glass background for the fullscreen drawer", () => {
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
 
     expect(screen.getByRole("dialog")).toHaveClass(
@@ -143,14 +259,15 @@ describe("AIQuickEntry", () => {
   });
 
   it("disables send for empty input", () => {
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
 
     expect(screen.getByLabelText("Send expense")).toBeDisabled();
   });
 
-  it("renders one pending row and clears the composer after submit", () => {
-    render(<AIQuickEntry />);
+  it("renders one active row and clears the composer after submit", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
@@ -163,39 +280,12 @@ describe("AIQuickEntry", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
-    expect(screen.queryByText(/\+1 parsing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\+1 more active/)).not.toBeInTheDocument();
   });
 
-  it("keeps mock entries pending for longer before resolving", async () => {
-    render(<AIQuickEntry />);
-    openOverlay();
-
-    act(() => {
-      typeAndSend("Cà phê 35k");
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(1300);
-    });
-
-    expect(mockParseExpense).not.toHaveBeenCalled();
-    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("ai-quick-entry-amount-skeleton")
-    ).toBeInTheDocument();
-
-    await act(async () => {
-      vi.advanceTimersByTime(1200);
-    });
-
-    expect(mockParseExpense).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByTestId("ai-quick-entry-pending-queue")
-    ).not.toBeInTheDocument();
-  });
-
-  it("renders a capped plain pending queue above the composer", () => {
-    render(<AIQuickEntry />);
+  it("renders a capped plain active queue above the composer", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
@@ -212,14 +302,15 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("third")).toBeInTheDocument();
     expect(screen.queryByText("second")).not.toBeInTheDocument();
     expect(screen.queryByText("first")).not.toBeInTheDocument();
-    expect(screen.getByText("+2 more parsing")).toBeInTheDocument();
+    expect(screen.getByText("+2 more active")).toBeInTheDocument();
     expect(
-      screen.queryByLabelText(/Expand 4 pending expenses/)
+      screen.queryByLabelText(/Expand 4 active expenses/)
     ).not.toBeInTheDocument();
   });
 
-  it("opens preview mode from the pending queue", () => {
-    render(<AIQuickEntry />);
+  it("opens preview mode from the active queue", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
@@ -229,11 +320,11 @@ describe("AIQuickEntry", () => {
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Preview 1 more parsing expense" })
+      screen.getByRole("button", { name: "Preview 1 more active expense" })
     );
 
     expect(screen.getByText("AI Quick Entry")).toBeInTheDocument();
-    expect(screen.getByText("Parsing")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("third")).toBeInTheDocument();
     expect(screen.getByText("second")).toBeInTheDocument();
     expect(screen.getByText("first")).toBeInTheDocument();
@@ -241,7 +332,8 @@ describe("AIQuickEntry", () => {
   });
 
   it("opens preview mode from the status bar", () => {
-    render(<AIQuickEntry />);
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
@@ -262,8 +354,9 @@ describe("AIQuickEntry", () => {
     const focusSpy = vi
       .spyOn(HTMLInputElement.prototype, "focus")
       .mockImplementation(() => {});
+    mockUnresolvedParseResponse();
 
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
     focusSpy.mockClear();
 
@@ -283,26 +376,53 @@ describe("AIQuickEntry", () => {
     focusSpy.mockRestore();
   });
 
-  it("removes resolved entries from the pending queue and shows a success toast", async () => {
-    render(<AIQuickEntry />);
+  it("auto-saves a trusted parse, clears the composer, and shows the saved entry in preview", async () => {
+    mockParseResponse({
+      status: "success",
+      originalInput: "cf 35k",
+      expense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê sữa đá",
+        budgetId: 2,
+        confidence: "high",
+        reason: "Matched coffee budget.",
+      },
+    });
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
-      typeAndSend("Cà phê 35k");
+      typeAndSend("cf 35k");
     });
 
-    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
+    expect(screen.getByText("cf 35k")).toBeInTheDocument();
 
-    await advanceParse();
+    await waitFor(() =>
+      expect(createExpenseMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: TODAY,
+          amount: 35000,
+          note: "Cà phê sữa đá",
+          category: Category.FOOD,
+          paidBy: PaidBy.CUBI,
+          budgetId: 2,
+          budgetName: "Cà phê",
+        })
+      )
+    );
 
-    expect(
-      screen.queryByTestId("ai-quick-entry-pending-queue")
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId("ai-quick-entry-pending-queue")
+      ).not.toBeInTheDocument()
+    );
+
     expect(toastSuccessMock).toHaveBeenCalledTimes(1);
     expect(toastSuccessMock.mock.calls[0]?.[1]).toStrictEqual(
       QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
     );
-
     const toastContent = toastSuccessMock.mock.calls[0]?.[0];
     expect(React.isValidElement(toastContent)).toBe(true);
     expect(toastContent).toMatchObject({
@@ -310,37 +430,191 @@ describe("AIQuickEntry", () => {
       props: {
         draft: expect.objectContaining({
           amount: 35000,
-          note: "Cà phê 35k",
-          paidBy: "Cubi",
+          note: "Cà phê sữa đá",
+          paidBy: PaidBy.CUBI,
         }),
       },
     });
+
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /Edit saved expense Cà phê sữa đá/,
+      })
+    ).toBeInTheDocument();
   });
 
-  it("cancels pending parse timers when dismissed", async () => {
-    render(<AIQuickEntry />);
+  it("moves a fallback parse to needs review without creating an expense", async () => {
+    mockParseResponse({
+      status: "fallback",
+      originalInput: "maybe coffee",
+      prefill: {
+        note: "maybe coffee",
+        amount: 35000,
+        date: "30/05/2026",
+        budgetId: null,
+      },
+      reason: "no_budget_match",
+    });
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
-      typeAndSend("Cà phê 35k");
-      useAIQuickEntryStore.getState().setOpen(false);
+      typeAndSend("maybe coffee");
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(2600);
+    await waitFor(() =>
+      expect(screen.queryByText("Saving")).not.toBeInTheDocument()
+    );
+
+    expect(createExpenseMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("maybe coffee")).toBeInTheDocument();
+    const reviewButton = screen.getByRole("button", {
+      name: /Review expense maybe coffee/,
+    });
+    expect(reviewButton).toBeInTheDocument();
+
+    fireEvent.click(reviewButton);
+
+    expect(screen.getByTestId("quick-expense-drawer")).toHaveAttribute(
+      "data-mode",
+      "create"
+    );
+    expect(quickExpenseDrawerPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        open: true,
+        mode: "create",
+        transactionId: undefined,
+        initialExpenseKey: expect.stringMatching(/^review:/),
+        initialExpense: expect.objectContaining({
+          note: "maybe coffee",
+          amount: 35000,
+        }),
+      })
+    );
+
+    act(() => {
+      getLastQuickExpenseDrawerProps()?.onSuccess?.(
+        savedLocalExpense({
+          serverId: 102,
+          note: "Reviewed coffee",
+        })
+      );
     });
 
-    expect(mockParseExpense).not.toHaveBeenCalled();
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByText("Reviewed coffee")).toBeInTheDocument();
+  });
+
+  it("moves a create failure to needs review with the parsed draft", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    createExpenseMock.mockRejectedValue(new Error("create failed"));
+    mockParseResponse({
+      status: "success",
+      originalInput: "cf 35k",
+      expense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê sữa đá",
+        budgetId: 2,
+        confidence: "high",
+        reason: "Matched coffee budget.",
+      },
+    });
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("cf 35k");
+    });
+
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Review expense Cà phê sữa đá/ })
+    ).toBeInTheDocument();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("opens the drawer from saved and review rows with stable initial expense keys", async () => {
+    mockParseResponse({
+      status: "success",
+      originalInput: "cf 35k",
+      expense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê sữa đá",
+        budgetId: 2,
+        confidence: "high",
+        reason: "Matched coffee budget.",
+      },
+    });
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("cf 35k");
+    });
+
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Edit saved expense Cà phê sữa đá/,
+      })
+    );
+
+    expect(screen.getByTestId("quick-expense-drawer")).toHaveAttribute(
+      "data-mode",
+      "edit"
+    );
+    expect(quickExpenseDrawerPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        open: true,
+        mode: "edit",
+        transactionId: 101,
+        initialExpenseKey: expect.stringMatching(/^saved:/),
+        initialExpense: expect.objectContaining({
+          id: 101,
+          clientId: "client-1",
+        }),
+      })
+    );
   });
 
   it("clears entries when reopened", async () => {
-    render(<AIQuickEntry />);
+    mockParseResponse({
+      status: "fallback",
+      originalInput: "first",
+      prefill: { note: "first", amount: 0, budgetId: null },
+      reason: "no_budget_match",
+    });
+    renderQuickEntry();
     openOverlay();
 
     act(() => {
       typeAndSend("first");
     });
-    await advanceParse();
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent(
+        "1"
+      )
+    );
 
     act(() => {
       useAIQuickEntryStore.getState().setOpen(false);
@@ -356,7 +630,7 @@ describe("AIQuickEntry", () => {
 
   it("renders nothing on the /ai route", () => {
     mockPathname = "/ai";
-    render(<AIQuickEntry />);
+    renderQuickEntry();
     openOverlay();
 
     expect(

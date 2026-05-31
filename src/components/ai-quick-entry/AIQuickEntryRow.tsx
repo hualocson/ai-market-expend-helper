@@ -13,7 +13,7 @@ import type { QuickEntry } from "./types";
 
 type AIQuickEntryRowProps = {
   entry: QuickEntry;
-  variant: "pending" | "resolved" | "failed";
+  variant: "active" | "saved" | "needsReview";
   className?: string;
 };
 
@@ -51,12 +51,19 @@ const CompactAmount = ({ amount }: { amount: number }) => (
   </span>
 );
 
+const getDisplayExpense = (entry: QuickEntry) =>
+  entry.savedExpense ?? entry.reviewDraft ?? null;
+
 const AIQuickEntryRow = ({
   entry,
   variant,
   className,
 }: AIQuickEntryRowProps) => {
-  const note = entry.result?.note.trim() || entry.input;
+  const displayExpense = getDisplayExpense(entry);
+  const note = displayExpense?.note?.trim() || entry.input;
+  const amount = displayExpense?.amount;
+  const category = displayExpense?.category;
+  const isSaving = entry.status === "saving";
 
   return (
     <div
@@ -64,21 +71,21 @@ const AIQuickEntryRow = ({
       data-testid="ai-quick-entry-row"
       data-variant={variant}
       aria-label={
-        variant === "pending"
-          ? `Parsing expense: ${entry.input}`
-          : variant === "failed"
-            ? `Expense needs review: ${entry.input}`
-            : `Parsed expense: ${note}, ${formatVnd(entry.result?.amount ?? 0)}`
+        variant === "active"
+          ? `${isSaving ? "Saving" : "Parsing"} expense: ${note}`
+          : variant === "needsReview"
+            ? `Expense needs review: ${note}`
+            : `Saved expense: ${note}, ${formatVnd(amount ?? 0)}`
       }
       className={cn(rowClassName, className)}
     >
-      {variant === "resolved" && entry.result ? (
+      {variant === "saved" && category ? (
         <ExpenseItemIcon
-          category={entry.result.category as Category}
+          category={category as Category}
           size="sm"
           className="size-8 shrink-0 [&_svg]:size-4"
         />
-      ) : variant === "failed" ? (
+      ) : variant === "needsReview" ? (
         <FailedIndicator />
       ) : (
         <PendingIndicator />
@@ -88,11 +95,15 @@ const AIQuickEntryRow = ({
         {note}
       </p>
 
-      {variant === "resolved" && entry.result ? (
-        <CompactAmount amount={entry.result.amount} />
-      ) : variant === "failed" ? (
+      {variant === "saved" && typeof amount === "number" ? (
+        <CompactAmount amount={amount} />
+      ) : variant === "needsReview" ? (
         <span className="text-destructive shrink-0 text-xs font-semibold">
           Review
+        </span>
+      ) : isSaving ? (
+        <span className="text-muted-foreground shrink-0 text-xs font-semibold">
+          Saving
         </span>
       ) : (
         <PendingAmountSkeleton />

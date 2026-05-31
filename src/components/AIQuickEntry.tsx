@@ -14,12 +14,18 @@ import React, {
 
 import { usePathname } from "next/navigation";
 
-import { Category, PaidBy } from "@/enums";
+import dayjs from "@/configs/date";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
-import { mockParseExpense } from "@/lib/ai/mock-parse-expense";
+import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
+import { unwrapApiResponse } from "@/lib/api/api-response";
+import { useCreateExpenseMutation } from "@/lib/mutations";
+import { queries } from "@/lib/queries";
+import type { LocalExpense } from "@/lib/sync/expenses/types";
 import { cn } from "@/lib/utils";
+import { getWeekRange } from "@/lib/week";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, XIcon } from "lucide-react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
@@ -33,6 +39,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 
+import QuickExpenseDrawer, {
+  type TQuickExpenseDrawerInitialExpense,
+} from "@/components/QuickExpenseDrawer";
 import {
   QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS,
   QuickExpenseSuccessToast,
@@ -40,21 +49,56 @@ import {
 import AIQuickEntryPendingQueue from "@/components/ai-quick-entry/AIQuickEntryPendingQueue";
 import AIQuickEntryPreview from "@/components/ai-quick-entry/AIQuickEntryPreview";
 import AIQuickEntryStatusBar from "@/components/ai-quick-entry/AIQuickEntryStatusBar";
+import {
+  type AIQuickEntryReviewReason,
+  buildOriginalInputReviewDraft,
+  evaluateAIQuickEntryParse,
+  localExpenseToSavedExpense,
+} from "@/components/ai-quick-entry/real-parse";
 import type { QuickEntry } from "@/components/ai-quick-entry/types";
 import { useSettingsStore } from "@/components/providers/StoreProvider";
 
 const HIDDEN_PATHS = ["/ai"];
 
-const RESOLVE_DELAY_MS = 2500;
-
 type AIQuickEntryMode = "entry" | "preview";
+
+type ActiveQuickEntryDrawerItem =
+  | { kind: "review"; entryId: string }
+  | { kind: "saved"; entryId: string }
+  | null;
 
 const createEntryId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const newestFirst = (entries: QuickEntry[]) => [...entries].reverse();
+const newestFirst = (entries: QuickEntry[]) =>
+  [...entries].sort((left, right) => right.createdAt - left.createdAt);
+
+const parseQuickEntryExpense = async ({
+  input,
+  todayDisplay,
+  budgets,
+}: {
+  input: string;
+  todayDisplay: string;
+  budgets: Array<{ id: number; name: string; category: string }>;
+}): Promise<ParseExpenseResponse> => {
+  const response = await fetch("/api/ai/parse-expense", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      input,
+      today: todayDisplay,
+      budgets,
+    }),
+  });
+
+  return unwrapApiResponse<ParseExpenseResponse>(
+    await response.json(),
+    response.status
+  );
+};
 
 const AIQuickEntry = () => {
   const pathname = usePathname();
@@ -63,26 +107,29 @@ const AIQuickEntry = () => {
   const paidBy = useSettingsStore((state) => state.paidBy);
   const keyboardOffset = useKeyboardOffset();
   const haptics = useAppHaptics();
+  const queryClient = useQueryClient();
+  const { mutateAsync: createExpense } = useCreateExpenseMutation();
   const inputId = useId();
 
   const [mode, setMode] = useState<AIQuickEntryMode>("entry");
   const [composer, setComposer] = useState("");
   const [entries, setEntries] = useState<QuickEntry[]>([]);
+  const [activeDrawerItem, setActiveDrawerItem] =
+    useState<ActiveQuickEntryDrawerItem>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const activeDrawerItemRef = useRef<ActiveQuickEntryDrawerItem>(null);
 
   const hidden = HIDDEN_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 
-  const clearTimers = useCallback(() => {
-    timersRef.current.forEach((timer) => clearTimeout(timer));
-    timersRef.current = [];
-  }, []);
+  useEffect(() => {
+    if (activeDrawerItem) {
+      activeDrawerItemRef.current = activeDrawerItem;
+    }
+  }, [activeDrawerItem]);
 
   useEffect(() => {
-    clearTimers();
-
     if (!open) {
       return;
     }
@@ -90,29 +137,182 @@ const AIQuickEntry = () => {
     setMode("entry");
     setEntries([]);
     setComposer("");
-  }, [clearTimers, open]);
+    setActiveDrawerItem(null);
+    activeDrawerItemRef.current = null;
+  }, [open]);
 
-  useEffect(
-    () => () => {
-      clearTimers();
+  const activeEntries = useMemo(
+    () =>
+      entries.filter(
+        (entry) => entry.status === "parsing" || entry.status === "saving"
+      ),
+    [entries]
+  );
+  const savedEntries = useMemo(
+    () => newestFirst(entries.filter((entry) => entry.status === "saved")),
+    [entries]
+  );
+  const reviewEntries = useMemo(
+    () =>
+      newestFirst(entries.filter((entry) => entry.status === "needsReview")),
+    [entries]
+  );
+  const activeCount = activeEntries.length;
+  const savedCount = savedEntries.length;
+  const reviewCount = reviewEntries.length;
+
+  const activeDrawerEntry = useMemo(
+    () =>
+      activeDrawerItem
+        ? (entries.find((entry) => entry.id === activeDrawerItem.entryId) ??
+          null)
+        : null,
+    [activeDrawerItem, entries]
+  );
+
+  const activeDrawerInitialExpense: TQuickExpenseDrawerInitialExpense | null =
+    useMemo(() => {
+      if (!activeDrawerItem || !activeDrawerEntry) {
+        return null;
+      }
+
+      return activeDrawerItem.kind === "saved"
+        ? (activeDrawerEntry.savedExpense ?? null)
+        : (activeDrawerEntry.reviewDraft ?? null);
+    }, [activeDrawerEntry, activeDrawerItem]);
+
+  const drawerOpen = Boolean(activeDrawerItem && activeDrawerInitialExpense);
+  const drawerMode = activeDrawerItem?.kind === "saved" ? "edit" : "create";
+  const drawerTransactionId =
+    activeDrawerItem?.kind === "saved"
+      ? activeDrawerEntry?.savedExpense?.id
+      : undefined;
+
+  const markEntryForReview = useCallback(
+    ({
+      entryId,
+      reviewDraft,
+      errorReason,
+    }: {
+      entryId: string;
+      reviewDraft: TQuickExpenseDrawerInitialExpense;
+      errorReason: AIQuickEntryReviewReason;
+    }) => {
+      setEntries((current) =>
+        current.map((entry) =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                status: "needsReview",
+                reviewDraft,
+                savedExpense: undefined,
+                errorReason,
+              }
+            : entry
+        )
+      );
     },
-    [clearTimers]
+    []
   );
 
-  const pendingEntries = useMemo(
-    () => entries.filter((entry) => entry.status === "pending"),
-    [entries]
+  const runEntry = useCallback(
+    async (entryId: string, input: string) => {
+      const today = dayjs();
+      const todayIso = today.format("YYYY-MM-DD");
+      const todayDisplay = today.format("DD/MM/YYYY");
+      const weekStart = getWeekRange(today).weekStartDate.format("YYYY-MM-DD");
+      let reviewDraft: TQuickExpenseDrawerInitialExpense | undefined;
+      let errorReason: AIQuickEntryReviewReason = "budget_load_error";
+
+      try {
+        const budgetOptions = await queryClient.ensureQueryData(
+          queries.budgetWeekly.options(weekStart, todayIso)
+        );
+
+        errorReason = "request_failed";
+        const parseResult = await parseQuickEntryExpense({
+          input,
+          todayDisplay,
+          budgets: budgetOptions.map((budget) => ({
+            id: budget.id,
+            name: budget.name,
+            category: budget.category,
+          })),
+        });
+
+        const decision = evaluateAIQuickEntryParse({
+          input,
+          parseResult,
+          budgetOptions,
+          paidBy,
+          todayIso,
+        });
+
+        reviewDraft = decision.initialExpense;
+
+        if (decision.kind === "review") {
+          markEntryForReview({
+            entryId,
+            reviewDraft: decision.initialExpense,
+            errorReason: decision.reason,
+          });
+          haptics.warning();
+          return;
+        }
+
+        setEntries((current) =>
+          current.map((entry) =>
+            entry.id === entryId
+              ? {
+                  ...entry,
+                  status: "saving",
+                  reviewDraft: decision.initialExpense,
+                }
+              : entry
+          )
+        );
+
+        errorReason = "create_error";
+        const localExpense = await createExpense(decision.payload);
+        const savedExpense = localExpenseToSavedExpense(localExpense);
+
+        setEntries((current) =>
+          current.map((entry) =>
+            entry.id === entryId
+              ? {
+                  ...entry,
+                  status: "saved",
+                  reviewDraft: undefined,
+                  savedExpense,
+                  errorReason: undefined,
+                }
+              : entry
+          )
+        );
+
+        toast.success(
+          <QuickExpenseSuccessToast draft={decision.initialExpense} />,
+          QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
+        );
+        haptics.success();
+      } catch (error) {
+        console.error(error);
+        markEntryForReview({
+          entryId,
+          reviewDraft:
+            reviewDraft ??
+            buildOriginalInputReviewDraft({
+              input,
+              paidBy,
+              todayDisplay,
+            }),
+          errorReason,
+        });
+        haptics.error();
+      }
+    },
+    [createExpense, haptics, markEntryForReview, paidBy, queryClient]
   );
-  const completedEntries = useMemo(
-    () => newestFirst(entries.filter((entry) => entry.status === "resolved")),
-    [entries]
-  );
-  const failedEntries = useMemo(
-    () => newestFirst(entries.filter((entry) => entry.status === "failed")),
-    [entries]
-  );
-  const failedCount = failedEntries.length;
-  const completedCount = completedEntries.length;
 
   if (hidden) {
     return null;
@@ -145,45 +345,13 @@ const AIQuickEntry = () => {
     }
 
     const id = createEntryId();
-    setEntries((current) => [...current, { id, input, status: "pending" }]);
+    setEntries((current) => [
+      ...current,
+      { id, input, status: "parsing", createdAt: Date.now() },
+    ]);
     setComposer("");
     haptics.impact("medium");
-
-    const parseTimer = setTimeout(() => {
-      const result = mockParseExpense(input, { paidBy });
-
-      setEntries((current) =>
-        current.map((entry) =>
-          entry.id === id
-            ? {
-                ...entry,
-                status: "resolved",
-                result,
-              }
-            : entry
-        )
-      );
-
-      toast.success(
-        <QuickExpenseSuccessToast
-          draft={{
-            date: result.date,
-            amount: result.amount,
-            note: result.note,
-            category: result.category as Category,
-            paidBy: result.paidBy as PaidBy,
-            budgetId: result.budgetId,
-            budgetName: result.budgetName,
-            budgetIcon: result.budgetIcon,
-            budgetColor: result.budgetColor,
-          }}
-        />,
-        {
-          ...QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS,
-        }
-      );
-    }, RESOLVE_DELAY_MS);
-    timersRef.current.push(parseTimer);
+    void runEntry(id, input);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -196,6 +364,45 @@ const AIQuickEntry = () => {
       event.preventDefault();
       submit();
     }
+  };
+
+  const openReviewEntry = (entry: QuickEntry) => {
+    setActiveDrawerItem({ kind: "review", entryId: entry.id });
+  };
+
+  const openSavedEntry = (entry: QuickEntry) => {
+    setActiveDrawerItem({ kind: "saved", entryId: entry.id });
+  };
+
+  const handleQuickExpenseDrawerOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      return;
+    }
+
+    setActiveDrawerItem(null);
+  };
+
+  const handleQuickExpenseDrawerSuccess = (expense: LocalExpense) => {
+    const drawerItem = activeDrawerItem ?? activeDrawerItemRef.current;
+    if (!drawerItem) {
+      return;
+    }
+
+    const savedExpense = localExpenseToSavedExpense(expense);
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.id === drawerItem.entryId
+          ? {
+              ...entry,
+              status: "saved",
+              reviewDraft: undefined,
+              savedExpense,
+              errorReason: undefined,
+            }
+          : entry
+      )
+    );
+    activeDrawerItemRef.current = null;
   };
 
   const canSend = composer.trim().length > 0;
@@ -238,9 +445,9 @@ const AIQuickEntry = () => {
             {mode === "entry" ? (
               <AIQuickEntryStatusBar
                 totalCount={entries.length}
-                pendingCount={pendingEntries.length}
-                completedCount={completedCount}
-                failedCount={failedCount}
+                pendingCount={activeCount}
+                completedCount={savedCount}
+                failedCount={reviewCount}
                 onOpenPreview={openPreview}
               />
             ) : null}
@@ -248,10 +455,12 @@ const AIQuickEntry = () => {
 
           {mode === "preview" ? (
             <AIQuickEntryPreview
-              pendingEntries={newestFirst(pendingEntries)}
-              completedEntries={completedEntries}
-              failedEntries={failedEntries}
+              activeEntries={newestFirst(activeEntries)}
+              savedEntries={savedEntries}
+              reviewEntries={reviewEntries}
               onDone={returnToEntry}
+              onSelectSavedEntry={openSavedEntry}
+              onSelectReviewEntry={openReviewEntry}
             />
           ) : (
             <div className="relative h-dvh overflow-hidden">
@@ -264,7 +473,7 @@ const AIQuickEntry = () => {
                   className="no-scrollbar mx-auto flex w-full max-w-[390px] flex-col gap-2.5 overflow-hidden px-4 pb-2"
                 >
                   <AIQuickEntryPendingQueue
-                    pendingEntries={pendingEntries}
+                    activeEntries={activeEntries}
                     onOpenPreview={openPreview}
                   />
                 </div>
@@ -303,6 +512,21 @@ const AIQuickEntry = () => {
               </div>
             </div>
           )}
+
+          <QuickExpenseDrawer
+            showTrigger={false}
+            open={drawerOpen}
+            onOpenChange={handleQuickExpenseDrawerOpenChange}
+            mode={drawerMode}
+            transactionId={drawerTransactionId}
+            initialExpense={activeDrawerInitialExpense}
+            initialExpenseKey={
+              activeDrawerItem
+                ? `${activeDrawerItem.kind}:${activeDrawerItem.entryId}`
+                : undefined
+            }
+            onSuccess={handleQuickExpenseDrawerSuccess}
+          />
         </DrawerContent>
       ) : null}
     </Drawer>
