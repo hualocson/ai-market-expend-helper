@@ -114,6 +114,16 @@ describe("AIQuickEntry", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders the status bar inside the drawer header", () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    expect(screen.getByTestId("ai-quick-entry-drawer-header")).toContainElement(
+      screen.getByLabelText(/AI quick entry status/)
+    );
+    expect(screen.queryByTestId("ai-quick-entry-status-top")).toBeNull();
+  });
+
   it("disables send for empty input", () => {
     render(<AIQuickEntry />);
     openOverlay();
@@ -200,7 +210,7 @@ describe("AIQuickEntry", () => {
 
     expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
     expect(screen.getByText("35.000")).toBeInTheDocument();
-    expect(screen.getByTestId("ai-quick-entry-status-top")).toContainElement(
+    expect(screen.getByTestId("ai-quick-entry-drawer-header")).toContainElement(
       screen.getByLabelText(/AI quick entry status/)
     );
 

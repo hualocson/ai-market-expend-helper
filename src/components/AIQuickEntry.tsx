@@ -222,30 +222,25 @@ const AIQuickEntry = () => {
           >
             <XIcon className="size-4" />
           </DrawerClose>
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>AI quick entry</DrawerTitle>
-            <DrawerDescription>
+          <DrawerHeader
+            data-testid="ai-quick-entry-drawer-header"
+            className="absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-0"
+          >
+            <DrawerTitle className="sr-only">AI quick entry</DrawerTitle>
+            <DrawerDescription className="sr-only">
               Describe expenses in natural language and review parsed entries.
             </DrawerDescription>
+            <AIQuickEntryStatusBar
+              totalCount={entries.length}
+              pendingCount={pendingEntries.length}
+              completedCount={completedCount}
+              failedCount={failedCount}
+              completedOpen={completedOpen}
+              onToggleCompleted={() => setCompletedOpen((current) => !current)}
+            />
           </DrawerHeader>
 
           <div className="relative h-dvh overflow-hidden">
-            <div
-              data-testid="ai-quick-entry-status-top"
-              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-10 px-4"
-            >
-              <AIQuickEntryStatusBar
-                totalCount={entries.length}
-                pendingCount={pendingEntries.length}
-                completedCount={completedCount}
-                failedCount={failedCount}
-                completedOpen={completedOpen}
-                onToggleCompleted={() =>
-                  setCompletedOpen((current) => !current)
-                }
-              />
-            </div>
-
             <div
               className="absolute inset-x-0 bottom-0 flex flex-col"
               style={{ paddingBottom: keyboardOffset } as CSSProperties}
