@@ -6,7 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
-import { BarChart3, ChevronsUpDown, Cog, Home, Wallet } from "lucide-react";
+import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
+import {
+  BarChart3,
+  ChevronsUpDown,
+  Cog,
+  Home,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 
 import QuickExpenseDrawer from "@/components/QuickExpenseDrawer";
 
@@ -59,8 +67,6 @@ const secondaryItems: TBottomNavItem[] = [
 
 const menuItems = [...primaryItems, ...secondaryItems];
 
-const hiddenPaths = ["/ai"];
-
 const baseButtonClassName =
   "focus-visible:ring-ring/40 group grid shrink-0 place-items-center rounded-full text-foreground focus-visible:ring-2 focus-visible:outline-none";
 
@@ -86,6 +92,15 @@ const BottomNav = () => {
   const SecondaryIcon = secondaryItems.find((i) => i.id === activeItem)?.icon;
 
   const haptics = useAppHaptics();
+  const aiQuickEntryOpen = useAIQuickEntryStore((state) => state.open);
+  const hasActiveAIQuickEntryWork = useAIQuickEntryStore((state) =>
+    state.entries.some(
+      (entry) => entry.status === "parsing" || entry.status === "saving"
+    )
+  );
+  const openAIQuickEntry = useAIQuickEntryStore((state) => state.setOpen);
+  const showAIQuickEntryPending =
+    !aiQuickEntryOpen && hasActiveAIQuickEntryWork;
   const navRef = useRef<HTMLDivElement>(null);
   const secondaryId = useId();
 
@@ -115,14 +130,6 @@ const BottomNav = () => {
     };
   }, [expanded]);
 
-  if (
-    hiddenPaths.some(
-      (path) => pathname === path || pathname.startsWith(`${path}/`)
-    )
-  ) {
-    return null;
-  }
-
   const handleNavigate = (item: TBottomNavItem) => {
     setActiveItem(item.id);
     setExpanded(false);
@@ -141,7 +148,7 @@ const BottomNav = () => {
         <div
           ref={navRef}
           className={cn(
-            "relative grid w-[236px] items-end overflow-hidden rounded-[34px] bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl select-none active:scale-[1.02] active:bg-white/10",
+            "ds-glass glass-border relative grid w-[236px] items-end overflow-hidden rounded-[34px] bg-transparent select-none active:scale-[1.02]",
             expanded ? "gap-2 p-2" : "gap-0 p-1.5"
           )}
           style={
@@ -244,6 +251,29 @@ const BottomNav = () => {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          aria-label={
+            showAIQuickEntryPending
+              ? "Open AI quick entry, background work in progress"
+              : "Open AI quick entry"
+          }
+          onClick={() => {
+            haptics.impact("medium");
+            openAIQuickEntry(true);
+          }}
+          className="text-primary relative grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.96]"
+        >
+          <Sparkles className="size-6" />
+          {showAIQuickEntryPending && (
+            <span
+              aria-hidden="true"
+              data-testid="ai-quick-entry-pending-indicator"
+              className="bg-primary before:bg-primary absolute top-1.5 right-1.5 size-3 rounded-full shadow-[0_0_0_3px_color-mix(in_srgb,var(--surface-3)_82%,transparent),0_0_18px_color-mix(in_srgb,var(--primary)_75%,transparent)] before:absolute before:inset-0 before:animate-ping before:rounded-full before:opacity-45 before:content-['']"
+            />
+          )}
+        </button>
 
         <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
           <QuickExpenseDrawer

@@ -1,6 +1,8 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
+import { Category, PaidBy } from "@/enums";
+import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,9 +60,16 @@ beforeEach(() => {
   hapticsMock.selection.mockReset();
   hapticsMock.impact.mockReset();
   hapticsMock.trigger.mockReset();
+  useAIQuickEntryStore.getState().setOpen(false);
+  useAIQuickEntryStore.getState().clearEntries();
 });
 
 afterEach(() => {
+  act(() => {
+    useAIQuickEntryStore.getState().setOpen(false);
+    useAIQuickEntryStore.getState().clearEntries();
+  });
+
   if (typeof originalGlobalReact === "undefined") {
     Reflect.deleteProperty(globalThis, "React");
     return;
@@ -70,14 +79,6 @@ afterEach(() => {
 });
 
 describe("BottomNav", () => {
-  it("does not render on hidden routes", () => {
-    pathnameState.value = "/ai";
-
-    render(<BottomNav />);
-
-    expect(screen.queryByRole("navigation", { name: /primary/i })).toBeNull();
-  });
-
   it("renders collapsed primary controls as buttons", () => {
     render(<BottomNav />);
 
@@ -209,5 +210,101 @@ describe("BottomNav", () => {
 
     expect(hapticsMock.impact).toHaveBeenCalledTimes(1);
     expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+  });
+
+  it("opens AI quick entry when the AI button is tapped", async () => {
+    const user = userEvent.setup();
+
+    render(<BottomNav />);
+
+    await user.click(
+      screen.getByRole("button", { name: /open ai quick entry/i })
+    );
+
+    expect(useAIQuickEntryStore.getState().open).toBe(true);
+    expect(hapticsMock.impact).toHaveBeenCalledWith("medium");
+  });
+
+  it("shows a pending indicator on the AI button when active work continues while closed", () => {
+    const store = useAIQuickEntryStore.getState();
+
+    store.enqueueEntry("cf 35k");
+    store.setOpen(false);
+
+    render(<BottomNav />);
+
+    expect(
+      screen.getByRole("button", {
+        name: /open ai quick entry, background work in progress/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("ai-quick-entry-pending-indicator")
+    ).toBeInTheDocument();
+  });
+
+  it("hides the AI pending indicator while the drawer is open", () => {
+    const store = useAIQuickEntryStore.getState();
+
+    store.enqueueEntry("cf 35k");
+    store.setOpen(true);
+
+    render(<BottomNav />);
+
+    expect(
+      screen.getByRole("button", { name: /open ai quick entry$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("ai-quick-entry-pending-indicator")
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show the AI pending indicator for saved or review entries", () => {
+    const reviewDraft = {
+      date: "30/05/2026",
+      amount: 35000,
+      note: "Cà phê",
+      category: Category.FOOD,
+      paidBy: PaidBy.CUBI,
+      budgetId: null,
+      budgetName: null,
+      budgetIcon: null,
+      budgetColor: null,
+    };
+    const store = useAIQuickEntryStore.getState();
+    const savedEntry = store.enqueueEntry("saved");
+    const reviewEntry = store.enqueueEntry("review");
+
+    store.markEntrySaved(savedEntry.id, {
+      ...reviewDraft,
+      id: 101,
+      clientId: "client-1",
+      syncStatus: "pending",
+    });
+    store.markEntryForReview(reviewEntry.id, reviewDraft, "no_budget_match");
+    store.setOpen(false);
+
+    render(<BottomNav />);
+
+    expect(
+      screen.getByRole("button", { name: /open ai quick entry$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("ai-quick-entry-pending-indicator")
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the AI button before the Add button", () => {
+    render(<BottomNav />);
+
+    const aiButton = screen.getByRole("button", {
+      name: /open ai quick entry/i,
+    });
+    const addButton = screen.getByRole("button", { name: /add expense/i });
+
+    expect(
+      aiButton.compareDocumentPosition(addButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });

@@ -3,10 +3,7 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 
-import Link from "next/link";
-
 import { formatVnd } from "@/lib/utils";
-import { Sparkles } from "lucide-react";
 import { motion as m } from "motion/react";
 
 import {
@@ -99,21 +96,6 @@ const SpendingDashboardHeaderClient = ({
                 ))}
               </SelectContent>
             </Select>
-          </m.div>
-
-          <m.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.16, ease: "easeOut", delay: 0.1 }}
-          >
-            <Link
-              href="/ai"
-              aria-label="Open Spendly AI expense chat"
-              className="bg-primary/15 text-primary ring-primary/25 hover:bg-primary/20 focus-visible:ring-ring/40 flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold shadow-none ring-1 transition-[background-color,scale] duration-200 ease-out outline-none focus-visible:ring-2 active:scale-[0.96]"
-            >
-              <Sparkles aria-hidden="true" className="size-3.5" />
-              <span>Spendly AI</span>
-            </Link>
           </m.div>
         </div>
       </div>

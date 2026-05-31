@@ -8,8 +8,7 @@ import VndSymbol from "./VndSymbol";
 export const QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS = {
   icon: null,
   classNames: {
-    title:
-      "!min-w-0 !w-auto !max-w-[min(78vw,340px)] !overflow-visible !whitespace-normal !text-clip",
+    title: "!min-w-0 !overflow-visible !whitespace-normal !text-clip",
   },
 } as const;
 
@@ -22,15 +21,15 @@ export const QuickExpenseSuccessToast = ({
   const hasBudget = draft.budgetId !== null;
 
   return (
-    <div className="flex w-[min(78vw,340px)] max-w-full items-center gap-2">
+    <div className="flex items-center gap-2">
       {hasBudget ? (
         <BudgetBadge
           icon={draft.budgetIcon}
           color={draft.budgetColor}
           name={draft.budgetName}
           iconOnly
-          className="size-6 shrink-0 justify-center gap-0 rounded-full px-0 py-0"
-          iconClassName="size-auto text-sm"
+          className="shrink-0 justify-center gap-0 rounded-full px-0 py-0"
+          iconClassName="text-sm"
         />
       ) : (
         <ExpenseItemIcon

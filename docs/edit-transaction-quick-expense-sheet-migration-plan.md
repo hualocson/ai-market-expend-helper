@@ -16,7 +16,7 @@ The target result is one reusable expense sheet that supports both:
 - `QuickExpenseSheet` submits through `createExpenseEntry` only.
 - `ExpenseListItem` owns the persisted edit flow today.
 - `ExpenseListItem` renders a separate `Sheet` with `ManualExpenseForm`, calls `updateExpenseEntry`, closes the sheet, and calls `router.refresh()`.
-- `AIExpenseChat` also shows an "Edit expense" sheet, but that flow edits an unsaved AI draft before create. It should not be included in the first persisted transaction migration unless we intentionally extend the scope.
+- The old `AIExpenseChat` draft flow has been removed. The app-wide Quick AI drawer now owns natural-language expense creation.
 
 ## Migration Strategy
 
@@ -132,10 +132,10 @@ Behavior:
 - The new `QuickExpenseSheet` currently does not include mascot UI.
 - Recommended: drop mascot from the persisted edit sheet as part of the migration unless the feature is explicitly required. Update the test to assert the new edit sheet renders and submits through `QuickExpenseSheet` instead.
 
-8. Keep `AIExpenseChat` out of the first migration.
+8. Keep Quick AI draft behavior out of the first migration.
 
-- That sheet edits an unsaved AI draft, not an existing transaction id.
-- Migrating it safely would require create-mode controlled open plus draft initialization and possibly `autoSelectDefaultBudget` parity.
+- Quick AI draft review edits an unsaved draft, not an existing transaction id.
+- Migrating it safely would require create-mode controlled open plus draft initialization parity.
 - Track it as a separate follow-up if a fully unified create/edit sheet is desired.
 
 ## Tests To Update
@@ -185,7 +185,7 @@ npx tsc --noEmit
 - Updating a transaction calls `updateExpenseEntry` with the same payload shape used by existing edit flow.
 - After update, the sheet closes and the current route refreshes.
 - Delete confirmation behavior is unchanged.
-- `AIExpenseChat` behavior is unchanged in this migration.
+- Quick AI draft behavior is unchanged in this migration.
 
 ## Risks
 
@@ -198,5 +198,5 @@ npx tsc --noEmit
 ## Follow-Ups
 
 - Consider adding `revalidatePath("/transactions")` in `createExpenseEntry`, `updateExpenseEntry`, and `deleteExpenseEntry` if transaction pages become statically cached or stale after navigation.
-- Consider migrating `AIExpenseChat` to `QuickExpenseSheet` only after edit mode is stable and create-mode controlled draft initialization is explicitly needed.
+- Consider migrating Quick AI review drafts to `QuickExpenseSheet` only after edit mode is stable and create-mode controlled draft initialization is explicitly needed.
 - Consider extracting shared draft normalization into a small local helper only if another component needs the same behavior.

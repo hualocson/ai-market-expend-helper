@@ -26,7 +26,7 @@ const ExpenseItemIcon = ({
   const sizeClass =
     size === "sm"
       ? {
-          wrapper: "size-6",
+          wrapper: "size-8",
           icon: "size-4",
         }
       : {

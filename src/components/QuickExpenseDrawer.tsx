@@ -19,6 +19,7 @@ import {
   useUpdateExpenseMutation,
 } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
+import type { LocalExpense } from "@/lib/sync/expenses/types";
 import { cn, formatVnd, parseVndInput } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
@@ -79,10 +80,11 @@ export type TQuickExpenseDrawerProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialExpense?: TQuickExpenseDrawerInitialExpense | null;
+  initialExpenseKey?: string;
   recoveryDraft?: TQuickExpenseDraft | null;
   recoveryOperationId?: string;
   transactionId?: number;
-  onSuccess?: () => void;
+  onSuccess?: (expense: LocalExpense) => void;
   onConfirmDelete?: () => void | Promise<void>;
   showTrigger?: boolean;
 };
@@ -110,6 +112,11 @@ const isBudgetSelectionLocked = (source: BudgetSelectionSource) =>
 
 const isAiBudgetSelectionSource = (source: BudgetSelectionSource) =>
   source === "ai" || source === "ai-prefill";
+
+const getInitialExpenseBudgetSelectionSource = (
+  nextDraft: TExpenseDraft
+): BudgetSelectionSource =>
+  nextDraft.budgetId === null ? "none" : "ai-prefill";
 
 const SUGGESTION_MULTIPLIERS = [10, 100, 1000];
 const ALLOWED_CATEGORIES = Object.values(Category) as Category[];
@@ -248,9 +255,11 @@ const QuickExpenseDrawer = ({
   open,
   onOpenChange,
   initialExpense = null,
+  initialExpenseKey,
   recoveryDraft = null,
   recoveryOperationId,
   transactionId,
+  onSuccess,
   onConfirmDelete,
   showTrigger,
 }: TQuickExpenseDrawerProps) => {
@@ -272,7 +281,7 @@ const QuickExpenseDrawer = ({
   const buildDraftForOpen = () =>
     recoveryDraft
       ? { ...recoveryDraft }
-      : isEditMode
+      : isEditMode || initialExpense
         ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
         : buildDefaultDraft(fallbackPaidBy);
   const [draft, setDraft] = useState<TExpenseDraft>(() => buildDraftForOpen());
@@ -299,6 +308,7 @@ const QuickExpenseDrawer = ({
   const suggestionRequestIdRef = useRef(0);
   const categoryUserEditedRef = useRef(false);
   const previousControlledOpenRef = useRef(open);
+  const previousControlledCreateHydrationKeyRef = useRef<string | null>(null);
   drawerOpenRef.current = drawerOpen;
   currentNoteRef.current = draft.note;
   useAutoShrinkFont(noteRef, { max: 24, min: 14, step: 1 });
@@ -339,7 +349,12 @@ const QuickExpenseDrawer = ({
     }
     const nextDraft = buildDraftForOpen();
     setDraft(nextDraft);
-    resetSuggestionTracking(nextDraft, getOpenBudgetSelectionSource());
+    resetSuggestionTracking(
+      nextDraft,
+      isEditMode || recoveryDraft
+        ? getOpenBudgetSelectionSource()
+        : getInitialExpenseBudgetSelectionSource(nextDraft)
+    );
   };
 
   const targetDate = useMemo(() => {
@@ -361,6 +376,21 @@ const QuickExpenseDrawer = ({
     retry: false,
   });
   const budgetOptions = budgetOptionsQuery.data ?? [];
+  const initialExpenseIdentity = initialExpense
+    ? [
+        initialExpense.id ?? "",
+        initialExpense.clientId ?? "",
+        initialExpense.date,
+        initialExpense.amount,
+        initialExpense.note ?? "",
+        initialExpense.category,
+        initialExpense.paidBy ?? "",
+        initialExpense.budgetId ?? "",
+        initialExpense.budgetName ?? "",
+        initialExpense.budgetIcon ?? "",
+        initialExpense.budgetColor ?? "",
+      ].join("|")
+    : "";
   const suggestionCandidates = useMemo<SuggestBudgetCandidate[]>(
     () =>
       budgetOptions.map((budget) => ({
@@ -453,7 +483,8 @@ const QuickExpenseDrawer = ({
       }
 
       void localWrite
-        .then(() => {
+        .then((expense) => {
+          onSuccess?.(expense);
           if (isEditMode) {
             toast.success("Expense updated.");
             return;
@@ -564,10 +595,15 @@ const QuickExpenseDrawer = ({
       return;
     }
 
-    const nextDraft = buildDefaultDraft(fallbackPaidBy);
+    const nextDraft = initialExpense
+      ? buildDraftFromExpense(initialExpense, fallbackPaidBy)
+      : buildDefaultDraft(fallbackPaidBy);
     setDraft(nextDraft);
-    resetSuggestionTracking(nextDraft, "none");
-  }, [fallbackPaidBy, isEditMode, open, recoveryDraft]);
+    resetSuggestionTracking(
+      nextDraft,
+      getInitialExpenseBudgetSelectionSource(nextDraft)
+    );
+  }, [fallbackPaidBy, initialExpense, isEditMode, open, recoveryDraft]);
 
   useEffect(() => {
     if (!drawerOpen) {
@@ -585,6 +621,33 @@ const QuickExpenseDrawer = ({
       resetSuggestionTracking(nextDraft, "manual");
     }
   }, [fallbackPaidBy, initialExpense, isEditMode, recoveryDraft, drawerOpen]);
+
+  useEffect(() => {
+    if (!drawerOpen || recoveryDraft || isEditMode || !initialExpense) {
+      return;
+    }
+
+    const hydrationKey = `${initialExpenseKey ?? ""}|${initialExpenseIdentity}|${fallbackPaidBy}`;
+    if (previousControlledCreateHydrationKeyRef.current === hydrationKey) {
+      return;
+    }
+    previousControlledCreateHydrationKeyRef.current = hydrationKey;
+
+    const nextDraft = buildDraftFromExpense(initialExpense, fallbackPaidBy);
+    setDraft(nextDraft);
+    resetSuggestionTracking(
+      nextDraft,
+      getInitialExpenseBudgetSelectionSource(nextDraft)
+    );
+  }, [
+    drawerOpen,
+    fallbackPaidBy,
+    initialExpense,
+    initialExpenseIdentity,
+    initialExpenseKey,
+    isEditMode,
+    recoveryDraft,
+  ]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -1034,7 +1097,7 @@ const QuickExpenseDrawer = ({
                   aria-label="Delete expense"
                   onClick={() => setDeleteConfirmOpen(true)}
                   disabled={!onConfirmDelete || queueing}
-                  className="rounded-xl border-none"
+                  className="size-12 rounded-xl border-none"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
