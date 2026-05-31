@@ -110,6 +110,13 @@ export const expenseQueries = createQueryKeys("expenses", {
         mode: params.mode ?? null,
         recentDays: params.recentDays ?? null,
         limit: params.limit ?? null,
+        dateFrom: params.dateFrom ?? null,
+        dateTo: params.dateTo ?? null,
+        categories: params.categories ?? null,
+        budgetIds: params.budgetIds ?? null,
+        hasBudget: params.hasBudget ?? null,
+        amountMin: params.amountMin ?? null,
+        amountMax: params.amountMax ?? null,
       },
     ],
     queryFn: ({ pageParam }) =>
