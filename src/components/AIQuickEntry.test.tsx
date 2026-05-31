@@ -129,9 +129,9 @@ describe("AIQuickEntry", () => {
     openOverlay();
 
     expect(screen.getByRole("dialog")).toHaveClass(
-      "bg-[linear-gradient(160deg,color-mix(in_srgb,#ffffff_8%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)_42%,transparent_100%),color-mix(in_srgb,var(--surface-3)_70%,transparent)]",
-      "backdrop-blur-[30px]",
-      "backdrop-saturate-[1.25]"
+      "!bg-transparent",
+      "!rounded-none",
+      "quick-expense-drawer-morph"
     );
   });
 

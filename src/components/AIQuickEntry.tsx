@@ -209,8 +209,8 @@ const AIQuickEntry = () => {
       {open ? (
         <DrawerContent
           hideIndicator
-          overlayClassName="bg-[color-mix(in_srgb,var(--background)_54%,transparent)] backdrop-blur-[2px]"
-          className="quick-expense-drawer-morph h-dvh w-full gap-0 rounded-none bg-[linear-gradient(160deg,color-mix(in_srgb,#ffffff_8%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)_42%,transparent_100%),color-mix(in_srgb,var(--surface-3)_70%,transparent)] p-0 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_16%,transparent),0_-24px_80px_color-mix(in_srgb,#000000_45%,transparent)] backdrop-blur-[30px] backdrop-saturate-[1.25] data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
+          overlayClassName="ds-glass backdrop-blur-lg !rounded-none"
+          className="quick-expense-drawer-morph h-dvh w-full gap-0 !rounded-none !bg-transparent p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             inputRef.current?.focus({ preventScroll: true });
