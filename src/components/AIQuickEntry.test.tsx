@@ -472,7 +472,7 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Edit saved expense Cà phê sữa đá",
+        name: /Edit saved expense Cà phê sữa đá.*35\.000/,
       })
     ).toBeInTheDocument();
   });
@@ -542,7 +542,7 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("Needs review")).toBeInTheDocument();
     expect(screen.getByText("maybe coffee")).toBeInTheDocument();
     const reviewButton = screen.getByRole("button", {
-      name: "Review expense maybe coffee",
+      name: /Review expense maybe coffee.*35\.000/,
     });
     expect(reviewButton).toBeInTheDocument();
 
@@ -598,7 +598,9 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("Needs review")).toBeInTheDocument();
     expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Review expense Cà phê sữa đá" })
+      screen.getByRole("button", {
+        name: /Review expense Cà phê sữa đá.*35\.000/,
+      })
     ).toBeInTheDocument();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
@@ -618,7 +620,7 @@ describe("AIQuickEntry", () => {
     fireEvent.click(screen.getByLabelText(/Open preview/));
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Edit saved expense Cà phê sữa đá",
+        name: /Edit saved expense Cà phê sữa đá.*35\.000/,
       })
     );
 
@@ -690,7 +692,9 @@ describe("AIQuickEntry", () => {
 
     fireEvent.click(screen.getByLabelText(/Open preview/));
     fireEvent.click(
-      screen.getByRole("button", { name: "Review expense coffee 35k" })
+      screen.getByRole("button", {
+        name: /Review expense coffee 35k.*35\.000/,
+      })
     );
 
     expect(screen.getAllByTestId("quick-expense-drawer")).toHaveLength(1);
@@ -707,7 +711,7 @@ describe("AIQuickEntry", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Review expense tea 20k" })
+      screen.getByRole("button", { name: /Review expense tea 20k.*20\.000/ })
     );
 
     expect(screen.getAllByTestId("quick-expense-drawer")).toHaveLength(1);

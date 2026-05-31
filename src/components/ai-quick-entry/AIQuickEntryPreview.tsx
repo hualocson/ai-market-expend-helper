@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { formatVnd } from "@/lib/utils";
 import { XIcon } from "lucide-react";
 
 import ProgressiveBlur from "../ProgressiveBlur";
@@ -29,15 +30,23 @@ const getEntryNote = (entry: QuickEntry) =>
   entry.reviewDraft?.note?.trim() ||
   entry.input;
 
+const getEntryAmount = (entry: QuickEntry, variant: "saved" | "needsReview") =>
+  variant === "saved"
+    ? (entry.savedExpense?.amount ?? null)
+    : (entry.reviewDraft?.amount ?? null);
+
 const getSelectableLabel = (
   entry: QuickEntry,
   variant: "saved" | "needsReview"
 ) => {
   const note = getEntryNote(entry);
+  const amount = getEntryAmount(entry, variant);
+  const amountContext =
+    typeof amount === "number" ? `, ${formatVnd(amount)}` : "";
 
   return variant === "saved"
-    ? `Edit saved expense ${note}`
-    : `Review expense ${note}`;
+    ? `Edit saved expense ${note}${amountContext}`
+    : `Review expense ${note}${amountContext}`;
 };
 
 const PreviewSection = ({
