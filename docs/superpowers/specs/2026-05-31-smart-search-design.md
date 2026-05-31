@@ -65,14 +65,16 @@ Each unit has one responsibility and is testable in isolation:
 
 ### New files
 - `src/lib/ai/search-contract.ts` — Zod DSL, request/response types, json_schema.
-- `src/lib/ai/parse-search.ts` — system prompt + `callOpenRouterJson`.
+- `src/lib/ai/parse-search.ts` — system prompt + `callOpenRouterJson` + budget-id guard / collision normalization.
 - `src/app/api/ai/parse-search/route.ts` — clone of `parse-expense/route.ts` shape.
-- `src/lib/mutations/use-parse-search.ts` — mutation hook (component → route).
+- `src/lib/queries/parse-search.ts` — browser fetcher `parseSearchRequest()` calling the route (AI parse is a read-style action, not an app-data write, so it lives with fetchers, mirroring how `AIQuickEntry` calls `/api/ai/parse-expense`). Consumed via `useMutation` in `ExpenseSearch` for loading/error state.
 - `src/components/ExpenseSearch.tsx`, `SearchInput.tsx`, `SearchFilterChips.tsx`.
 
 ### Extended files
-- `src/lib/expenses/list-model.ts` — extend `ExpenseListQueryParams`.
-- `src/lib/services/expenses.ts` — new predicates in the `where`.
+- `src/lib/expenses/list-model.ts` — extend `ExpenseListQueryParams` + `resolveExpenseListRange` (handle `dateFrom`/`dateTo`).
+- `src/lib/sync/expenses/list.ts` — **client filter path** `buildExpenseListResultFromLocalRows` (PRIMARY displayed list).
+- `src/lib/queries/expenses.ts` — extend `expenseQueries.list` **query key** with new fields.
+- `src/lib/services/expenses.ts` — new Drizzle predicates in the `where` (SSR path).
 - `src/lib/api/read-route-params.ts` — parse new query params.
 - `src/components/ExpenseList.tsx` — accept + forward new params.
 
@@ -123,7 +125,7 @@ SearchFilter = {
 2. `ExpenseSearch` → `useParseSearch` → `POST /api/ai/parse-search` with `{ input, todayMonth, budgets }`.
 3. Route validates (Zod), calls `parseSearchWithOpenRouter` → `callOpenRouterJson` with the DSL json_schema + free-model fallback.
 4. Returns `{ status: "success", filter }`; `setFilter(filter)`.
-5. Chips render from `filter`; `ExpenseList` gets the filter as props → new query key → infinite query refetches `GET /api/expenses?dateFrom=…&categories=…&hasBudget=false`.
+5. Chips render from `filter`; `ExpenseList` gets the filter as props → new query key → the infinite query re-runs `fetchExpenseList` (client, local IndexedDB rows) with the new filter. (`GET /api/expenses` runs only on SSR prefetch — see §6.)
 
 **Chip editing:** removing/toggling a chip mutates local `filter` → list refetches. No AI. This is the correction path.
 
@@ -135,13 +137,34 @@ SearchFilter = {
 
 ---
 
-## 6. Backend query extension
+## 6. Query extension — TWO paths must honor the filter
 
-Predicates appended to `getExpenseList`'s existing `whereParts` (after `isDeleted = false`):
+**Critical:** the displayed list is built **client-side from local IndexedDB rows** by `buildExpenseListResultFromLocalRows` (`src/lib/sync/expenses/list.ts`). The server Drizzle `getExpenseList` runs **only on SSR prefetch**. Both must apply the same filter, and the query key + range resolver must change too.
+
+### 6a. Shared param + range + key changes
+- Extend `ExpenseListQueryParams` (`src/lib/expenses/list-model.ts`) with `dateFrom?`, `dateTo?`, `categories?: Category[]`, `budgetIds?: number[]`, `hasBudget?: boolean`, `amountMin?: number`, `amountMax?: number`.
+- Extend `resolveExpenseListRange` so explicit `dateFrom`/`dateTo` produce the range (used by both paths). Precedence: `dateFrom`/`dateTo` present -> use them; else keep current `month`/`recentDays` behavior (backward compatible).
+- **Query key** (`expenseQueries.list`): add the new fields normalized to `null` when absent, so distinct filters get distinct cache entries (TanStack rule section 2).
+
+### 6b. Client path — `buildExpenseListResultFromLocalRows` (PRIMARY, what users see)
+Add JS predicates to the existing `.filter(...)` chain:
+
+| Filter field | JS predicate over `LocalExpense` row |
+|---|---|
+| `dateFrom`/`dateTo` | in resolved range (via `resolveExpenseListRange`) |
+| `categories` | `categories.includes(row.category)` |
+| `budgetIds` | `row.budgetId !== null && budgetIds.includes(row.budgetId)` |
+| `hasBudget === false` | `row.budgetId === null` |
+| `hasBudget === true` | `row.budgetId !== null` |
+| `amountMin`/`amountMax` | `row.amount >= amountMin` / `row.amount <= amountMax` |
+| `q` | unchanged — existing `matchesLocalExpenseSearch` (token unaccent) |
+
+### 6c. Server path — `getExpenseList` Drizzle `where` (SSR prefetch)
+Mirror the same logic as SQL predicates appended to `whereParts` (after `isDeleted = false`):
 
 | Filter field | Drizzle predicate |
 |---|---|
-| `dateFrom`/`dateTo` | `gte(expenses.date, dateFrom)`, `lte(expenses.date, dateTo)` — **replaces** `month`/`recentDays` range when present |
+| `dateFrom`/`dateTo` | `gte(expenses.date, dateFrom)`, `lte(expenses.date, dateTo)` |
 | `categories` | `inArray(expenses.category, categories)` |
 | `budgetIds` | `inArray(expenseBudgets.budgetId, budgetIds)` |
 | `hasBudget === false` | `isNull(expenseBudgets.budgetId)` |
@@ -149,10 +172,11 @@ Predicates appended to `getExpenseList`'s existing `whereParts` (after `isDelete
 | `amountMin`/`amountMax` | `gte` / `lte` on `expenses.amount` |
 | `q` | unchanged — existing unaccent full-text search |
 
-- **Precedence:** if `dateFrom`/`dateTo` present → use them; else keep current `month`/`recentDays` behavior (backward compatible).
-- `budgetIds` ignores `hasBudget` if both arrive.
-- Pagination/grouping untouched — only `where` conditions added.
-- `read-route-params.ts` validates each new param (date format, positive ints, enum membership) and rejects bad input with existing `INVALID_PARAMS`.
+### 6d. Route param parsing (`read-route-params.ts`)
+`parseExpenseListParams` validates each new query param (date format, positive ints, `Category` enum membership) and rejects bad input with the existing `INVALID_PARAMS` error. Used by `GET /api/expenses` (SSR/REST path).
+
+- `budgetIds` ignores `hasBudget` if both arrive (normalized in the translator that builds the filter, before it reaches either path).
+- Pagination/grouping untouched — only filter conditions added.
 
 ---
 
@@ -173,7 +197,9 @@ Per `.agents/rules/tanstack-query.md` §8 and existing `parse-expense` tests:
 - **`search-contract.test.ts`** — valid/invalid filter parsing, collision normalization.
 - **`parse-search.test.ts`** — mock `fetchFn`; success, fallback reasons, invalid-budget-id guard, name→id resolution.
 - **`route.test.ts`** — payload validation, success + fallback shapes, missing API key.
-- **`expenses.test.ts` (extend)** — each new predicate, date range overrides month, `budgetIds` beats `hasBudget`, combined filters.
+- **`expenses.test.ts` (extend, server Drizzle)** — each new predicate, date range overrides month, `budgetIds` beats `hasBudget`, combined filters.
+- **`sync/expenses/list.test.ts` (extend, client local-row path — PRIMARY)** — each new JS predicate over local rows, date range, `budgetIds` beats `hasBudget`, combined filters, pagination preserved.
+- **`expenses.ts` query-key test** — distinct filters produce distinct keys; absent fields normalize to `null`.
 - **`read-route-params`** — new param parsing + rejection of bad values.
 - **Mutation hook** — calls route, surfaces fallback.
 - **`ExpenseSearch`** — real `QueryClientProvider`, seeded; submit→chips→list params, chip removal, offline-disabled, fallback chip. Apply `ios-input-focus` rule for chip pointer handling; `make-interfaces-feel-better` for chip polish.
