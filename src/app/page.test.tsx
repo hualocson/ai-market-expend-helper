@@ -33,7 +33,7 @@ vi.mock("@tanstack/react-query", () => ({
   dehydrate: vi.fn(() => ({ dehydrated: true })),
 }));
 
-vi.mock("@/components/ExpenseList", () => ({
+vi.mock("@/components/search/ExpenseSearch", () => ({
   default: () => <div data-testid="expense-list" />,
 }));
 
