@@ -472,7 +472,7 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: /Edit saved expense Cà phê sữa đá/,
+        name: "Edit saved expense Cà phê sữa đá",
       })
     ).toBeInTheDocument();
   });
@@ -542,7 +542,7 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("Needs review")).toBeInTheDocument();
     expect(screen.getByText("maybe coffee")).toBeInTheDocument();
     const reviewButton = screen.getByRole("button", {
-      name: /Review expense maybe coffee/,
+      name: "Review expense maybe coffee",
     });
     expect(reviewButton).toBeInTheDocument();
 
@@ -598,14 +598,14 @@ describe("AIQuickEntry", () => {
     expect(screen.getByText("Needs review")).toBeInTheDocument();
     expect(screen.getByText("Cà phê sữa đá")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Review expense Cà phê sữa đá/ })
+      screen.getByRole("button", { name: "Review expense Cà phê sữa đá" })
     ).toBeInTheDocument();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
     consoleErrorSpy.mockRestore();
   });
 
-  it("opens the drawer from saved and review rows with stable initial expense keys", async () => {
+  it("opens one drawer from a saved row in edit mode with saved local expense data", async () => {
     mockParseResponse(trustedParseResponse);
     renderQuickEntry();
     openOverlay();
@@ -618,10 +618,11 @@ describe("AIQuickEntry", () => {
     fireEvent.click(screen.getByLabelText(/Open preview/));
     fireEvent.click(
       screen.getByRole("button", {
-        name: /Edit saved expense Cà phê sữa đá/,
+        name: "Edit saved expense Cà phê sữa đá",
       })
     );
 
+    expect(screen.getAllByTestId("quick-expense-drawer")).toHaveLength(1);
     expect(screen.getByTestId("quick-expense-drawer")).toHaveAttribute(
       "data-mode",
       "edit"
@@ -635,6 +636,89 @@ describe("AIQuickEntry", () => {
         initialExpense: expect.objectContaining({
           id: 101,
           clientId: "client-1",
+          note: "Cà phê sữa đá",
+          amount: 35000,
+        }),
+      })
+    );
+  });
+
+  it("reuses one drawer for review rows and updates the selected initial expense", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        const body =
+          typeof init?.body === "string"
+            ? (JSON.parse(init.body) as { input?: string })
+            : {};
+        const input = body.input ?? "";
+        const amount = input === "tea 20k" ? 20000 : 35000;
+        const note = input === "tea 20k" ? "tea 20k" : "coffee 35k";
+
+        return {
+          status: 200,
+          json: vi.fn().mockResolvedValue({
+            success: true,
+            data: {
+              status: "fallback",
+              originalInput: input,
+              prefill: {
+                note,
+                amount,
+                date: "30/05/2026",
+                budgetId: null,
+              },
+              reason: "no_budget_match",
+            },
+          }),
+        };
+      })
+    );
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("coffee 35k");
+      typeAndSend("tea 20k");
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent(
+        "2"
+      )
+    );
+
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review expense coffee 35k" })
+    );
+
+    expect(screen.getAllByTestId("quick-expense-drawer")).toHaveLength(1);
+    expect(quickExpenseDrawerPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        open: true,
+        mode: "create",
+        initialExpenseKey: expect.stringMatching(/^review:/),
+        initialExpense: expect.objectContaining({
+          note: "coffee 35k",
+          amount: 35000,
+        }),
+      })
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review expense tea 20k" })
+    );
+
+    expect(screen.getAllByTestId("quick-expense-drawer")).toHaveLength(1);
+    expect(quickExpenseDrawerPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        open: true,
+        mode: "create",
+        initialExpenseKey: expect.stringMatching(/^review:/),
+        initialExpense: expect.objectContaining({
+          note: "tea 20k",
+          amount: 20000,
         }),
       })
     );
