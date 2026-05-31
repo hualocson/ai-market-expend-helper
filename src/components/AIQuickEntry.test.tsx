@@ -102,6 +102,17 @@ describe("AIQuickEntry", () => {
     focusSpy.mockRestore();
   });
 
+  it("dismisses from the fullscreen drawer close button", () => {
+    render(<AIQuickEntry />);
+    openOverlay();
+
+    fireEvent.click(screen.getByLabelText("Close AI quick entry"));
+
+    expect(
+      screen.queryByLabelText("Describe your expense")
+    ).not.toBeInTheDocument();
+  });
+
   it("disables send for empty input", () => {
     render(<AIQuickEntry />);
     openOverlay();

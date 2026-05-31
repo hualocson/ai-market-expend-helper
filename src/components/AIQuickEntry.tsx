@@ -19,7 +19,16 @@ import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { mockParseExpense } from "@/lib/ai/mock-parse-expense";
 import { cn } from "@/lib/utils";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, XIcon } from "lucide-react";
+
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 import AIQuickEntryPendingStack from "@/components/ai-quick-entry/AIQuickEntryPendingStack";
 import AIQuickEntryRow from "@/components/ai-quick-entry/AIQuickEntryRow";
@@ -132,12 +141,15 @@ const AIQuickEntry = () => {
     }
   }, [pendingEntries.length]);
 
-  if (hidden || !open) {
+  if (hidden) {
     return null;
   }
 
-  const close = () => {
-    setOpen(false);
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      return;
+    }
     inputRef.current?.blur();
   };
 
@@ -194,101 +206,132 @@ const AIQuickEntry = () => {
   const canSend = composer.trim().length > 0;
 
   return (
-    <div
-      className="fixed inset-0 z-[60]"
-      role="dialog"
-      aria-label="AI quick entry"
+    <Drawer
+      open={open}
+      onOpenChange={handleOpenChange}
+      modal
+      direction="bottom"
+      repositionInputs={false}
+      autoFocus={false}
     >
-      <button
-        type="button"
-        aria-label="Dismiss AI quick entry"
-        onClick={close}
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-      />
-
-      <div
-        data-testid="ai-quick-entry-status-top"
-        className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-10 px-4"
-      >
-        <AIQuickEntryStatusBar
-          totalCount={entries.length}
-          pendingCount={pendingEntries.length}
-          completedCount={completedCount}
-          failedCount={failedCount}
-          completedOpen={completedOpen}
-          onToggleCompleted={() => setCompletedOpen((current) => !current)}
-        />
-      </div>
-
-      <div
-        className="absolute inset-x-0 bottom-0 flex flex-col"
-        style={{ paddingBottom: keyboardOffset } as CSSProperties}
-      >
-        <div
-          data-testid="ai-quick-entry-list"
-          className={cn(
-            "no-scrollbar mx-auto flex w-full max-w-[390px] flex-col gap-2.5 overflow-y-auto px-4 pb-2 transition-[max-height] duration-200 ease-out",
-            completedOpen ? "max-h-[50svh]" : "max-h-[36svh]"
-          )}
+      {open ? (
+        <DrawerContent
+          hideIndicator
+          overlayClassName="quick-expense-drawer-overlay"
+          className="quick-expense-drawer-morph h-dvh w-full gap-0 rounded-none p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            inputRef.current?.focus({ preventScroll: true });
+          }}
         >
-          {completedOpen && completedEntries.length > 0 ? (
-            <div className="space-y-2">
-              {completedEntries.map((entry) => (
-                <AIQuickEntryRow
-                  key={entry.id}
-                  entry={entry}
-                  variant={entry.status === "failed" ? "failed" : "resolved"}
-                />
-              ))}
-            </div>
-          ) : null}
-
-          {activeResolvedEntries.map((entry) => (
-            <AIQuickEntryRow key={entry.id} entry={entry} variant="resolved" />
-          ))}
-
-          <AIQuickEntryPendingStack
-            pendingEntries={pendingEntries}
-            expanded={pendingStackExpanded}
-            onToggleExpanded={() =>
-              setPendingStackExpanded((current) => !current)
-            }
-          />
-        </div>
-
-        <div className="px-4 pb-2">
-          <form
-            onSubmit={handleSubmit}
-            className="flex w-full max-w-[390px] items-center gap-2"
+          <DrawerClose
+            aria-label="Close AI quick entry"
+            className="ring-offset-background absolute top-4 right-4 z-60 rounded-full p-3 opacity-70 shadow-md ring-1 ring-white/10 transition-[opacity,transform,box-shadow] duration-300 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden active:scale-95 disabled:pointer-events-none"
           >
-            <label htmlFor={inputId} className="sr-only">
-              Describe your expense
-            </label>
-            <input
-              id={inputId}
-              ref={inputRef}
-              value={composer}
-              onChange={(event) => setComposer(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Cà phê 35k sáng nay"
-              className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
-            />
-            <button
-              type="submit"
-              aria-label="Send expense"
-              disabled={!canSend}
-              onPointerDown={(event) => event.preventDefault()}
-              className={cn(
-                "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
-                !canSend && "opacity-40"
-              )}
+            <XIcon className="size-4" />
+          </DrawerClose>
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>AI quick entry</DrawerTitle>
+            <DrawerDescription>
+              Describe expenses in natural language and review parsed entries.
+            </DrawerDescription>
+          </DrawerHeader>
+
+          <div className="relative h-dvh overflow-hidden">
+            <div
+              data-testid="ai-quick-entry-status-top"
+              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-10 px-4"
             >
-              <ArrowUp className="size-4" />
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
+              <AIQuickEntryStatusBar
+                totalCount={entries.length}
+                pendingCount={pendingEntries.length}
+                completedCount={completedCount}
+                failedCount={failedCount}
+                completedOpen={completedOpen}
+                onToggleCompleted={() =>
+                  setCompletedOpen((current) => !current)
+                }
+              />
+            </div>
+
+            <div
+              className="absolute inset-x-0 bottom-0 flex flex-col"
+              style={{ paddingBottom: keyboardOffset } as CSSProperties}
+            >
+              <div
+                data-testid="ai-quick-entry-list"
+                className={cn(
+                  "no-scrollbar mx-auto flex w-full max-w-[390px] flex-col gap-2.5 overflow-y-auto px-4 pb-2 transition-[max-height] duration-200 ease-out",
+                  completedOpen ? "max-h-[50svh]" : "max-h-[36svh]"
+                )}
+              >
+                {completedOpen && completedEntries.length > 0 ? (
+                  <div className="space-y-2">
+                    {completedEntries.map((entry) => (
+                      <AIQuickEntryRow
+                        key={entry.id}
+                        entry={entry}
+                        variant={
+                          entry.status === "failed" ? "failed" : "resolved"
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+
+                {activeResolvedEntries.map((entry) => (
+                  <AIQuickEntryRow
+                    key={entry.id}
+                    entry={entry}
+                    variant="resolved"
+                  />
+                ))}
+
+                <AIQuickEntryPendingStack
+                  pendingEntries={pendingEntries}
+                  expanded={pendingStackExpanded}
+                  onToggleExpanded={() =>
+                    setPendingStackExpanded((current) => !current)
+                  }
+                />
+              </div>
+
+              <div className="px-4 pb-2">
+                <form
+                  onSubmit={handleSubmit}
+                  className="flex w-full max-w-[390px] items-center gap-2"
+                >
+                  <label htmlFor={inputId} className="sr-only">
+                    Describe your expense
+                  </label>
+                  <input
+                    id={inputId}
+                    ref={inputRef}
+                    value={composer}
+                    onChange={(event) => setComposer(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Cà phê 35k sáng nay"
+                    className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Send expense"
+                    disabled={!canSend}
+                    onPointerDown={(event) => event.preventDefault()}
+                    className={cn(
+                      "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
+                      !canSend && "opacity-40"
+                    )}
+                  >
+                    <ArrowUp className="size-4" />
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </DrawerContent>
+      ) : null}
+    </Drawer>
   );
 };
 
