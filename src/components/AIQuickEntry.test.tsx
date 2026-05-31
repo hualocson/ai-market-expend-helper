@@ -97,6 +97,7 @@ describe("AIQuickEntry", () => {
     openOverlay();
 
     expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
+    expect(focusSpy).toHaveBeenCalledTimes(1);
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
 
     focusSpy.mockRestore();

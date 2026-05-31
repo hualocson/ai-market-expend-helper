@@ -90,14 +90,6 @@ const AIQuickEntry = () => {
     setVisibleResolvedIds(new Set());
   }, [clearTimers, open]);
 
-  useEffect(() => {
-    if (!open || hidden) {
-      return;
-    }
-
-    inputRef.current?.focus({ preventScroll: true });
-  }, [hidden, open]);
-
   useEffect(
     () => () => {
       clearTimers();
