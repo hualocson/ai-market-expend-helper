@@ -198,6 +198,7 @@ export const evaluateAIQuickEntryParse = ({
 
   const { expense } = parseResult;
   const isoDate = parseQuickEntryDisplayDate(expense.date);
+  const note = expense.note.trim();
   const budget =
     expense.budgetId === null
       ? null
@@ -206,32 +207,47 @@ export const evaluateAIQuickEntryParse = ({
   const safeDraft = buildSuccessDraft({
     date: isoDate ? expense.date : todayDisplay,
     amount: expense.amount,
-    note: expense.note,
+    note,
     paidBy: normalizedPaidBy,
     budget,
   });
-
-  if (expense.confidence !== "high") {
-    return {
-      kind: "review",
-      reason: "low_confidence",
-      initialExpense: safeDraft,
-    };
-  }
+  const hasValidAmount = Number.isFinite(expense.amount) && expense.amount > 0;
+  const hasSuspiciousDate = isoDate
+    ? isExpenseDateSuspicious(isoDate, todayIso)
+    : false;
+  const reviewDraft = hasSuspiciousDate
+    ? { ...safeDraft, date: todayDisplay }
+    : safeDraft;
 
   if (!isoDate) {
     return {
       kind: "review",
       reason: "invalid_date",
-      initialExpense: { ...safeDraft, date: todayDisplay },
+      initialExpense: reviewDraft,
     };
   }
 
-  if (isExpenseDateSuspicious(isoDate, todayIso)) {
+  if (!hasValidAmount || !note) {
+    return {
+      kind: "review",
+      reason: "parse_error",
+      initialExpense: reviewDraft,
+    };
+  }
+
+  if (expense.confidence !== "high") {
+    return {
+      kind: "review",
+      reason: "low_confidence",
+      initialExpense: reviewDraft,
+    };
+  }
+
+  if (hasSuspiciousDate) {
     return {
       kind: "review",
       reason: "suspicious_date",
-      initialExpense: { ...safeDraft, date: todayDisplay },
+      initialExpense: reviewDraft,
     };
   }
 
@@ -256,7 +272,7 @@ export const evaluateAIQuickEntryParse = ({
     payload: buildPayload({
       isoDate,
       amount: expense.amount,
-      note: expense.note,
+      note,
       paidBy: normalizedPaidBy,
       budget,
     }),

@@ -102,6 +102,69 @@ describe("evaluateAIQuickEntryParse", () => {
     });
   });
 
+  it("returns review with today's date for a low-confidence parse with a suspicious date", () => {
+    const result = evaluateAIQuickEntryParse({
+      input: "cf 35k",
+      parseResult: successResponse({
+        confidence: "medium",
+        date: "01/01/2025",
+      }),
+      budgetOptions: [budgetOption()],
+      paidBy: PaidBy.CUBI,
+      todayIso: "2026-05-30",
+    });
+
+    expect(result).toMatchObject({
+      kind: "review",
+      reason: "low_confidence",
+      initialExpense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "Cà phê sữa đá",
+      },
+    });
+  });
+
+  it("returns review for a nonpositive amount", () => {
+    const result = evaluateAIQuickEntryParse({
+      input: "cf 0",
+      parseResult: successResponse({ amount: 0 }),
+      budgetOptions: [budgetOption()],
+      paidBy: PaidBy.CUBI,
+      todayIso: "2026-05-30",
+    });
+
+    expect(result).toMatchObject({
+      kind: "review",
+      reason: "parse_error",
+      initialExpense: {
+        date: "30/05/2026",
+        amount: 0,
+        note: "Cà phê sữa đá",
+      },
+    });
+  });
+
+  it("returns review for a blank note", () => {
+    const result = evaluateAIQuickEntryParse({
+      input: "35k",
+      parseResult: successResponse({ note: "   " }),
+      budgetOptions: [budgetOption()],
+      paidBy: PaidBy.CUBI,
+      todayIso: "2026-05-30",
+    });
+
+    expect(result).toMatchObject({
+      kind: "review",
+      reason: "parse_error",
+      initialExpense: {
+        date: "30/05/2026",
+        amount: 35000,
+        note: "",
+      },
+    });
+  });
+
   it("returns review and clears the budget when the budget id is missing", () => {
     const result = evaluateAIQuickEntryParse({
       input: "cf 35k",
