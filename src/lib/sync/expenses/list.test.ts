@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import { describe, expect, it } from "vitest";
 
 import { buildExpenseListResultFromLocalRows } from "./list";
@@ -201,5 +202,78 @@ describe("local expense list builder", () => {
     ]);
     expect(result.isRecent).toBe(true);
     expect(result.effectiveRecentDays).toBe(7);
+  });
+});
+
+const makeRow = (over: Partial<LocalExpense>): LocalExpense => ({
+  entity: "expenses",
+  clientId: over.clientId ?? "c1",
+  serverId: over.serverId ?? 1,
+  syncStatus: "synced",
+  lastError: null,
+  updatedAt: "2026-05-15T00:00:00.000Z",
+  serverUpdatedAt: "2026-05-15T00:00:00.000Z",
+  date: over.date ?? "2026-05-15",
+  amount: over.amount ?? 60000,
+  note: over.note ?? "ca phe",
+  category: over.category ?? Category.FOOD,
+  paidBy: over.paidBy ?? "Cubi",
+  budgetId: over.budgetId ?? null,
+  budgetName: over.budgetName ?? null,
+  budgetIcon: null,
+  budgetColor: null,
+  ...over,
+});
+
+describe("buildExpenseListResultFromLocalRows filters", () => {
+  it("keeps only rows without a budget when hasBudget=false", () => {
+    const rows = [
+      makeRow({ clientId: "a", serverId: 1, budgetId: null }),
+      makeRow({ clientId: "b", serverId: 2, budgetId: 7 }),
+    ];
+    const result = buildExpenseListResultFromLocalRows(rows, {
+      hasBudget: false,
+    });
+    expect(result.rows.map((r) => r.budgetId)).toEqual([null]);
+  });
+
+  it("filters by category and amount together", () => {
+    const rows = [
+      makeRow({
+        clientId: "a",
+        serverId: 1,
+        category: Category.FOOD,
+        amount: 60000,
+      }),
+      makeRow({
+        clientId: "b",
+        serverId: 2,
+        category: Category.HOUSING,
+        amount: 60000,
+      }),
+      makeRow({
+        clientId: "c",
+        serverId: 3,
+        category: Category.FOOD,
+        amount: 10000,
+      }),
+    ];
+    const result = buildExpenseListResultFromLocalRows(rows, {
+      categories: [Category.FOOD],
+      amountMin: 50000,
+    });
+    expect(result.rows.map((r) => r.id)).toEqual([1]);
+  });
+
+  it("filters by inclusive date range", () => {
+    const rows = [
+      makeRow({ clientId: "a", serverId: 1, date: "2026-05-10" }),
+      makeRow({ clientId: "b", serverId: 2, date: "2026-06-10" }),
+    ];
+    const result = buildExpenseListResultFromLocalRows(rows, {
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-31",
+    });
+    expect(result.rows.map((r) => r.id)).toEqual([1]);
   });
 });
