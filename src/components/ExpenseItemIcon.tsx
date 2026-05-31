@@ -26,12 +26,12 @@ const ExpenseItemIcon = ({
   const sizeClass =
     size === "sm"
       ? {
-          wrapper: "size-10",
-          icon: "size-6",
+          wrapper: "size-8",
+          icon: "size-4",
         }
       : {
-          wrapper: "size-12",
-          icon: "size-8",
+          wrapper: "size-10",
+          icon: "size-6",
         };
   switch (category) {
     case Category.FOOD:
