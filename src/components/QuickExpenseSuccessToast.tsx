@@ -8,8 +8,7 @@ import VndSymbol from "./VndSymbol";
 export const QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS = {
   icon: null,
   classNames: {
-    title:
-      "!min-w-0 !w-auto !max-w-[min(78vw,340px)] !overflow-visible !whitespace-normal !text-clip",
+    title: "!min-w-0 !overflow-visible !whitespace-normal !text-clip",
   },
 } as const;
 

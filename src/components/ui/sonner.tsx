@@ -22,11 +22,10 @@ const TOAST_MOBILE_OFFSET = {
 const TOAST_CLASS_NAMES: NonNullable<
   NonNullable<ToasterProps["toastOptions"]>["classNames"]
 > = {
-  toast:
-    "pointer-events-auto !max-w-[calc(100vw-24px)] !min-h-[42px] !w-fit !rounded-3xl glass-border !py-2 !text-[13px] !font-medium !leading-tight !text-popover-foreground !-translate-x-1/2 !left-1/2",
-  title: "truncate text-[13px] !min-w-[calc(55vw)] font-medium leading-tight",
+  toast: "inline-flex items-center w-full !p-2",
+  title: "truncate text-[13px] w-full font-medium leading-tight",
   description: "hidden",
-  content: "min-w-0",
+  content: "flex items-center w-full",
   icon: "shrink-0 text-[var(--toast-accent,var(--muted-foreground))] [&>svg]:size-4",
   actionButton:
     "relative !ml-4 ring min-h-8 !rounded-full !bg-white/10 !px-3 text-xs font-semibold !ring-0 !text-foreground transition-[background-color,transform] duration-150 ease-out before:absolute before:-inset-1 active:scale-[0.96]",

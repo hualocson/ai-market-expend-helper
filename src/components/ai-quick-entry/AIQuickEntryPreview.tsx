@@ -4,6 +4,7 @@ import React from "react";
 
 import { XIcon } from "lucide-react";
 
+import ProgressiveBlur from "../ProgressiveBlur";
 import AIQuickEntryRow from "./AIQuickEntryRow";
 import type { QuickEntry } from "./types";
 
@@ -51,7 +52,7 @@ const AIQuickEntryPreview = ({
         AI Quick Entry
       </h2>
 
-      <div className="no-scrollbar mt-4 flex-1 space-y-5 overflow-y-auto pb-32">
+      <div className="no-scrollbar mt-4 flex-1 space-y-5 overflow-y-auto pb-24">
         <PreviewSection
           title="Parsing"
           entries={pendingEntries}
@@ -69,15 +70,16 @@ const AIQuickEntryPreview = ({
         />
       </div>
 
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-[linear-gradient(to_top,var(--background)_25%,color-mix(in_srgb,var(--background)_80%,transparent)_62%,transparent)] backdrop-blur-sm"
+      <ProgressiveBlur
+        className="absolute right-0 bottom-0 left-0"
+        position="bottom"
+        height="120px"
       />
       <button
         type="button"
         aria-label="Return to quick entry"
         onClick={onDone}
-        className="ds-glass glass-border text-foreground absolute bottom-[calc(env(safe-area-inset-bottom)+20px)] left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full bg-white/10 shadow-[0_18px_40px_rgb(0_0_0_/_40%)] transition-transform active:scale-[0.96]"
+        className="ds-glass glass-border text-foreground absolute bottom-[calc(env(safe-area-inset-bottom)+20px)] left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full transition-transform active:scale-[0.96]"
       >
         <XIcon className="size-5" />
       </button>

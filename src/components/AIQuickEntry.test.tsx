@@ -312,7 +312,7 @@ describe("AIQuickEntry", () => {
       screen.queryByTestId("ai-quick-entry-pending-queue")
     ).not.toBeInTheDocument();
     expect(toastSuccessMock).toHaveBeenCalledTimes(1);
-    expect(toastSuccessMock.mock.calls[0]?.[1]).toBe(
+    expect(toastSuccessMock.mock.calls[0]?.[1]).toStrictEqual(
       QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
     );
 

@@ -18,12 +18,12 @@ type AIQuickEntryRowProps = {
 };
 
 const rowClassName =
-  "bg-surface-3/80 ds-glass-strong glass-border flex items-center gap-2 rounded-[24px] p-2";
+  "flex bg-surface-3/80 items-center gap-2 rounded-[24px] p-2";
 
 const PendingIndicator = () => (
   <span
     aria-hidden
-    className="bg-muted block size-8 shrink-0 animate-pulse rounded-full"
+    className="bg-surface-2 block size-8 shrink-0 animate-pulse rounded-full"
   />
 );
 
@@ -31,7 +31,7 @@ const PendingAmountSkeleton = () => (
   <span
     aria-hidden
     data-testid="ai-quick-entry-amount-skeleton"
-    className="bg-muted h-6 w-16 shrink-0 animate-pulse rounded-full"
+    className="bg-surface-2 h-6 w-16 shrink-0 animate-pulse rounded-full"
   />
 );
 

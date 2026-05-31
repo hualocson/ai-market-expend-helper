@@ -177,7 +177,9 @@ const AIQuickEntry = () => {
             budgetColor: result.budgetColor,
           }}
         />,
-        QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
+        {
+          ...QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS,
+        }
       );
     }, RESOLVE_DELAY_MS);
     timersRef.current.push(parseTimer);
