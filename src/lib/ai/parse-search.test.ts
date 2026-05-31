@@ -84,4 +84,22 @@ describe("parseSearchWithOpenRouter", () => {
       expect(result.reason).toBe("request_failed");
     }
   });
+
+  it("strips an empty categories array so it normalizes to no filter", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(okResponse({ categories: [], hasBudget: false }));
+    const result = await parseSearchWithOpenRouter({
+      input: "no budget",
+      todayMonth: "2026-05",
+      budgets,
+      apiKey: "k",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.filter.categories).toBeUndefined();
+      expect(result.filter.hasBudget).toBe(false);
+    }
+  });
 });

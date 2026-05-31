@@ -40,8 +40,7 @@ export type SearchFilter = z.infer<typeof searchFilterSchema>;
 export type ParseSearchFallbackReason =
   | "invalid_response"
   | "schema_mismatch"
-  | "request_failed"
-  | "empty_response";
+  | "request_failed";
 
 export type ParseSearchResponse =
   | { status: "success"; originalInput: string; filter: SearchFilter }

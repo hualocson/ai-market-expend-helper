@@ -58,6 +58,9 @@ export const getExpenseList = async ({
       lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
     );
   }
+  // Explicit dateFrom/dateTo are ANDed with any month/recent range above.
+  // The search filter never sets `month`, so in practice only one date
+  // mechanism is active per query; both paths (client + server) match.
   if (dateFrom) {
     whereParts.push(gte(expenses.date, dateFrom));
   }

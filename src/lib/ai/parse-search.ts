@@ -73,6 +73,11 @@ const normalizeFilter = (
   } else {
     delete normalized.budgetIds;
   }
+  // Drop an empty categories array so it normalizes to "no filter" (=== null in
+  // the query key) instead of splitting the cache against an undefined filter.
+  if (!normalized.categories || normalized.categories.length === 0) {
+    delete normalized.categories;
+  }
   return normalized;
 };
 
