@@ -3,6 +3,11 @@
 import React from "react";
 
 import { Category } from "@/enums";
+import {
+  getBudgetColorOption,
+  normalizeBudgetColor,
+  normalizeBudgetIcon,
+} from "@/lib/budget-appearance";
 import { cn, formatVnd } from "@/lib/utils";
 import { AlertTriangle } from "lucide-react";
 
@@ -51,6 +56,29 @@ const CompactAmount = ({ amount }: { amount: number }) => (
   </span>
 );
 
+const BudgetIcon = ({
+  icon,
+  color,
+}: {
+  icon: string | null | undefined;
+  color: unknown;
+}) => {
+  const normalizedIcon = normalizeBudgetIcon(icon);
+  const colorOption = getBudgetColorOption(normalizeBudgetColor(color));
+
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex size-8 shrink-0 items-center justify-center rounded-full text-base font-medium",
+        colorOption.chipClassName
+      )}
+    >
+      {normalizedIcon}
+    </span>
+  );
+};
+
 const getDisplayExpense = (entry: QuickEntry) =>
   entry.savedExpense ?? entry.reviewDraft ?? null;
 
@@ -79,12 +107,25 @@ const AIQuickEntryRow = ({
       }
       className={cn(rowClassName, className)}
     >
-      {variant === "saved" && category ? (
-        <ExpenseItemIcon
-          category={category as Category}
-          size="sm"
-          className="size-8 shrink-0 [&_svg]:size-4"
-        />
+      {variant === "saved" && displayExpense ? (
+        displayExpense.budgetId ? (
+          <BudgetIcon
+            icon={displayExpense.budgetIcon}
+            color={displayExpense.budgetColor}
+          />
+        ) : category ? (
+          <ExpenseItemIcon
+            category={category as Category}
+            size="sm"
+            className="size-8 shrink-0 [&_svg]:size-4"
+          />
+        ) : (
+          <ExpenseItemIcon
+            category={Category.OTHER}
+            size="sm"
+            className="size-8 shrink-0 [&_svg]:size-4"
+          />
+        )
       ) : variant === "needsReview" ? (
         <FailedIndicator />
       ) : (
@@ -98,11 +139,11 @@ const AIQuickEntryRow = ({
       {variant === "saved" && typeof amount === "number" ? (
         <CompactAmount amount={amount} />
       ) : variant === "needsReview" ? (
-        <span className="text-destructive shrink-0 text-xs font-semibold">
+        <span className="text-destructive shrink-0 pr-2 text-xs font-semibold">
           Review
         </span>
       ) : isSaving ? (
-        <span className="text-muted-foreground shrink-0 text-xs font-semibold">
+        <span className="text-muted-foreground shrink-0 pr-2 text-xs font-semibold">
           Saving
         </span>
       ) : (

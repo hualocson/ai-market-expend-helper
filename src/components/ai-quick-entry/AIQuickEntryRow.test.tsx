@@ -85,6 +85,26 @@ describe("AIQuickEntryRow", () => {
     expect(screen.queryByTestId("expense-row")).toBeNull();
   });
 
+  it("uses the budget icon for a saved entry with a budget", () => {
+    render(
+      <AIQuickEntryRow
+        entry={{
+          ...savedEntry,
+          savedExpense: {
+            ...savedEntry.savedExpense!,
+            budgetId: 2,
+            budgetName: "Cà phê",
+            budgetIcon: "☕",
+            budgetColor: "lime",
+          },
+        }}
+        variant="saved"
+      />
+    );
+
+    expect(screen.getByText("☕")).toBeInTheDocument();
+  });
+
   it("falls back to the original input when a saved note is empty", () => {
     render(
       <AIQuickEntryRow

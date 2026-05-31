@@ -19,12 +19,14 @@ import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import type { ParseExpenseResponse } from "@/lib/ai/parse-expense-contract";
 import { unwrapApiResponse } from "@/lib/api/api-response";
+import type { BudgetColorId } from "@/lib/budget-appearance";
 import { useCreateExpenseMutation } from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import type { LocalExpense } from "@/lib/sync/expenses/types";
 import { cn } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
+import type { TQuickExpenseDraft } from "@/stores/quick-expense-recovery-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, XIcon } from "lucide-react";
 import { flushSync } from "react-dom";
@@ -74,6 +76,20 @@ const createEntryId = () =>
 
 const newestFirst = (entries: QuickEntry[]) =>
   [...entries].sort((left, right) => right.createdAt - left.createdAt);
+
+const buildToastDraftFromInitialExpense = (
+  initialExpense: TQuickExpenseDrawerInitialExpense
+): TQuickExpenseDraft => ({
+  date: initialExpense.date,
+  amount: initialExpense.amount,
+  note: initialExpense.note ?? "",
+  category: initialExpense.category as TQuickExpenseDraft["category"],
+  paidBy: initialExpense.paidBy as TQuickExpenseDraft["paidBy"],
+  budgetId: initialExpense.budgetId ?? null,
+  budgetName: initialExpense.budgetName ?? null,
+  budgetIcon: initialExpense.budgetIcon ?? null,
+  budgetColor: (initialExpense.budgetColor ?? null) as BudgetColorId | null,
+});
 
 const parseQuickEntryExpense = async ({
   input,
@@ -321,7 +337,9 @@ const AIQuickEntry = () => {
         );
 
         toast.success(
-          <QuickExpenseSuccessToast draft={decision.initialExpense} />,
+          <QuickExpenseSuccessToast
+            draft={buildToastDraftFromInitialExpense(decision.initialExpense)}
+          />,
           QUICK_EXPENSE_SUCCESS_TOAST_OPTIONS
         );
         haptics.success();

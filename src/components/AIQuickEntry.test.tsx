@@ -97,25 +97,28 @@ const budgetOption = {
 
 const savedLocalExpense = (
   overrides: Partial<LocalExpense> = {}
-): LocalExpense => ({
-  id: "local-1",
-  clientId: "client-1",
-  serverId: 101,
-  entity: "expenses",
-  syncStatus: "pending",
-  createdAt: "2026-05-30T08:00:00.000Z",
-  updatedAt: "2026-05-30T08:00:00.000Z",
-  date: TODAY,
-  amount: 35000,
-  note: "Cà phê sữa đá",
-  category: Category.FOOD,
-  paidBy: PaidBy.CUBI,
-  budgetId: 2,
-  budgetName: "Cà phê",
-  budgetIcon: "☕",
-  budgetColor: "lime",
-  ...overrides,
-});
+): LocalExpense => {
+  const baseExpense: LocalExpense = {
+    clientId: "client-1",
+    serverId: 101,
+    entity: "expenses",
+    syncStatus: "pending",
+    lastError: null,
+    updatedAt: "2026-05-30T08:00:00.000Z",
+    serverUpdatedAt: null,
+    date: TODAY,
+    amount: 35000,
+    note: "Cà phê sữa đá",
+    category: Category.FOOD,
+    paidBy: PaidBy.CUBI,
+    budgetId: 2,
+    budgetName: "Cà phê",
+    budgetIcon: "☕",
+    budgetColor: "lime",
+  };
+
+  return { ...baseExpense, ...overrides };
+};
 
 type MockQuickExpenseDrawerProps = Record<string, unknown> & {
   onSuccess?: (expense: LocalExpense) => void;

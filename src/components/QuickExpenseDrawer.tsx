@@ -1097,7 +1097,7 @@ const QuickExpenseDrawer = ({
                   aria-label="Delete expense"
                   onClick={() => setDeleteConfirmOpen(true)}
                   disabled={!onConfirmDelete || queueing}
-                  className="rounded-xl border-none"
+                  className="size-12 rounded-xl border-none"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
