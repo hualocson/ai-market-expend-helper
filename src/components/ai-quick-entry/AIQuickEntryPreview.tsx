@@ -78,6 +78,7 @@ const AIQuickEntryPreview = ({
       <button
         type="button"
         aria-label="Return to quick entry"
+        onPointerDown={(event) => event.preventDefault()}
         onClick={onDone}
         className="ds-glass glass-border text-foreground absolute bottom-[calc(env(safe-area-inset-bottom)+20px)] left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full transition-transform active:scale-[0.96]"
       >

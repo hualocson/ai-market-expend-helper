@@ -272,27 +272,14 @@ describe("AIQuickEntry", () => {
     });
 
     fireEvent.click(screen.getByLabelText(/Open preview/));
-    const requestAnimationFrameSpy = vi
-      .spyOn(window, "requestAnimationFrame")
-      .mockImplementation((callback: FrameRequestCallback) =>
-        window.setTimeout(() => callback(performance.now()), 16)
-      );
-
     fireEvent.click(
       screen.getByRole("button", { name: "Return to quick entry" })
     );
 
     expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(16);
-    });
-
-    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
     expect(focusSpy).toHaveBeenCalledTimes(1);
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
 
-    requestAnimationFrameSpy.mockRestore();
     focusSpy.mockRestore();
   });
 

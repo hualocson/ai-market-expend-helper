@@ -21,6 +21,7 @@ import { mockParseExpense } from "@/lib/ai/mock-parse-expense";
 import { cn } from "@/lib/utils";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 import { ArrowUp, XIcon } from "lucide-react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import {
@@ -131,10 +132,10 @@ const AIQuickEntry = () => {
   };
 
   const returnToEntry = () => {
-    setMode("entry");
-    window.requestAnimationFrame(() => {
-      inputRef.current?.focus({ preventScroll: true });
+    flushSync(() => {
+      setMode("entry");
     });
+    inputRef.current?.focus({ preventScroll: true });
   };
 
   const submit = () => {
