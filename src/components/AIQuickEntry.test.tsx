@@ -884,7 +884,7 @@ describe("AIQuickEntry", () => {
     );
   });
 
-  it("keeps review entries available after the drawer closes and reopens", async () => {
+  it("keeps entries when reopened but returns to entry mode", async () => {
     mockParseResponse({
       status: "fallback",
       originalInput: "first",
@@ -903,16 +903,68 @@ describe("AIQuickEntry", () => {
       )
     );
 
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+    expect(screen.getByText("AI Quick Entry")).toBeInTheDocument();
+
     act(() => {
       useAIQuickEntryStore.getState().setOpen(false);
     });
     openOverlay();
 
-    expect(screen.getByLabelText(/AI quick entry status/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Describe your expense")).toBeInTheDocument();
+    expect(screen.queryByText("AI Quick Entry")).not.toBeInTheDocument();
     expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent("1");
 
     fireEvent.click(screen.getByLabelText(/Open preview/));
-
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
     expect(screen.getByText("first")).toBeInTheDocument();
+  });
+
+  it("clears nested drawer selection on close without clearing review entries", async () => {
+    mockParseResponse({
+      status: "fallback",
+      originalInput: "maybe coffee",
+      prefill: {
+        note: "maybe coffee",
+        amount: 35000,
+        date: "30/05/2026",
+        budgetId: null,
+      },
+      reason: "no_budget_match",
+    });
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("maybe coffee");
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent(
+        "1"
+      )
+    );
+    fireEvent.click(screen.getByLabelText(/Open preview/));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Review expense maybe coffee.*35\.000/,
+      })
+    );
+
+    expect(screen.getByTestId("quick-expense-drawer")).toHaveAttribute(
+      "data-open",
+      "true"
+    );
+
+    act(() => {
+      useAIQuickEntryStore.getState().setOpen(false);
+    });
+    openOverlay();
+
+    expect(screen.getByTestId("quick-expense-drawer")).toHaveAttribute(
+      "data-open",
+      "false"
+    );
+    expect(screen.getByTestId("ai-status-failed-count")).toHaveTextContent("1");
   });
 });
