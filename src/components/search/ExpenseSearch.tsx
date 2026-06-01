@@ -95,9 +95,9 @@ const ExpenseSearch = () => {
         type="button"
         aria-label="Open expense search"
         onClick={() => setDrawerOpen(true)}
-        className="ds-glass glass-border text-foreground fixed right-1/2 bottom-[6.25rem] z-40 inline-flex h-10 translate-x-1/2 items-center gap-2 rounded-full px-4 text-sm font-medium shadow-[0_16px_42px_color-mix(in_srgb,#000000_48%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.97]"
+        className="ds-glass glass-border text-foreground fixed bottom-22 left-1/2 z-40 inline-flex h-8 -translate-x-1/2 items-center gap-2 rounded-full px-3 text-xs font-medium transition-transform active:scale-[0.97]"
       >
-        <Search className="text-primary size-4" />
+        <Search className="size-3.5" />
         <span>Search</span>
       </button>
 
@@ -112,7 +112,8 @@ const ExpenseSearch = () => {
         {drawerOpen ? (
           <DrawerContent
             hideIndicator
-            className="h-dvh w-full gap-0 rounded-none p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
+            overlayClassName="quick-expense-drawer-overlay"
+            className="quick-expense-drawer-morph h-dvh w-full gap-0 rounded-none! p-0 data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
             onOpenAutoFocus={(event) => {
               event.preventDefault();
               inputRef.current?.focus({ preventScroll: true });
@@ -160,7 +161,6 @@ const ExpenseSearch = () => {
                   isLoading={parseMutation.isPending}
                   disabled={!online}
                   className="min-w-0 flex-1"
-                  inputClassName="h-12 rounded-full bg-[color-mix(in_srgb,var(--surface-3)_86%,transparent)]"
                 />
                 <button
                   type="button"
@@ -168,9 +168,7 @@ const ExpenseSearch = () => {
                   onPointerDown={(event) => event.preventDefault()}
                   onClick={closeSearch}
                   className={cn(
-                    "grid size-12 shrink-0 place-items-center rounded-full",
-                    "bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)]",
-                    "shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_16px_34px_color-mix(in_srgb,#000000_45%,transparent)]",
+                    "bg-surface-3 glass-border grid size-12 shrink-0 place-items-center rounded-full",
                     "transition-transform active:scale-[0.96]"
                   )}
                 >

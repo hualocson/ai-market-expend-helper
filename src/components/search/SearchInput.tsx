@@ -62,7 +62,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
         onSubmit={handleSubmit}
         className={cn("relative flex items-center", className)}
       >
-        <Search className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
+        <Search className="text-muted-foreground pointer-events-none absolute left-4 h-4 w-4" />
         <input
           ref={ref}
           type="search"
@@ -77,12 +77,12 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             (disabled ? "Search needs a connection" : "Search expenses…")
           }
           className={cn(
-            "bg-card border-border focus:border-primary w-full rounded-2xl border py-2.5 pr-10 pl-9 text-sm transition outline-none disabled:opacity-60",
+            "text-foreground placeholder:text-muted-foreground/80 glass-border bg-surface-3/80 w-full rounded-[28px] border-0 py-3 pr-10 pl-10 text-base outline-none disabled:opacity-60",
             inputClassName
           )}
         />
         {isLoading ? (
-          <Loader2 className="text-muted-foreground absolute right-3 h-4 w-4 animate-spin" />
+          <Loader2 className="text-muted-foreground absolute right-4 h-4 w-4 animate-spin" />
         ) : null}
       </form>
     );
