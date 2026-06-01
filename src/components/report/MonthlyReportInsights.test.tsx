@@ -332,7 +332,7 @@ describe("MonthlyReportInsights", () => {
     ).toBeInTheDocument();
   });
 
-  it("expands dense weekly budgets into one-line icon rollups", async () => {
+  it("expands dense weekly budgets into compact icon rollups that can wrap", async () => {
     const user = userEvent.setup();
 
     render(
@@ -357,11 +357,17 @@ describe("MonthlyReportInsights", () => {
     );
 
     const firstWeek = screen.getByLabelText(/Budget rollup May 5-11/);
-    expect(firstWeek).toHaveClass("flex-nowrap", "whitespace-nowrap");
+    expect(firstWeek).toHaveClass("flex-wrap");
+    expect(firstWeek).not.toHaveClass("flex-nowrap");
+    expect(firstWeek).not.toHaveClass("overflow-hidden");
+    expect(firstWeek).not.toHaveClass("whitespace-nowrap");
     expect(within(firstWeek).getByText("May 5-11")).toBeInTheDocument();
     expect(within(firstWeek).getByText("4 budgets")).toBeInTheDocument();
     expect(within(firstWeek).getByText("1 over")).toBeInTheDocument();
     expect(within(firstWeek).getByText("2.25M used")).toBeInTheDocument();
+    expect(within(firstWeek).getByText("2.25M used")).toHaveClass(
+      "break-words"
+    );
     expect(firstWeek).toHaveAttribute(
       "aria-label",
       expect.stringContaining("2.250.000 VND used")
