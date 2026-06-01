@@ -357,6 +357,7 @@ describe("MonthlyReportInsights", () => {
     );
 
     const firstWeek = screen.getByLabelText(/Budget rollup May 5-11/);
+    expect(firstWeek).toHaveClass("flex-nowrap", "whitespace-nowrap");
     expect(within(firstWeek).getByText("May 5-11")).toBeInTheDocument();
     expect(within(firstWeek).getByText("4 budgets")).toBeInTheDocument();
     expect(within(firstWeek).getByText("1 over")).toBeInTheDocument();

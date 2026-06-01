@@ -206,22 +206,22 @@ const BudgetVarianceRowItem = ({ row }: { row: BudgetVarianceRow }) => (
 const WeeklyBudgetRollup = ({ group }: { group: WeeklyBudgetGroup }) => (
   <div className="flex flex-col gap-2">
     <div
-      className="text-muted-foreground bg-muted/20 flex min-h-10 max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-xs"
+      className="text-muted-foreground bg-muted/20 flex min-h-10 max-w-full flex-nowrap items-center gap-2 overflow-hidden rounded-xl px-2 py-2 text-[11px] whitespace-nowrap"
       aria-label={`Budget rollup ${group.label}, ${group.rows.length} budgets, ${group.attentionLabel}, ${formatVnd(group.assignedSpend)} VND used`}
     >
-      <span className="text-foreground flex items-center gap-1 font-medium">
+      <span className="text-foreground flex shrink-0 items-center gap-1 font-medium">
         <CalendarDays className="size-3.5" aria-hidden="true" />
         {group.label}
       </span>
-      <span className="flex items-center gap-1">
+      <span className="flex shrink-0 items-center gap-1">
         <WalletCards className="size-3.5" aria-hidden="true" />
         {group.rows.length} budgets
       </span>
-      <span className="flex items-center gap-1">
+      <span className="flex shrink-0 items-center gap-1">
         <TriangleAlert className="size-3.5" aria-hidden="true" />
         {group.attentionLabel}
       </span>
-      <span className="flex max-w-full items-center gap-1 break-all tabular-nums">
+      <span className="flex min-w-0 items-center gap-1 overflow-hidden text-ellipsis tabular-nums">
         <VndSymbol className="size-3.5" aria-hidden="true" />
         {formatCompactRollupVnd(group.assignedSpend)} used
       </span>
