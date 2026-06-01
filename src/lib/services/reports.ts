@@ -148,8 +148,10 @@ export const getMonthlyReport = async (
   const { categoryTotals, paidByTotalSpent, paidByTotals } =
     summarizePaidByCategoryTotals(normalizedTotals);
 
+  const selectedMonthEnd = activeMonth.endOf("month");
   const selectedMonthStartKey = startOfMonth.format("YYYY-MM-DD");
-  const selectedMonthEndKey = activeMonth.endOf("month").format("YYYY-MM-DD");
+  const selectedMonthEndKey = selectedMonthEnd.format("YYYY-MM-DD");
+  const selectedMonthDays = inclusiveDays(startOfMonth, selectedMonthEnd);
   const recurringWindowStartKey = activeMonth
     .endOf("month")
     .subtract(180, "day")
@@ -223,34 +225,36 @@ export const getMonthlyReport = async (
         row.period === "month" && row.periodEndDate === null;
       const isOpenEndedWeeklyBudget =
         row.period === "week" && row.periodEndDate === null;
+      const isOpenEndedRecurringBudget =
+        isOpenEndedMonthlyBudget || isOpenEndedWeeklyBudget;
       const rowPeriodStart = dayjs(row.periodStartDate);
-      const weeklyActiveStart = rowPeriodStart.isAfter(startOfMonth)
+      const activeStart = rowPeriodStart.isAfter(startOfMonth)
         ? rowPeriodStart
         : startOfMonth;
-      const weeklyActiveDays = inclusiveDays(
-        weeklyActiveStart,
-        activeMonth.endOf("month")
-      );
+      const activeEnd = selectedMonthEnd;
+      const activeDays = inclusiveDays(activeStart, activeEnd);
+      const rowAmount = Number(row.amount ?? 0);
+      const syntheticOpenEndedAmount = isOpenEndedMonthlyBudget
+        ? (rowAmount * activeDays) / selectedMonthDays
+        : (rowAmount * activeDays) / 7;
 
       return {
         id: Number(row.id),
         name: row.name,
-        amount: isOpenEndedWeeklyBudget
-          ? (Number(row.amount ?? 0) * weeklyActiveDays) / 7
-          : Number(row.amount ?? 0),
+        amount: isOpenEndedRecurringBudget
+          ? syntheticOpenEndedAmount
+          : rowAmount,
         icon: normalizeBudgetIcon(row.icon),
         color: normalizeBudgetColor(row.color),
         period: row.period,
-        periodStartDate:
-          isOpenEndedMonthlyBudget || isOpenEndedWeeklyBudget
-            ? selectedMonthStartKey
-            : rowPeriodStart.format("YYYY-MM-DD"),
-        periodEndDate:
-          isOpenEndedMonthlyBudget || isOpenEndedWeeklyBudget
-            ? selectedMonthEndKey
-            : row.periodEndDate
-              ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
-              : null,
+        periodStartDate: isOpenEndedRecurringBudget
+          ? activeStart.format("YYYY-MM-DD")
+          : rowPeriodStart.format("YYYY-MM-DD"),
+        periodEndDate: isOpenEndedRecurringBudget
+          ? activeEnd.format("YYYY-MM-DD")
+          : row.periodEndDate
+            ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
+            : null,
       };
     }
   );

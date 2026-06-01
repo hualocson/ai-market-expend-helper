@@ -126,10 +126,14 @@ const totalForMonth = (expenses: MonthlyInsightExpense[], month: string) =>
     .filter((item) => isInsideMonth(item.date, month))
     .reduce((sum, item) => sum + item.amount, 0);
 
-const hasExpensesForMonth = (
+const hasExpenseHistoryAtOrBeforeMonth = (
   expenses: MonthlyInsightExpense[],
   month: string
-) => expenses.some((item) => isInsideMonth(item.date, month));
+) => {
+  const monthEndKey = dateKey(startOfMonth(month).endOf("month"));
+
+  return expenses.some((item) => item.date <= monthEndKey);
+};
 
 const buildPulse = (
   selectedMonth: string,
@@ -145,8 +149,10 @@ const buildPulse = (
   const priorTotals = priorMonths.map((month) =>
     totalForMonth(expenses, month)
   );
-  const hasCompletePriorThreeMonthHistory = priorMonths.every((month) =>
-    hasExpensesForMonth(expenses, month)
+  const earliestPriorMonth = priorMonths[priorMonths.length - 1];
+  const hasCompletePriorThreeMonthHistory = Boolean(
+    earliestPriorMonth &&
+    hasExpenseHistoryAtOrBeforeMonth(expenses, earliestPriorMonth)
   );
   const priorThreeMonthAverage = hasCompletePriorThreeMonthHistory
     ? priorTotals.reduce((sum, value) => sum + value, 0) / priorTotals.length

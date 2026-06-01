@@ -224,6 +224,61 @@ describe("report services", () => {
     });
   });
 
+  it("prorates open-ended monthly budgets that start inside the selected month", async () => {
+    dbMocks.select
+      .mockReturnValueOnce(
+        mockSelectRows([{ category: "Bills", paidBy: "Loc", total: 800_000 }])
+      )
+      .mockReturnValueOnce(
+        mockSelectRows(
+          [
+            {
+              id: 1,
+              date: "2026-05-20",
+              amount: 800_000,
+              note: "Rent",
+              category: "Bills",
+              paidBy: "Loc",
+              budgetId: 10,
+            },
+          ],
+          { terminalWhere: true }
+        )
+      )
+      .mockReturnValueOnce(
+        mockSelectRows(
+          [
+            {
+              id: 10,
+              name: "Rent",
+              amount: 3_100_000,
+              icon: "🏠",
+              color: "blue",
+              period: "month",
+              periodStartDate: "2026-05-15",
+              periodEndDate: null,
+            },
+          ],
+          { terminalWhere: true }
+        )
+      );
+
+    const result = await getMonthlyReport("2026-05");
+
+    expect(result.insights.budgetVariance.rows).toEqual([
+      expect.objectContaining({
+        budgetId: 10,
+        period: "month",
+        periodStartDate: "2026-05-15",
+        periodEndDate: "2026-05-31",
+        allowance: 1_700_000,
+        assignedSpend: 800_000,
+        variance: 900_000,
+        status: "under",
+      }),
+    ]);
+  });
+
   it("returns daily expense rows with joined budget appearance", async () => {
     budgetReportMocks.getWeeklyBudgetReport.mockResolvedValue({
       budgets: [],

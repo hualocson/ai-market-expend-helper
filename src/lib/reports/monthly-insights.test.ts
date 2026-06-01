@@ -141,6 +141,23 @@ describe("monthly report insights", () => {
     expect(insights.pulse.priorThreeMonthDeltaPercent).toBeNull();
   });
 
+  it("allows zero-spend prior months when earlier prior-three history exists", () => {
+    const insights = buildMonthlyReportInsights({
+      selectedMonth: "2026-05",
+      expenses: [
+        expense({ id: 1, date: "2026-02-10", amount: 100_000 }),
+        expense({ id: 2, date: "2026-03-10", amount: 100_000 }),
+        expense({ id: 3, date: "2026-05-10", amount: 500_000 }),
+      ],
+      budgets: [],
+    });
+
+    expect(insights.pulse.priorThreeMonthAverage).toBeCloseTo(66_666.67, 2);
+    expect(insights.pulse.hasPriorThreeMonthBaseline).toBe(true);
+    expect(insights.pulse.priorThreeMonthDelta).toBeCloseTo(433_333.33, 2);
+    expect(insights.pulse.priorThreeMonthDeltaPercent).toBe(650);
+  });
+
   it("prorates weekly and monthly budget allowance by selected-month overlap days", () => {
     const insights = buildMonthlyReportInsights({
       selectedMonth: "2026-05",
