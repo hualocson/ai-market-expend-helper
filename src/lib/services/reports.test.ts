@@ -166,6 +166,64 @@ describe("report services", () => {
     });
   });
 
+  it("includes open-ended weekly budgets that started before the selected month", async () => {
+    dbMocks.select
+      .mockReturnValueOnce(
+        mockSelectRows([{ category: "Food", paidBy: "Loc", total: 500_000 }])
+      )
+      .mockReturnValueOnce(
+        mockSelectRows(
+          [
+            {
+              id: 1,
+              date: "2026-05-10",
+              amount: 500_000,
+              note: "Groceries",
+              category: "Food",
+              paidBy: "Loc",
+              budgetId: 10,
+            },
+          ],
+          { terminalWhere: true }
+        )
+      )
+      .mockReturnValueOnce(
+        mockSelectRows(
+          [
+            {
+              id: 10,
+              name: "Groceries",
+              amount: 700_000,
+              icon: "🛒",
+              color: "green",
+              period: "week",
+              periodStartDate: "2026-04-14",
+              periodEndDate: null,
+            },
+          ],
+          { terminalWhere: true }
+        )
+      );
+
+    const result = await getMonthlyReport("2026-05");
+
+    expect(result.insights.budgetVariance.rows).toEqual([
+      expect.objectContaining({
+        budgetId: 10,
+        period: "week",
+        allowance: 3_100_000,
+        assignedSpend: 500_000,
+        variance: 2_600_000,
+        status: "under",
+      }),
+    ]);
+    expect(result.insights.budgetVariance.summary).toMatchObject({
+      totalAllowance: 3_100_000,
+      totalAssignedSpend: 500_000,
+      totalVariance: 2_600_000,
+    });
+  });
+
   it("returns daily expense rows with joined budget appearance", async () => {
     budgetReportMocks.getWeeklyBudgetReport.mockResolvedValue({
       budgets: [],

@@ -77,6 +77,9 @@ export type DailyReport = {
 const formatWeekRange = (start: dayjs.Dayjs, end: dayjs.Dayjs) =>
   `${start.format("DD MMM")} - ${end.format("DD MMM")}`;
 
+const inclusiveDays = (start: dayjs.Dayjs, end: dayjs.Dayjs) =>
+  end.diff(start, "day") + 1;
+
 export const summarizePaidByCategoryTotals = (
   paidByCategoryTotals: PaidByCategoryTotal[]
 ) => {
@@ -218,22 +221,36 @@ export const getMonthlyReport = async (
     (row) => {
       const isOpenEndedMonthlyBudget =
         row.period === "month" && row.periodEndDate === null;
+      const isOpenEndedWeeklyBudget =
+        row.period === "week" && row.periodEndDate === null;
+      const rowPeriodStart = dayjs(row.periodStartDate);
+      const weeklyActiveStart = rowPeriodStart.isAfter(startOfMonth)
+        ? rowPeriodStart
+        : startOfMonth;
+      const weeklyActiveDays = inclusiveDays(
+        weeklyActiveStart,
+        activeMonth.endOf("month")
+      );
 
       return {
         id: Number(row.id),
         name: row.name,
-        amount: Number(row.amount ?? 0),
+        amount: isOpenEndedWeeklyBudget
+          ? (Number(row.amount ?? 0) * weeklyActiveDays) / 7
+          : Number(row.amount ?? 0),
         icon: normalizeBudgetIcon(row.icon),
         color: normalizeBudgetColor(row.color),
         period: row.period,
-        periodStartDate: isOpenEndedMonthlyBudget
-          ? selectedMonthStartKey
-          : dayjs(row.periodStartDate).format("YYYY-MM-DD"),
-        periodEndDate: isOpenEndedMonthlyBudget
-          ? selectedMonthEndKey
-          : row.periodEndDate
-            ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
-            : null,
+        periodStartDate:
+          isOpenEndedMonthlyBudget || isOpenEndedWeeklyBudget
+            ? selectedMonthStartKey
+            : rowPeriodStart.format("YYYY-MM-DD"),
+        periodEndDate:
+          isOpenEndedMonthlyBudget || isOpenEndedWeeklyBudget
+            ? selectedMonthEndKey
+            : row.periodEndDate
+              ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
+              : null,
       };
     }
   );
