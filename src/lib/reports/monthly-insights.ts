@@ -157,7 +157,9 @@ const buildPulse = (
   const priorThreeMonthAverage = hasCompletePriorThreeMonthHistory
     ? priorTotals.reduce((sum, value) => sum + value, 0) / priorTotals.length
     : 0;
-  const hasPreviousMonth = previousMonthTotal > 0;
+  const hasPreviousMonth =
+    previousMonthTotal > 0 ||
+    hasExpenseHistoryAtOrBeforeMonth(expenses, previousMonth);
   const hasPriorThreeMonthBaseline =
     hasCompletePriorThreeMonthHistory && priorThreeMonthAverage > 0;
 

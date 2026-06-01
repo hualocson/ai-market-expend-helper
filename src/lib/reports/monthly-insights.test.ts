@@ -121,6 +121,36 @@ describe("monthly report insights", () => {
     expect(insights.pulse.priorThreeMonthDeltaPercent).toBeNull();
   });
 
+  it("keeps previous-month comparison available when earlier history proves a zero-spend previous month", () => {
+    const insights = buildMonthlyReportInsights({
+      selectedMonth: "2026-05",
+      expenses: [
+        expense({ id: 1, date: "2026-03-10", amount: 100_000 }),
+        expense({ id: 2, date: "2026-05-10", amount: 500_000 }),
+      ],
+      budgets: [],
+    });
+
+    expect(insights.pulse.hasPreviousMonth).toBe(true);
+    expect(insights.pulse.previousMonth).toBe("2026-04");
+    expect(insights.pulse.previousMonthTotal).toBe(0);
+    expect(insights.pulse.previousMonthDelta).toBe(500_000);
+    expect(insights.pulse.previousMonthDeltaPercent).toBeNull();
+  });
+
+  it("keeps previous-month comparison unavailable when selected month has no prior history", () => {
+    const insights = buildMonthlyReportInsights({
+      selectedMonth: "2026-05",
+      expenses: [expense({ id: 1, date: "2026-05-10", amount: 500_000 })],
+      budgets: [],
+    });
+
+    expect(insights.pulse.hasPreviousMonth).toBe(false);
+    expect(insights.pulse.previousMonthTotal).toBe(0);
+    expect(insights.pulse.previousMonthDelta).toBeNull();
+    expect(insights.pulse.previousMonthDeltaPercent).toBeNull();
+  });
+
   it("does not treat partial previous-month history as a prior-three baseline", () => {
     const insights = buildMonthlyReportInsights({
       selectedMonth: "2026-05",
