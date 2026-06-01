@@ -79,11 +79,14 @@ describe("monthly report insights", () => {
     });
 
     expect(insights.pulse.selectedTotal).toBe(500_000);
+    expect(insights.pulse.selectedMonth).toBe("2026-05");
+    expect(insights.pulse.previousMonth).toBe("2026-04");
     expect(insights.pulse.previousMonthTotal).toBe(400_000);
     expect(insights.pulse.previousMonthDelta).toBe(100_000);
     expect(insights.pulse.previousMonthDeltaPercent).toBe(25);
     expect(insights.pulse.priorThreeMonthAverage).toBe(300_000);
     expect(insights.pulse.priorThreeMonthDelta).toBe(200_000);
+    expect(insights.pulse.priorThreeMonthDeltaPercent).toBe(66.7);
     expect(insights.monthTrend.map((point) => point.month)).toEqual([
       "2025-12",
       "2026-01",
@@ -91,6 +94,17 @@ describe("monthly report insights", () => {
       "2026-03",
       "2026-04",
       "2026-05",
+    ]);
+    expect(insights.monthTrend.map((point) => point.total)).toEqual([
+      0, 100_000, 200_000, 300_000, 400_000, 500_000,
+    ]);
+    expect(insights.monthTrend.map((point) => point.isSelected)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
     ]);
   });
 
@@ -157,6 +171,33 @@ describe("monthly report insights", () => {
         status: "under",
       }),
     ]);
+  });
+
+  it("excludes non-overlapping budgets even when selected-month spend is assigned to them", () => {
+    const insights = buildMonthlyReportInsights({
+      selectedMonth: "2026-05",
+      expenses: [
+        expense({ id: 1, date: "2026-05-01", amount: 100_000, budgetId: 10 }),
+      ],
+      budgets: [
+        budget({
+          id: 10,
+          name: "April week",
+          amount: 700_000,
+          period: "week",
+          periodStartDate: "2026-04-14",
+          periodEndDate: "2026-04-20",
+        }),
+      ],
+    });
+
+    expect(insights.budgetVariance.rows).toEqual([]);
+    expect(insights.budgetVariance.summary).toEqual({
+      totalAllowance: 0,
+      totalAssignedSpend: 0,
+      totalVariance: 0,
+      unassignedSpend: 0,
+    });
   });
 
   it("normalizes Vietnamese merchant notes into stable grouping keys", () => {

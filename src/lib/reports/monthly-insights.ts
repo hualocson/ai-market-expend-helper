@@ -1,6 +1,10 @@
 import dayjs from "@/configs/date";
 import type { BudgetColorId } from "@/lib/budget-appearance";
 
+/**
+ * Service-owned read model for insight calculations.
+ * Callers must provide non-deleted expenses only.
+ */
 export type MonthlyInsightExpense = {
   id: number;
   amount: number;
@@ -9,6 +13,7 @@ export type MonthlyInsightExpense = {
   category: string;
   paidBy: string;
   budgetId: number | null;
+  isDeleted?: false;
 };
 
 export type MonthlyInsightBudget = {
@@ -246,6 +251,11 @@ const buildBudgetVariance = (
         monthStart,
         monthEnd
       );
+
+      if (daysInMonth === 0) {
+        return null;
+      }
+
       const allowance = roundCurrency(
         (budget.amount * daysInMonth) / daysInPeriod
       );
@@ -268,7 +278,7 @@ const buildBudgetVariance = (
         status: getBudgetStatus(allowance, assignedSpend),
       };
     })
-    .filter((row) => row.allowance > 0 || row.assignedSpend > 0)
+    .filter((row): row is BudgetVarianceRow => row !== null)
     .sort(
       (a, b) => b.assignedSpend - a.assignedSpend || b.allowance - a.allowance
     );
