@@ -85,6 +85,7 @@ describe("POST /api/ai/parse-search", () => {
         method: "POST",
         body: JSON.stringify({
           input: "coffee no budget",
+          todayDate: "2026-06-01",
           todayMonth: "2026-05",
           budgets: [{ id: 2, name: "Cà phê", category: "Food" }],
         }),
@@ -98,6 +99,7 @@ describe("POST /api/ai/parse-search", () => {
     });
     expect(parseSearchWithOpenRouter).toHaveBeenCalledWith({
       input: "coffee no budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets: [{ id: 2, name: "Cà phê", category: "Food" }],
       apiKey: "test-key",
@@ -112,6 +114,7 @@ describe("POST /api/ai/parse-search", () => {
         method: "POST",
         body: JSON.stringify({
           input: "coffee no budget",
+          todayDate: "2026-06-01",
           todayMonth: "2026-05",
           budgets: [{ id: 2, name: "Cà phê", category: "Travel" }],
         }),
@@ -141,6 +144,7 @@ describe("POST /api/ai/parse-search", () => {
         method: "POST",
         body: JSON.stringify({
           input: "something unclear",
+          todayDate: "2026-06-01",
           todayMonth: "2026-05",
         }),
       })
@@ -159,6 +163,7 @@ describe("POST /api/ai/parse-search", () => {
         method: "POST",
         body: JSON.stringify({
           input: "coffee",
+          todayDate: "2026-06-01",
           todayMonth: "2026-05",
         }),
       })
@@ -183,6 +188,7 @@ describe("POST /api/ai/parse-search", () => {
         method: "POST",
         body: JSON.stringify({
           input: "coffee",
+          todayDate: "2026-06-01",
           todayMonth: "2026-05",
         }),
       })

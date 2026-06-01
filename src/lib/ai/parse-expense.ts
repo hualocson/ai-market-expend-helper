@@ -1,4 +1,7 @@
-import { withFallbackModels } from "./core/openrouter";
+import {
+  OPENROUTER_PRIMARY_MODEL,
+  withFallbackModels,
+} from "./core/openrouter";
 import type {
   ParseExpenseBudget,
   ParseExpenseConfidence,
@@ -11,14 +14,18 @@ import {
 } from "./parse-expense-contract";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-// Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
-// (src/lib/ai/core/openrouter.ts) if this one is rate-limited or errors.
-const MODEL = "google/gemma-4-31b-it:free";
+// Primary model shared with search parsing; OpenRouter falls back through the
+// shared OPENROUTER_MODELS chain if this one is rate-limited or errors.
+const MODEL = OPENROUTER_PRIMARY_MODEL;
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
 
 const SYSTEM_PROMPT = `
 You extract a single expense draft from short natural-language text and pick the best-matching budget.
+
+Budget name is the primary signal for budget matching; category is only secondary context.
+Prefer the budget whose name matches the text or common shorthand. Use category
+only as supporting context or a tie-breaker, not as the main match.
 
 Rules:
 - Return only one JSON object.
@@ -29,7 +36,7 @@ Rules:
 - amount is Vietnamese dong (VND): a whole number, minimum 1000. Expand shorthand: "35k" = 35000, "1.2tr" = 1200000.
 - note must be a short, natural Vietnamese phrase. Normalize shorthand, e.g. "cf sua da" -> "Cà phê sữa đá".
 - budgetId must be exactly one of the provided budget ids, or null when none plausibly matches. Never invent an id.
-- Match using the budget name first and its category as secondary context. Match Vietnamese with or without diacritics, and common shorthand (cf = coffee, xang = fuel, grab = transport or food).
+- Match using the budget name first. Category is only secondary context. Match Vietnamese with or without diacritics, and common shorthand (cf = coffee, xang = fuel, grab = transport or food).
 - confidence is "high" only when amount, note, and a non-null budgetId are all confidently determined; a missing date does not lower confidence because today is used by default. Otherwise "medium" or "low".
 - reason is a short explanation of the budget match.
 `.trim();

@@ -52,6 +52,13 @@ describe("parseExpenseWithOpenRouter", () => {
         reason: "Matched coffee wording to Cà phê.",
       },
     });
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body);
+    expect(body.messages[0].content).toContain(
+      "Budget name is the primary signal"
+    );
+    expect(body.messages[0].content).toContain(
+      "category is only secondary context"
+    );
   });
 
   it("accepts a null budgetId (no plausible match)", async () => {

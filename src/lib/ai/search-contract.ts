@@ -18,6 +18,7 @@ export type SearchBudget = z.infer<typeof searchBudgetSchema>;
 
 export const parseSearchRequestSchema = z.object({
   input: z.string().trim().min(1).max(SEARCH_INPUT_MAX_LENGTH),
+  todayDate: z.string().regex(SEARCH_DATE_PATTERN),
   todayMonth: z.string().regex(SEARCH_MONTH_PATTERN),
   budgets: z.array(searchBudgetSchema).max(SEARCH_MAX_BUDGETS).default([]),
 });

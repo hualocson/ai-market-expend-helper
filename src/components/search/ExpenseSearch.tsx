@@ -51,6 +51,7 @@ const ExpenseSearch = () => {
     mutationFn: (input: string) =>
       parseSearchRequest({
         input,
+        todayDate: dayjs().format("YYYY-MM-DD"),
         todayMonth: dayjs().format("YYYY-MM"),
         budgets,
       }),

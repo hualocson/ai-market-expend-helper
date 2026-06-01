@@ -93,6 +93,12 @@ describe("ExpenseSearch", () => {
       )
     );
     expect(parseSearchRequest).toHaveBeenCalledTimes(1);
+    expect(parseSearchRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        todayDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        todayMonth: expect.stringMatching(/^\d{4}-\d{2}$/),
+      })
+    );
   });
 
   it("keeps q in the input instead of rendering a raw text chip", async () => {

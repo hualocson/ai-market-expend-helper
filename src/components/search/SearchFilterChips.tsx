@@ -30,7 +30,7 @@ const SearchFilterChips = ({
       {chips.map((chip) => (
         <span
           key={chip.field}
-          className="bg-card text-foreground border-border inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium"
+          className="bg-surface-3 text-foreground inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
         >
           {chip.label}
           <button

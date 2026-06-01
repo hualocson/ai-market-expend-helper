@@ -33,14 +33,22 @@ describe("searchFilterSchema", () => {
 });
 
 describe("parseSearchRequestSchema", () => {
-  it("requires input and todayMonth and defaults budgets to []", () => {
+  it("requires input, todayDate, and todayMonth and defaults budgets to []", () => {
     const parsed = parseSearchRequestSchema.safeParse({
       input: "coffee no budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.budgets).toEqual([]);
     }
+
+    expect(
+      parseSearchRequestSchema.safeParse({
+        input: "coffee no budget",
+        todayMonth: "2026-05",
+      }).success
+    ).toBe(false);
   });
 });

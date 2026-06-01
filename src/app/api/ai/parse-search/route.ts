@@ -19,6 +19,15 @@ export const POST = async (request: Request) => {
       return invalidPayloadResponse();
     }
 
+    if (process.env.NODE_ENV === "development") {
+      console.info("[parse-search] request", {
+        input: parsedRequest.data.input,
+        todayDate: parsedRequest.data.todayDate,
+        todayMonth: parsedRequest.data.todayMonth,
+        budgetCount: parsedRequest.data.budgets.length,
+      });
+    }
+
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return apiError("PARSE_SEARCH_FAILED", "Missing OPENROUTER_API_KEY", 500);
@@ -26,10 +35,15 @@ export const POST = async (request: Request) => {
 
     const result = await parseSearchWithOpenRouter({
       input: parsedRequest.data.input,
+      todayDate: parsedRequest.data.todayDate,
       todayMonth: parsedRequest.data.todayMonth,
       budgets: parsedRequest.data.budgets,
       apiKey,
     });
+
+    if (process.env.NODE_ENV === "development") {
+      console.info("[parse-search] result", result);
+    }
 
     return apiSuccess(result);
   } catch (error) {

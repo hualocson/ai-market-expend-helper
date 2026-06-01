@@ -22,11 +22,21 @@ describe("parseSearchWithOpenRouter", () => {
       );
     const result = await parseSearchWithOpenRouter({
       input: "coffee no budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets,
       apiKey: "k",
       fetchFn: fetchFn as unknown as typeof fetch,
     });
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body);
+    expect(body.messages[0].content).toContain(
+      "Budget name is the primary signal"
+    );
+    expect(body.messages[0].content).toContain(
+      "category is only secondary context"
+    );
+    expect(body.messages[1].content).toContain("Today is 2026-06-01.");
+    expect(body.messages[1].content).toContain("Current month is 2026-05.");
     expect(result.status).toBe("success");
     if (result.status === "success") {
       expect(result.filter.categories).toEqual([Category.FOOD]);
@@ -40,6 +50,7 @@ describe("parseSearchWithOpenRouter", () => {
       .mockResolvedValue(okResponse({ budgetIds: [7, 999] }));
     const result = await parseSearchWithOpenRouter({
       input: "coffee budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets,
       apiKey: "k",
@@ -57,6 +68,7 @@ describe("parseSearchWithOpenRouter", () => {
       .mockResolvedValue(okResponse({ budgetIds: [7], hasBudget: false }));
     const result = await parseSearchWithOpenRouter({
       input: "coffee budget without budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets,
       apiKey: "k",
@@ -73,6 +85,7 @@ describe("parseSearchWithOpenRouter", () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("network"));
     const result = await parseSearchWithOpenRouter({
       input: "weird query",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets,
       apiKey: "k",
@@ -91,6 +104,7 @@ describe("parseSearchWithOpenRouter", () => {
       .mockResolvedValue(okResponse({ categories: [], hasBudget: false }));
     const result = await parseSearchWithOpenRouter({
       input: "no budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets,
       apiKey: "k",

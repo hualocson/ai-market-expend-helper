@@ -7,6 +7,7 @@ import { fetchJson } from "./http";
 
 type ParseSearchInput = {
   input: string;
+  todayDate: string;
   todayMonth: string;
   budgets: SearchBudget[];
 };

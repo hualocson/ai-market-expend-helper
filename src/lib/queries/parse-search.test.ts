@@ -20,13 +20,22 @@ describe("parseSearchRequest", () => {
 
     const result = await parseSearchRequest({
       input: "coffee no budget",
+      todayDate: "2026-06-01",
       todayMonth: "2026-05",
       budgets: [],
     });
 
     expect(fetchSpy).toHaveBeenCalledWith(
       "/api/ai/parse-search",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          input: "coffee no budget",
+          todayDate: "2026-06-01",
+          todayMonth: "2026-05",
+          budgets: [],
+        }),
+      })
     );
     expect(result.status).toBe("success");
     fetchSpy.mockRestore();
