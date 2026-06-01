@@ -29,7 +29,7 @@ const statusPriority = {
   over: 0,
   near: 1,
   under: 2,
-  "no-allowance": 3,
+  "no-allowance": 2,
 } satisfies Record<BudgetVarianceRow["status"], number>;
 
 const sortBudgetRows = (rows: BudgetVarianceRow[]) =>
@@ -64,8 +64,6 @@ type WeeklyBudgetGroup = {
   label: string;
   rows: BudgetVarianceRow[];
   assignedSpend: number;
-  overCount: number;
-  nearCount: number;
   attentionLabel: string;
 };
 
@@ -80,10 +78,36 @@ const formatBudgetPeriodRange = (startDate: string, endDate: string) => {
   return `${start.format("MMM D")}-${end.format("MMM D")}`;
 };
 
-const getAttentionLabel = (rows: BudgetVarianceRow[]) => {
-  const overCount = rows.filter((row) => row.status === "over").length;
-  const nearCount = rows.filter((row) => row.status === "near").length;
+const formatCompactRollupVnd = (value: number) => {
+  const absoluteValue = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  const compactNumber = (amount: number) =>
+    amount.toLocaleString("en-US", {
+      maximumFractionDigits: 2,
+    });
 
+  if (absoluteValue >= 1_000_000_000) {
+    return `${sign}${compactNumber(absoluteValue / 1_000_000_000)}B`;
+  }
+
+  if (absoluteValue >= 1_000_000) {
+    return `${sign}${compactNumber(absoluteValue / 1_000_000)}M`;
+  }
+
+  if (absoluteValue >= 1_000) {
+    return `${sign}${compactNumber(absoluteValue / 1_000)}K`;
+  }
+
+  return value.toLocaleString("vi-VN");
+};
+
+const getAttentionLabel = ({
+  overCount,
+  nearCount,
+}: {
+  overCount: number;
+  nearCount: number;
+}) => {
   if (overCount > 0) {
     return `${overCount} over`;
   }
@@ -122,9 +146,7 @@ const groupWeeklyBudgetRows = (rows: BudgetVarianceRow[]) => {
           (sum, row) => sum + row.assignedSpend,
           0
         ),
-        overCount,
-        nearCount,
-        attentionLabel: getAttentionLabel(sortedGroupRows),
+        attentionLabel: getAttentionLabel({ overCount, nearCount }),
       };
     })
     .sort((first, second) => first.key.localeCompare(second.key));
@@ -185,7 +207,7 @@ const WeeklyBudgetRollup = ({ group }: { group: WeeklyBudgetGroup }) => (
   <div className="flex flex-col gap-2">
     <div
       className="text-muted-foreground bg-muted/20 flex min-h-10 max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-xs"
-      aria-label={`Budget rollup ${group.label}`}
+      aria-label={`Budget rollup ${group.label}, ${group.rows.length} budgets, ${group.attentionLabel}, ${formatVnd(group.assignedSpend)} VND used`}
     >
       <span className="text-foreground flex items-center gap-1 font-medium">
         <CalendarDays className="size-3.5" aria-hidden="true" />
@@ -201,7 +223,7 @@ const WeeklyBudgetRollup = ({ group }: { group: WeeklyBudgetGroup }) => (
       </span>
       <span className="flex max-w-full items-center gap-1 break-all tabular-nums">
         <VndSymbol className="size-3.5" aria-hidden="true" />
-        {formatVnd(group.assignedSpend)} used
+        {formatCompactRollupVnd(group.assignedSpend)} used
       </span>
     </div>
     <div className="flex flex-col gap-2">

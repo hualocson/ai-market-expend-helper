@@ -120,6 +120,17 @@ const denseWeeklyRows: BudgetVarianceRow[] = [
   }),
   budgetRow({
     budgetId: 3,
+    name: "Week 1 no allowance",
+    status: "no-allowance",
+    assignedSpend: 800_000,
+    allowance: 0,
+    variance: -800_000,
+    percentUsed: null,
+    periodStartDate: "2026-05-05",
+    periodEndDate: "2026-05-11",
+  }),
+  budgetRow({
+    budgetId: 4,
     name: "Week 1 large",
     status: "under",
     assignedSpend: 500_000,
@@ -130,7 +141,7 @@ const denseWeeklyRows: BudgetVarianceRow[] = [
     periodEndDate: "2026-05-11",
   }),
   budgetRow({
-    budgetId: 4,
+    budgetId: 5,
     name: "Week 2 medium",
     status: "under",
     assignedSpend: 300_000,
@@ -141,7 +152,7 @@ const denseWeeklyRows: BudgetVarianceRow[] = [
     periodEndDate: "2026-05-18",
   }),
   budgetRow({
-    budgetId: 5,
+    budgetId: 6,
     name: "Week 3 medium",
     status: "under",
     assignedSpend: 250_000,
@@ -152,7 +163,7 @@ const denseWeeklyRows: BudgetVarianceRow[] = [
     periodEndDate: "2026-05-25",
   }),
   budgetRow({
-    budgetId: 6,
+    budgetId: 7,
     name: "Week 4 hidden",
     status: "under",
     assignedSpend: 200_000,
@@ -163,7 +174,7 @@ const denseWeeklyRows: BudgetVarianceRow[] = [
     periodEndDate: "2026-05-31",
   }),
   budgetRow({
-    budgetId: 7,
+    budgetId: 8,
     name: "Week 1 smallest",
     status: "under",
     assignedSpend: 50_000,
@@ -305,18 +316,19 @@ describe("MonthlyReportInsights", () => {
       />
     );
 
-    expect(screen.getByText("7 budgets")).toBeInTheDocument();
+    expect(screen.getByText("8 budgets")).toBeInTheDocument();
     expect(screen.getByText("1 over")).toBeInTheDocument();
     expect(screen.getByText("1 near")).toBeInTheDocument();
     expect(screen.getByText("Week 1 over")).toBeInTheDocument();
     expect(screen.getByText("Week 2 near")).toBeInTheDocument();
+    expect(screen.getByText("Week 1 no allowance")).toBeInTheDocument();
     expect(screen.getByText("Week 1 large")).toBeInTheDocument();
     expect(screen.getByText("Week 2 medium")).toBeInTheDocument();
-    expect(screen.getByText("Week 3 medium")).toBeInTheDocument();
+    expect(screen.queryByText("Week 3 medium")).not.toBeInTheDocument();
     expect(screen.queryByText("Week 4 hidden")).not.toBeInTheDocument();
     expect(screen.queryByText("Week 1 smallest")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Show all 2 more budgets" })
+      screen.getByRole("button", { name: "Show all 3 more budgets" })
     ).toBeInTheDocument();
   });
 
@@ -330,8 +342,8 @@ describe("MonthlyReportInsights", () => {
           budgetVariance: {
             summary: {
               totalAllowance: 4_900_000,
-              totalAssignedSpend: 2_820_000,
-              totalVariance: 2_080_000,
+              totalAssignedSpend: 3_620_000,
+              totalVariance: 1_280_000,
               unassignedSpend: 0,
             },
             rows: denseWeeklyRows,
@@ -341,14 +353,18 @@ describe("MonthlyReportInsights", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Show all 2 more budgets" })
+      screen.getByRole("button", { name: "Show all 3 more budgets" })
     );
 
-    const firstWeek = screen.getByLabelText("Budget rollup May 5-11");
+    const firstWeek = screen.getByLabelText(/Budget rollup May 5-11/);
     expect(within(firstWeek).getByText("May 5-11")).toBeInTheDocument();
-    expect(within(firstWeek).getByText("3 budgets")).toBeInTheDocument();
+    expect(within(firstWeek).getByText("4 budgets")).toBeInTheDocument();
     expect(within(firstWeek).getByText("1 over")).toBeInTheDocument();
-    expect(within(firstWeek).getByText(/1\.450\.000/)).toBeInTheDocument();
+    expect(within(firstWeek).getByText("2.25M used")).toBeInTheDocument();
+    expect(firstWeek).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("2.250.000 VND used")
+    );
     expect(firstWeek).not.toHaveTextContent("·");
     expect(firstWeek.textContent).not.toContain("•");
 
@@ -381,8 +397,8 @@ describe("MonthlyReportInsights", () => {
           budgetVariance: {
             summary: {
               totalAllowance: 8_000_000,
-              totalAssignedSpend: 3_820_000,
-              totalVariance: 4_180_000,
+              totalAssignedSpend: 4_620_000,
+              totalVariance: 3_380_000,
               unassignedSpend: 0,
             },
             rows: [monthlyRow, ...denseWeeklyRows],
@@ -392,11 +408,11 @@ describe("MonthlyReportInsights", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Show all 3 more budgets" })
+      screen.getByRole("button", { name: "Show all 4 more budgets" })
     );
 
     expect(screen.getByText("Monthly budgets")).toBeInTheDocument();
     expect(screen.getByText("Monthly rent")).toBeInTheDocument();
-    expect(screen.getByLabelText("Budget rollup May 5-11")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Budget rollup May 5-11/)).toBeInTheDocument();
   });
 });
