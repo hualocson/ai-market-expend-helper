@@ -101,15 +101,20 @@ const ExpenseSearch = () => {
     <>
       <ExpenseList />
 
-      <button
-        type="button"
-        aria-label="Open expense search"
-        onClick={() => setDrawerOpen(true)}
-        className="ds-glass glass-border text-foreground fixed bottom-22 left-1/2 z-40 inline-flex h-8 -translate-x-1/2 items-center gap-2 rounded-full px-3 text-xs font-medium transition-transform active:scale-[0.97]"
+      <div
+        aria-label="Primary"
+        className="standalone:pb-[calc(env(safe-area-inset-bottom)+4px)] fixed inset-x-0 bottom-16 z-50 flex justify-center px-4 pt-3 pb-4"
       >
-        <Search className="size-3.5" />
-        <span>Search</span>
-      </button>
+        <button
+          type="button"
+          aria-label="Open expense search"
+          onClick={() => setDrawerOpen(true)}
+          className="ds-glass glass-border text-foreground inline-flex h-8 items-center gap-2 rounded-full px-3 text-xs font-medium transition-transform active:scale-[0.97]"
+        >
+          <Search className="size-3.5" />
+          <span>Search</span>
+        </button>
+      </div>
 
       <Drawer
         open={drawerOpen}
