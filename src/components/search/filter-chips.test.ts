@@ -25,9 +25,8 @@ describe("buildFilterChips", () => {
     expect(buildFilterChips({})).toHaveLength(0);
   });
 
-  it("labels a raw-text fallback chip", () => {
+  it("does not create a chip for raw search text", () => {
     const chips = buildFilterChips({ q: "weird query" });
-    expect(chips[0].field).toBe("q");
-    expect(chips[0].label).toContain("weird query");
+    expect(chips).toHaveLength(0);
   });
 });

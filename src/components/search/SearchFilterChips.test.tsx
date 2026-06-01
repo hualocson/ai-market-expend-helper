@@ -19,4 +19,19 @@ describe("SearchFilterChips", () => {
     fireEvent.click(screen.getByRole("button", { name: /remove No budget/i }));
     expect(onRemove).toHaveBeenCalledWith("hasBudget");
   });
+
+  it("does not render raw q text as a filter chip", () => {
+    render(
+      <SearchFilterChips
+        filter={{ q: "coffee", categories: [Category.FOOD] }}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(Category.FOOD)).toBeInTheDocument();
+    expect(screen.queryByText(/text:/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /remove text/i })
+    ).not.toBeInTheDocument();
+  });
 });

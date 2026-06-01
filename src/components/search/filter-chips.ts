@@ -7,8 +7,7 @@ export type FilterChipField =
   | "budgetIds"
   | "hasBudget"
   | "amountMin"
-  | "amountMax"
-  | "q";
+  | "amountMax";
 
 export type FilterChip = {
   field: FilterChipField;
@@ -49,9 +48,6 @@ export const buildFilterChips = (filter: SearchFilter): FilterChip[] => {
       field: "amountMax",
       label: `≤ ${formatVnd(filter.amountMax)}`,
     });
-  }
-  if (filter.q) {
-    chips.push({ field: "q", label: `text: ${filter.q}` });
   }
   return chips;
 };
