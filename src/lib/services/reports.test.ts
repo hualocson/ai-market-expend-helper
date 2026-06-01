@@ -135,7 +135,7 @@ describe("report services", () => {
               icon: "🎧",
               color: "violet",
               period: "month",
-              periodStartDate: "2026-05-01",
+              periodStartDate: "2026-01-01",
               periodEndDate: null,
             },
           ],

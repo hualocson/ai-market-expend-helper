@@ -215,18 +215,27 @@ export const getMonthlyReport = async (
   );
 
   const insightBudgets: MonthlyInsightBudget[] = insightBudgetRows.map(
-    (row) => ({
-      id: Number(row.id),
-      name: row.name,
-      amount: Number(row.amount ?? 0),
-      icon: normalizeBudgetIcon(row.icon),
-      color: normalizeBudgetColor(row.color),
-      period: row.period,
-      periodStartDate: dayjs(row.periodStartDate).format("YYYY-MM-DD"),
-      periodEndDate: row.periodEndDate
-        ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
-        : null,
-    })
+    (row) => {
+      const isOpenEndedMonthlyBudget =
+        row.period === "month" && row.periodEndDate === null;
+
+      return {
+        id: Number(row.id),
+        name: row.name,
+        amount: Number(row.amount ?? 0),
+        icon: normalizeBudgetIcon(row.icon),
+        color: normalizeBudgetColor(row.color),
+        period: row.period,
+        periodStartDate: isOpenEndedMonthlyBudget
+          ? selectedMonthStartKey
+          : dayjs(row.periodStartDate).format("YYYY-MM-DD"),
+        periodEndDate: isOpenEndedMonthlyBudget
+          ? selectedMonthEndKey
+          : row.periodEndDate
+            ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
+            : null,
+      };
+    }
   );
 
   const insights = buildMonthlyReportInsights({

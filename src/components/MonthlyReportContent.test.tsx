@@ -84,6 +84,33 @@ describe("MonthlyReportContent", () => {
         { category: "Food", total: 250_000 },
         { category: "Transport", total: 100_000 },
       ],
+      insights: {
+        pulse: {
+          selectedMonth: "2026-05",
+          selectedTotal: 350_000,
+          previousMonth: "2026-04",
+          previousMonthTotal: 0,
+          previousMonthDelta: null,
+          previousMonthDeltaPercent: null,
+          priorThreeMonthAverage: 0,
+          priorThreeMonthDelta: null,
+          priorThreeMonthDeltaPercent: null,
+          hasPreviousMonth: false,
+          hasPriorThreeMonthBaseline: false,
+        },
+        budgetVariance: {
+          summary: {
+            totalAllowance: 0,
+            totalAssignedSpend: 0,
+            totalVariance: 0,
+            unassignedSpend: 0,
+          },
+          rows: [],
+        },
+        monthTrend: [],
+        topMerchants: [],
+        recurringSpend: [],
+      },
       paidByCategoryTotals: [
         { paidBy: "Loc", category: "Food", total: 150_000 },
         { paidBy: "Sachi", category: "Food", total: 100_000 },
