@@ -29,4 +29,33 @@ describe("buildFilterChips", () => {
     const chips = buildFilterChips({ q: "weird query" });
     expect(chips).toHaveLength(0);
   });
+
+  it("shows a single date when dateFrom and dateTo are the same", () => {
+    const chips = buildFilterChips({
+      dateFrom: "2026-05-31",
+      dateTo: "2026-05-31",
+    });
+
+    expect(chips).toContainEqual({
+      field: "dateRange",
+      label: "2026-05-31",
+      dateRange: undefined,
+    });
+  });
+
+  it("keeps date ranges as structured chip data without a symbol separator", () => {
+    const chips = buildFilterChips({
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-31",
+    });
+
+    expect(chips).toContainEqual({
+      field: "dateRange",
+      label: "2026-05-01 to 2026-05-31",
+      dateRange: {
+        from: "2026-05-01",
+        to: "2026-05-31",
+      },
+    });
+  });
 });

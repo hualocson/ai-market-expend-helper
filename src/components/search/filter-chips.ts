@@ -12,6 +12,10 @@ export type FilterChipField =
 export type FilterChip = {
   field: FilterChipField;
   label: string;
+  dateRange?: {
+    from: string;
+    to: string;
+  };
 };
 
 export const buildFilterChips = (filter: SearchFilter): FilterChip[] => {
@@ -20,7 +24,12 @@ export const buildFilterChips = (filter: SearchFilter): FilterChip[] => {
   if (filter.dateFrom || filter.dateTo) {
     const from = filter.dateFrom ?? "…";
     const to = filter.dateTo ?? "…";
-    chips.push({ field: "dateRange", label: `${from} → ${to}` });
+    const isSingleDate = filter.dateFrom === filter.dateTo;
+    chips.push({
+      field: "dateRange",
+      label: isSingleDate ? from : `${from} to ${to}`,
+      dateRange: isSingleDate ? undefined : { from, to },
+    });
   }
   if (filter.categories && filter.categories.length > 0) {
     chips.push({ field: "categories", label: filter.categories.join(", ") });

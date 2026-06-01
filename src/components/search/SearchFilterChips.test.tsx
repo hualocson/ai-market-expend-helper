@@ -34,4 +34,18 @@ describe("SearchFilterChips", () => {
       screen.queryByRole("button", { name: /remove text/i })
     ).not.toBeInTheDocument();
   });
+
+  it("renders date range separator as an icon", () => {
+    const { container } = render(
+      <SearchFilterChips
+        filter={{ dateFrom: "2026-05-01", dateTo: "2026-05-31" }}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("2026-05-01")).toBeInTheDocument();
+    expect(screen.getByText("2026-05-31")).toBeInTheDocument();
+    expect(screen.queryByText("→")).not.toBeInTheDocument();
+    expect(container.querySelector(".lucide-arrow-right")).toBeInTheDocument();
+  });
 });

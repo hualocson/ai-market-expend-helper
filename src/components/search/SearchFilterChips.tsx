@@ -4,7 +4,7 @@ import React from "react";
 
 import type { SearchFilter } from "@/lib/ai/search-contract";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 
 import type { FilterChipField } from "./filter-chips";
 import { buildFilterChips } from "./filter-chips";
@@ -32,7 +32,18 @@ const SearchFilterChips = ({
           key={chip.field}
           className="bg-surface-3 text-foreground inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
         >
-          {chip.label}
+          {chip.dateRange ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{chip.dateRange.from}</span>
+              <ArrowRight
+                aria-hidden="true"
+                className="text-muted-foreground h-3 w-3"
+              />
+              <span>{chip.dateRange.to}</span>
+            </span>
+          ) : (
+            chip.label
+          )}
           <button
             type="button"
             aria-label={`remove ${chip.label}`}
