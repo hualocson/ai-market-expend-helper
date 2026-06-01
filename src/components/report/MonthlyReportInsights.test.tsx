@@ -1,7 +1,8 @@
 import React from "react";
 
 import type { MonthlyReportInsights as MonthlyReportInsightsData } from "@/lib/reports/monthly-insights";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import MonthlyReportInsights from "./MonthlyReportInsights";
@@ -73,6 +74,106 @@ const baseInsights: MonthlyReportInsightsData = {
     },
   ],
 };
+
+type BudgetVarianceRow =
+  MonthlyReportInsightsData["budgetVariance"]["rows"][number];
+
+const budgetRow = (
+  overrides: Partial<BudgetVarianceRow>
+): BudgetVarianceRow => ({
+  budgetId: overrides.budgetId ?? 100,
+  name: overrides.name ?? "Budget row",
+  icon: overrides.icon ?? "💸",
+  color: overrides.color ?? "amber",
+  period: overrides.period ?? "week",
+  periodStartDate: overrides.periodStartDate ?? "2026-05-05",
+  periodEndDate: overrides.periodEndDate ?? "2026-05-11",
+  allowance: overrides.allowance ?? 700_000,
+  assignedSpend: overrides.assignedSpend ?? 100_000,
+  variance: overrides.variance ?? 600_000,
+  percentUsed: overrides.percentUsed ?? 14.3,
+  status: overrides.status ?? "under",
+});
+
+const denseWeeklyRows: BudgetVarianceRow[] = [
+  budgetRow({
+    budgetId: 1,
+    name: "Week 1 over",
+    status: "over",
+    assignedSpend: 900_000,
+    allowance: 700_000,
+    variance: -200_000,
+    percentUsed: 128.6,
+    periodStartDate: "2026-05-05",
+    periodEndDate: "2026-05-11",
+  }),
+  budgetRow({
+    budgetId: 2,
+    name: "Week 2 near",
+    status: "near",
+    assignedSpend: 620_000,
+    allowance: 700_000,
+    variance: 80_000,
+    percentUsed: 88.6,
+    periodStartDate: "2026-05-12",
+    periodEndDate: "2026-05-18",
+  }),
+  budgetRow({
+    budgetId: 3,
+    name: "Week 1 large",
+    status: "under",
+    assignedSpend: 500_000,
+    allowance: 700_000,
+    variance: 200_000,
+    percentUsed: 71.4,
+    periodStartDate: "2026-05-05",
+    periodEndDate: "2026-05-11",
+  }),
+  budgetRow({
+    budgetId: 4,
+    name: "Week 2 medium",
+    status: "under",
+    assignedSpend: 300_000,
+    allowance: 700_000,
+    variance: 400_000,
+    percentUsed: 42.9,
+    periodStartDate: "2026-05-12",
+    periodEndDate: "2026-05-18",
+  }),
+  budgetRow({
+    budgetId: 5,
+    name: "Week 3 medium",
+    status: "under",
+    assignedSpend: 250_000,
+    allowance: 700_000,
+    variance: 450_000,
+    percentUsed: 35.7,
+    periodStartDate: "2026-05-19",
+    periodEndDate: "2026-05-25",
+  }),
+  budgetRow({
+    budgetId: 6,
+    name: "Week 4 hidden",
+    status: "under",
+    assignedSpend: 200_000,
+    allowance: 700_000,
+    variance: 500_000,
+    percentUsed: 28.6,
+    periodStartDate: "2026-05-26",
+    periodEndDate: "2026-05-31",
+  }),
+  budgetRow({
+    budgetId: 7,
+    name: "Week 1 smallest",
+    status: "under",
+    assignedSpend: 50_000,
+    allowance: 700_000,
+    variance: 650_000,
+    percentUsed: 7.1,
+    periodStartDate: "2026-05-05",
+    periodEndDate: "2026-05-11",
+  }),
+];
 
 describe("MonthlyReportInsights", () => {
   it("renders the monthly insight narrative", () => {
@@ -184,5 +285,118 @@ describe("MonthlyReportInsights", () => {
       "items-start",
       "sm:flex-row"
     );
+  });
+
+  it("shows a prioritized collapsed budget subset when many weekly budgets exist", () => {
+    render(
+      <MonthlyReportInsights
+        insights={{
+          ...baseInsights,
+          budgetVariance: {
+            summary: {
+              totalAllowance: 4_900_000,
+              totalAssignedSpend: 2_820_000,
+              totalVariance: 2_080_000,
+              unassignedSpend: 0,
+            },
+            rows: denseWeeklyRows,
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText("7 budgets")).toBeInTheDocument();
+    expect(screen.getByText("1 over")).toBeInTheDocument();
+    expect(screen.getByText("1 near")).toBeInTheDocument();
+    expect(screen.getByText("Week 1 over")).toBeInTheDocument();
+    expect(screen.getByText("Week 2 near")).toBeInTheDocument();
+    expect(screen.getByText("Week 1 large")).toBeInTheDocument();
+    expect(screen.getByText("Week 2 medium")).toBeInTheDocument();
+    expect(screen.getByText("Week 3 medium")).toBeInTheDocument();
+    expect(screen.queryByText("Week 4 hidden")).not.toBeInTheDocument();
+    expect(screen.queryByText("Week 1 smallest")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show all 2 more budgets" })
+    ).toBeInTheDocument();
+  });
+
+  it("expands dense weekly budgets into one-line icon rollups", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MonthlyReportInsights
+        insights={{
+          ...baseInsights,
+          budgetVariance: {
+            summary: {
+              totalAllowance: 4_900_000,
+              totalAssignedSpend: 2_820_000,
+              totalVariance: 2_080_000,
+              unassignedSpend: 0,
+            },
+            rows: denseWeeklyRows,
+          },
+        }}
+      />
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Show all 2 more budgets" })
+    );
+
+    const firstWeek = screen.getByLabelText("Budget rollup May 5-11");
+    expect(within(firstWeek).getByText("May 5-11")).toBeInTheDocument();
+    expect(within(firstWeek).getByText("3 budgets")).toBeInTheDocument();
+    expect(within(firstWeek).getByText("1 over")).toBeInTheDocument();
+    expect(within(firstWeek).getByText(/1\.450\.000/)).toBeInTheDocument();
+    expect(firstWeek).not.toHaveTextContent("·");
+    expect(firstWeek.textContent).not.toContain("•");
+
+    expect(screen.getByText("Week 4 hidden")).toBeInTheDocument();
+    expect(screen.getByText("Week 1 smallest")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show fewer budget rows" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps monthly budgets coherent when mixed with dense weekly budgets", async () => {
+    const user = userEvent.setup();
+    const monthlyRow = budgetRow({
+      budgetId: 50,
+      name: "Monthly rent",
+      period: "month",
+      status: "under",
+      assignedSpend: 1_000_000,
+      allowance: 3_100_000,
+      variance: 2_100_000,
+      percentUsed: 32.3,
+      periodStartDate: "2026-05-01",
+      periodEndDate: "2026-05-31",
+    });
+
+    render(
+      <MonthlyReportInsights
+        insights={{
+          ...baseInsights,
+          budgetVariance: {
+            summary: {
+              totalAllowance: 8_000_000,
+              totalAssignedSpend: 3_820_000,
+              totalVariance: 4_180_000,
+              unassignedSpend: 0,
+            },
+            rows: [monthlyRow, ...denseWeeklyRows],
+          },
+        }}
+      />
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Show all 3 more budgets" })
+    );
+
+    expect(screen.getByText("Monthly budgets")).toBeInTheDocument();
+    expect(screen.getByText("Monthly rent")).toBeInTheDocument();
+    expect(screen.getByLabelText("Budget rollup May 5-11")).toBeInTheDocument();
   });
 });
