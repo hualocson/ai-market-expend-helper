@@ -64,12 +64,12 @@ const DeltaPill = ({
   return (
     <span
       className={cn(
-        "inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold tabular-nums",
+        "inline-flex min-h-8 max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
         className
       )}
     >
       <Icon className="size-3.5" aria-hidden="true" />
-      <span>{signedCurrency(amount)}</span>
+      <span className="break-all">{signedCurrency(amount)}</span>
       {formattedPercent ? <span>{formattedPercent}</span> : null}
     </span>
   );
@@ -82,20 +82,22 @@ const MonthlyPulseCard = ({ pulse }: MonthlyPulseCardProps) => {
         <CardTitle className="text-base text-balance">Monthly pulse</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+          <div className="max-w-full min-w-0">
             <div className="text-muted-foreground text-xs font-medium">
               Current spend
             </div>
-            <div className="text-foreground mt-1 flex items-center gap-1 text-3xl leading-none font-semibold tracking-tight tabular-nums">
+            <div className="text-foreground mt-1 flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 text-2xl leading-none font-semibold tracking-tight break-all tabular-nums min-[390px]:text-3xl">
               {formatVnd(pulse.selectedTotal)}
               <VndSymbol className="size-6 shrink-0" aria-hidden="true" />
             </div>
           </div>
-          <DeltaPill
-            amount={pulse.previousMonthDelta}
-            percent={pulse.previousMonthDeltaPercent}
-          />
+          <div className="max-w-full sm:flex sm:justify-end">
+            <DeltaPill
+              amount={pulse.previousMonthDelta}
+              percent={pulse.previousMonthDeltaPercent}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -115,7 +117,7 @@ const MonthlyPulseCard = ({ pulse }: MonthlyPulseCardProps) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 text-xs">
+        <div className="flex flex-col items-start gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="text-muted-foreground">vs 3-month average</span>
           <DeltaPill
             amount={pulse.priorThreeMonthDelta}

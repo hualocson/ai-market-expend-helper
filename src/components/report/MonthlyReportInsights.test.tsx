@@ -101,6 +101,7 @@ describe("MonthlyReportInsights", () => {
             },
             rows: [],
           },
+          monthTrend: [],
           topMerchants: [],
           recurringSpend: [],
         }}
@@ -113,6 +114,7 @@ describe("MonthlyReportInsights", () => {
     expect(
       screen.getByText("No merchant groups found for this month.")
     ).toBeInTheDocument();
+    expect(screen.getByText("No monthly trend data yet.")).toBeInTheDocument();
     expect(
       screen.getByText("No recurring patterns detected yet.")
     ).toBeInTheDocument();

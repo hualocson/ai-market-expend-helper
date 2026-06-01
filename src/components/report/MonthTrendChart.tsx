@@ -20,7 +20,11 @@ const MonthTrendChart = ({ points }: MonthTrendChartProps) => {
       </CardHeader>
       <CardContent className="px-4">
         {points.length ? (
-          <div className="grid h-40 grid-cols-6 items-end gap-2">
+          <div
+            className="grid h-40 grid-cols-6 items-end gap-2"
+            role="list"
+            aria-label="6-month spending trend"
+          >
             {points.map((point) => {
               const height = Math.max(
                 8,
@@ -31,6 +35,10 @@ const MonthTrendChart = ({ points }: MonthTrendChartProps) => {
                 <div
                   key={point.month}
                   className="flex min-w-0 flex-col items-center gap-2"
+                  role="listitem"
+                  aria-label={`${point.month}: ${formatVndCompact(
+                    point.total
+                  )}`}
                 >
                   <div className="flex h-24 w-full items-end">
                     <div
@@ -41,9 +49,7 @@ const MonthTrendChart = ({ points }: MonthTrendChartProps) => {
                           : "bg-muted-foreground/35"
                       )}
                       style={{ height }}
-                      aria-label={`${point.month}: ${formatVndCompact(
-                        point.total
-                      )}`}
+                      aria-hidden="true"
                     />
                   </div>
                   <div className="text-muted-foreground w-full truncate text-center text-[11px] font-medium">
@@ -64,7 +70,10 @@ const MonthTrendChart = ({ points }: MonthTrendChartProps) => {
             })}
           </div>
         ) : (
-          <div className="text-muted-foreground bg-muted/30 rounded-2xl px-3 py-4 text-sm">
+          <div
+            className="text-muted-foreground bg-muted/30 rounded-2xl px-3 py-4 text-sm"
+            role="status"
+          >
             No monthly trend data yet.
           </div>
         )}
