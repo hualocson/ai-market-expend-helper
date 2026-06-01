@@ -1,4 +1,5 @@
 import dayjs from "@/configs/date";
+import { expenseRowMatchesFilters } from "@/lib/expenses/filter-predicates";
 import {
   type ExpenseListItem,
   type ExpenseListQueryParams,
@@ -125,7 +126,11 @@ export const buildExpenseListResultFromLocalRows = (
             : date.isValid() &&
               !date.isBefore(rangeStart, "day") &&
               date.isBefore(rangeEnd, "day");
-        return inRange && matchesLocalExpenseSearch(row, trimmedSearch ?? "");
+        return (
+          inRange &&
+          matchesLocalExpenseSearch(row, trimmedSearch ?? "") &&
+          expenseRowMatchesFilters(row, params)
+        );
       })
       .sort(sortLocalExpenses)
   );

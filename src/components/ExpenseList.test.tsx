@@ -75,7 +75,11 @@ vi.mock("@/components/ExpenseMonthTabs", () => ({
 }));
 
 vi.mock("./JumpToTopButton", () => ({
-  default: () => <button type="button">Jump to top</button>,
+  default: ({ targetId }: { targetId?: string }) => (
+    <button type="button" data-target-id={targetId}>
+      Jump to top
+    </button>
+  ),
 }));
 
 const originalGlobalReact = globalThis.React;
@@ -230,6 +234,60 @@ describe("ExpenseList", () => {
     });
     expect(dayLink).toHaveAttribute("href", "/report/day/2026-05-23");
     expect(dayLink).toHaveAttribute("data-prefetch", "false");
+  });
+
+  it("uses drawer presentation spacing when requested", () => {
+    globalThis.React = React;
+
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage()],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList presentation="search-drawer" />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId("expense-list-section")).toHaveAttribute(
+      "data-presentation",
+      "search-drawer"
+    );
+  });
+
+  it("uses a unique scroll target for drawer presentation", () => {
+    globalThis.React = React;
+
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage()],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList />
+        <ExpenseList presentation="search-drawer" />
+      </QueryClientProvider>
+    );
+
+    expect(document.querySelectorAll("#expense-list")).toHaveLength(1);
+    expect(
+      document.querySelectorAll("#expense-list-search-drawer")
+    ).toHaveLength(1);
+    expect(
+      screen
+        .getAllByRole("button", { name: "Jump to top" })
+        .map((button) => button.getAttribute("data-target-id"))
+    ).toEqual(["expense-list", "expense-list-search-drawer"]);
   });
 
   it("deduplicates expenses that appear in overlapping infinite pages", () => {

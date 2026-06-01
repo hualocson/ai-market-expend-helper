@@ -10,7 +10,18 @@ import {
   groupExpenseRowsByDate,
   resolveExpenseListRange,
 } from "@/lib/expenses/list-model";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  sql,
+} from "drizzle-orm";
 
 export { groupExpenseRowsByDate, resolveExpenseListRange };
 export type {
@@ -27,6 +38,13 @@ export const getExpenseList = async ({
   recentDays = 7,
   limit = 30,
   offset = 0,
+  dateFrom,
+  dateTo,
+  categories,
+  budgetIds,
+  hasBudget,
+  amountMin,
+  amountMax,
 }: ExpenseListQueryParams = {}): Promise<ExpenseListResult> => {
   const { activeMonth, effectiveRecentDays, isRecent, rangeEnd, rangeStart } =
     resolveExpenseListRange({ month, mode, recentDays });
@@ -39,6 +57,31 @@ export const getExpenseList = async ({
       gte(expenses.date, rangeStart.format("YYYY-MM-DD")),
       lt(expenses.date, rangeEnd.format("YYYY-MM-DD"))
     );
+  }
+  // Explicit dateFrom/dateTo are ANDed with any month/recent range above.
+  // The search filter never sets `month`, so in practice only one date
+  // mechanism is active per query; both paths (client + server) match.
+  if (dateFrom) {
+    whereParts.push(gte(expenses.date, dateFrom));
+  }
+  if (dateTo) {
+    whereParts.push(lte(expenses.date, dateTo));
+  }
+  if (categories && categories.length > 0) {
+    whereParts.push(inArray(expenses.category, categories));
+  }
+  if (budgetIds && budgetIds.length > 0) {
+    whereParts.push(inArray(expenseBudgets.budgetId, budgetIds));
+  } else if (hasBudget === true) {
+    whereParts.push(isNotNull(expenseBudgets.budgetId));
+  } else if (hasBudget === false) {
+    whereParts.push(isNull(expenseBudgets.budgetId));
+  }
+  if (amountMin !== undefined) {
+    whereParts.push(gte(expenses.amount, amountMin));
+  }
+  if (amountMax !== undefined) {
+    whereParts.push(lte(expenses.amount, amountMax));
   }
 
   const baseWhere =

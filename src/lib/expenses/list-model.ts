@@ -1,4 +1,5 @@
 import dayjs from "@/configs/date";
+import { Category } from "@/enums";
 import type { BudgetColorId } from "@/lib/budget-appearance";
 
 export type ExpenseListQueryParams = {
@@ -8,6 +9,13 @@ export type ExpenseListQueryParams = {
   recentDays?: number;
   limit?: number;
   offset?: number;
+  dateFrom?: string; // YYYY-MM-DD (inclusive)
+  dateTo?: string; // YYYY-MM-DD (inclusive)
+  categories?: Category[];
+  budgetIds?: number[];
+  hasBudget?: boolean;
+  amountMin?: number;
+  amountMax?: number;
 };
 
 export type ExpenseListItemSyncStatus = "synced" | "pending" | "failed";

@@ -4,8 +4,8 @@ import { getDashboardMonthlySummary } from "@/lib/services/dashboard";
 import { getExpenseList } from "@/lib/services/expenses";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
-import ExpenseList from "@/components/ExpenseList";
 import SpendingDashboardHeader from "@/components/SpendingDashboardHeader";
+import ExpenseSearch from "@/components/search/ExpenseSearch";
 
 export default function Home() {
   const expenseListParams = { limit: 30 };
@@ -34,7 +34,7 @@ export default function Home() {
         <HydrationBoundary state={dehydrate(queryClient)}>
           <SpendingDashboardHeader />
 
-          <ExpenseList />
+          <ExpenseSearch />
         </HydrationBoundary>
       </div>
     </div>

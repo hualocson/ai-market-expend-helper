@@ -2,12 +2,15 @@ import type { z } from "zod";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Ordered free OpenRouter model candidates. OpenRouter routes the `models` array
+export const OPENROUTER_PRIMARY_MODEL = "google/gemma-4-31b-it:free";
+
+// Ordered free OpenRouter model candidates shared by expense parsing, expense
+// search parsing, and budget suggestions. OpenRouter routes the `models` array
 // in order and falls back to the next when a model is unavailable, errors, or is
-// rate-limited (429). Curated from the options tried for these AI tasks.
+// rate-limited (429).
 export const OPENROUTER_MODELS = [
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  OPENROUTER_PRIMARY_MODEL,
+  // "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
 ];
 
@@ -53,6 +56,17 @@ type CallOpenRouterJsonArgs<TSchema extends z.ZodType> = {
   fetchFn?: typeof fetch;
 };
 
+const debugOpenRouterFailure = (
+  message: string,
+  details: Record<string, unknown>
+) => {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.warn(`[openrouter] ${message}`, details);
+};
+
 const readContent = (content: unknown) => {
   if (typeof content !== "string") {
     return null;
@@ -82,6 +96,7 @@ export const callOpenRouterJson = async <TSchema extends z.ZodType>({
   OpenRouterJsonResult<z.infer<TSchema>>
 > => {
   let response: Response;
+  const models = withFallbackModels(model);
 
   try {
     response = await fetchFn(OPENROUTER_URL, {
@@ -91,7 +106,7 @@ export const callOpenRouterJson = async <TSchema extends z.ZodType>({
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        models: withFallbackModels(model),
+        models,
         messages,
         response_format: {
           type: "json_schema",
@@ -99,11 +114,30 @@ export const callOpenRouterJson = async <TSchema extends z.ZodType>({
         },
       }),
     });
-  } catch {
+  } catch (error) {
+    debugOpenRouterFailure("fetch threw", {
+      model,
+      models,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { ok: false, reason: "request_failed" };
   }
 
   if (!response.ok) {
+    let bodySnippet = "";
+    try {
+      bodySnippet = (await response.text()).slice(0, 500);
+    } catch {
+      bodySnippet = "(failed to read response body)";
+    }
+
+    debugOpenRouterFailure("non-ok response", {
+      model,
+      models,
+      status: response.status,
+      statusText: response.statusText,
+      bodySnippet,
+    });
     return { ok: false, reason: "request_failed" };
   }
 

@@ -1,3 +1,4 @@
+import { Category } from "@/enums";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -20,6 +21,10 @@ const drizzleMocks = vi.hoisted(() => ({
   eq: vi.fn((...args: unknown[]) => ({ type: "eq", args })),
   gte: vi.fn((...args: unknown[]) => ({ type: "gte", args })),
   lt: vi.fn((...args: unknown[]) => ({ type: "lt", args })),
+  lte: vi.fn((...args: unknown[]) => ({ type: "lte", args })),
+  inArray: vi.fn((...args: unknown[]) => ({ type: "inArray", args })),
+  isNull: vi.fn((value: unknown) => ({ type: "isNull", value })),
+  isNotNull: vi.fn((value: unknown) => ({ type: "isNotNull", value })),
   sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
     type: "sql",
     strings,
@@ -223,5 +228,50 @@ describe("expense services", () => {
     expect(dbMocks.where).toHaveBeenCalledWith(
       expect.objectContaining({ type: "eq" })
     );
+  });
+
+  it("applies dateFrom, dateTo, categories, budgetIds, amountMin, amountMax predicates", async () => {
+    const chain = {
+      from: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
+      where: dbMocks.where,
+      orderBy: vi.fn(() => chain),
+      limit: dbMocks.limit,
+      offset: dbMocks.offset,
+    };
+    dbMocks.select.mockReturnValue(chain);
+    dbMocks.where.mockReturnValue(chain);
+    dbMocks.limit.mockReturnValue(chain);
+    dbMocks.offset.mockResolvedValue([]);
+
+    await getExpenseList({
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-31",
+      categories: [Category.FOOD],
+      budgetIds: [7],
+      amountMin: 50000,
+      amountMax: 100000,
+    });
+
+    // dateFrom → gte(expenses.date, "2026-05-01")
+    expect(drizzleMocks.gte).toHaveBeenCalledWith(
+      expect.anything(),
+      "2026-05-01"
+    );
+    // dateTo → lte(expenses.date, "2026-05-31")
+    expect(drizzleMocks.lte).toHaveBeenCalledWith(
+      expect.anything(),
+      "2026-05-31"
+    );
+    // categories → inArray(expenses.category, [Category.FOOD])
+    expect(drizzleMocks.inArray).toHaveBeenCalledWith(expect.anything(), [
+      Category.FOOD,
+    ]);
+    // budgetIds → inArray(expenseBudgets.budgetId, [7])
+    expect(drizzleMocks.inArray).toHaveBeenCalledWith(expect.anything(), [7]);
+    // amountMin → gte(expenses.amount, 50000)
+    expect(drizzleMocks.gte).toHaveBeenCalledWith(expect.anything(), 50000);
+    // amountMax → lte(expenses.amount, 100000)
+    expect(drizzleMocks.lte).toHaveBeenCalledWith(expect.anything(), 100000);
   });
 });

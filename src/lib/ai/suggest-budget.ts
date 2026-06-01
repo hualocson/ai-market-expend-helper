@@ -1,4 +1,7 @@
-import { callOpenRouterJson } from "./core/openrouter";
+import {
+  OPENROUTER_PRIMARY_MODEL,
+  callOpenRouterJson,
+} from "./core/openrouter";
 import type { OpenRouterJsonSchema } from "./core/openrouter";
 import {
   type SuggestBudgetCandidate,
@@ -6,9 +9,9 @@ import {
   suggestBudgetModelResponseSchema,
 } from "./suggest-budget-contract";
 
-// Primary model; OpenRouter falls back through the shared OPENROUTER_MODELS chain
-// (src/lib/ai/core/openrouter.ts) on unavailability / error / 429.
-const MODEL = "google/gemma-4-31b-it:free";
+// Primary model shared by AI parsing tasks; OpenRouter falls back through the
+// shared OPENROUTER_MODELS chain on unavailability / error / 429.
+const MODEL = OPENROUTER_PRIMARY_MODEL;
 
 const MODEL_JSON_SCHEMA: OpenRouterJsonSchema = {
   name: "suggest_budget",

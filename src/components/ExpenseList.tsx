@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import dayjs from "@/configs/date";
+import { Category } from "@/enums";
 import { queries } from "@/lib/queries";
 import type { ExpenseListQueryParams } from "@/lib/queries/expenses";
 import type {
@@ -14,7 +15,7 @@ import type {
 } from "@/lib/services/expenses";
 import { syncRepository } from "@/lib/sync/core/repository";
 import { EXPENSE_SYNC_ENTITY } from "@/lib/sync/expenses/types";
-import { formatVnd } from "@/lib/utils";
+import { cn, formatVnd } from "@/lib/utils";
 import type { InfiniteData, QueryFunction } from "@tanstack/react-query";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronRight, Loader2 } from "lucide-react";
@@ -32,6 +33,14 @@ type ExpenseListProps = {
   mode?: "full" | "recent";
   recentDays?: number;
   pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  categories?: Category[];
+  budgetIds?: number[];
+  hasBudget?: boolean;
+  amountMin?: number;
+  amountMax?: number;
+  presentation?: "default" | "search-drawer";
 };
 
 const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
@@ -80,6 +89,14 @@ const ExpenseList = ({
   mode,
   recentDays,
   pageSize = 30,
+  dateFrom,
+  dateTo,
+  categories,
+  budgetIds,
+  hasBudget,
+  amountMin,
+  amountMax,
+  presentation = "default",
 }: ExpenseListProps) => {
   const resolvedMode = mode ?? "full";
   const params: ExpenseListQueryParams = {
@@ -88,6 +105,13 @@ const ExpenseList = ({
     mode,
     recentDays,
     limit: pageSize,
+    dateFrom,
+    dateTo,
+    categories,
+    budgetIds,
+    hasBudget,
+    amountMin,
+    amountMax,
   };
   const expenseListQuery = queries.expenses.list(params);
   const [editingExpense, setEditingExpense] =
@@ -168,17 +192,28 @@ const ExpenseList = ({
   const { effectiveRecentDays, isRecent, trimmedSearch } = firstPage;
   const isMonthFiltered = Boolean(selectedMonth);
 
-  const listContainerClassName =
-    "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto";
+  const listContainerClassName = cn(
+    "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto",
+    presentation === "search-drawer" && "px-4 pb-36"
+  );
+  const listTargetId =
+    presentation === "search-drawer"
+      ? "expense-list-search-drawer"
+      : "expense-list";
 
   return (
     <m.section
+      data-testid="expense-list-section"
+      data-presentation={presentation}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.16, ease: "easeOut", delay: 0.14 }}
-      className="flex w-full grow flex-col gap-4 overflow-auto"
+      className={cn(
+        "flex w-full grow flex-col gap-4 overflow-auto",
+        presentation === "search-drawer" && "min-h-0 flex-1"
+      )}
     >
-      <div id="expense-list" className={listContainerClassName}>
+      <div id={listTargetId} className={listContainerClassName}>
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
@@ -254,7 +289,7 @@ const ExpenseList = ({
 
         {resolvedMode === "full" && (
           <JumpToTopButton
-            targetId="expense-list"
+            targetId={listTargetId}
             className="right-6 bottom-[100px]"
           />
         )}
