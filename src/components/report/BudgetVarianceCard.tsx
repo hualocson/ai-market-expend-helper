@@ -96,9 +96,9 @@ const BudgetVarianceCard = ({ budgetVariance }: BudgetVarianceCardProps) => {
             </div>
 
             {summary.unassignedSpend > 0 ? (
-              <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
+              <div className="text-muted-foreground flex flex-col items-start gap-1 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <span>Unassigned spend</span>
-                <span className="flex max-w-full flex-wrap items-center justify-end gap-x-1 gap-y-1 text-right font-medium break-all tabular-nums">
+                <span className="flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 font-medium break-all tabular-nums sm:justify-end sm:text-right">
                   {formatVnd(summary.unassignedSpend)}
                   <VndSymbol className="size-3" aria-hidden="true" />
                 </span>

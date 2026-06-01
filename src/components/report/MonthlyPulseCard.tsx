@@ -103,14 +103,14 @@ const MonthlyPulseCard = ({ pulse }: MonthlyPulseCardProps) => {
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-muted/30 rounded-2xl p-3">
             <div className="text-muted-foreground text-xs">Previous month</div>
-            <div className="text-foreground mt-1 flex items-center gap-1 text-sm font-semibold tabular-nums">
+            <div className="text-foreground mt-1 flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 text-sm font-semibold break-all tabular-nums">
               {formatVnd(pulse.previousMonthTotal)}
               <VndSymbol className="size-3.5" aria-hidden="true" />
             </div>
           </div>
           <div className="bg-muted/30 rounded-2xl p-3">
             <div className="text-muted-foreground text-xs">3-month avg</div>
-            <div className="text-foreground mt-1 flex items-center gap-1 text-sm font-semibold tabular-nums">
+            <div className="text-foreground mt-1 flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 text-sm font-semibold break-all tabular-nums">
               {formatVnd(Math.round(pulse.priorThreeMonthAverage))}
               <VndSymbol className="size-3.5" aria-hidden="true" />
             </div>

@@ -127,12 +127,17 @@ describe("MonthlyReportInsights", () => {
       <MonthlyReportInsights
         insights={{
           ...baseInsights,
+          pulse: {
+            ...baseInsights.pulse,
+            previousMonthTotal: extremeAmount,
+            priorThreeMonthAverage: extremeAmount,
+          },
           budgetVariance: {
             summary: {
               totalAllowance: extremeAmount,
               totalAssignedSpend: extremeAmount,
               totalVariance: 0,
-              unassignedSpend: 0,
+              unassignedSpend: extremeAmount,
             },
             rows: [
               {
@@ -163,6 +168,21 @@ describe("MonthlyReportInsights", () => {
     expect(screen.getByText("Spotify")).toBeInTheDocument();
     expect(screen.getAllByText("123.456.789.012.345").length).toBeGreaterThan(
       0
+    );
+    expect(screen.getByText("Previous month").nextElementSibling).toHaveClass(
+      "max-w-full",
+      "flex-wrap",
+      "break-all"
+    );
+    expect(screen.getByText("3-month avg").nextElementSibling).toHaveClass(
+      "max-w-full",
+      "flex-wrap",
+      "break-all"
+    );
+    expect(screen.getByText("Unassigned spend").parentElement).toHaveClass(
+      "flex-col",
+      "items-start",
+      "sm:flex-row"
     );
   });
 });
