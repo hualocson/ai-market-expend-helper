@@ -15,7 +15,7 @@ import type {
 } from "@/lib/services/expenses";
 import { syncRepository } from "@/lib/sync/core/repository";
 import { EXPENSE_SYNC_ENTITY } from "@/lib/sync/expenses/types";
-import { formatVnd } from "@/lib/utils";
+import { cn, formatVnd } from "@/lib/utils";
 import type { InfiniteData, QueryFunction } from "@tanstack/react-query";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronRight, Loader2 } from "lucide-react";
@@ -40,6 +40,7 @@ type ExpenseListProps = {
   hasBudget?: boolean;
   amountMin?: number;
   amountMax?: number;
+  presentation?: "default" | "search-drawer";
 };
 
 const groupRowsByDate = (rows: ExpenseListItemData[]): ExpenseListGroup[] => {
@@ -95,6 +96,7 @@ const ExpenseList = ({
   hasBudget,
   amountMin,
   amountMax,
+  presentation = "default",
 }: ExpenseListProps) => {
   const resolvedMode = mode ?? "full";
   const params: ExpenseListQueryParams = {
@@ -190,15 +192,22 @@ const ExpenseList = ({
   const { effectiveRecentDays, isRecent, trimmedSearch } = firstPage;
   const isMonthFiltered = Boolean(selectedMonth);
 
-  const listContainerClassName =
-    "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto";
+  const listContainerClassName = cn(
+    "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto",
+    presentation === "search-drawer" && "px-4 pb-36"
+  );
 
   return (
     <m.section
+      data-testid="expense-list-section"
+      data-presentation={presentation}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.16, ease: "easeOut", delay: 0.14 }}
-      className="flex w-full grow flex-col gap-4 overflow-auto"
+      className={cn(
+        "flex w-full grow flex-col gap-4 overflow-auto",
+        presentation === "search-drawer" && "min-h-0 flex-1"
+      )}
     >
       <div id="expense-list" className={listContainerClassName}>
         {rows.length ? (

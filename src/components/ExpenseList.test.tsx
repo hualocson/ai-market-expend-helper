@@ -232,6 +232,30 @@ describe("ExpenseList", () => {
     expect(dayLink).toHaveAttribute("data-prefetch", "false");
   });
 
+  it("uses drawer presentation spacing when requested", () => {
+    globalThis.React = React;
+
+    const queryClient = buildClient();
+    const params = { limit: 30 };
+    const payload: InfiniteData<ExpenseListResult, number> = {
+      pageParams: [0],
+      pages: [buildPage()],
+    };
+
+    queryClient.setQueryData(queries.expenses.list(params).queryKey, payload);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseList presentation="search-drawer" />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId("expense-list-section")).toHaveAttribute(
+      "data-presentation",
+      "search-drawer"
+    );
+  });
+
   it("deduplicates expenses that appear in overlapping infinite pages", () => {
     globalThis.React = React;
 
