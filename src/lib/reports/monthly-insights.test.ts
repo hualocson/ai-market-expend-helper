@@ -283,4 +283,20 @@ describe("monthly report insights", () => {
       }),
     ]);
   });
+
+  it("rejects recurring candidates when three same-key matches have inconsistent gaps", () => {
+    const insights = buildMonthlyReportInsights({
+      selectedMonth: "2026-05",
+      expenses: [
+        expense({ id: 1, date: "2026-03-01", amount: 99_000, note: "Spotify" }),
+        expense({ id: 2, date: "2026-03-19", amount: 99_000, note: "Spotify" }),
+        expense({ id: 3, date: "2026-05-05", amount: 99_000, note: "Spotify" }),
+      ],
+      budgets: [],
+    });
+
+    expect(
+      insights.recurringSpend.find((candidate) => candidate.key === "spotify")
+    ).toBeUndefined();
+  });
 });
