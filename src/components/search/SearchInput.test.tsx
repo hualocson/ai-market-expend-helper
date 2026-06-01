@@ -32,4 +32,38 @@ describe("SearchInput", () => {
     render(<SearchInput onSubmit={vi.fn()} isLoading={false} disabled />);
     expect(screen.getByPlaceholderText(/needs a connection/i)).toBeDisabled();
   });
+
+  it("supports controlled value and onValueChange", () => {
+    const onValueChange = vi.fn();
+    render(
+      <SearchInput
+        value="coffee"
+        onValueChange={onValueChange}
+        onSubmit={vi.fn()}
+        isLoading={false}
+        disabled={false}
+      />
+    );
+
+    const input = screen.getByDisplayValue("coffee");
+    fireEvent.change(input, { target: { value: "coffee today" } });
+
+    expect(onValueChange).toHaveBeenCalledWith("coffee today");
+  });
+
+  it("forwards a ref to the search input", () => {
+    const ref = React.createRef<HTMLInputElement>();
+    render(
+      <SearchInput
+        ref={ref}
+        onSubmit={vi.fn()}
+        isLoading={false}
+        disabled={false}
+      />
+    );
+
+    expect(ref.current).toBeInstanceOf(HTMLInputElement);
+    ref.current?.focus();
+    expect(ref.current).toHaveFocus();
+  });
 });
