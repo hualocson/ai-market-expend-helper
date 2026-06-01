@@ -19,8 +19,10 @@ const drizzleMocks = vi.hoisted(() => ({
   desc: vi.fn((value: unknown) => ({ type: "desc", value })),
   eq: vi.fn((...args: unknown[]) => ({ type: "eq", args })),
   gte: vi.fn((...args: unknown[]) => ({ type: "gte", args })),
+  isNull: vi.fn((...args: unknown[]) => ({ type: "isNull", args })),
   lt: vi.fn((...args: unknown[]) => ({ type: "lt", args })),
   lte: vi.fn((...args: unknown[]) => ({ type: "lte", args })),
+  or: vi.fn((...args: unknown[]) => ({ type: "or", args })),
   sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
     mapWith: vi.fn(() => ({ type: "mapped-sql", strings, values })),
     strings,
@@ -134,7 +136,7 @@ describe("report services", () => {
               color: "violet",
               period: "month",
               periodStartDate: "2026-05-01",
-              periodEndDate: "2026-05-31",
+              periodEndDate: null,
             },
           ],
           { terminalWhere: true }
@@ -149,6 +151,11 @@ describe("report services", () => {
       allowance: 310_000,
       assignedSpend: 99_000,
     });
+    expect(drizzleMocks.isNull).toHaveBeenCalledTimes(1);
+    expect(drizzleMocks.or).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "isNull" }),
+      expect.objectContaining({ type: "gte" })
+    );
     expect(result.insights.topMerchants[0]).toMatchObject({
       key: "spotify",
       total: 99_000,

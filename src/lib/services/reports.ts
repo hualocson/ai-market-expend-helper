@@ -14,7 +14,7 @@ import {
   buildMonthlyReportInsights,
 } from "@/lib/reports/monthly-insights";
 import { getWeekRange } from "@/lib/week";
-import { and, desc, eq, gte, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 export type CategoryTotal = {
   category: string;
@@ -195,7 +195,10 @@ export const getMonthlyReport = async (
     .where(
       and(
         lte(budgets.periodStartDate, selectedMonthEndKey),
-        gte(budgets.periodEndDate, selectedMonthStartKey)
+        or(
+          isNull(budgets.periodEndDate),
+          gte(budgets.periodEndDate, selectedMonthStartKey)
+        )
       )
     );
 
