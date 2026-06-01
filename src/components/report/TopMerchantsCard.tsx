@@ -25,9 +25,9 @@ const TopMerchantsCard = ({ merchants }: TopMerchantsCardProps) => {
             {merchants.map((merchant) => (
               <div
                 key={merchant.key}
-                className="bg-muted/20 flex min-h-16 items-start justify-between gap-3 rounded-2xl px-3 py-3"
+                className="bg-muted/20 flex min-h-16 flex-col items-start gap-3 rounded-2xl px-3 py-3 sm:flex-row sm:justify-between"
               >
-                <div className="min-w-0">
+                <div className="max-w-full min-w-0">
                   <div className="text-foreground truncate text-sm font-medium">
                     {merchant.label}
                   </div>
@@ -46,7 +46,7 @@ const TopMerchantsCard = ({ merchants }: TopMerchantsCardProps) => {
                     </div>
                   ) : null}
                 </div>
-                <div className="text-foreground flex shrink-0 items-center gap-1 text-sm font-semibold tabular-nums">
+                <div className="text-foreground flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 text-sm font-semibold break-all tabular-nums sm:justify-end sm:text-right">
                   {formatVnd(merchant.total)}
                   <VndSymbol className="size-3.5" aria-hidden="true" />
                 </div>

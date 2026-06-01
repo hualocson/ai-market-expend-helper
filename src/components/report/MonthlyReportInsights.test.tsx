@@ -119,4 +119,50 @@ describe("MonthlyReportInsights", () => {
       screen.getByText("No recurring patterns detected yet.")
     ).toBeInTheDocument();
   });
+
+  it("renders rows with unusually large VND values", () => {
+    const extremeAmount = 123_456_789_012_345;
+
+    render(
+      <MonthlyReportInsights
+        insights={{
+          ...baseInsights,
+          budgetVariance: {
+            summary: {
+              totalAllowance: extremeAmount,
+              totalAssignedSpend: extremeAmount,
+              totalVariance: 0,
+              unassignedSpend: 0,
+            },
+            rows: [
+              {
+                ...baseInsights.budgetVariance.rows[0],
+                assignedSpend: extremeAmount,
+              },
+            ],
+          },
+          topMerchants: [
+            {
+              ...baseInsights.topMerchants[0],
+              total: extremeAmount,
+            },
+          ],
+          recurringSpend: [
+            {
+              ...baseInsights.recurringSpend[0],
+              averageAmount: extremeAmount,
+              selectedMonthImpact: extremeAmount,
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByText("Coffee")).toBeInTheDocument();
+    expect(screen.getByText("Cà Phê Highlands")).toBeInTheDocument();
+    expect(screen.getByText("Spotify")).toBeInTheDocument();
+    expect(screen.getAllByText("123.456.789.012.345").length).toBeGreaterThan(
+      0
+    );
+  });
 });

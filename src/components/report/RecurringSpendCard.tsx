@@ -32,9 +32,9 @@ const RecurringSpendCard = ({ recurringSpend }: RecurringSpendCardProps) => {
             {recurringSpend.map((item) => (
               <div
                 key={item.key}
-                className="bg-muted/20 flex min-h-16 items-start justify-between gap-3 rounded-2xl px-3 py-3"
+                className="bg-muted/20 flex min-h-16 flex-col items-start gap-3 rounded-2xl px-3 py-3 sm:flex-row sm:justify-between"
               >
-                <div className="min-w-0">
+                <div className="max-w-full min-w-0">
                   <div className="text-foreground truncate text-sm font-medium">
                     {item.label}
                   </div>
@@ -47,12 +47,12 @@ const RecurringSpendCard = ({ recurringSpend }: RecurringSpendCardProps) => {
                     {item.evidenceDates.join(" / ")}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-foreground flex items-center gap-1 text-sm font-semibold tabular-nums">
+                <div className="flex max-w-full flex-col items-start gap-1 sm:items-end sm:text-right">
+                  <span className="text-foreground flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 text-sm font-semibold break-all tabular-nums sm:justify-end">
                     {formatVnd(item.selectedMonthImpact)}
                     <VndSymbol className="size-3.5" aria-hidden="true" />
                   </span>
-                  <span className="text-muted-foreground flex items-center gap-1 text-xs tabular-nums">
+                  <span className="text-muted-foreground flex max-w-full flex-wrap items-center gap-x-1 gap-y-1 text-xs break-all tabular-nums sm:justify-end">
                     avg {formatVnd(item.averageAmount)}
                     <VndSymbol className="size-3" aria-hidden="true" />
                   </span>
