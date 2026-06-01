@@ -196,6 +196,10 @@ const ExpenseList = ({
     "no-scrollbar relative flex grow flex-col gap-6 overflow-y-auto",
     presentation === "search-drawer" && "px-4 pb-36"
   );
+  const listTargetId =
+    presentation === "search-drawer"
+      ? "expense-list-search-drawer"
+      : "expense-list";
 
   return (
     <m.section
@@ -209,7 +213,7 @@ const ExpenseList = ({
         presentation === "search-drawer" && "min-h-0 flex-1"
       )}
     >
-      <div id="expense-list" className={listContainerClassName}>
+      <div id={listTargetId} className={listContainerClassName}>
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
@@ -285,7 +289,7 @@ const ExpenseList = ({
 
         {resolvedMode === "full" && (
           <JumpToTopButton
-            targetId="expense-list"
+            targetId={listTargetId}
             className="right-6 bottom-[100px]"
           />
         )}

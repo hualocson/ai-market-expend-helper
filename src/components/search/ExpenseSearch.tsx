@@ -153,6 +153,7 @@ const ExpenseSearch = () => {
               <div className="flex items-center gap-2">
                 <SearchInput
                   ref={inputRef}
+                  aria-label="Search expenses"
                   value={inputValue}
                   onValueChange={setInputValue}
                   onSubmit={handleSubmit}

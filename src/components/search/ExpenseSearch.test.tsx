@@ -72,7 +72,9 @@ describe("ExpenseSearch", () => {
       screen.getByRole("button", { name: /open expense search/i })
     );
 
-    const input = await screen.findByPlaceholderText(/search expenses/i);
+    const input = await screen.findByRole("searchbox", {
+      name: /search expenses/i,
+    });
     await waitFor(() => expect(input).toHaveFocus());
 
     fireEvent.change(input, { target: { value: "coffee no budget" } });

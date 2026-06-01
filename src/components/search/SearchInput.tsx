@@ -14,6 +14,7 @@ type SearchInputProps = {
   onSubmit: (value: string) => void;
   isLoading: boolean;
   disabled: boolean;
+  "aria-label"?: string;
   value?: string;
   onValueChange?: (value: string) => void;
   placeholder?: string;
@@ -27,6 +28,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       onSubmit,
       isLoading,
       disabled,
+      "aria-label": ariaLabel,
       value,
       onValueChange,
       placeholder,
@@ -66,6 +68,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           type="search"
           inputMode="search"
           enterKeyHint="search"
+          aria-label={ariaLabel}
           value={currentValue}
           disabled={disabled}
           onChange={handleChange}
