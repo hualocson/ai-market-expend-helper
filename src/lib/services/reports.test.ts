@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getDailyReport, summarizePaidByCategoryTotals } from "./reports";
+import {
+  getDailyReport,
+  getMonthlyReport,
+  summarizePaidByCategoryTotals,
+} from "./reports";
 
 const dbMocks = vi.hoisted(() => ({
   select: vi.fn(),
@@ -77,6 +81,81 @@ describe("report services", () => {
         { paidBy: "Embe", total: 100 },
       ],
       paidByTotalSpent: 350,
+    });
+  });
+
+  it("returns monthly report insights from expense and budget history", async () => {
+    dbMocks.select
+      .mockReturnValueOnce(
+        mockSelectRows([{ category: "Food", paidBy: "Loc", total: 500_000 }])
+      )
+      .mockReturnValueOnce(
+        mockSelectRows(
+          [
+            {
+              id: 1,
+              date: "2026-03-05",
+              amount: 99_000,
+              note: "Spotify",
+              category: "Entertainment",
+              paidBy: "Loc",
+              budgetId: 10,
+            },
+            {
+              id: 2,
+              date: "2026-04-05",
+              amount: 99_000,
+              note: "Spotify monthly",
+              category: "Entertainment",
+              paidBy: "Loc",
+              budgetId: 10,
+            },
+            {
+              id: 3,
+              date: "2026-05-05",
+              amount: 99_000,
+              note: "Spotify",
+              category: "Entertainment",
+              paidBy: "Loc",
+              budgetId: 10,
+            },
+          ],
+          { terminalWhere: true }
+        )
+      )
+      .mockReturnValueOnce(
+        mockSelectRows(
+          [
+            {
+              id: 10,
+              name: "Subscriptions",
+              amount: 310_000,
+              icon: "🎧",
+              color: "violet",
+              period: "month",
+              periodStartDate: "2026-05-01",
+              periodEndDate: "2026-05-31",
+            },
+          ],
+          { terminalWhere: true }
+        )
+      );
+
+    const result = await getMonthlyReport("2026-05");
+
+    expect(result.insights.pulse.selectedTotal).toBe(99_000);
+    expect(result.insights.budgetVariance.rows[0]).toMatchObject({
+      budgetId: 10,
+      allowance: 310_000,
+      assignedSpend: 99_000,
+    });
+    expect(result.insights.topMerchants[0]).toMatchObject({
+      key: "spotify",
+      total: 99_000,
+    });
+    expect(result.insights.recurringSpend[0]).toMatchObject({
+      key: "spotify",
+      cadence: "monthly",
     });
   });
 
