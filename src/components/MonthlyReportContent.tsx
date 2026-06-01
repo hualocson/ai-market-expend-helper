@@ -15,6 +15,7 @@ import CategorySpendPieChart from "@/components/CategorySpendPieChart";
 import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
 import PaidByIcon from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
+import MonthlyReportInsights from "@/components/report/MonthlyReportInsights";
 
 type MonthlyReportContentProps = {
   selectedMonth?: string;
@@ -72,6 +73,8 @@ const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
       </div>
 
       <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
+        <MonthlyReportInsights insights={report.insights} />
+
         <div>
           <CategorySpendPieChart
             totals={report.categoryTotals}
