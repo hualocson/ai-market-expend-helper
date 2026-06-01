@@ -51,6 +51,25 @@ describe("SearchInput", () => {
     expect(onValueChange).toHaveBeenCalledWith("coffee today");
   });
 
+  it("clears the current value from the inline clear button", () => {
+    const onClear = vi.fn();
+    render(
+      <SearchInput
+        onSubmit={vi.fn()}
+        onClear={onClear}
+        isLoading={false}
+        disabled={false}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search expenses/i);
+    fireEvent.change(input, { target: { value: "coffee" } });
+    fireEvent.click(screen.getByRole("button", { name: /clear search/i }));
+
+    expect(input).toHaveValue("");
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
   it("forwards a ref to the search input", () => {
     const ref = React.createRef<HTMLInputElement>();
     render(

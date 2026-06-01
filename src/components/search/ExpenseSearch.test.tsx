@@ -190,4 +190,39 @@ describe("ExpenseSearch", () => {
       )
     );
   });
+
+  it("clears the search input and active filters from the inline clear button", async () => {
+    renderWithClient(<ExpenseSearch />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /open expense search/i })
+    );
+    const input = await screen.findByRole("searchbox", {
+      name: /search expenses/i,
+    });
+    fireEvent.change(input, { target: { value: "coffee no budget" } });
+    fireEvent.submit(input.closest("form")!);
+
+    await waitFor(() =>
+      expect(screen.getByText("No budget")).toBeInTheDocument()
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /clear search/i })
+    );
+
+    expect(parseSearchRequest).toHaveBeenCalledTimes(1);
+    expect(input).toHaveValue("");
+    expect(screen.queryByText("No budget")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(listProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presentation: "search-drawer",
+          searchQuery: undefined,
+          hasBudget: undefined,
+          categories: undefined,
+        })
+      )
+    );
+  });
 });

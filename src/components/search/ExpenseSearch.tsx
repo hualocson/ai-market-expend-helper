@@ -22,6 +22,7 @@ import {
 
 import ExpenseList from "@/components/ExpenseList";
 
+import ProgressiveBlur from "../ProgressiveBlur";
 import SearchFilterChips from "./SearchFilterChips";
 import SearchInput from "./SearchInput";
 import type { FilterChipField } from "./filter-chips";
@@ -77,6 +78,14 @@ const ExpenseSearch = () => {
 
   const handleRemove = (field: FilterChipField) => {
     setFilter((current) => removeFilterField(current, field));
+  };
+
+  const handleClearSearch = () => {
+    setInputValue("");
+    setFilter(EMPTY_FILTER);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
   };
 
   const handleSubmit = (value: string) => {
@@ -141,22 +150,28 @@ const ExpenseSearch = () => {
             </div>
 
             <div
-              className="fixed inset-x-0 z-60 mx-auto flex w-full max-w-md flex-col gap-2 px-4 pb-2"
+              className="fixed inset-x-0 isolate z-60 mx-auto flex w-full max-w-md flex-col gap-2 px-4 pb-2"
               style={{
-                bottom: `calc(${keyboardOffset}px + 8px)`,
+                bottom: `calc(${keyboardOffset}px)`,
               }}
             >
+              <ProgressiveBlur
+                className="absolute right-0 bottom-0 left-0"
+                position="bottom"
+                height="120px"
+              />
               <SearchFilterChips
                 filter={filter}
                 onRemove={handleRemove}
-                className="no-scrollbar max-h-20 overflow-y-auto"
+                className="no-scrollbar relative max-h-20 overflow-y-auto"
               />
-              <div className="flex items-center gap-2">
+              <div className="relative flex items-center gap-2">
                 <SearchInput
                   ref={inputRef}
                   aria-label="Search expenses"
                   value={inputValue}
                   onValueChange={setInputValue}
+                  onClear={handleClearSearch}
                   onSubmit={handleSubmit}
                   isLoading={parseMutation.isPending}
                   disabled={!online}

@@ -8,7 +8,7 @@ import React, {
 } from "react";
 
 import { cn } from "@/lib/utils";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 
 type SearchInputProps = {
   onSubmit: (value: string) => void;
@@ -17,6 +17,7 @@ type SearchInputProps = {
   "aria-label"?: string;
   value?: string;
   onValueChange?: (value: string) => void;
+  onClear?: () => void;
   placeholder?: string;
   className?: string;
   inputClassName?: string;
@@ -31,6 +32,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       "aria-label": ariaLabel,
       value,
       onValueChange,
+      onClear,
       placeholder,
       className,
       inputClassName,
@@ -46,6 +48,14 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
         setInternalValue(nextValue);
       }
       onValueChange?.(nextValue);
+    };
+
+    const handleClear = () => {
+      if (value === undefined) {
+        setInternalValue("");
+      }
+      onValueChange?.("");
+      onClear?.();
     };
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -77,12 +87,22 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             (disabled ? "Search needs a connection" : "Search expenses…")
           }
           className={cn(
-            "text-foreground placeholder:text-muted-foreground/80 glass-border bg-surface-3/80 w-full rounded-[28px] border-0 py-3 pr-10 pl-10 text-base outline-none disabled:opacity-60",
+            "text-foreground placeholder:text-muted-foreground/80 glass-border bg-surface-3/80 w-full rounded-[28px] border-0 py-3 pr-12 pl-10 text-base outline-none disabled:opacity-60",
             inputClassName
           )}
         />
         {isLoading ? (
           <Loader2 className="text-muted-foreground absolute right-4 h-4 w-4 animate-spin" />
+        ) : currentValue ? (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={handleClear}
+            className="text-muted-foreground hover:text-foreground absolute right-2 grid size-8 place-items-center rounded-full transition-colors"
+          >
+            <X className="size-4" />
+          </button>
         ) : null}
       </form>
     );
