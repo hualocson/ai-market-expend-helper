@@ -407,7 +407,9 @@ const amountIsStable = (rows: MonthlyInsightExpense[]) => {
   return average > 0 && maxDelta / average <= 0.2;
 };
 
-const detectCadence = (rows: MonthlyInsightExpense[]) => {
+const detectCadence = (
+  rows: MonthlyInsightExpense[]
+): RecurringSpendCandidate["cadence"] | null => {
   const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
   const gaps = sorted
     .slice(1)
