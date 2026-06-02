@@ -137,6 +137,7 @@ describe("MonthlyReportContent", () => {
     expect(screen.getByRole("heading", { name: "Report" })).toBeInTheDocument();
     expect(screen.getByText("May 2026")).toBeInTheDocument();
     expect(screen.getByTestId("month-tabs")).toHaveTextContent("May");
+    expect(screen.getByRole("banner")).toHaveClass("app-header-blur", "fixed");
     expect(screen.getByText("Monthly pulse")).toBeInTheDocument();
     expect(screen.getByText("Budget variance")).toBeInTheDocument();
     expect(screen.getByText("6-month trend")).toBeInTheDocument();

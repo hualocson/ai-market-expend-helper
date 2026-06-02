@@ -197,6 +197,13 @@ describe("MonthlyReportInsights", () => {
     expect(screen.getByText("Recurring spend")).toBeInTheDocument();
     expect(screen.getByText("Cà Phê Highlands")).toBeInTheDocument();
     expect(screen.getByText("Spotify")).toBeInTheDocument();
+
+    expect(
+      screen
+        .getByText("6-month trend")
+        .compareDocumentPosition(screen.getByText("Budget variance")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it("renders neutral empty states", () => {
@@ -368,9 +375,8 @@ describe("MonthlyReportInsights", () => {
     expect(within(firstWeek).getByText("2.25M used")).toHaveClass(
       "break-words"
     );
-    expect(firstWeek).toHaveAttribute(
-      "aria-label",
-      expect.stringContaining("2.250.000 VND used")
+    expect(firstWeek).toHaveAccessibleName(
+      /Budget rollup May 5-11 4 budgets 1 over 2\.250\.000 Vietnamese dong used/
     );
     expect(firstWeek).not.toHaveTextContent("·");
     expect(firstWeek.textContent).not.toContain("•");

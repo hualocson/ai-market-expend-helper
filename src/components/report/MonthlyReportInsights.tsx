@@ -16,8 +16,8 @@ const MonthlyReportInsights = ({ insights }: MonthlyReportInsightsProps) => {
   return (
     <section className="flex flex-col gap-4" aria-label="Monthly insights">
       <MonthlyPulseCard pulse={insights.pulse} />
-      <BudgetVarianceCard budgetVariance={insights.budgetVariance} />
       <MonthTrendChart points={insights.monthTrend} />
+      <BudgetVarianceCard budgetVariance={insights.budgetVariance} />
       <TopMerchantsCard merchants={insights.topMerchants} />
       <RecurringSpendCard recurringSpend={insights.recurringSpend} />
     </section>

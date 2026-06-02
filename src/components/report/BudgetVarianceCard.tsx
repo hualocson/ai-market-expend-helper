@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 
 import dayjs from "@/configs/date";
 import type { BudgetVarianceSummary } from "@/lib/reports/monthly-insights";
@@ -203,38 +203,65 @@ const BudgetVarianceRowItem = ({ row }: { row: BudgetVarianceRow }) => (
   </div>
 );
 
-const WeeklyBudgetRollup = ({ group }: { group: WeeklyBudgetGroup }) => (
-  <div className="flex flex-col gap-2">
-    <div
-      className="text-muted-foreground bg-muted/20 flex min-h-10 max-w-full flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl px-2 py-2 text-[11px]"
-      aria-label={`Budget rollup ${group.label}, ${group.rows.length} budgets, ${group.attentionLabel}, ${formatVnd(group.assignedSpend)} VND used`}
-    >
-      <span className="text-foreground flex max-w-full min-w-0 items-center gap-1 font-medium">
-        <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 break-words">{group.label}</span>
-      </span>
-      <span className="flex max-w-full min-w-0 items-center gap-1">
-        <WalletCards className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 break-words">{group.rows.length} budgets</span>
-      </span>
-      <span className="flex max-w-full min-w-0 items-center gap-1">
-        <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 break-words">{group.attentionLabel}</span>
-      </span>
-      <span className="flex max-w-full min-w-0 items-center gap-1 tabular-nums">
-        <VndSymbol className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 break-words">
-          {formatCompactRollupVnd(group.assignedSpend)} used
-        </span>
-      </span>
-    </div>
+const WeeklyBudgetRollup = ({ group }: { group: WeeklyBudgetGroup }) => {
+  const rollupId = useId();
+  const prefixId = `${rollupId}-prefix`;
+  const periodId = `${rollupId}-period`;
+  const countId = `${rollupId}-count`;
+  const attentionId = `${rollupId}-attention`;
+  const amountId = `${rollupId}-amount`;
+
+  return (
     <div className="flex flex-col gap-2">
-      {group.rows.map((row) => (
-        <BudgetVarianceRowItem key={row.budgetId} row={row} />
-      ))}
+      <div
+        className="text-muted-foreground bg-muted/20 flex min-h-10 max-w-full flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl px-2 py-2 text-[11px]"
+        aria-labelledby={`${prefixId} ${periodId} ${countId} ${attentionId} ${amountId}`}
+      >
+        <span id={prefixId} className="sr-only">
+          Budget rollup
+        </span>
+        <span
+          id={periodId}
+          className="text-foreground flex max-w-full min-w-0 items-center gap-1 font-medium"
+        >
+          <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 break-words">{group.label}</span>
+        </span>
+        <span
+          id={countId}
+          className="flex max-w-full min-w-0 items-center gap-1"
+        >
+          <WalletCards className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 break-words">
+            {group.rows.length} budgets
+          </span>
+        </span>
+        <span
+          id={attentionId}
+          className="flex max-w-full min-w-0 items-center gap-1"
+        >
+          <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 break-words">{group.attentionLabel}</span>
+        </span>
+        <span className="flex max-w-full min-w-0 items-center gap-1 tabular-nums">
+          <VndSymbol className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 break-words">
+            {formatCompactRollupVnd(group.assignedSpend)} used
+          </span>
+          <span id={amountId} className="sr-only">
+            {formatVnd(group.assignedSpend)}
+            <VndSymbol /> used
+          </span>
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {group.rows.map((row) => (
+          <BudgetVarianceRowItem key={row.budgetId} row={row} />
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const BudgetVarianceCard = ({ budgetVariance }: BudgetVarianceCardProps) => {
   const { rows, summary } = budgetVariance;
