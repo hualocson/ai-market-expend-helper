@@ -3,8 +3,11 @@ import React from "react";
 import dayjs from "@/configs/date";
 import type { MonthTrendPoint } from "@/lib/reports/monthly-insights";
 import { cn, formatVndCompact } from "@/lib/utils";
+import { ChartNoAxesColumnIncreasing } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
+import InsightCardTitle from "@/components/report/InsightCardTitle";
 
 type MonthTrendChartProps = {
   points: MonthTrendPoint[];
@@ -16,7 +19,9 @@ const MonthTrendChart = ({ points }: MonthTrendChartProps) => {
   return (
     <Card className="gap-4 py-5">
       <CardHeader className="px-4 pb-0">
-        <CardTitle className="text-base text-balance">6-month trend</CardTitle>
+        <InsightCardTitle icon={ChartNoAxesColumnIncreasing}>
+          6-month trend
+        </InsightCardTitle>
       </CardHeader>
       <CardContent className="px-4">
         {points.length ? (

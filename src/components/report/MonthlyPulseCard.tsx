@@ -2,11 +2,12 @@ import React from "react";
 
 import type { MonthlyPulse } from "@/lib/reports/monthly-insights";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import VndSymbol from "@/components/VndSymbol";
+import InsightCardTitle from "@/components/report/InsightCardTitle";
 
 type MonthlyPulseCardProps = {
   pulse: MonthlyPulse;
@@ -79,7 +80,7 @@ const MonthlyPulseCard = ({ pulse }: MonthlyPulseCardProps) => {
   return (
     <Card className="gap-4 py-5">
       <CardHeader className="px-4 pb-0">
-        <CardTitle className="text-base text-balance">Monthly pulse</CardTitle>
+        <InsightCardTitle icon={Activity}>Monthly pulse</InsightCardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-4">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">

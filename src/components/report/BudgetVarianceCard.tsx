@@ -13,9 +13,10 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import VndSymbol from "@/components/VndSymbol";
+import InsightCardTitle from "@/components/report/InsightCardTitle";
 
 type BudgetVarianceCardProps = {
   budgetVariance: BudgetVarianceSummary;
@@ -280,9 +281,7 @@ const BudgetVarianceCard = ({ budgetVariance }: BudgetVarianceCardProps) => {
   return (
     <Card className="gap-4 py-5">
       <CardHeader className="px-4 pb-0">
-        <CardTitle className="text-base text-balance">
-          Budget variance
-        </CardTitle>
+        <InsightCardTitle icon={WalletCards}>Budget variance</InsightCardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-4">
         {rows.length ? (

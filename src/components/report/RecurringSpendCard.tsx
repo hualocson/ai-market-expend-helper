@@ -2,10 +2,12 @@ import React from "react";
 
 import type { RecurringSpendCandidate } from "@/lib/reports/monthly-insights";
 import { formatVnd } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import VndSymbol from "@/components/VndSymbol";
+import InsightCardTitle from "@/components/report/InsightCardTitle";
 
 type RecurringSpendCardProps = {
   recurringSpend: RecurringSpendCandidate[];
@@ -22,9 +24,7 @@ const RecurringSpendCard = ({ recurringSpend }: RecurringSpendCardProps) => {
   return (
     <Card className="gap-4 py-5">
       <CardHeader className="px-4 pb-0">
-        <CardTitle className="text-base text-balance">
-          Recurring spend
-        </CardTitle>
+        <InsightCardTitle icon={RefreshCw}>Recurring spend</InsightCardTitle>
       </CardHeader>
       <CardContent className="px-4">
         {recurringSpend.length ? (

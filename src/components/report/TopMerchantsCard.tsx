@@ -2,10 +2,12 @@ import React from "react";
 
 import type { InferredMerchantSummary } from "@/lib/reports/monthly-insights";
 import { formatVnd } from "@/lib/utils";
+import { Store } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import VndSymbol from "@/components/VndSymbol";
+import InsightCardTitle from "@/components/report/InsightCardTitle";
 
 type TopMerchantsCardProps = {
   merchants: InferredMerchantSummary[];
@@ -15,9 +17,9 @@ const TopMerchantsCard = ({ merchants }: TopMerchantsCardProps) => {
   return (
     <Card className="gap-4 py-5">
       <CardHeader className="px-4 pb-0">
-        <CardTitle className="text-base text-balance">
+        <InsightCardTitle icon={Store}>
           Top merchants from notes
-        </CardTitle>
+        </InsightCardTitle>
       </CardHeader>
       <CardContent className="px-4">
         {merchants.length ? (
