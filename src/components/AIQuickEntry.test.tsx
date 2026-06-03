@@ -12,6 +12,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AIQuickEntry from "./AIQuickEntry";
@@ -235,10 +236,14 @@ const openOverlay = () => {
   });
 };
 
-const typeAndSend = (text: string) => {
+const typeComposerText = (text: string) => {
   fireEvent.change(screen.getByLabelText("Describe your expense"), {
     target: { value: text },
   });
+};
+
+const typeAndSend = (text: string) => {
+  typeComposerText(text);
   fireEvent.click(screen.getByLabelText("Send expense"));
 };
 
@@ -252,7 +257,7 @@ describe("AIQuickEntry", () => {
 
   it("shows and focuses the composer when opened", () => {
     const focusSpy = vi
-      .spyOn(HTMLInputElement.prototype, "focus")
+      .spyOn(HTMLTextAreaElement.prototype, "focus")
       .mockImplementation(() => {});
 
     renderQuickEntry();
@@ -304,6 +309,30 @@ describe("AIQuickEntry", () => {
     expect(screen.getByLabelText("Send expense")).toBeDisabled();
   });
 
+  it("disables send for blank multiline input", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("  \n\n  ");
+
+    expect(screen.getByLabelText("Send expense")).toBeDisabled();
+  });
+
+  it("keeps newline text in the composer when Enter is used", async () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    const composer = screen.getByLabelText("Describe your expense");
+
+    await userEvent.type(composer, "Cà phê 35k{enter}Cơm trưa 60k");
+
+    expect(composer).toHaveValue("Cà phê 35k\nCơm trưa 60k");
+    expect(
+      screen.queryByTestId("ai-quick-entry-pending-queue")
+    ).not.toBeInTheDocument();
+  });
+
   it("renders one active row and clears the composer after submit", () => {
     mockUnresolvedParseResponse();
     renderQuickEntry();
@@ -320,6 +349,29 @@ describe("AIQuickEntry", () => {
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
     expect(screen.queryByText(/\+1 more active/)).not.toBeInTheDocument();
+  });
+
+  it("submits each non-empty composer line as an active entry", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k\n\n  Cơm trưa 60k  \nGrab 42k");
+    });
+
+    expect(screen.getByText("Cơm trưa 60k")).toBeInTheDocument();
+    expect(screen.getByText("Grab 42k")).toBeInTheDocument();
+    expect(screen.getByText("+1 more active")).toBeInTheDocument();
+    expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Preview 1 more active expense" })
+    );
+
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByText("Cơm trưa 60k")).toBeInTheDocument();
+    expect(screen.getByText("Grab 42k")).toBeInTheDocument();
   });
 
   it("renders a capped plain active queue above the composer", () => {
@@ -391,7 +443,7 @@ describe("AIQuickEntry", () => {
 
   it("returns from preview mode to entry mode and refocuses the composer", () => {
     const focusSpy = vi
-      .spyOn(HTMLInputElement.prototype, "focus")
+      .spyOn(HTMLTextAreaElement.prototype, "focus")
       .mockImplementation(() => {});
     mockUnresolvedParseResponse();
 

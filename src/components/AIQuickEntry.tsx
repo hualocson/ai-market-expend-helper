@@ -3,7 +3,6 @@
 import React, {
   type CSSProperties,
   type FormEvent,
-  type KeyboardEvent,
   useCallback,
   useEffect,
   useId,
@@ -67,6 +66,12 @@ type ActiveQuickEntryDrawerItem =
 
 const newestFirst = (entries: QuickEntry[]) =>
   [...entries].sort((left, right) => right.createdAt - left.createdAt);
+
+const splitQuickEntryComposerInput = (input: string): string[] =>
+  input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 
 const buildToastDraftFromInitialExpense = (
   initialExpense: TQuickExpenseDrawerInitialExpense
@@ -133,7 +138,7 @@ const AIQuickEntry = () => {
   );
   const [activeDrawerItem, setActiveDrawerItem] =
     useState<ActiveQuickEntryDrawerItem>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeDrawerItemRef = useRef<ActiveQuickEntryDrawerItem>(null);
 
   useEffect(() => {
@@ -325,27 +330,27 @@ const AIQuickEntry = () => {
   };
 
   const submit = () => {
-    const input = composer.trim();
-    if (!input) {
+    const inputs = splitQuickEntryComposerInput(composer);
+    if (inputs.length === 0) {
       return;
     }
 
-    const entry = enqueueEntry(input);
+    const queuedEntries = inputs.map((input) => ({
+      entry: enqueueEntry(input),
+      input,
+    }));
+
     setComposer("");
     haptics.impact("medium");
-    void runEntry(entry.id, input);
+
+    queuedEntries.forEach(({ entry, input }) => {
+      void runEntry(entry.id, input);
+    });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submit();
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      submit();
-    }
   };
 
   const openReviewEntry = (entry: QuickEntry) => {
@@ -380,7 +385,7 @@ const AIQuickEntry = () => {
     activeDrawerItemRef.current = null;
   };
 
-  const canSend = composer.trim().length > 0;
+  const canSend = splitQuickEntryComposerInput(composer).length > 0;
 
   return (
     <Drawer
@@ -457,19 +462,19 @@ const AIQuickEntry = () => {
                 <div className="px-4 pb-2">
                   <form
                     onSubmit={handleSubmit}
-                    className="mx-auto flex w-full max-w-[390px] items-center gap-2"
+                    className="mx-auto flex w-full max-w-[390px] items-end gap-2"
                   >
                     <label htmlFor={inputId} className="sr-only">
                       Describe your expense
                     </label>
-                    <input
+                    <textarea
                       id={inputId}
                       ref={inputRef}
                       value={composer}
                       onChange={(event) => setComposer(event.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Cà phê 35k sáng nay"
-                      className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
+                      placeholder={"Cà phê 35k\nCơm trưa 60k\nGrab 42k"}
+                      rows={1}
+                      className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border field-sizing-content max-h-32 min-h-12 flex-1 resize-none overflow-y-auto rounded-[24px] border-0 bg-transparent px-4 py-3 text-base outline-none"
                     />
                     <button
                       type="submit"
