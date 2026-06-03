@@ -1,13 +1,21 @@
 import { Category } from "@/enums";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseExpenseWithOpenRouter } from "./parse-expense";
 
-const createOpenRouterResponse = (content: unknown, ok = true) =>
+const createOpenRouterResponse = (
+  content: unknown,
+  ok = true,
+  overrides: Record<string, unknown> = {}
+) =>
   ({
     ok,
+    status: ok ? 200 : 429,
+    statusText: ok ? "OK" : "Too Many Requests",
+    headers: new Headers(),
     json: vi.fn().mockResolvedValue({
       choices: [{ message: { content } }],
+      ...overrides,
     }),
   }) as unknown as Response;
 
@@ -18,6 +26,15 @@ const budgets = [
 ];
 
 describe("parseExpenseWithOpenRouter", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
   it("returns a high-confidence draft with a provided budget id", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       createOpenRouterResponse(
@@ -236,6 +253,143 @@ describe("parseExpenseWithOpenRouter", () => {
         fetchFn,
       })
     ).resolves.toMatchObject({ status: "fallback", reason: "request_failed" });
+  });
+
+  it("logs the OpenRouter response payload", async () => {
+    const debugSpy = vi.mocked(console.debug);
+    const content = JSON.stringify({
+      date: "29/05/2026",
+      amount: 35000,
+      note: "Cà phê",
+      budgetId: 2,
+      confidence: "high",
+      reason: "ok",
+    });
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(createOpenRouterResponse(content));
+
+    await parseExpenseWithOpenRouter({
+      input: "cf 35k",
+      budgets,
+      today: "29/05/2026",
+      apiKey: "test-key",
+      fetchFn,
+    });
+
+    expect(debugSpy).toHaveBeenCalledWith(
+      "[parse-expense] openrouter response",
+      expect.objectContaining({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        models: ["google/gemma-4-31b-it:free", "openai/gpt-oss-120b:free"],
+        payload: {
+          choices: [{ message: { content } }],
+        },
+      })
+    );
+  });
+
+  it("logs the resolved OpenRouter model and provider when present", async () => {
+    const debugSpy = vi.mocked(console.debug);
+    const content = JSON.stringify({
+      date: "29/05/2026",
+      amount: 35000,
+      note: "Cà phê",
+      budgetId: 2,
+      confidence: "high",
+      reason: "ok",
+    });
+    const fetchFn = vi.fn().mockResolvedValue(
+      createOpenRouterResponse(content, true, {
+        model: "openai/gpt-oss-120b:free",
+        provider: "OpenAI",
+      })
+    );
+
+    await parseExpenseWithOpenRouter({
+      input: "cf 35k",
+      budgets,
+      today: "29/05/2026",
+      apiKey: "test-key",
+      fetchFn,
+    });
+
+    expect(debugSpy).toHaveBeenCalledWith(
+      "[parse-expense] openrouter response",
+      expect.objectContaining({
+        resolvedModel: "openai/gpt-oss-120b:free",
+        resolvedProvider: "OpenAI",
+      })
+    );
+  });
+
+  it("logs the OpenRouter non-OK response metadata", async () => {
+    const debugSpy = vi.mocked(console.debug);
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(createOpenRouterResponse("", false));
+
+    await parseExpenseWithOpenRouter({
+      input: "cf 35k",
+      budgets,
+      today: "29/05/2026",
+      apiKey: "test-key",
+      fetchFn,
+    });
+
+    expect(debugSpy).toHaveBeenLastCalledWith(
+      "[parse-expense] openrouter response",
+      expect.objectContaining({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        models: ["google/gemma-4-31b-it:free", "openai/gpt-oss-120b:free"],
+      })
+    );
+  });
+
+  it("retries a temporary OpenRouter 503 before falling back", async () => {
+    const retryResponse = {
+      ok: false,
+      status: 503,
+      statusText: "Service Unavailable",
+      headers: new Headers({ "Retry-After": "0" }),
+    } as Response;
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(retryResponse)
+      .mockResolvedValueOnce(
+        createOpenRouterResponse(
+          JSON.stringify({
+            date: "29/05/2026",
+            amount: 35000,
+            note: "Cà phê",
+            budgetId: 2,
+            confidence: "high",
+            reason: "ok",
+          })
+        )
+      );
+
+    await expect(
+      parseExpenseWithOpenRouter({
+        input: "cf 35k",
+        budgets,
+        today: "29/05/2026",
+        apiKey: "test-key",
+        fetchFn,
+      })
+    ).resolves.toMatchObject({
+      status: "success",
+      expense: {
+        amount: 35000,
+        note: "Cà phê",
+        budgetId: 2,
+      },
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
   it("sends budget name and category context in the prompt", async () => {

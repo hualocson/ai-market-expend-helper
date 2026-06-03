@@ -19,6 +19,11 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = OPENROUTER_PRIMARY_MODEL;
 
 type FallbackReason = ParseExpenseFallbackResponse["reason"];
+type OpenRouterPayload = {
+  choices?: Array<{ message?: { content?: unknown } }>;
+  model?: unknown;
+  provider?: unknown;
+};
 
 const SYSTEM_PROMPT = `
 You extract a single expense draft from short natural-language text and pick the best-matching budget.
@@ -124,6 +129,29 @@ const CONFIDENCE_VALUES: ReadonlyArray<ParseExpenseConfidence> = [
 const isConfidence = (value: unknown): value is ParseExpenseConfidence =>
   CONFIDENCE_VALUES.includes(value as ParseExpenseConfidence);
 
+const OPENROUTER_RETRYABLE_STATUSES = new Set([429, 503]);
+const OPENROUTER_MAX_ATTEMPTS = 2;
+
+const debugOpenRouterResponse = (value: unknown) => {
+  console.debug("[parse-expense] openrouter response", value);
+};
+
+const readOptionalString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.length > 0 ? value : undefined;
+
+const readRetryAfterMs = (response: Response): number => {
+  const retryAfter = Number(response.headers.get("Retry-After"));
+
+  return Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 0;
+};
+
+const wait = (delayMs: number): Promise<void> =>
+  delayMs > 0
+    ? new Promise((resolve) => {
+        setTimeout(resolve, delayMs);
+      })
+    : Promise.resolve();
+
 export const parseExpenseWithOpenRouter = async ({
   input,
   budgets,
@@ -132,38 +160,78 @@ export const parseExpenseWithOpenRouter = async ({
   fetchFn = fetch,
 }: ParseExpenseArgs): Promise<ParseExpenseResponse> => {
   let response: Response;
+  let attempt = 0;
+  let content: string | null = null;
+  const models = withFallbackModels(MODEL);
 
-  try {
-    response = await fetchFn(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        models: withFallbackModels(MODEL),
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: buildUserContent(input, budgets, today) },
-        ],
-      }),
+  while (true) {
+    try {
+      response = await fetchFn(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          models,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: buildUserContent(input, budgets, today) },
+          ],
+        }),
+      });
+    } catch {
+      return buildFallback(input, "request_failed");
+    }
+
+    const responseMeta = {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      retryAfter: response.headers.get("Retry-After"),
+      attempt: attempt + 1,
+      models,
+    };
+
+    if (
+      !response.ok &&
+      OPENROUTER_RETRYABLE_STATUSES.has(response.status) &&
+      attempt < OPENROUTER_MAX_ATTEMPTS - 1
+    ) {
+      debugOpenRouterResponse(responseMeta);
+      attempt += 1;
+      await wait(readRetryAfterMs(response));
+      continue;
+    }
+
+    if (!response.ok) {
+      debugOpenRouterResponse(responseMeta);
+      return buildFallback(input, "request_failed");
+    }
+
+    let payload: OpenRouterPayload;
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      debugOpenRouterResponse({
+        ...responseMeta,
+        payload: null,
+        error: "invalid_json",
+      });
+      return buildFallback(input, "request_failed");
+    }
+
+    debugOpenRouterResponse({
+      ...responseMeta,
+      resolvedModel: readOptionalString(payload.model),
+      resolvedProvider: readOptionalString(payload.provider),
+      payload,
     });
-  } catch {
-    return buildFallback(input, "request_failed");
+
+    content = readContent(payload.choices?.[0]?.message?.content);
+    break;
   }
 
-  if (!response.ok) {
-    return buildFallback(input, "request_failed");
-  }
-
-  let payload: { choices?: Array<{ message?: { content?: unknown } }> };
-  try {
-    payload = (await response.json()) as typeof payload;
-  } catch {
-    return buildFallback(input, "request_failed");
-  }
-
-  const content = readContent(payload.choices?.[0]?.message?.content);
   if (!content) {
     return buildFallback(input, "empty_response");
   }

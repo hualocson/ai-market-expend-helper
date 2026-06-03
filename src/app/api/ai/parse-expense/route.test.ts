@@ -13,6 +13,7 @@ vi.mock("@/lib/ai/parse-expense", () => ({
 describe("POST /api/ai/parse-expense", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     parseExpenseWithOpenRouter.mockReset();
     delete process.env.OPENROUTER_API_KEY;
   });
@@ -158,6 +159,47 @@ describe("POST /api/ai/parse-expense", () => {
       success: true,
       data: fallbackPayload,
     });
+  });
+
+  it("logs the validated request and parser response in development", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    process.env.OPENROUTER_API_KEY = "test-key";
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const expectedParseResult = {
+      status: "success",
+      originalInput: "cf 35k",
+      expense: {
+        date: "29/05/2026",
+        amount: 35000,
+        note: "Cà phê",
+        budgetId: null,
+        confidence: "high",
+        reason: "Parsed without a budget.",
+      },
+    };
+    parseExpenseWithOpenRouter.mockResolvedValue(expectedParseResult);
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/parse-expense", {
+        method: "POST",
+        body: JSON.stringify({
+          input: "cf 35k",
+          today: "29/05/2026",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(debugSpy).toHaveBeenNthCalledWith(1, "[parse-expense] request", {
+      input: "cf 35k",
+      today: "29/05/2026",
+      budgets: [],
+    });
+    expect(debugSpy).toHaveBeenNthCalledWith(
+      2,
+      "[parse-expense] response",
+      expectedParseResult
+    );
   });
 
   it("returns 500 when OPENROUTER_API_KEY is missing", async () => {

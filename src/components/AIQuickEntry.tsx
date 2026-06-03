@@ -73,6 +73,8 @@ const splitQuickEntryComposerInput = (input: string): string[] =>
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
+const QUICK_ENTRY_COMPOSER_MAX_HEIGHT = 128;
+
 const buildToastDraftFromInitialExpense = (
   initialExpense: TQuickExpenseDrawerInitialExpense
 ): TQuickExpenseDraft => ({
@@ -159,6 +161,19 @@ const AIQuickEntry = () => {
     setActiveDrawerItem(null);
     activeDrawerItemRef.current = null;
   }, [open]);
+
+  useEffect(() => {
+    const composerElement = inputRef.current;
+    if (!composerElement) {
+      return;
+    }
+
+    composerElement.style.height = "auto";
+    composerElement.style.height = `${Math.min(
+      composerElement.scrollHeight,
+      QUICK_ENTRY_COMPOSER_MAX_HEIGHT
+    )}px`;
+  }, [composer]);
 
   const activeEntries = useMemo(
     () =>
@@ -472,7 +487,7 @@ const AIQuickEntry = () => {
                       ref={inputRef}
                       value={composer}
                       onChange={(event) => setComposer(event.target.value)}
-                      placeholder={"Cà phê 35k\nCơm trưa 60k\nGrab 42k"}
+                      placeholder="Cà phê 35k"
                       rows={1}
                       className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border field-sizing-content max-h-32 min-h-12 flex-1 resize-none overflow-y-auto rounded-[24px] border-0 bg-transparent px-4 py-3 text-base outline-none"
                     />
