@@ -25,7 +25,7 @@ import { getWeekRange } from "@/lib/week";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 import type { TQuickExpenseDraft } from "@/stores/quick-expense-recovery-store";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, XIcon } from "lucide-react";
+import { ArrowUp, Maximize2, Minimize2, XIcon } from "lucide-react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
@@ -126,6 +126,8 @@ const AIQuickEntry = () => {
 
   const [mode, setMode] = useState<AIQuickEntryMode>("entry");
   const [composer, setComposer] = useState("");
+  const [composerExpanded, setComposerExpanded] = useState(false);
+  const hasMultipleComposerLines = composer.includes("\n");
   const entries = useAIQuickEntryStore((state) => state.entries);
   const enqueueEntry = useAIQuickEntryStore((state) => state.enqueueEntry);
   const markEntrySaving = useAIQuickEntryStore(
@@ -153,18 +155,31 @@ const AIQuickEntry = () => {
     if (!open) {
       setActiveDrawerItem(null);
       activeDrawerItemRef.current = null;
+      setComposerExpanded(false);
       return;
     }
 
     setMode("entry");
     setComposer("");
+    setComposerExpanded(false);
     setActiveDrawerItem(null);
     activeDrawerItemRef.current = null;
   }, [open]);
 
   useEffect(() => {
+    if (!hasMultipleComposerLines && composerExpanded) {
+      setComposerExpanded(false);
+    }
+  }, [composerExpanded, hasMultipleComposerLines]);
+
+  useEffect(() => {
     const composerElement = inputRef.current;
     if (!composerElement) {
+      return;
+    }
+
+    if (composerExpanded) {
+      composerElement.style.height = "80svh";
       return;
     }
 
@@ -173,7 +188,7 @@ const AIQuickEntry = () => {
       composerElement.scrollHeight,
       QUICK_ENTRY_COMPOSER_MAX_HEIGHT
     )}px`;
-  }, [composer]);
+  }, [composer, composerExpanded]);
 
   const activeEntries = useMemo(
     () =>
@@ -334,6 +349,7 @@ const AIQuickEntry = () => {
 
   const openPreview = () => {
     setMode("preview");
+    setComposerExpanded(false);
     inputRef.current?.blur();
   };
 
@@ -356,6 +372,7 @@ const AIQuickEntry = () => {
     }));
 
     setComposer("");
+    setComposerExpanded(false);
     haptics.impact("medium");
 
     queuedEntries.forEach(({ entry, input }) => {
@@ -401,6 +418,31 @@ const AIQuickEntry = () => {
   };
 
   const canSend = splitQuickEntryComposerInput(composer).length > 0;
+  const composerWrapperClassName = cn(
+    "relative flex-1",
+    composerExpanded && "w-full"
+  );
+  const composerTextareaClassName = cn(
+    "text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border field-sizing-content max-h-32 min-h-12 w-full resize-none overflow-y-auto rounded-[24px] border-0 bg-transparent px-4 py-3 text-base outline-none",
+    hasMultipleComposerLines && "pr-12",
+    composerExpanded && "h-[80svh] max-h-[80svh] pb-16"
+  );
+  const sendButton = (
+    <button
+      type="submit"
+      aria-label="Send expense"
+      data-inside-composer={composerExpanded ? "true" : "false"}
+      disabled={!canSend}
+      onPointerDown={(event) => event.preventDefault()}
+      className={cn(
+        "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
+        composerExpanded && "absolute right-2 bottom-2",
+        !canSend && "opacity-40"
+      )}
+    >
+      <ArrowUp className="size-4" />
+    </button>
+  );
 
   return (
     <Drawer
@@ -482,27 +524,42 @@ const AIQuickEntry = () => {
                     <label htmlFor={inputId} className="sr-only">
                       Describe your expense
                     </label>
-                    <textarea
-                      id={inputId}
-                      ref={inputRef}
-                      value={composer}
-                      onChange={(event) => setComposer(event.target.value)}
-                      placeholder="Cà phê 35k"
-                      rows={1}
-                      className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border field-sizing-content max-h-32 min-h-12 flex-1 resize-none overflow-y-auto rounded-[24px] border-0 bg-transparent px-4 py-3 text-base outline-none"
-                    />
-                    <button
-                      type="submit"
-                      aria-label="Send expense"
-                      disabled={!canSend}
-                      onPointerDown={(event) => event.preventDefault()}
-                      className={cn(
-                        "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
-                        !canSend && "opacity-40"
-                      )}
-                    >
-                      <ArrowUp className="size-4" />
-                    </button>
+                    <div className={composerWrapperClassName}>
+                      <textarea
+                        id={inputId}
+                        ref={inputRef}
+                        value={composer}
+                        onChange={(event) => setComposer(event.target.value)}
+                        placeholder="Cà phê 35k"
+                        rows={1}
+                        data-expanded={composerExpanded ? "true" : "false"}
+                        className={composerTextareaClassName}
+                      />
+                      {hasMultipleComposerLines ? (
+                        <button
+                          type="button"
+                          aria-label={
+                            composerExpanded
+                              ? "Collapse composer"
+                              : "Expand composer"
+                          }
+                          onPointerDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setComposerExpanded((expanded) => !expanded);
+                            haptics.selection();
+                          }}
+                          className="text-muted-foreground ds-glass glass-border absolute top-2 right-2 grid size-8 place-items-center rounded-full transition-opacity active:scale-95"
+                        >
+                          {composerExpanded ? (
+                            <Minimize2 className="size-4" />
+                          ) : (
+                            <Maximize2 className="size-4" />
+                          )}
+                        </button>
+                      ) : null}
+                      {composerExpanded ? sendButton : null}
+                    </div>
+                    {composerExpanded ? null : sendButton}
                   </form>
                 </div>
               </div>

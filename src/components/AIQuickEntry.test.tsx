@@ -236,8 +236,10 @@ const openOverlay = () => {
   });
 };
 
+const getComposer = () => screen.getByLabelText("Describe your expense");
+
 const typeComposerText = (text: string) => {
-  fireEvent.change(screen.getByLabelText("Describe your expense"), {
+  fireEvent.change(getComposer(), {
     target: { value: text },
   });
 };
@@ -331,6 +333,80 @@ describe("AIQuickEntry", () => {
     expect(
       screen.queryByTestId("ai-quick-entry-pending-queue")
     ).not.toBeInTheDocument();
+  });
+
+  it("hides the composer expand button for single-line input", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k");
+
+    expect(screen.queryByLabelText("Expand composer")).not.toBeInTheDocument();
+  });
+
+  it("shows the composer expand button for multiline input", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+
+    expect(screen.getByLabelText("Expand composer")).toBeInTheDocument();
+  });
+
+  it("expands and collapses the multiline composer", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+
+    fireEvent.click(screen.getByLabelText("Expand composer"));
+
+    expect(getComposer()).toHaveAttribute("data-expanded", "true");
+    expect(screen.getByLabelText("Collapse composer")).toBeInTheDocument();
+    expect(screen.getByLabelText("Send expense")).toHaveAttribute(
+      "data-inside-composer",
+      "true"
+    );
+
+    fireEvent.click(screen.getByLabelText("Collapse composer"));
+
+    expect(getComposer()).toHaveAttribute("data-expanded", "false");
+    expect(screen.getByLabelText("Expand composer")).toBeInTheDocument();
+    expect(screen.getByLabelText("Send expense")).toHaveAttribute(
+      "data-inside-composer",
+      "false"
+    );
+  });
+
+  it("auto-collapses when expanded composer becomes single-line", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+    fireEvent.click(screen.getByLabelText("Expand composer"));
+
+    typeComposerText("Cà phê 35k");
+
+    expect(getComposer()).toHaveAttribute("data-expanded", "false");
+    expect(
+      screen.queryByLabelText("Collapse composer")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Expand composer")).not.toBeInTheDocument();
+  });
+
+  it("sends multiline entries and collapses from expanded composer", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+    fireEvent.click(screen.getByLabelText("Expand composer"));
+    fireEvent.click(screen.getByLabelText("Send expense"));
+
+    expect(screen.getByText("Cơm trưa 60k")).toBeInTheDocument();
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(getComposer()).toHaveValue("");
+    expect(getComposer()).toHaveAttribute("data-expanded", "false");
   });
 
   it("renders one active row and clears the composer after submit", () => {
