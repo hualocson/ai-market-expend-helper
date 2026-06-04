@@ -362,6 +362,11 @@ describe("AIQuickEntry", () => {
     fireEvent.click(screen.getByLabelText("Expand composer"));
 
     expect(getComposer()).toHaveAttribute("data-expanded", "true");
+    expect(getComposer().style.height).toContain("100svh");
+    expect(getComposer().style.height).toContain("0px");
+    expect(getComposer().style.height).toContain("env(safe-area-inset-top)");
+    expect(getComposer().style.height).toContain("56px");
+    expect(getComposer().style.height).toContain("24px");
     expect(screen.getByLabelText("Collapse composer")).toBeInTheDocument();
     expect(screen.getByLabelText("Send expense")).toHaveAttribute(
       "data-inside-composer",

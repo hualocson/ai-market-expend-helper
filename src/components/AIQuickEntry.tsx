@@ -74,6 +74,9 @@ const splitQuickEntryComposerInput = (input: string): string[] =>
     .filter((line) => line.length > 0);
 
 const QUICK_ENTRY_COMPOSER_MAX_HEIGHT = 128;
+const QUICK_ENTRY_EXPANDED_STATUS_BAR_HEIGHT =
+  "calc(env(safe-area-inset-top) + 56px)";
+const QUICK_ENTRY_EXPANDED_SPACING_HEIGHT = 24;
 
 const buildToastDraftFromInitialExpense = (
   initialExpense: TQuickExpenseDrawerInitialExpense
@@ -128,6 +131,7 @@ const AIQuickEntry = () => {
   const [composer, setComposer] = useState("");
   const [composerExpanded, setComposerExpanded] = useState(false);
   const hasMultipleComposerLines = composer.includes("\n");
+  const composerExpandedHeight = `calc(100svh - ${keyboardOffset}px - ${QUICK_ENTRY_EXPANDED_STATUS_BAR_HEIGHT} - ${QUICK_ENTRY_EXPANDED_SPACING_HEIGHT}px)`;
   const entries = useAIQuickEntryStore((state) => state.entries);
   const enqueueEntry = useAIQuickEntryStore((state) => state.enqueueEntry);
   const markEntrySaving = useAIQuickEntryStore(
@@ -179,16 +183,18 @@ const AIQuickEntry = () => {
     }
 
     if (composerExpanded) {
-      composerElement.style.height = "80svh";
+      composerElement.style.height = composerExpandedHeight;
+      composerElement.style.maxHeight = composerExpandedHeight;
       return;
     }
 
+    composerElement.style.maxHeight = "";
     composerElement.style.height = "auto";
     composerElement.style.height = `${Math.min(
       composerElement.scrollHeight,
       QUICK_ENTRY_COMPOSER_MAX_HEIGHT
     )}px`;
-  }, [composer, composerExpanded]);
+  }, [composer, composerExpanded, composerExpandedHeight]);
 
   const activeEntries = useMemo(
     () =>
@@ -425,7 +431,7 @@ const AIQuickEntry = () => {
   const composerTextareaClassName = cn(
     "text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border field-sizing-content max-h-32 min-h-12 w-full resize-none overflow-y-auto rounded-[24px] border-0 bg-transparent px-4 py-3 text-base outline-none",
     hasMultipleComposerLines && "pr-12",
-    composerExpanded && "h-[80svh] max-h-[80svh] pb-16"
+    composerExpanded && "pb-16"
   );
   const sendButton = (
     <button
@@ -436,7 +442,7 @@ const AIQuickEntry = () => {
       onPointerDown={(event) => event.preventDefault()}
       className={cn(
         "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
-        composerExpanded && "absolute right-2 bottom-2",
+        composerExpanded && "absolute right-2 bottom-2 mb-2",
         !canSend && "opacity-40"
       )}
     >
