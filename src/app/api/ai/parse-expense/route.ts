@@ -5,6 +5,14 @@ import { apiError, apiSuccess } from "@/lib/api/route-response";
 const invalidPayloadResponse = () =>
   apiError("INVALID_PAYLOAD", "Invalid payload", 400);
 
+const debugParseExpense = (label: "request" | "response", value: unknown) => {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.debug(`[parse-expense] ${label}`, value);
+};
+
 export const POST = async (request: Request) => {
   try {
     let payload: unknown;
@@ -18,6 +26,8 @@ export const POST = async (request: Request) => {
     if (!parsedRequest.success) {
       return invalidPayloadResponse();
     }
+
+    debugParseExpense("request", parsedRequest.data);
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -34,6 +44,8 @@ export const POST = async (request: Request) => {
       today: parsedRequest.data.today,
       apiKey,
     });
+
+    debugParseExpense("response", result);
 
     return apiSuccess(result);
   } catch (error) {

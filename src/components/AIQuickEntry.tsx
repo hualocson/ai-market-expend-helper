@@ -3,7 +3,6 @@
 import React, {
   type CSSProperties,
   type FormEvent,
-  type KeyboardEvent,
   useCallback,
   useEffect,
   useId,
@@ -26,7 +25,7 @@ import { getWeekRange } from "@/lib/week";
 import { useAIQuickEntryStore } from "@/stores/ai-quick-entry-store";
 import type { TQuickExpenseDraft } from "@/stores/quick-expense-recovery-store";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, XIcon } from "lucide-react";
+import { ArrowUp, Maximize2, Minimize2, XIcon } from "lucide-react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
@@ -67,6 +66,17 @@ type ActiveQuickEntryDrawerItem =
 
 const newestFirst = (entries: QuickEntry[]) =>
   [...entries].sort((left, right) => right.createdAt - left.createdAt);
+
+const splitQuickEntryComposerInput = (input: string): string[] =>
+  input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+const QUICK_ENTRY_COMPOSER_MAX_HEIGHT = 128;
+const QUICK_ENTRY_EXPANDED_STATUS_BAR_HEIGHT =
+  "calc(env(safe-area-inset-top) + 56px)";
+const QUICK_ENTRY_EXPANDED_SPACING_HEIGHT = 24;
 
 const buildToastDraftFromInitialExpense = (
   initialExpense: TQuickExpenseDrawerInitialExpense
@@ -119,6 +129,9 @@ const AIQuickEntry = () => {
 
   const [mode, setMode] = useState<AIQuickEntryMode>("entry");
   const [composer, setComposer] = useState("");
+  const [composerExpanded, setComposerExpanded] = useState(false);
+  const hasMultipleComposerLines = composer.includes("\n");
+  const composerExpandedHeight = `calc(100svh - ${keyboardOffset}px - ${QUICK_ENTRY_EXPANDED_STATUS_BAR_HEIGHT} - ${QUICK_ENTRY_EXPANDED_SPACING_HEIGHT}px)`;
   const entries = useAIQuickEntryStore((state) => state.entries);
   const enqueueEntry = useAIQuickEntryStore((state) => state.enqueueEntry);
   const markEntrySaving = useAIQuickEntryStore(
@@ -133,7 +146,7 @@ const AIQuickEntry = () => {
   );
   const [activeDrawerItem, setActiveDrawerItem] =
     useState<ActiveQuickEntryDrawerItem>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeDrawerItemRef = useRef<ActiveQuickEntryDrawerItem>(null);
 
   useEffect(() => {
@@ -146,14 +159,42 @@ const AIQuickEntry = () => {
     if (!open) {
       setActiveDrawerItem(null);
       activeDrawerItemRef.current = null;
+      setComposerExpanded(false);
       return;
     }
 
     setMode("entry");
     setComposer("");
+    setComposerExpanded(false);
     setActiveDrawerItem(null);
     activeDrawerItemRef.current = null;
   }, [open]);
+
+  useEffect(() => {
+    if (!hasMultipleComposerLines && composerExpanded) {
+      setComposerExpanded(false);
+    }
+  }, [composerExpanded, hasMultipleComposerLines]);
+
+  useEffect(() => {
+    const composerElement = inputRef.current;
+    if (!composerElement) {
+      return;
+    }
+
+    if (composerExpanded) {
+      composerElement.style.height = composerExpandedHeight;
+      composerElement.style.maxHeight = composerExpandedHeight;
+      return;
+    }
+
+    composerElement.style.maxHeight = "";
+    composerElement.style.height = "auto";
+    composerElement.style.height = `${Math.min(
+      composerElement.scrollHeight,
+      QUICK_ENTRY_COMPOSER_MAX_HEIGHT
+    )}px`;
+  }, [composer, composerExpanded, composerExpandedHeight]);
 
   const activeEntries = useMemo(
     () =>
@@ -314,6 +355,7 @@ const AIQuickEntry = () => {
 
   const openPreview = () => {
     setMode("preview");
+    setComposerExpanded(false);
     inputRef.current?.blur();
   };
 
@@ -325,27 +367,28 @@ const AIQuickEntry = () => {
   };
 
   const submit = () => {
-    const input = composer.trim();
-    if (!input) {
+    const inputs = splitQuickEntryComposerInput(composer);
+    if (inputs.length === 0) {
       return;
     }
 
-    const entry = enqueueEntry(input);
+    const queuedEntries = inputs.map((input) => ({
+      entry: enqueueEntry(input),
+      input,
+    }));
+
     setComposer("");
+    setComposerExpanded(false);
     haptics.impact("medium");
-    void runEntry(entry.id, input);
+
+    queuedEntries.forEach(({ entry, input }) => {
+      void runEntry(entry.id, input);
+    });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submit();
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      submit();
-    }
   };
 
   const openReviewEntry = (entry: QuickEntry) => {
@@ -380,7 +423,32 @@ const AIQuickEntry = () => {
     activeDrawerItemRef.current = null;
   };
 
-  const canSend = composer.trim().length > 0;
+  const canSend = splitQuickEntryComposerInput(composer).length > 0;
+  const composerWrapperClassName = cn(
+    "relative flex-1",
+    composerExpanded && "w-full"
+  );
+  const composerTextareaClassName = cn(
+    "text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border field-sizing-content max-h-32 min-h-12 w-full resize-none overflow-y-auto rounded-[24px] border-0 bg-transparent px-4 py-3 text-base outline-none",
+    hasMultipleComposerLines && "pr-12",
+    composerExpanded && "pb-16"
+  );
+  const sendButton = (
+    <button
+      type="submit"
+      aria-label="Send expense"
+      data-inside-composer={composerExpanded ? "true" : "false"}
+      disabled={!canSend}
+      onPointerDown={(event) => event.preventDefault()}
+      className={cn(
+        "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
+        composerExpanded && "absolute right-2 bottom-2 mb-2",
+        !canSend && "opacity-40"
+      )}
+    >
+      <ArrowUp className="size-4" />
+    </button>
+  );
 
   return (
     <Drawer
@@ -457,32 +525,47 @@ const AIQuickEntry = () => {
                 <div className="px-4 pb-2">
                   <form
                     onSubmit={handleSubmit}
-                    className="mx-auto flex w-full max-w-[390px] items-center gap-2"
+                    className="mx-auto flex w-full max-w-[390px] items-end gap-2"
                   >
                     <label htmlFor={inputId} className="sr-only">
                       Describe your expense
                     </label>
-                    <input
-                      id={inputId}
-                      ref={inputRef}
-                      value={composer}
-                      onChange={(event) => setComposer(event.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Cà phê 35k sáng nay"
-                      className="text-foreground placeholder:text-muted-foreground/70 ds-glass glass-border flex-1 rounded-[28px] border-0 bg-transparent px-4 py-3 text-base outline-none"
-                    />
-                    <button
-                      type="submit"
-                      aria-label="Send expense"
-                      disabled={!canSend}
-                      onPointerDown={(event) => event.preventDefault()}
-                      className={cn(
-                        "ds-glass glass-border text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full !text-white transition-opacity",
-                        !canSend && "opacity-40"
-                      )}
-                    >
-                      <ArrowUp className="size-4" />
-                    </button>
+                    <div className={composerWrapperClassName}>
+                      <textarea
+                        id={inputId}
+                        ref={inputRef}
+                        value={composer}
+                        onChange={(event) => setComposer(event.target.value)}
+                        placeholder="Cà phê 35k"
+                        rows={1}
+                        data-expanded={composerExpanded ? "true" : "false"}
+                        className={composerTextareaClassName}
+                      />
+                      {hasMultipleComposerLines ? (
+                        <button
+                          type="button"
+                          aria-label={
+                            composerExpanded
+                              ? "Collapse composer"
+                              : "Expand composer"
+                          }
+                          onPointerDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setComposerExpanded((expanded) => !expanded);
+                            haptics.selection();
+                          }}
+                          className="text-muted-foreground ds-glass glass-border absolute top-2 right-2 grid size-8 place-items-center rounded-full transition-opacity active:scale-95"
+                        >
+                          {composerExpanded ? (
+                            <Minimize2 className="size-4" />
+                          ) : (
+                            <Maximize2 className="size-4" />
+                          )}
+                        </button>
+                      ) : null}
+                      {composerExpanded ? sendButton : null}
+                    </div>
+                    {composerExpanded ? null : sendButton}
                   </form>
                 </div>
               </div>

@@ -12,6 +12,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AIQuickEntry from "./AIQuickEntry";
@@ -235,10 +236,16 @@ const openOverlay = () => {
   });
 };
 
-const typeAndSend = (text: string) => {
-  fireEvent.change(screen.getByLabelText("Describe your expense"), {
+const getComposer = () => screen.getByLabelText("Describe your expense");
+
+const typeComposerText = (text: string) => {
+  fireEvent.change(getComposer(), {
     target: { value: text },
   });
+};
+
+const typeAndSend = (text: string) => {
+  typeComposerText(text);
   fireEvent.click(screen.getByLabelText("Send expense"));
 };
 
@@ -252,7 +259,7 @@ describe("AIQuickEntry", () => {
 
   it("shows and focuses the composer when opened", () => {
     const focusSpy = vi
-      .spyOn(HTMLInputElement.prototype, "focus")
+      .spyOn(HTMLTextAreaElement.prototype, "focus")
       .mockImplementation(() => {});
 
     renderQuickEntry();
@@ -304,6 +311,109 @@ describe("AIQuickEntry", () => {
     expect(screen.getByLabelText("Send expense")).toBeDisabled();
   });
 
+  it("disables send for blank multiline input", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("  \n\n  ");
+
+    expect(screen.getByLabelText("Send expense")).toBeDisabled();
+  });
+
+  it("keeps newline text in the composer when Enter is used", async () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    const composer = screen.getByLabelText("Describe your expense");
+
+    await userEvent.type(composer, "Cà phê 35k{enter}Cơm trưa 60k");
+
+    expect(composer).toHaveValue("Cà phê 35k\nCơm trưa 60k");
+    expect(
+      screen.queryByTestId("ai-quick-entry-pending-queue")
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the composer expand button for single-line input", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k");
+
+    expect(screen.queryByLabelText("Expand composer")).not.toBeInTheDocument();
+  });
+
+  it("shows the composer expand button for multiline input", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+
+    expect(screen.getByLabelText("Expand composer")).toBeInTheDocument();
+  });
+
+  it("expands and collapses the multiline composer", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+
+    fireEvent.click(screen.getByLabelText("Expand composer"));
+
+    expect(getComposer()).toHaveAttribute("data-expanded", "true");
+    expect(getComposer().style.height).toContain("100svh");
+    expect(getComposer().style.height).toContain("0px");
+    expect(getComposer().style.height).toContain("env(safe-area-inset-top)");
+    expect(getComposer().style.height).toContain("56px");
+    expect(getComposer().style.height).toContain("24px");
+    expect(screen.getByLabelText("Collapse composer")).toBeInTheDocument();
+    expect(screen.getByLabelText("Send expense")).toHaveAttribute(
+      "data-inside-composer",
+      "true"
+    );
+
+    fireEvent.click(screen.getByLabelText("Collapse composer"));
+
+    expect(getComposer()).toHaveAttribute("data-expanded", "false");
+    expect(screen.getByLabelText("Expand composer")).toBeInTheDocument();
+    expect(screen.getByLabelText("Send expense")).toHaveAttribute(
+      "data-inside-composer",
+      "false"
+    );
+  });
+
+  it("auto-collapses when expanded composer becomes single-line", () => {
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+    fireEvent.click(screen.getByLabelText("Expand composer"));
+
+    typeComposerText("Cà phê 35k");
+
+    expect(getComposer()).toHaveAttribute("data-expanded", "false");
+    expect(
+      screen.queryByLabelText("Collapse composer")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Expand composer")).not.toBeInTheDocument();
+  });
+
+  it("sends multiline entries and collapses from expanded composer", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    typeComposerText("Cà phê 35k\nCơm trưa 60k");
+    fireEvent.click(screen.getByLabelText("Expand composer"));
+    fireEvent.click(screen.getByLabelText("Send expense"));
+
+    expect(screen.getByText("Cơm trưa 60k")).toBeInTheDocument();
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(getComposer()).toHaveValue("");
+    expect(getComposer()).toHaveAttribute("data-expanded", "false");
+  });
+
   it("renders one active row and clears the composer after submit", () => {
     mockUnresolvedParseResponse();
     renderQuickEntry();
@@ -320,6 +430,29 @@ describe("AIQuickEntry", () => {
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
     expect(screen.queryByText(/\+1 more active/)).not.toBeInTheDocument();
+  });
+
+  it("submits each non-empty composer line as an active entry", () => {
+    mockUnresolvedParseResponse();
+    renderQuickEntry();
+    openOverlay();
+
+    act(() => {
+      typeAndSend("Cà phê 35k\n\n  Cơm trưa 60k  \nGrab 42k");
+    });
+
+    expect(screen.getByText("Cơm trưa 60k")).toBeInTheDocument();
+    expect(screen.getByText("Grab 42k")).toBeInTheDocument();
+    expect(screen.getByText("+1 more active")).toBeInTheDocument();
+    expect(screen.getByLabelText("Describe your expense")).toHaveValue("");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Preview 1 more active expense" })
+    );
+
+    expect(screen.getByText("Cà phê 35k")).toBeInTheDocument();
+    expect(screen.getByText("Cơm trưa 60k")).toBeInTheDocument();
+    expect(screen.getByText("Grab 42k")).toBeInTheDocument();
   });
 
   it("renders a capped plain active queue above the composer", () => {
@@ -391,7 +524,7 @@ describe("AIQuickEntry", () => {
 
   it("returns from preview mode to entry mode and refocuses the composer", () => {
     const focusSpy = vi
-      .spyOn(HTMLInputElement.prototype, "focus")
+      .spyOn(HTMLTextAreaElement.prototype, "focus")
       .mockImplementation(() => {});
     mockUnresolvedParseResponse();
 
