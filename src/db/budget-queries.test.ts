@@ -2,6 +2,7 @@ import { Category } from "@/enums";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  cloneBudgetsToNextPeriod,
   createBudget,
   deleteBudget,
   getWeeklyBudgetReport,
@@ -12,6 +13,8 @@ import {
 const dbMocks = vi.hoisted(() => ({
   deleteReturning: vi.fn(),
   deleteWhere: vi.fn(),
+  insertValues: vi.fn(),
+  insertReturning: vi.fn(),
   select: vi.fn(),
   updateSet: vi.fn(),
 }));
@@ -21,7 +24,9 @@ vi.mock("@/db", () => ({
     delete: vi.fn(() => ({
       where: dbMocks.deleteWhere,
     })),
-    insert: vi.fn(),
+    insert: vi.fn(() => ({
+      values: dbMocks.insertValues,
+    })),
     select: dbMocks.select,
     update: vi.fn(() => ({
       set: dbMocks.updateSet,
@@ -36,6 +41,21 @@ const mockSelectRows = (rows: unknown[]) => {
     limit: vi.fn(() => rows),
   };
   dbMocks.select.mockReturnValue(chain);
+};
+
+const mockSelectResultQueue = (results: unknown[][]) => {
+  const queue = [...results];
+  dbMocks.select.mockImplementation(() => {
+    const rows = queue.shift() ?? [];
+    const chain = {
+      from: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      orderBy: vi.fn(() => rows),
+      limit: vi.fn(() => rows),
+    };
+
+    return chain;
+  });
 };
 
 beforeEach(() => {
@@ -119,12 +139,10 @@ describe("updateBudget", () => {
 
 describe("createBudget category", () => {
   it("persists the category on insert", async () => {
-    const insertValues = vi.fn();
-    const insertReturning = vi.fn().mockResolvedValue([{ id: 1 }]);
-    insertValues.mockReturnValue({ returning: insertReturning });
-    const dbModule = await import("@/db");
-    (dbModule.db as unknown as { insert: ReturnType<typeof vi.fn> }).insert =
-      vi.fn(() => ({ values: insertValues }));
+    dbMocks.insertReturning.mockResolvedValue([{ id: 1 }]);
+    dbMocks.insertValues.mockReturnValue({
+      returning: dbMocks.insertReturning,
+    });
 
     await createBudget({
       name: "Coffee",
@@ -137,9 +155,154 @@ describe("createBudget category", () => {
       periodEndDate: null,
     });
 
-    expect(insertValues).toHaveBeenCalledWith(
+    expect(dbMocks.insertValues).toHaveBeenCalledWith(
       expect.objectContaining({ category: Category.FOOD })
     );
+  });
+});
+
+describe("cloneBudgetsToNextPeriod", () => {
+  beforeEach(() => {
+    dbMocks.insertReturning.mockResolvedValue([]);
+    dbMocks.insertValues.mockReturnValue({
+      returning: dbMocks.insertReturning,
+    });
+  });
+
+  it("clones weekly budget definitions to the next Sunday-starting week", async () => {
+    mockSelectResultQueue([
+      [
+        {
+          id: 1,
+          name: "Coffee",
+          icon: "☕",
+          color: "lime",
+          category: Category.FOOD,
+          amount: 200000,
+          period: "week",
+          periodStartDate: "2026-06-07",
+          periodEndDate: "2026-06-13",
+        },
+      ],
+      [],
+    ]);
+    dbMocks.insertReturning.mockResolvedValue([{ id: 20 }]);
+
+    const result = await cloneBudgetsToNextPeriod({
+      period: "week",
+      sourceStartDate: "2026-06-09",
+    });
+
+    expect(dbMocks.insertValues).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "Coffee",
+        icon: "☕",
+        color: "lime",
+        category: Category.FOOD,
+        amount: 200000,
+        period: "week",
+        periodStartDate: "2026-06-14",
+        periodEndDate: "2026-06-20",
+      }),
+    ]);
+    expect(result).toEqual({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 1,
+      createdCount: 1,
+      skippedCount: 0,
+      createdBudgetIds: [20],
+    });
+  });
+
+  it("clones monthly budget definitions to the next month", async () => {
+    mockSelectResultQueue([
+      [
+        {
+          id: 2,
+          name: "Rent",
+          icon: "🏠",
+          color: "sky",
+          category: Category.HOME,
+          amount: 8000000,
+          period: "month",
+          periodStartDate: "2026-06-01",
+          periodEndDate: "2026-06-30",
+        },
+      ],
+      [],
+    ]);
+    dbMocks.insertReturning.mockResolvedValue([{ id: 30 }]);
+
+    const result = await cloneBudgetsToNextPeriod({
+      period: "month",
+      sourceStartDate: "2026-06-18",
+    });
+
+    expect(dbMocks.insertValues).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "Rent",
+        amount: 8000000,
+        period: "month",
+        periodStartDate: "2026-07-01",
+        periodEndDate: "2026-07-31",
+      }),
+    ]);
+    expect(result.targetStartDate).toBe("2026-07-01");
+    expect(result.targetEndDate).toBe("2026-07-31");
+  });
+
+  it("skips target budgets with the same normalized name", async () => {
+    mockSelectResultQueue([
+      [
+        {
+          id: 1,
+          name: " Coffee ",
+          icon: "☕",
+          color: "lime",
+          category: Category.FOOD,
+          amount: 200000,
+          period: "week",
+          periodStartDate: "2026-06-07",
+          periodEndDate: "2026-06-13",
+        },
+      ],
+      [{ id: 10, name: "coffee" }],
+    ]);
+
+    const result = await cloneBudgetsToNextPeriod({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+    });
+
+    expect(dbMocks.insertValues).not.toHaveBeenCalled();
+    expect(result.createdCount).toBe(0);
+    expect(result.skippedCount).toBe(1);
+  });
+
+  it("returns zero counts when there are no source budgets", async () => {
+    mockSelectResultQueue([[], []]);
+
+    const result = await cloneBudgetsToNextPeriod({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+    });
+
+    expect(dbMocks.insertValues).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 0,
+      createdCount: 0,
+      skippedCount: 0,
+      createdBudgetIds: [],
+    });
   });
 });
 
