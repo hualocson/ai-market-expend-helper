@@ -619,6 +619,25 @@ const BudgetWeeklyBudgetsClient = ({
     }
   };
 
+  const headerCloneAction =
+    activeTab === "week" && activeWeekGroup
+      ? {
+          disabled:
+            cloneBudgetMutation.isPending ||
+            activeWeekGroup.budgets.length === 0,
+          label: "Clone to next week",
+          onClick: handleCloneWeekly,
+        }
+      : activeTab === "month" && activeMonthKey
+        ? {
+            disabled:
+              cloneBudgetMutation.isPending ||
+              filteredMonthlyBudgets.length === 0,
+            label: "Clone to next month",
+            onClick: handleCloneMonthly,
+          }
+        : null;
+
   const renderBudgetItem = (budget: BudgetListItem) => {
     const status = getBudgetStatus(budget);
 
@@ -752,31 +771,6 @@ const BudgetWeeklyBudgetsClient = ({
     </div>
   );
 
-  const renderCloneAction = ({
-    disabled,
-    label,
-    onClick,
-  }: {
-    disabled: boolean;
-    label: string;
-    onClick: () => void;
-  }) => (
-    <Button
-      type="button"
-      variant="secondary"
-      onClick={onClick}
-      disabled={disabled}
-      className="bg-muted/45 hover:bg-muted/65 h-11 w-full rounded-2xl text-sm font-semibold"
-    >
-      {cloneBudgetMutation.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <CopyPlus className="h-4 w-4" />
-      )}
-      {label}
-    </Button>
-  );
-
   const errorMessage =
     error instanceof Error ? error.message : "Failed to load budgets.";
   const showErrorFallback = isError;
@@ -788,15 +782,38 @@ const BudgetWeeklyBudgetsClient = ({
           <h1 className="text-foreground text-2xl leading-none font-bold">
             Budgets
           </h1>
-          <Button
-            onClick={openCreate}
-            variant="ghost"
-            size="icon"
-            aria-label="Add budget"
-            className="text-primary hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
+          <div
+            role="group"
+            aria-label="Budget actions"
+            className="flex items-center gap-2"
           >
-            <Wallet className="size-5" />
-          </Button>
+            {headerCloneAction ? (
+              <Button
+                type="button"
+                onClick={headerCloneAction.onClick}
+                disabled={headerCloneAction.disabled}
+                variant="ghost"
+                size="icon"
+                aria-label={headerCloneAction.label}
+                className="text-muted-foreground hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_14%,transparent),0_10px_24px_color-mix(in_srgb,#000000_38%,transparent)] active:scale-[0.97] disabled:opacity-45"
+              >
+                {cloneBudgetMutation.isPending ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <CopyPlus className="size-5" />
+                )}
+              </Button>
+            ) : null}
+            <Button
+              onClick={openCreate}
+              variant="ghost"
+              size="icon"
+              aria-label="Add budget"
+              className="text-primary hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
+            >
+              <Wallet className="size-5" />
+            </Button>
+          </div>
         </div>
 
         <div className="mt-3 flex items-center gap-2">
@@ -898,16 +915,6 @@ const BudgetWeeklyBudgetsClient = ({
                     : "All months"
                 )}
 
-                {activeMonthKey
-                  ? renderCloneAction({
-                      disabled:
-                        cloneBudgetMutation.isPending ||
-                        filteredMonthlyBudgets.length === 0,
-                      label: "Clone to next month",
-                      onClick: handleCloneMonthly,
-                    })
-                  : null}
-
                 {filteredMonthlyBudgets.length ? (
                   <div className="flex flex-col gap-2.5">
                     {filteredMonthlyBudgets.map(renderBudgetItem)}
@@ -936,16 +943,6 @@ const BudgetWeeklyBudgetsClient = ({
                           "Weekly summary",
                           activeWeekGroup.label
                         )
-                      : null}
-
-                    {activeWeekGroup
-                      ? renderCloneAction({
-                          disabled:
-                            cloneBudgetMutation.isPending ||
-                            activeWeekGroup.budgets.length === 0,
-                          label: "Clone to next week",
-                          onClick: handleCloneWeekly,
-                        })
                       : null}
 
                     {activeWeekGroup?.budgets.length ? (

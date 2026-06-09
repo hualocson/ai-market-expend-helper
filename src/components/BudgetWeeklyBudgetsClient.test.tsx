@@ -340,6 +340,30 @@ describe("BudgetWeeklyBudgetsClient", () => {
     expect(queryMocks.useQuery).not.toHaveBeenCalled();
   });
 
+  it("renders clone as an icon-only action beside add budget in the header", () => {
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+
+    const actions = screen.getByRole("group", { name: "Budget actions" });
+    const cloneButton = within(actions).getByRole("button", {
+      name: "Clone to next week",
+    });
+
+    expect(
+      within(actions).getByRole("button", { name: "Add budget" })
+    ).toBeInTheDocument();
+    expect(cloneButton).toHaveTextContent("");
+    expect(
+      screen.getAllByRole("button", { name: "Clone to next week" })
+    ).toHaveLength(1);
+  });
+
   it("previews the selected weekly group before cloning", async () => {
     const user = userEvent.setup();
     queryMocks.useSuspenseQuery.mockReturnValue({
