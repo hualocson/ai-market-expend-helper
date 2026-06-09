@@ -73,6 +73,14 @@ export const budgetCloneNextPeriodPayloadSchema: z.ZodType<BudgetCloneNextPeriod
   z.object({
     period: z.enum(["week", "month"]),
     sourceStartDate: isoDateSchema,
+    budgets: z
+      .array(
+        z.object({
+          sourceBudgetId: z.number().int().positive(),
+          amount: z.number().finite().nonnegative(),
+        })
+      )
+      .optional(),
   });
 
 export const budgetUpdatePayloadSchema: z.ZodType<BudgetUpdateInput> = z.object(

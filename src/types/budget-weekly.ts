@@ -80,9 +80,15 @@ export type BudgetUpdateInput = {
 
 export type BudgetClonePeriod = Extract<BudgetPeriod, "week" | "month">;
 
+export type BudgetCloneAmountInput = {
+  sourceBudgetId: number;
+  amount: number;
+};
+
 export type BudgetCloneNextPeriodInput = {
   period: BudgetClonePeriod;
   sourceStartDate: string;
+  budgets?: BudgetCloneAmountInput[];
 };
 
 export type BudgetCloneNextPeriodResult = {

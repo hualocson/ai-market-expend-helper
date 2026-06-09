@@ -83,6 +83,52 @@ describe("budgetCloneNextPeriodPayloadSchema", () => {
     });
   });
 
+  it("accepts clone payloads with per-source-budget amounts", () => {
+    expect(
+      budgetCloneNextPeriodPayloadSchema.parse({
+        period: "week",
+        sourceStartDate: "2026-06-07",
+        budgets: [
+          { sourceBudgetId: 1, amount: 250_000 },
+          { sourceBudgetId: 2, amount: 1_500_000 },
+        ],
+      })
+    ).toEqual({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [
+        { sourceBudgetId: 1, amount: 250_000 },
+        { sourceBudgetId: 2, amount: 1_500_000 },
+      ],
+    });
+  });
+
+  it("rejects invalid clone budget amount overrides", () => {
+    expect(() =>
+      budgetCloneNextPeriodPayloadSchema.parse({
+        period: "week",
+        sourceStartDate: "2026-06-07",
+        budgets: [{ sourceBudgetId: 0, amount: 250_000 }],
+      })
+    ).toThrow();
+
+    expect(() =>
+      budgetCloneNextPeriodPayloadSchema.parse({
+        period: "week",
+        sourceStartDate: "2026-06-07",
+        budgets: [{ sourceBudgetId: 1, amount: -1 }],
+      })
+    ).toThrow();
+
+    expect(() =>
+      budgetCloneNextPeriodPayloadSchema.parse({
+        period: "week",
+        sourceStartDate: "2026-06-07",
+        budgets: [{ sourceBudgetId: 1, amount: Number.NaN }],
+      })
+    ).toThrow();
+  });
+
   it("rejects custom periods and malformed dates", () => {
     expect(() =>
       budgetCloneNextPeriodPayloadSchema.parse({
