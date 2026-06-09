@@ -1,7 +1,10 @@
 import React, { type ReactNode } from "react";
 
 import { Category } from "@/enums";
-import type { BudgetListItem } from "@/types/budget-weekly";
+import type {
+  BudgetCloneNextPeriodInput,
+  BudgetListItem,
+} from "@/types/budget-weekly";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -121,16 +124,16 @@ describe("BudgetClonePreviewDrawer", () => {
 
     const drawer = screen.getByTestId("clone-preview-drawer");
     expect(
-      within(drawer).getByRole("heading", { name: "Preview budget clone" })
+      within(drawer).getByRole("heading", { name: "Clone budgets" })
     ).toBeInTheDocument();
     expect(within(drawer).getByText("07 Jun - 13 Jun")).toBeInTheDocument();
     expect(within(drawer).getByText("14 Jun - 20 Jun")).toBeInTheDocument();
     expect(within(drawer).getByText("Coffee")).toBeInTheDocument();
-    expect(within(drawer).getByText("Already exists")).toBeInTheDocument();
-    expect(within(drawer).getByText("Groceries")).toBeInTheDocument();
-    expect(within(drawer).getByText("Will clone")).toBeInTheDocument();
-    expect(within(drawer).getByText("1 to clone")).toBeInTheDocument();
-    expect(within(drawer).getByText("1 already exists")).toBeInTheDocument();
+    expect(within(drawer).getByText("Exists")).toBeInTheDocument();
+    expect(within(drawer).getAllByText("Groceries").length).toBeGreaterThan(0);
+    expect(within(drawer).getByLabelText("Clone amount")).toHaveValue(
+      "1000000"
+    );
   });
 
   it("forwards cancel and confirm actions", async () => {
@@ -152,7 +155,157 @@ describe("BudgetClonePreviewDrawer", () => {
     await user.click(screen.getByRole("button", { name: "Confirm clone" }));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
-    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledWith({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [{ sourceBudgetId: 2, amount: 1_000_000 }],
+    });
+  });
+
+  it("edits the selected clone amount and submits cloneable budgets", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn<(input: BudgetCloneNextPeriodInput) => void>();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={preview}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /groceries/i }));
+    const amountInput = screen.getByLabelText("Clone amount");
+    await user.clear(amountInput);
+    await user.type(amountInput, "1250000");
+    await user.click(screen.getByRole("button", { name: "Confirm clone" }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [{ sourceBudgetId: 2, amount: 1_250_000 }],
+    });
+  });
+
+  it("submits default amounts when the user does not edit", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn<(input: BudgetCloneNextPeriodInput) => void>();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={preview}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Confirm clone" }));
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [{ sourceBudgetId: 2, amount: 1_000_000 }],
+    });
+  });
+
+  it("keeps existing target budgets skipped and non-editable", () => {
+    render(
+      <BudgetClonePreviewDrawer
+        preview={preview}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /coffee/i })).toBeDisabled();
+    expect(screen.getByText("Exists")).toBeInTheDocument();
+    expect(screen.getByLabelText("Clone amount")).toHaveValue("1000000");
+  });
+
+  it("disables confirm for an empty amount", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={preview}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Clone amount");
+    await user.clear(amountInput);
+
+    expect(
+      screen.getByRole("button", { name: "Confirm clone" })
+    ).toBeDisabled();
+  });
+
+  it("keeps a pasted negative amount invalid", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={preview}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Clone amount");
+    await user.clear(amountInput);
+    await user.paste("-100");
+
+    expect(amountInput).toHaveValue("-100");
+    expect(amountInput).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Enter a valid clone amount.")).toHaveAttribute(
+      "id",
+      "clone-budget-amount-error"
+    );
+    expect(amountInput).toHaveAccessibleDescription(
+      "Enter a valid clone amount."
+    );
+    expect(
+      screen.getByRole("button", { name: "Confirm clone" })
+    ).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Confirm clone" }));
+
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pasted non-finite amount invalid", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={preview}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Clone amount");
+    await user.clear(amountInput);
+    await user.paste("1e309");
+
+    expect(amountInput).toHaveValue("1e309");
+    expect(
+      screen.getByRole("button", { name: "Confirm clone" })
+    ).toBeDisabled();
   });
 
   it("does not render content when there is no preview", () => {

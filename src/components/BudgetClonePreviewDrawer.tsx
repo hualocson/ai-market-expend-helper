@@ -1,10 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { cn, formatVnd } from "@/lib/utils";
-import type { BudgetClonePeriod, BudgetListItem } from "@/types/budget-weekly";
-import { CopyPlus, Loader2 } from "lucide-react";
+import type {
+  BudgetCloneNextPeriodInput,
+  BudgetClonePeriod,
+  BudgetListItem,
+} from "@/types/budget-weekly";
+import { ArrowLeft, CopyPlus, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,11 +39,23 @@ type BudgetClonePreviewDrawerProps = {
   isPending: boolean;
   onOpenChange: (open: boolean) => void;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (input: BudgetCloneNextPeriodInput) => void;
 };
 
 export const normalizeClonePreviewName = (name: string) =>
   name.trim().toLowerCase();
+
+const cloneBudgetAmountErrorId = "clone-budget-amount-error";
+
+const isInvalidCloneAmount = (value: string | undefined) => {
+  if (typeof value !== "string" || value.trim() === "") {
+    return true;
+  }
+
+  const parsedValue = Number(value);
+
+  return !Number.isFinite(parsedValue) || parsedValue < 0;
+};
 
 const BudgetClonePreviewDrawer = ({
   preview,
@@ -48,34 +64,115 @@ const BudgetClonePreviewDrawer = ({
   onCancel,
   onConfirm,
 }: BudgetClonePreviewDrawerProps) => {
-  const cloneCount =
-    preview?.budgets.filter(
+  const cloneableBudgets = useMemo(() => {
+    if (!preview) {
+      return [];
+    }
+
+    return preview.budgets.filter(
       (budget) =>
         !preview.existingBudgetNames.has(normalizeClonePreviewName(budget.name))
-    ).length ?? 0;
-  const skippedCount = (preview?.budgets.length ?? 0) - cloneCount;
+    );
+  }, [preview]);
+  const skippedCount = (preview?.budgets.length ?? 0) - cloneableBudgets.length;
+  const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null);
+  const [draftAmounts, setDraftAmounts] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (!preview) {
+      setSelectedBudgetId(null);
+      setDraftAmounts({});
+      return;
+    }
+
+    const nextDraftAmounts = Object.fromEntries(
+      cloneableBudgets.map((budget) => [budget.id, String(budget.amount)])
+    );
+
+    setDraftAmounts(nextDraftAmounts);
+    setSelectedBudgetId(cloneableBudgets[0]?.id ?? null);
+  }, [preview, cloneableBudgets]);
+
+  const selectedBudget =
+    cloneableBudgets.find((budget) => budget.id === selectedBudgetId) ?? null;
+  const selectedAmountValue =
+    selectedBudgetId === null ? "" : (draftAmounts[selectedBudgetId] ?? "");
+  const selectedAmountInvalid = selectedBudget
+    ? isInvalidCloneAmount(selectedAmountValue)
+    : false;
+  const hasInvalidAmount =
+    cloneableBudgets.length === 0 ||
+    cloneableBudgets.some((budget) =>
+      isInvalidCloneAmount(draftAmounts[budget.id])
+    );
+  const totalDraftAmount = cloneableBudgets.reduce((sum, budget) => {
+    const parsedAmount = Number(draftAmounts[budget.id]);
+
+    return Number.isFinite(parsedAmount) && parsedAmount >= 0
+      ? sum + parsedAmount
+      : sum;
+  }, 0);
+
+  const handleAmountChange = (value: string) => {
+    if (selectedBudgetId === null) {
+      return;
+    }
+
+    setDraftAmounts((current) => ({
+      ...current,
+      [selectedBudgetId]: value,
+    }));
+  };
+
+  const handleConfirm = () => {
+    if (!preview || hasInvalidAmount) {
+      return;
+    }
+
+    onConfirm({
+      period: preview.period,
+      sourceStartDate: preview.sourceStartDate,
+      budgets: cloneableBudgets.map((budget) => ({
+        sourceBudgetId: budget.id,
+        amount: Number(draftAmounts[budget.id]),
+      })),
+    });
+  };
 
   return (
     <Drawer open={Boolean(preview)} onOpenChange={onOpenChange}>
       {preview ? (
         <DrawerContent className="max-h-[90svh] rounded-t-3xl! border-t-0!">
-          <div className="px-4 pb-4">
-            <DrawerHeader className="w-fit justify-start px-0 text-left">
-              <DrawerTitle className="text-xl">
-                Preview budget clone
-              </DrawerTitle>
-              <DrawerDescription className="sr-only">
-                Review the budgets before cloning from {preview.sourceLabel} to{" "}
-                {preview.targetLabel}.
-              </DrawerDescription>
+          <div className="px-4 pt-1 pb-3">
+            <DrawerHeader className="px-0 text-left">
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  onClick={onCancel}
+                  disabled={isPending}
+                  aria-label="Cancel clone"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="min-w-0">
+                  <DrawerTitle className="text-xl">Clone budgets</DrawerTitle>
+                  <DrawerDescription className="sr-only">
+                    Edit budget amounts before cloning from{" "}
+                    {preview.sourceLabel} to {preview.targetLabel}.
+                  </DrawerDescription>
+                </div>
+              </div>
             </DrawerHeader>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <div className="bg-muted/45 rounded-2xl px-3 py-2.5">
                 <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                   From
                 </p>
-                <p className="text-foreground mt-1 text-sm font-semibold">
+                <p className="text-foreground mt-1 truncate text-sm font-semibold">
                   {preview.sourceLabel}
                 </p>
               </div>
@@ -83,71 +180,142 @@ const BudgetClonePreviewDrawer = ({
                 <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                   To
                 </p>
-                <p className="text-foreground mt-1 text-sm font-semibold">
+                <p className="text-foreground mt-1 truncate text-sm font-semibold">
                   {preview.targetLabel}
                 </p>
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              <span className="border-success/35 bg-success/10 text-success rounded-full border px-2 py-0.5 font-medium">
-                {cloneCount} to clone
+            <p className="text-muted-foreground mt-3 text-sm">
+              Total clone amount is{" "}
+              <span className="text-foreground font-semibold tabular-nums">
+                {formatVnd(totalDraftAmount)}
               </span>
-              {skippedCount > 0 ? (
-                <span className="border-warning/40 bg-warning/15 text-warning rounded-full border px-2 py-0.5 font-medium">
-                  {skippedCount} already exists
-                </span>
-              ) : null}
-            </div>
+            </p>
           </div>
 
-          <div className="no-scrollbar space-y-2 overflow-y-auto px-4 py-4">
+          <div
+            className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-4"
+            aria-label={`${cloneableBudgets.length} budgets to clone, ${skippedCount} already exists`}
+          >
             {preview.budgets.map((budget) => {
               const alreadyExists = preview.existingBudgetNames.has(
                 normalizeClonePreviewName(budget.name)
               );
+              const selected = budget.id === selectedBudgetId;
+              const draftAmount =
+                draftAmounts[budget.id] ?? String(budget.amount);
+              const parsedDraftAmount = Number(draftAmount);
+              const displayAmount =
+                Number.isFinite(parsedDraftAmount) && parsedDraftAmount >= 0
+                  ? parsedDraftAmount
+                  : budget.amount;
 
               return (
-                <div
+                <button
                   key={budget.id}
-                  className="border-border/45 bg-card/60 rounded-2xl border px-3 py-2.5"
+                  type="button"
+                  onClick={() => setSelectedBudgetId(budget.id)}
+                  disabled={alreadyExists || isPending}
+                  className={cn(
+                    "min-w-[138px] rounded-3xl border px-3 py-3 text-left transition",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/45 bg-card/70 text-foreground",
+                    alreadyExists && "opacity-45"
+                  )}
+                  aria-pressed={selected}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <BudgetBadge
-                        icon={budget.icon}
-                        color={budget.color}
-                        name={budget.name}
-                        className="max-w-[72%] px-2 py-1"
-                        nameClassName="text-sm font-semibold"
-                      />
-                      <ExpenseItemIcon
-                        category={budget.category}
-                        size="sm"
-                        className="shrink-0"
-                      />
-                    </div>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                        alreadyExists
-                          ? "border-warning/40 bg-warning/15 text-warning"
-                          : "border-success/35 bg-success/10 text-success"
-                      )}
-                    >
-                      {alreadyExists ? "Already exists" : "Will clone"}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <BudgetBadge
+                      icon={budget.icon}
+                      color={budget.color}
+                      name={budget.name}
+                      className="max-w-[92px] px-2 py-1"
+                      nameClassName="text-xs font-semibold"
+                    />
+                    <ExpenseItemIcon
+                      category={budget.category}
+                      size="sm"
+                      className="shrink-0"
+                    />
                   </div>
-                  <p className="text-muted-foreground mt-1.5 text-xs tabular-nums">
-                    {formatVnd(budget.amount)}
-                  </p>
-                </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold tabular-nums">
+                      {formatVnd(displayAmount)}
+                    </span>
+                    {alreadyExists ? (
+                      <span className="bg-warning/15 text-warning rounded-full px-2 py-0.5 text-[10px] font-semibold">
+                        Exists
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
               );
             })}
           </div>
 
+          <div className="bg-card/80 mx-4 rounded-t-[2rem] px-5 py-6">
+            {selectedBudget ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <BudgetBadge
+                    icon={selectedBudget.icon}
+                    color={selectedBudget.color}
+                    name={selectedBudget.name}
+                    className="px-2 py-1"
+                    nameClassName="text-sm font-semibold"
+                  />
+                  <ExpenseItemIcon
+                    category={selectedBudget.category}
+                    size="sm"
+                  />
+                </div>
+                <label htmlFor="clone-budget-amount-input" className="sr-only">
+                  Clone amount
+                </label>
+                <div className="mt-5 flex items-center gap-3">
+                  <span className="text-muted-foreground text-5xl font-light">
+                    ₫
+                  </span>
+                  <input
+                    id="clone-budget-amount-input"
+                    aria-label="Clone amount"
+                    inputMode="numeric"
+                    value={selectedAmountValue}
+                    onChange={(event) => handleAmountChange(event.target.value)}
+                    disabled={isPending}
+                    aria-invalid={selectedAmountInvalid ? true : undefined}
+                    aria-describedby={
+                      selectedAmountInvalid
+                        ? cloneBudgetAmountErrorId
+                        : undefined
+                    }
+                    className="text-foreground min-w-0 flex-1 bg-transparent text-5xl font-bold tabular-nums outline-none"
+                  />
+                </div>
+                {selectedAmountInvalid ? (
+                  <p
+                    id={cloneBudgetAmountErrorId}
+                    className="text-destructive mt-3 text-sm"
+                  >
+                    Enter a valid clone amount.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Every budget already exists in {preview.targetLabel}.
+              </p>
+            )}
+          </div>
+
           <DrawerFooter className="gap-2 px-5 py-4">
-            <Button type="button" onClick={onConfirm} disabled={isPending}>
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              disabled={isPending || hasInvalidAmount}
+            >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
