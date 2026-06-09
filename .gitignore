@@ -50,6 +50,7 @@ public/swe-worker*
 # Codex
 .codex/
 .superpowers/
+.worktrees/
 
 tmp/*
 tmp-*
