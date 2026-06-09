@@ -7,6 +7,8 @@ import {
 } from "@/lib/budget-appearance";
 import { getWeekRange } from "@/lib/week";
 import {
+  BudgetCloneNextPeriodInput,
+  BudgetCloneNextPeriodResult,
   BudgetCreateInput,
   BudgetListItem,
   BudgetOverviewReport,
@@ -80,6 +82,31 @@ const normalizeBudgetDates = (
   return {
     periodStartDate: parsedStart.format("YYYY-MM-DD"),
     periodEndDate: parsedEnd.format("YYYY-MM-DD"),
+  };
+};
+
+const normalizeCloneName = (name: string) => name.trim().toLowerCase();
+
+const normalizeClonePeriodBounds = (
+  period: BudgetCloneNextPeriodInput["period"],
+  sourceStartDate: string
+) => {
+  const source = normalizeBudgetDates(period, sourceStartDate, null);
+  const targetBase =
+    period === "week"
+      ? dayjs(source.periodStartDate).add(7, "day")
+      : dayjs(source.periodStartDate).add(1, "month");
+  const target = normalizeBudgetDates(
+    period,
+    targetBase.format("YYYY-MM-DD"),
+    null
+  );
+
+  return {
+    sourceStartDate: source.periodStartDate,
+    sourceEndDate: source.periodEndDate,
+    targetStartDate: target.periodStartDate,
+    targetEndDate: target.periodEndDate,
   };
 };
 
@@ -400,6 +427,90 @@ export const getTransferCandidates = async (
         : null,
     };
   });
+};
+
+export const cloneBudgetsToNextPeriod = async (
+  input: BudgetCloneNextPeriodInput
+): Promise<BudgetCloneNextPeriodResult> => {
+  const bounds = normalizeClonePeriodBounds(
+    input.period,
+    input.sourceStartDate
+  );
+
+  const sourceRows = await db
+    .select({
+      id: budgets.id,
+      name: budgets.name,
+      icon: budgets.icon,
+      color: budgets.color,
+      category: budgets.category,
+      amount: budgets.amount,
+      period: budgets.period,
+      periodStartDate: budgets.periodStartDate,
+      periodEndDate: budgets.periodEndDate,
+    })
+    .from(budgets)
+    .where(
+      and(
+        eq(budgets.period, input.period),
+        eq(budgets.periodStartDate, bounds.sourceStartDate),
+        eq(budgets.periodEndDate, bounds.sourceEndDate)
+      )
+    )
+    .orderBy(asc(budgets.name), asc(budgets.id));
+
+  const targetRows = await db
+    .select({
+      name: budgets.name,
+    })
+    .from(budgets)
+    .where(
+      and(
+        eq(budgets.period, input.period),
+        eq(budgets.periodStartDate, bounds.targetStartDate),
+        eq(budgets.periodEndDate, bounds.targetEndDate)
+      )
+    )
+    .orderBy(asc(budgets.name), asc(budgets.id));
+
+  const targetNames = new Set(
+    targetRows.map((budget) => normalizeCloneName(budget.name))
+  );
+  const amountOverrides = new Map(
+    (input.budgets ?? []).map((budget) => [
+      budget.sourceBudgetId,
+      budget.amount,
+    ])
+  );
+  const cloneValues = sourceRows
+    .filter((budget) => !targetNames.has(normalizeCloneName(budget.name)))
+    .map((budget) => ({
+      name: budget.name.trim(),
+      icon: normalizeBudgetIcon(budget.icon),
+      color: normalizeBudgetColor(budget.color),
+      category: budget.category,
+      amount:
+        amountOverrides.get(Number(budget.id)) ?? Number(budget.amount ?? 0),
+      period: input.period,
+      periodStartDate: bounds.targetStartDate,
+      periodEndDate: bounds.targetEndDate,
+    }));
+
+  const created = cloneValues.length
+    ? await db.insert(budgets).values(cloneValues).returning({ id: budgets.id })
+    : [];
+
+  return {
+    period: input.period,
+    sourceStartDate: bounds.sourceStartDate,
+    sourceEndDate: bounds.sourceEndDate,
+    targetStartDate: bounds.targetStartDate,
+    targetEndDate: bounds.targetEndDate,
+    sourceCount: sourceRows.length,
+    createdCount: created.length,
+    skippedCount: sourceRows.length - cloneValues.length,
+    createdBudgetIds: created.map((budget) => Number(budget.id)),
+  };
 };
 
 export const createBudget = async (input: BudgetCreateInput) => {

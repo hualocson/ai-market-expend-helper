@@ -5,14 +5,20 @@ import { useEffect, useMemo, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
-import { useDeleteBudgetMutation } from "@/lib/mutations";
+import {
+  useCloneBudgetsToNextPeriodMutation,
+  useDeleteBudgetMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
-  BudgetAssignedTransaction,
-  BudgetListItem,
-  BudgetTransactionsResponse,
+  type BudgetAssignedTransaction,
+  type BudgetCloneNextPeriodInput,
+  type BudgetCloneNextPeriodResult,
+  type BudgetClonePeriod,
+  type BudgetListItem,
+  type BudgetTransactionsResponse,
 } from "@/types/budget-weekly";
 import {
   type InfiniteData,
@@ -22,6 +28,7 @@ import {
 } from "@tanstack/react-query";
 import {
   ArrowDown,
+  CopyPlus,
   Loader2,
   Plus,
   SaveIcon,
@@ -56,6 +63,10 @@ import {
 } from "@/components/ui/select";
 
 import BudgetBadge from "@/components/BudgetBadge";
+import BudgetClonePreviewDrawer, {
+  type BudgetClonePreview,
+  normalizeClonePreviewName,
+} from "@/components/BudgetClonePreviewDrawer";
 import BudgetRemainingChart from "@/components/BudgetRemainingChart";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
@@ -151,6 +162,34 @@ const formatWeekPillLabel = (weekKey: string) => {
   return parsed.isValid() ? parsed.format("DD MMM") : weekKey;
 };
 
+const getNextWeekKey = (weekKey: string) =>
+  dayjs(weekKey, "YYYY-MM-DD", true).add(7, "day").format("YYYY-MM-DD");
+
+const getNextMonthKey = (monthKey: string) =>
+  monthKeyToDate(monthKey).add(1, "month").format("YYYY-MM");
+
+const formatCloneToast = (
+  result: BudgetCloneNextPeriodResult,
+  targetLabel: "next week" | "next month"
+) => {
+  if (result.sourceCount === 0) {
+    return `No budgets to clone from this ${result.period}.`;
+  }
+
+  if (result.createdCount === 0) {
+    return `All ${result.sourceCount} budgets already existed ${targetLabel}.`;
+  }
+
+  const clonedLabel =
+    result.createdCount === 1
+      ? "1 budget cloned"
+      : `${result.createdCount} budgets cloned`;
+  const skippedLabel =
+    result.skippedCount > 0 ? ` ${result.skippedCount} already existed.` : "";
+
+  return `${clonedLabel} to ${targetLabel}.${skippedLabel}`;
+};
+
 const formatBudgetPeriodRange = (budget: BudgetListItem) => {
   const start = dayjs(budget.periodStartDate, "YYYY-MM-DD", true);
   const end = budget.periodEndDate
@@ -214,6 +253,9 @@ const BudgetWeeklyBudgetsClient = ({
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clonePreview, setClonePreview] = useState<BudgetClonePreview | null>(
+    null
+  );
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferDestination, setTransferDestination] =
     useState<BudgetListItem | null>(null);
@@ -236,12 +278,15 @@ const BudgetWeeklyBudgetsClient = ({
   };
 
   const deleteBudgetMutation = useDeleteBudgetMutation();
+  const cloneBudgetMutation = useCloneBudgetsToNextPeriodMutation();
 
   const currentMonthKey = dayjs().format("YYYY-MM");
   const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey);
   const [activeWeekKey, setActiveWeekKey] = useState<string | null>(
     weekStartDate
   );
+  const [pendingMonthKeys, setPendingMonthKeys] = useState<string[]>([]);
+  const [pendingWeekKeys, setPendingWeekKeys] = useState<string[]>([]);
 
   const budgetTransactionsQuery = queries.budgets.transactions(
     detailBudget?.id ?? 0,
@@ -290,11 +335,12 @@ const BudgetWeeklyBudgetsClient = ({
         }
       }
     });
+    pendingMonthKeys.forEach((key) => keys.add(key));
     keys.add(currentMonthKey);
     return Array.from(keys).sort(
       (a, b) => monthKeyToDate(b).valueOf() - monthKeyToDate(a).valueOf()
     );
-  }, [budgets, currentMonthKey]);
+  }, [budgets, currentMonthKey, pendingMonthKeys]);
 
   const monthOptions = useMemo(
     () => [
@@ -377,6 +423,12 @@ const BudgetWeeklyBudgetsClient = ({
       grouped.set(key, list);
     });
 
+    pendingWeekKeys.forEach((key) => {
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+    });
+
     return Array.from(grouped.entries())
       .sort(([a], [b]) => dayjs(b).valueOf() - dayjs(a).valueOf())
       .slice(0, WEEKLY_FILTER_LIMIT)
@@ -390,7 +442,7 @@ const BudgetWeeklyBudgetsClient = ({
           summary: summarizeBudgets(sorted),
         };
       });
-  }, [weeklyBudgets]);
+  }, [pendingWeekKeys, weeklyBudgets]);
 
   const activeWeekGroup = useMemo(
     () => weeklyGroups.find((group) => group.key === activeWeekKey) ?? null,
@@ -422,6 +474,26 @@ const BudgetWeeklyBudgetsClient = ({
     totalSpent: 0,
   };
 
+  const getExistingTargetBudgetNames = (
+    period: BudgetClonePeriod,
+    targetKey: string
+  ) =>
+    new Set(
+      budgets
+        .filter((budget) => {
+          if (budget.period !== period) {
+            return false;
+          }
+
+          if (period === "week") {
+            return getWeekKey(budget.periodStartDate) === targetKey;
+          }
+
+          return getMonthKey(budget.periodStartDate) === targetKey;
+        })
+        .map((budget) => normalizeClonePreviewName(budget.name))
+    );
+
   useEffect(() => {
     if (!weeklyGroups.length) {
       setActiveWeekKey(null);
@@ -449,6 +521,79 @@ const BudgetWeeklyBudgetsClient = ({
     setFormOpen(true);
   };
 
+  const handleCloneWeekly = () => {
+    if (!activeWeekGroup || cloneBudgetMutation.isPending) {
+      return;
+    }
+
+    const targetWeekKey = getNextWeekKey(activeWeekGroup.key);
+
+    setClonePreview({
+      period: "week",
+      sourceStartDate: activeWeekGroup.key,
+      sourceLabel: activeWeekGroup.label,
+      targetLabel: formatWeekLabel(targetWeekKey),
+      targetNavigationKey: targetWeekKey,
+      targetToastLabel: "next week",
+      budgets: activeWeekGroup.budgets,
+      existingBudgetNames: getExistingTargetBudgetNames("week", targetWeekKey),
+    });
+  };
+
+  const handleCloneMonthly = () => {
+    if (!activeMonthKey || cloneBudgetMutation.isPending) {
+      return;
+    }
+
+    const targetMonthKey = getNextMonthKey(activeMonthKey);
+
+    setClonePreview({
+      period: "month",
+      sourceStartDate: monthKeyToDate(activeMonthKey).format("YYYY-MM-DD"),
+      sourceLabel: formatMonthLabel(activeMonthKey),
+      targetLabel: formatMonthLabel(targetMonthKey),
+      targetNavigationKey: targetMonthKey,
+      targetToastLabel: "next month",
+      budgets: filteredMonthlyBudgets,
+      existingBudgetNames: getExistingTargetBudgetNames(
+        "month",
+        targetMonthKey
+      ),
+    });
+  };
+
+  const handleConfirmClone = async (input: BudgetCloneNextPeriodInput) => {
+    if (!clonePreview || cloneBudgetMutation.isPending) {
+      return;
+    }
+
+    const targetKey = clonePreview.targetNavigationKey;
+
+    try {
+      const result = await cloneBudgetMutation.mutateAsync(input);
+
+      if (clonePreview.period === "week") {
+        setPendingWeekKeys((keys) =>
+          keys.includes(targetKey) ? keys : [...keys, targetKey]
+        );
+        setActiveTab("week");
+        setActiveWeekKey(targetKey);
+      } else {
+        setPendingMonthKeys((keys) =>
+          keys.includes(targetKey) ? keys : [...keys, targetKey]
+        );
+        setActiveTab("month");
+        setMonthFilter(targetKey);
+      }
+
+      setClonePreview(null);
+      toast.success(formatCloneToast(result, clonePreview.targetToastLabel));
+    } catch (cloneError) {
+      console.error(cloneError);
+      toast.error("Failed to clone budgets.");
+    }
+  };
+
   const handleDelete = async () => {
     if (!editingBudget) {
       return;
@@ -472,6 +617,25 @@ const BudgetWeeklyBudgetsClient = ({
     }
   };
 
+  const headerCloneAction =
+    activeTab === "week" && activeWeekGroup
+      ? {
+          disabled:
+            cloneBudgetMutation.isPending ||
+            activeWeekGroup.budgets.length === 0,
+          label: "Clone to next week",
+          onClick: handleCloneWeekly,
+        }
+      : activeTab === "month" && activeMonthKey
+        ? {
+            disabled:
+              cloneBudgetMutation.isPending ||
+              filteredMonthlyBudgets.length === 0,
+            label: "Clone to next month",
+            onClick: handleCloneMonthly,
+          }
+        : null;
+
   const renderBudgetItem = (budget: BudgetListItem) => {
     const status = getBudgetStatus(budget);
 
@@ -489,7 +653,7 @@ const BudgetWeeklyBudgetsClient = ({
         )}
       >
         <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-grow items-center gap-2">
+          <div className="flex min-w-0 grow items-center gap-2">
             <BudgetBadge
               icon={budget.icon}
               color={budget.color}
@@ -616,15 +780,38 @@ const BudgetWeeklyBudgetsClient = ({
           <h1 className="text-foreground text-2xl leading-none font-bold">
             Budgets
           </h1>
-          <Button
-            onClick={openCreate}
-            variant="ghost"
-            size="icon"
-            aria-label="Add budget"
-            className="text-primary hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
+          <div
+            role="group"
+            aria-label="Budget actions"
+            className="ds-glass glass-border bg-background/30 flex h-11 items-center gap-1 rounded-full p-1"
           >
-            <Wallet className="size-5" />
-          </Button>
+            {headerCloneAction ? (
+              <Button
+                type="button"
+                onClick={headerCloneAction.onClick}
+                disabled={headerCloneAction.disabled}
+                variant="ghost"
+                size="icon"
+                aria-label={headerCloneAction.label}
+                className="text-muted-foreground hover:text-primary size-9 rounded-full bg-transparent shadow-none hover:bg-white/10! active:scale-[0.94] active:bg-white/20! disabled:opacity-45"
+              >
+                {cloneBudgetMutation.isPending ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <CopyPlus className="size-4.5" />
+                )}
+              </Button>
+            ) : null}
+            <Button
+              onClick={openCreate}
+              variant="ghost"
+              size="icon"
+              aria-label="Add budget"
+              className="text-primary hover:text-primary size-9 rounded-full bg-transparent shadow-none hover:bg-white/10! active:scale-[0.94] active:bg-white/20!"
+            >
+              <Wallet className="size-4.5" />
+            </Button>
+          </div>
         </div>
 
         <div className="mt-3 flex items-center gap-2">
@@ -1086,6 +1273,18 @@ const BudgetWeeklyBudgetsClient = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BudgetClonePreviewDrawer
+        preview={clonePreview}
+        isPending={cloneBudgetMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open && !cloneBudgetMutation.isPending) {
+            setClonePreview(null);
+          }
+        }}
+        onCancel={() => setClonePreview(null)}
+        onConfirm={handleConfirmClone}
+      />
 
       {transferDestination ? (
         <BudgetTransferDrawer

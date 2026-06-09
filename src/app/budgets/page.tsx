@@ -19,11 +19,9 @@ export default async function BudgetsPage() {
 
   return (
     <div className="relative mx-auto flex max-w-md flex-col px-4 sm:px-6">
-      <div>
-        <HydrationBoundary state={dehydrate(queryClient)}>
-          <BudgetWeeklyBudgetsClient weekStartDate={currentWeekStart} />
-        </HydrationBoundary>
-      </div>
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <BudgetWeeklyBudgetsClient weekStartDate={currentWeekStart} />
+      </HydrationBoundary>
     </div>
   );
 }

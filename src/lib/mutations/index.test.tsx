@@ -3,6 +3,7 @@ import React, { type PropsWithChildren } from "react";
 import { Category, PaidBy } from "@/enums";
 import {
   useAssignTransactionBudgetMutation,
+  useCloneBudgetsToNextPeriodMutation,
   useCreateBudgetMutation,
   useCreateExpenseMutation,
   useDeleteBudgetMutation,
@@ -418,6 +419,82 @@ describe("mutation hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queries.budgetWeekly._def,
     });
+  });
+
+  it("clones budgets through the clone route and invalidates budget query roots", async () => {
+    const responsePayload = {
+      period: "week" as const,
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 2,
+      createdCount: 2,
+      skippedCount: 0,
+      createdBudgetIds: [20, 21],
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse(successEnvelope(responsePayload), { status: 201 })
+      );
+    const { result, queryClient } = renderMutationHook(() =>
+      useCloneBudgetsToNextPeriodMutation()
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          period: "week",
+          sourceStartDate: "2026-06-07",
+          budgets: [{ sourceBudgetId: 1, amount: 250_000 }],
+        })
+      ).resolves.toEqual(responsePayload);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/budgets/clone-next-period",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          period: "week",
+          sourceStartDate: "2026-06-07",
+          budgets: [{ sourceBudgetId: 1, amount: 250_000 }],
+        }),
+      })
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.budgets._def,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queries.budgetWeekly._def,
+    });
+  });
+
+  it("throws the API error message when budget clone fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          success: false,
+          error: {
+            code: "CLONE_BUDGETS_FAILED",
+            message: "Failed to clone budgets",
+          },
+        },
+        { status: 500 }
+      )
+    );
+    const { result } = renderMutationHook(() =>
+      useCloneBudgetsToNextPeriodMutation()
+    );
+
+    await expect(
+      result.current.mutateAsync({
+        period: "week",
+        sourceStartDate: "2026-06-07",
+      })
+    ).rejects.toThrow("Failed to clone budgets");
   });
 
   it("suggests a budget through the AI route and unwraps the response", async () => {

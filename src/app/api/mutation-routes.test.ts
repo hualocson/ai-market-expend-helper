@@ -5,6 +5,7 @@ import {
 } from "@/lib/budget-appearance";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { POST as postBudgetCloneNextPeriod } from "./budgets/clone-next-period/route";
 import { POST as postBudgetTransfer } from "./budgets/transfer/route";
 import {
   DELETE as deleteExpense,
@@ -20,6 +21,7 @@ import {
 import { POST as postWeeklyBudget } from "./weekly-budgets/route";
 
 const mocks = vi.hoisted(() => ({
+  cloneBudgetsToNextPeriod: vi.fn(),
   createBudget: vi.fn(),
   createExpense: vi.fn(),
   deleteBudget: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock("@/db/queries", () => ({
 }));
 
 vi.mock("@/db/budget-queries", () => ({
+  cloneBudgetsToNextPeriod: mocks.cloneBudgetsToNextPeriod,
   createBudget: mocks.createBudget,
   deleteBudget: mocks.deleteBudget,
   setExpenseBudget: mocks.setExpenseBudget,
@@ -756,6 +759,104 @@ describe("REST mutation routes", () => {
       error: {
         code: "NOT_FOUND",
         message: "Budget not found",
+      },
+    });
+  });
+
+  it("clones budgets to the next period with a validated payload", async () => {
+    const payload = {
+      period: "week",
+      sourceStartDate: "2026-06-07",
+    };
+    const result = {
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 2,
+      createdCount: 2,
+      skippedCount: 0,
+      createdBudgetIds: [20, 21],
+    };
+    mocks.cloneBudgetsToNextPeriod.mockResolvedValue(result);
+
+    const response = await postBudgetCloneNextPeriod(
+      jsonRequest("http://localhost/api/budgets/clone-next-period", payload)
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: result,
+    });
+    expect(mocks.cloneBudgetsToNextPeriod).toHaveBeenCalledWith(payload);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/budgets");
+  });
+
+  it("returns 200 when clone succeeds without creating rows", async () => {
+    const result = {
+      period: "month",
+      sourceStartDate: "2026-06-01",
+      sourceEndDate: "2026-06-30",
+      targetStartDate: "2026-07-01",
+      targetEndDate: "2026-07-31",
+      sourceCount: 1,
+      createdCount: 0,
+      skippedCount: 1,
+      createdBudgetIds: [],
+    };
+    mocks.cloneBudgetsToNextPeriod.mockResolvedValue(result);
+
+    const response = await postBudgetCloneNextPeriod(
+      jsonRequest("http://localhost/api/budgets/clone-next-period", {
+        period: "month",
+        sourceStartDate: "2026-06-01",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: result,
+    });
+  });
+
+  it("returns 400 for an invalid clone payload", async () => {
+    const response = await postBudgetCloneNextPeriod(
+      jsonRequest("http://localhost/api/budgets/clone-next-period", {
+        period: "custom",
+        sourceStartDate: "2026-06-07",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload",
+      },
+    });
+    expect(mocks.cloneBudgetsToNextPeriod).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when budget clone fails unexpectedly", async () => {
+    mocks.cloneBudgetsToNextPeriod.mockRejectedValue(new Error("db failed"));
+
+    const response = await postBudgetCloneNextPeriod(
+      jsonRequest("http://localhost/api/budgets/clone-next-period", {
+        period: "week",
+        sourceStartDate: "2026-06-07",
+      })
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: {
+        code: "CLONE_BUDGETS_FAILED",
+        message: "Failed to clone budgets",
       },
     });
   });

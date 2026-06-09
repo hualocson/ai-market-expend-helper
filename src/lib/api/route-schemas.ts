@@ -7,6 +7,7 @@ import {
   DEFAULT_BUDGET_ICON,
 } from "@/lib/budget-appearance";
 import type {
+  BudgetCloneNextPeriodInput,
   BudgetCreateInput,
   BudgetUpdateInput,
   ExpenseBudgetInput,
@@ -66,6 +67,20 @@ export const budgetCreatePayloadSchema: z.ZodType<BudgetCreateInput> = z
   })
   .refine((input) => input.period !== "custom" || input.periodEndDate, {
     message: "Invalid date",
+  });
+
+export const budgetCloneNextPeriodPayloadSchema: z.ZodType<BudgetCloneNextPeriodInput> =
+  z.object({
+    period: z.enum(["week", "month"]),
+    sourceStartDate: isoDateSchema,
+    budgets: z
+      .array(
+        z.object({
+          sourceBudgetId: z.number().int().positive(),
+          amount: z.number().finite().nonnegative(),
+        })
+      )
+      .optional(),
   });
 
 export const budgetUpdatePayloadSchema: z.ZodType<BudgetUpdateInput> = z.object(

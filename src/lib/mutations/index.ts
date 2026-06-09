@@ -21,6 +21,8 @@ import { requestExpenseSync } from "@/lib/sync/expenses/scheduler";
 import { expenseSyncStore } from "@/lib/sync/expenses/store";
 import type { LocalExpense } from "@/lib/sync/expenses/types";
 import type {
+  BudgetCloneNextPeriodInput,
+  BudgetCloneNextPeriodResult,
   BudgetCreateInput,
   BudgetUpdateInput,
   ExpenseBudgetInput,
@@ -367,6 +369,23 @@ export const useCreateBudgetMutation = () => {
         method: "POST",
         body: input,
         fallbackError: "Failed to create budget",
+      }),
+    onSuccess: () => invalidateBudgetMutationQueries(queryClient),
+  });
+};
+
+export const useCloneBudgetsToNextPeriodMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: BudgetCloneNextPeriodInput) =>
+      fetchJsonMutation<
+        BudgetCloneNextPeriodResult,
+        BudgetCloneNextPeriodInput
+      >("/api/budgets/clone-next-period", {
+        method: "POST",
+        body: input,
+        fallbackError: "Failed to clone budgets",
       }),
     onSuccess: () => invalidateBudgetMutationQueries(queryClient),
   });
