@@ -355,9 +355,14 @@ describe("BudgetWeeklyBudgetsClient", () => {
       name: "Clone to next week",
     });
 
+    expect(actions).toHaveClass("h-11", "rounded-full", "p-1");
     expect(
       within(actions).getByRole("button", { name: "Add budget" })
     ).toBeInTheDocument();
+    expect(cloneButton).toHaveClass("size-9", "rounded-full");
+    expect(
+      within(actions).getByRole("button", { name: "Add budget" })
+    ).toHaveClass("size-9", "rounded-full");
     expect(cloneButton).toHaveTextContent("");
     expect(
       screen.getAllByRole("button", { name: "Clone to next week" })

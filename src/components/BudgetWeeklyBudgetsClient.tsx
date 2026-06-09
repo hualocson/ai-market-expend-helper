@@ -653,7 +653,7 @@ const BudgetWeeklyBudgetsClient = ({
         )}
       >
         <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-grow items-center gap-2">
+          <div className="flex min-w-0 grow items-center gap-2">
             <BudgetBadge
               icon={budget.icon}
               color={budget.color}
@@ -783,7 +783,7 @@ const BudgetWeeklyBudgetsClient = ({
           <div
             role="group"
             aria-label="Budget actions"
-            className="flex items-center gap-2"
+            className="ds-glass glass-border bg-background/30 flex h-11 items-center gap-1 rounded-full p-1"
           >
             {headerCloneAction ? (
               <Button
@@ -793,12 +793,12 @@ const BudgetWeeklyBudgetsClient = ({
                 variant="ghost"
                 size="icon"
                 aria-label={headerCloneAction.label}
-                className="text-muted-foreground hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_14%,transparent),0_10px_24px_color-mix(in_srgb,#000000_38%,transparent)] active:scale-[0.97] disabled:opacity-45"
+                className="text-muted-foreground hover:text-primary size-9 rounded-full bg-transparent shadow-none hover:bg-white/10! active:scale-[0.94] active:bg-white/20! disabled:opacity-45"
               >
                 {cloneBudgetMutation.isPending ? (
                   <Loader2 className="size-5 animate-spin" />
                 ) : (
-                  <CopyPlus className="size-5" />
+                  <CopyPlus className="size-4.5" />
                 )}
               </Button>
             ) : null}
@@ -807,9 +807,9 @@ const BudgetWeeklyBudgetsClient = ({
               variant="ghost"
               size="icon"
               aria-label="Add budget"
-              className="text-primary hover:text-primary size-12 rounded-full bg-white/10 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_18%,transparent),0_10px_24px_color-mix(in_srgb,#000000_45%,transparent)] active:scale-[0.97]"
+              className="text-primary hover:text-primary size-9 rounded-full bg-transparent shadow-none hover:bg-white/10! active:scale-[0.94] active:bg-white/20!"
             >
-              <Wallet className="size-5" />
+              <Wallet className="size-4.5" />
             </Button>
           </div>
         </div>
