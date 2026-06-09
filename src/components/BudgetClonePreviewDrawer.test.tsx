@@ -5,7 +5,14 @@ import type {
   BudgetCloneNextPeriodInput,
   BudgetListItem,
 } from "@/types/budget-weekly";
-import { render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -42,15 +49,34 @@ vi.mock("@/components/ui/drawer", () => {
         <div>{children}</div>
       </DrawerContext.Provider>
     ),
-    DrawerContent: ({ children }: { children: ReactNode }) => {
+    DrawerContent: ({
+      children,
+      className,
+    }: {
+      children: ReactNode;
+      className?: string;
+    }) => {
       const drawer = React.useContext(DrawerContext);
 
       if (!drawer.open) {
-        return null;
+        return (
+          <div
+            data-testid="clone-preview-drawer-placeholder"
+            className={className}
+            hidden
+          >
+            {children}
+          </div>
+        );
       }
 
       return (
-        <div role="dialog" aria-modal="true" data-testid="clone-preview-drawer">
+        <div
+          role="dialog"
+          aria-modal="true"
+          data-testid="clone-preview-drawer"
+          className={className}
+        >
           {children}
         </div>
       );
@@ -58,13 +84,27 @@ vi.mock("@/components/ui/drawer", () => {
     DrawerDescription: ({ children }: { children: ReactNode }) => (
       <div>{children}</div>
     ),
-    DrawerFooter: ({ children }: { children: ReactNode }) => (
-      <div>{children}</div>
+    DrawerFooter: ({
+      children,
+      className,
+    }: {
+      children: ReactNode;
+      className?: string;
+    }) => (
+      <div data-testid="clone-preview-drawer-footer" className={className}>
+        {children}
+      </div>
     ),
     DrawerHeader: ({ children }: { children: ReactNode }) => (
       <div>{children}</div>
     ),
-    DrawerTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+    DrawerTitle: ({
+      children,
+      className,
+    }: {
+      children: ReactNode;
+      className?: string;
+    }) => <h2 className={className}>{children}</h2>,
   };
 });
 
@@ -125,14 +165,72 @@ describe("BudgetClonePreviewDrawer", () => {
     const drawer = screen.getByTestId("clone-preview-drawer");
     expect(
       within(drawer).getByRole("heading", { name: "Clone budgets" })
-    ).toBeInTheDocument();
+    ).toHaveClass("text-left");
+    expect(drawer).toHaveClass(
+      "quick-expense-drawer-morph",
+      "h-dvh",
+      "rounded-none!"
+    );
+    expect(
+      within(drawer).queryByRole("button", { name: "Close clone drawer" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(drawer).queryByRole("button", { name: "Cancel clone" })
+    ).not.toBeInTheDocument();
+    expect(within(drawer).getByTestId("clone-preview-header")).toHaveClass(
+      "px-4",
+      "pb-3"
+    );
+    expect(within(drawer).getByTestId("clone-preview-header")).not.toHaveClass(
+      "pt-6"
+    );
     expect(within(drawer).getByText("07 Jun - 13 Jun")).toBeInTheDocument();
     expect(within(drawer).getByText("14 Jun - 20 Jun")).toBeInTheDocument();
     expect(within(drawer).getByText("Coffee")).toBeInTheDocument();
     expect(within(drawer).getByText("Exists")).toBeInTheDocument();
     expect(within(drawer).getAllByText("Groceries").length).toBeGreaterThan(0);
     expect(within(drawer).getByLabelText("Clone amount")).toHaveValue(
-      "1000000"
+      "1.000.000"
+    );
+    expect(within(drawer).getByLabelText("Clone amount")).toHaveClass(
+      "text-4xl",
+      "font-semibold",
+      "tracking-tight"
+    );
+    expect(
+      Array.from(drawer.querySelectorAll("div")).some((element) =>
+        element.classList.contains("bg-card/80")
+      )
+    ).toBe(false);
+
+    const scrollList = within(drawer).getByTestId("clone-budget-scroll-list");
+    expect(scrollList).toHaveClass("snap-x", "snap-mandatory", "scroll-px-4");
+
+    const selectedBudgetButton = within(drawer).getByRole("button", {
+      name: /groceries/i,
+    });
+    expect(selectedBudgetButton).toHaveClass(
+      "w-[65svw]",
+      "min-w-[65svw]",
+      "snap-start"
+    );
+    expect(selectedBudgetButton).toHaveClass("bg-emerald-400/14");
+    expect(
+      within(selectedBudgetButton).getByLabelText("Vietnamese dong")
+    ).toBeInTheDocument();
+
+    const footer = within(drawer).getByTestId("clone-preview-drawer-footer");
+    expect(footer).toHaveClass("flex-row", "gap-3");
+    const footerButtons = within(footer).getAllByRole("button");
+    expect(footerButtons.map((button) => button.textContent)).toEqual([
+      "Cancel",
+      "Confirm clone",
+    ]);
+    expect(
+      within(footer).getByRole("button", { name: "Confirm clone" })
+    ).toHaveClass("flex-1");
+    expect(within(footer).getByRole("button", { name: "Cancel" })).toHaveClass(
+      "flex-1"
     );
   });
 
@@ -162,6 +260,172 @@ describe("BudgetClonePreviewDrawer", () => {
     });
   });
 
+  it("scrolls the selected budget to the left of the horizontal list", async () => {
+    const user = userEvent.setup();
+    const scrollTo = vi.fn();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={{
+          ...preview,
+          budgets: [
+            ...preview.budgets,
+            budget({
+              id: 3,
+              name: "Travel",
+              amount: 750_000,
+              color: "sky",
+            }),
+          ],
+        }}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    const list = screen.getByTestId("clone-budget-scroll-list");
+    const travelButton = screen.getByRole("button", { name: /travel/i });
+
+    Object.defineProperty(list, "scrollLeft", {
+      configurable: true,
+      value: 24,
+      writable: true,
+    });
+    Object.defineProperty(list, "scrollTo", {
+      configurable: true,
+      value: scrollTo,
+    });
+
+    vi.spyOn(list, "getBoundingClientRect").mockReturnValue({
+      left: 20,
+    } as DOMRect);
+    const getComputedStyleSpy = vi
+      .spyOn(window, "getComputedStyle")
+      .mockReturnValue({
+        paddingLeft: "16px",
+      } as CSSStyleDeclaration);
+    vi.spyOn(travelButton, "getBoundingClientRect").mockReturnValue({
+      left: 190,
+    } as DOMRect);
+
+    await user.click(travelButton);
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalledWith({
+        behavior: "smooth",
+        left: 178,
+      });
+    });
+
+    getComputedStyleSpy.mockRestore();
+  });
+
+  it("focuses the amount input when selecting a budget", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BudgetClonePreviewDrawer
+        preview={{
+          ...preview,
+          budgets: [
+            ...preview.budgets,
+            budget({
+              id: 3,
+              name: "Travel",
+              amount: 750_000,
+              color: "sky",
+            }),
+          ],
+        }}
+        isPending={false}
+        onOpenChange={vi.fn()}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Clone amount");
+
+    expect(amountInput).not.toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: /travel/i }));
+
+    await waitFor(() => {
+      expect(amountInput).toHaveFocus();
+    });
+  });
+
+  it("selects the nearest budget when the horizontal list is scrolled", async () => {
+    vi.useFakeTimers();
+    let getComputedStyleSpy:
+      | ReturnType<typeof vi.spyOn<typeof window, "getComputedStyle">>
+      | undefined;
+
+    try {
+      render(
+        <BudgetClonePreviewDrawer
+          preview={{
+            ...preview,
+            budgets: [
+              ...preview.budgets,
+              budget({
+                id: 3,
+                name: "Travel",
+                amount: 750_000,
+                color: "sky",
+              }),
+            ],
+          }}
+          isPending={false}
+          onOpenChange={vi.fn()}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+
+      const list = screen.getByTestId("clone-budget-scroll-list");
+      const groceriesButton = screen.getByRole("button", {
+        name: /groceries/i,
+      });
+      const travelButton = screen.getByRole("button", { name: /travel/i });
+      const amountInput = screen.getByLabelText("Clone amount");
+
+      getComputedStyleSpy = vi
+        .spyOn(window, "getComputedStyle")
+        .mockReturnValue({
+          paddingLeft: "16px",
+        } as CSSStyleDeclaration);
+
+      vi.spyOn(list, "getBoundingClientRect").mockReturnValue({
+        left: 20,
+      } as DOMRect);
+      vi.spyOn(groceriesButton, "getBoundingClientRect").mockReturnValue({
+        left: 180,
+      } as DOMRect);
+      vi.spyOn(travelButton, "getBoundingClientRect").mockReturnValue({
+        left: 38,
+      } as DOMRect);
+
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+
+      fireEvent.scroll(list);
+
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(travelButton).toHaveAttribute("aria-pressed", "true");
+      expect(amountInput).toHaveValue("750.000");
+    } finally {
+      getComputedStyleSpy?.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("edits the selected clone amount and submits cloneable budgets", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn<(input: BudgetCloneNextPeriodInput) => void>();
@@ -180,6 +444,7 @@ describe("BudgetClonePreviewDrawer", () => {
     const amountInput = screen.getByLabelText("Clone amount");
     await user.clear(amountInput);
     await user.type(amountInput, "1250000");
+    expect(amountInput).toHaveValue("1.250.000");
     await user.click(screen.getByRole("button", { name: "Confirm clone" }));
 
     expect(onConfirm).toHaveBeenCalledWith({
@@ -225,7 +490,7 @@ describe("BudgetClonePreviewDrawer", () => {
 
     expect(screen.getByRole("button", { name: /coffee/i })).toBeDisabled();
     expect(screen.getByText("Exists")).toBeInTheDocument();
-    expect(screen.getByLabelText("Clone amount")).toHaveValue("1000000");
+    expect(screen.getByLabelText("Clone amount")).toHaveValue("1.000.000");
   });
 
   it("disables confirm for an empty amount", async () => {
@@ -249,9 +514,9 @@ describe("BudgetClonePreviewDrawer", () => {
     ).toBeDisabled();
   });
 
-  it("keeps a pasted negative amount invalid", async () => {
+  it("normalizes a pasted negative amount like the quick expense amount input", async () => {
     const user = userEvent.setup();
-    const onConfirm = vi.fn();
+    const onConfirm = vi.fn<(input: BudgetCloneNextPeriodInput) => void>();
 
     render(
       <BudgetClonePreviewDrawer
@@ -267,25 +532,22 @@ describe("BudgetClonePreviewDrawer", () => {
     await user.clear(amountInput);
     await user.paste("-100");
 
-    expect(amountInput).toHaveValue("-100");
-    expect(amountInput).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByText("Enter a valid clone amount.")).toHaveAttribute(
-      "id",
-      "clone-budget-amount-error"
-    );
-    expect(amountInput).toHaveAccessibleDescription(
-      "Enter a valid clone amount."
-    );
+    expect(amountInput).toHaveValue("100");
+    expect(amountInput).not.toHaveAttribute("aria-invalid");
     expect(
       screen.getByRole("button", { name: "Confirm clone" })
-    ).toBeDisabled();
+    ).not.toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Confirm clone" }));
 
-    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onConfirm).toHaveBeenCalledWith({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [{ sourceBudgetId: 2, amount: 100 }],
+    });
   });
 
-  it("keeps a pasted non-finite amount invalid", async () => {
+  it("normalizes a pasted non-finite-looking amount", async () => {
     const user = userEvent.setup();
 
     render(
@@ -302,13 +564,13 @@ describe("BudgetClonePreviewDrawer", () => {
     await user.clear(amountInput);
     await user.paste("1e309");
 
-    expect(amountInput).toHaveValue("1e309");
+    expect(amountInput).toHaveValue("1.309");
     expect(
       screen.getByRole("button", { name: "Confirm clone" })
-    ).toBeDisabled();
+    ).not.toBeDisabled();
   });
 
-  it("does not render content when there is no preview", () => {
+  it("keeps placeholder content mounted when there is no preview", () => {
     render(
       <BudgetClonePreviewDrawer
         preview={null}
@@ -322,5 +584,21 @@ describe("BudgetClonePreviewDrawer", () => {
     expect(
       screen.queryByTestId("clone-preview-drawer")
     ).not.toBeInTheDocument();
+
+    const placeholder = screen.getByTestId("clone-preview-drawer-placeholder");
+    expect(placeholder).toHaveClass(
+      "quick-expense-drawer-morph",
+      "h-dvh",
+      "rounded-none!"
+    );
+    expect(
+      within(placeholder).getByText("No source period")
+    ).toBeInTheDocument();
+    expect(
+      within(placeholder).getByText("No target period")
+    ).toBeInTheDocument();
+    expect(
+      within(placeholder).getByText("No clone preview is available.")
+    ).toBeInTheDocument();
   });
 });
