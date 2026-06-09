@@ -5,14 +5,18 @@ import { useEffect, useMemo, useState } from "react";
 
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
-import { useDeleteBudgetMutation } from "@/lib/mutations";
+import {
+  useCloneBudgetsToNextPeriodMutation,
+  useDeleteBudgetMutation,
+} from "@/lib/mutations";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
-  BudgetAssignedTransaction,
-  BudgetListItem,
-  BudgetTransactionsResponse,
+  type BudgetAssignedTransaction,
+  type BudgetCloneNextPeriodResult,
+  type BudgetListItem,
+  type BudgetTransactionsResponse,
 } from "@/types/budget-weekly";
 import {
   type InfiniteData,
@@ -22,6 +26,7 @@ import {
 } from "@tanstack/react-query";
 import {
   ArrowDown,
+  CopyPlus,
   Loader2,
   Plus,
   SaveIcon,
@@ -151,6 +156,34 @@ const formatWeekPillLabel = (weekKey: string) => {
   return parsed.isValid() ? parsed.format("DD MMM") : weekKey;
 };
 
+const getNextWeekKey = (weekKey: string) =>
+  dayjs(weekKey, "YYYY-MM-DD", true).add(7, "day").format("YYYY-MM-DD");
+
+const getNextMonthKey = (monthKey: string) =>
+  monthKeyToDate(monthKey).add(1, "month").format("YYYY-MM");
+
+const formatCloneToast = (
+  result: BudgetCloneNextPeriodResult,
+  targetLabel: "next week" | "next month"
+) => {
+  if (result.sourceCount === 0) {
+    return `No budgets to clone from this ${result.period}.`;
+  }
+
+  if (result.createdCount === 0) {
+    return `All ${result.sourceCount} budgets already existed ${targetLabel}.`;
+  }
+
+  const clonedLabel =
+    result.createdCount === 1
+      ? "1 budget cloned"
+      : `${result.createdCount} budgets cloned`;
+  const skippedLabel =
+    result.skippedCount > 0 ? ` ${result.skippedCount} already existed.` : "";
+
+  return `${clonedLabel} to ${targetLabel}.${skippedLabel}`;
+};
+
 const formatBudgetPeriodRange = (budget: BudgetListItem) => {
   const start = dayjs(budget.periodStartDate, "YYYY-MM-DD", true);
   const end = budget.periodEndDate
@@ -236,12 +269,15 @@ const BudgetWeeklyBudgetsClient = ({
   };
 
   const deleteBudgetMutation = useDeleteBudgetMutation();
+  const cloneBudgetMutation = useCloneBudgetsToNextPeriodMutation();
 
   const currentMonthKey = dayjs().format("YYYY-MM");
   const [monthFilter, setMonthFilter] = useState<string>(currentMonthKey);
   const [activeWeekKey, setActiveWeekKey] = useState<string | null>(
     weekStartDate
   );
+  const [pendingMonthKeys, setPendingMonthKeys] = useState<string[]>([]);
+  const [pendingWeekKeys, setPendingWeekKeys] = useState<string[]>([]);
 
   const budgetTransactionsQuery = queries.budgets.transactions(
     detailBudget?.id ?? 0,
@@ -290,11 +326,12 @@ const BudgetWeeklyBudgetsClient = ({
         }
       }
     });
+    pendingMonthKeys.forEach((key) => keys.add(key));
     keys.add(currentMonthKey);
     return Array.from(keys).sort(
       (a, b) => monthKeyToDate(b).valueOf() - monthKeyToDate(a).valueOf()
     );
-  }, [budgets, currentMonthKey]);
+  }, [budgets, currentMonthKey, pendingMonthKeys]);
 
   const monthOptions = useMemo(
     () => [
@@ -377,6 +414,12 @@ const BudgetWeeklyBudgetsClient = ({
       grouped.set(key, list);
     });
 
+    pendingWeekKeys.forEach((key) => {
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+    });
+
     return Array.from(grouped.entries())
       .sort(([a], [b]) => dayjs(b).valueOf() - dayjs(a).valueOf())
       .slice(0, WEEKLY_FILTER_LIMIT)
@@ -390,7 +433,7 @@ const BudgetWeeklyBudgetsClient = ({
           summary: summarizeBudgets(sorted),
         };
       });
-  }, [weeklyBudgets]);
+  }, [pendingWeekKeys, weeklyBudgets]);
 
   const activeWeekGroup = useMemo(
     () => weeklyGroups.find((group) => group.key === activeWeekKey) ?? null,
@@ -447,6 +490,54 @@ const BudgetWeeklyBudgetsClient = ({
   const openEdit = (budget: BudgetListItem) => {
     setEditingBudget(budget);
     setFormOpen(true);
+  };
+
+  const handleCloneWeekly = async () => {
+    if (!activeWeekGroup || cloneBudgetMutation.isPending) {
+      return;
+    }
+
+    const targetWeekKey = getNextWeekKey(activeWeekGroup.key);
+
+    try {
+      const result = await cloneBudgetMutation.mutateAsync({
+        period: "week",
+        sourceStartDate: activeWeekGroup.key,
+      });
+      setPendingWeekKeys((keys) =>
+        keys.includes(targetWeekKey) ? keys : [...keys, targetWeekKey]
+      );
+      setActiveTab("week");
+      setActiveWeekKey(targetWeekKey);
+      toast.success(formatCloneToast(result, "next week"));
+    } catch (cloneError) {
+      console.error(cloneError);
+      toast.error("Failed to clone budgets.");
+    }
+  };
+
+  const handleCloneMonthly = async () => {
+    if (!activeMonthKey || cloneBudgetMutation.isPending) {
+      return;
+    }
+
+    const targetMonthKey = getNextMonthKey(activeMonthKey);
+
+    try {
+      const result = await cloneBudgetMutation.mutateAsync({
+        period: "month",
+        sourceStartDate: monthKeyToDate(activeMonthKey).format("YYYY-MM-DD"),
+      });
+      setPendingMonthKeys((keys) =>
+        keys.includes(targetMonthKey) ? keys : [...keys, targetMonthKey]
+      );
+      setActiveTab("month");
+      setMonthFilter(targetMonthKey);
+      toast.success(formatCloneToast(result, "next month"));
+    } catch (cloneError) {
+      console.error(cloneError);
+      toast.error("Failed to clone budgets.");
+    }
   };
 
   const handleDelete = async () => {
@@ -605,6 +696,31 @@ const BudgetWeeklyBudgetsClient = ({
     </div>
   );
 
+  const renderCloneAction = ({
+    disabled,
+    label,
+    onClick,
+  }: {
+    disabled: boolean;
+    label: string;
+    onClick: () => void;
+  }) => (
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={onClick}
+      disabled={disabled}
+      className="bg-muted/45 hover:bg-muted/65 h-11 w-full rounded-2xl text-sm font-semibold"
+    >
+      {cloneBudgetMutation.isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <CopyPlus className="h-4 w-4" />
+      )}
+      {label}
+    </Button>
+  );
+
   const errorMessage =
     error instanceof Error ? error.message : "Failed to load budgets.";
   const showErrorFallback = isError;
@@ -726,6 +842,16 @@ const BudgetWeeklyBudgetsClient = ({
                     : "All months"
                 )}
 
+                {activeMonthKey
+                  ? renderCloneAction({
+                      disabled:
+                        cloneBudgetMutation.isPending ||
+                        filteredMonthlyBudgets.length === 0,
+                      label: "Clone to next month",
+                      onClick: handleCloneMonthly,
+                    })
+                  : null}
+
                 {filteredMonthlyBudgets.length ? (
                   <div className="flex flex-col gap-2.5">
                     {filteredMonthlyBudgets.map(renderBudgetItem)}
@@ -754,6 +880,16 @@ const BudgetWeeklyBudgetsClient = ({
                           "Weekly summary",
                           activeWeekGroup.label
                         )
+                      : null}
+
+                    {activeWeekGroup
+                      ? renderCloneAction({
+                          disabled:
+                            cloneBudgetMutation.isPending ||
+                            activeWeekGroup.budgets.length === 0,
+                          label: "Clone to next week",
+                          onClick: handleCloneWeekly,
+                        })
                       : null}
 
                     {activeWeekGroup?.budgets.length ? (

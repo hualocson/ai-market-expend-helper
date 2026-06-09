@@ -1,6 +1,9 @@
 import React, { type ReactNode } from "react";
 
-import { render } from "@testing-library/react";
+import { Category } from "@/enums";
+import type { BudgetListItem } from "@/types/budget-weekly";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import BudgetWeeklyBudgetsClient from "./BudgetWeeklyBudgetsClient";
@@ -12,6 +15,18 @@ const queryMocks = vi.hoisted(() => ({
   useSuspenseQuery: vi.fn(),
 }));
 
+const mutationMocks = vi.hoisted(() => ({
+  cloneBudgetMutateAsync: vi.fn(),
+  createBudgetMutateAsync: vi.fn(),
+  deleteBudgetMutateAsync: vi.fn(),
+  updateBudgetMutateAsync: vi.fn(),
+}));
+
+const toastMocks = vi.hoisted(() => ({
+  error: vi.fn(),
+  success: vi.fn(),
+}));
+
 vi.mock("@tanstack/react-query", () => ({
   useInfiniteQuery: queryMocks.useInfiniteQuery,
   useQuery: queryMocks.useQuery,
@@ -19,9 +34,23 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/mutations", () => ({
-  useCreateBudgetMutation: () => ({ mutateAsync: vi.fn() }),
-  useDeleteBudgetMutation: () => ({ mutateAsync: vi.fn() }),
-  useUpdateBudgetMutation: () => ({ mutateAsync: vi.fn() }),
+  useCloneBudgetsToNextPeriodMutation: () => ({
+    isPending: false,
+    mutateAsync: mutationMocks.cloneBudgetMutateAsync,
+  }),
+  useCreateBudgetMutation: () => ({
+    mutateAsync: mutationMocks.createBudgetMutateAsync,
+  }),
+  useDeleteBudgetMutation: () => ({
+    mutateAsync: mutationMocks.deleteBudgetMutateAsync,
+  }),
+  useUpdateBudgetMutation: () => ({
+    mutateAsync: mutationMocks.updateBudgetMutateAsync,
+  }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: toastMocks,
 }));
 
 vi.mock("@/components/ui/button", () => ({
@@ -32,6 +61,68 @@ vi.mock("@/components/ui/button", () => ({
     <button {...props}>{children}</button>
   ),
 }));
+
+vi.mock("@/components/ui/select", () => {
+  const SelectContext = React.createContext<{
+    onValueChange?: (value: string) => void;
+    value?: string;
+  }>({});
+
+  return {
+    Select: ({
+      children,
+      onValueChange,
+      value,
+    }: {
+      children: ReactNode;
+      onValueChange?: (value: string) => void;
+      value?: string;
+    }) => (
+      <SelectContext.Provider value={{ onValueChange, value }}>
+        <div>{children}</div>
+      </SelectContext.Provider>
+    ),
+    SelectContent: ({ children }: { children: ReactNode }) => (
+      <div>{children}</div>
+    ),
+    SelectItem: ({
+      children,
+      value,
+    }: {
+      children: ReactNode;
+      value: string;
+    }) => {
+      const select = React.useContext(SelectContext);
+
+      return (
+        <button
+          type="button"
+          role="option"
+          aria-selected={select.value === value}
+          onClick={() => select.onValueChange?.(value)}
+        >
+          {children}
+        </button>
+      );
+    },
+    SelectTrigger: ({
+      children,
+      "aria-label": ariaLabel,
+    }: {
+      children: ReactNode;
+      "aria-label"?: string;
+    }) => (
+      <button type="button" role="combobox" aria-label={ariaLabel}>
+        {children}
+      </button>
+    ),
+    SelectValue: ({ placeholder }: { placeholder?: string }) => {
+      const select = React.useContext(SelectContext);
+
+      return <span>{select.value ?? placeholder}</span>;
+    },
+  };
+});
 
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -90,12 +181,68 @@ vi.mock("@/components/PaidByIcon", () => ({
 
 const originalGlobalReact = globalThis.React;
 
+const overviewWithBudgets = {
+  summary: {
+    totalBudget: 3_200_000,
+    totalSpent: 0,
+    totalRemaining: 3_200_000,
+    budgetCount: 3,
+  },
+  budgets: [
+    {
+      id: 1,
+      name: "Coffee",
+      icon: "☕",
+      color: "lime",
+      category: Category.FOOD,
+      amount: 200_000,
+      spent: 0,
+      remaining: 200_000,
+      period: "week",
+      periodStartDate: "2026-06-07",
+      periodEndDate: "2026-06-13",
+    },
+    {
+      id: 2,
+      name: "Groceries",
+      icon: "🛒",
+      color: "emerald",
+      category: Category.FOOD,
+      amount: 1_000_000,
+      spent: 0,
+      remaining: 1_000_000,
+      period: "week",
+      periodStartDate: "2026-06-07",
+      periodEndDate: "2026-06-13",
+    },
+    {
+      id: 3,
+      name: "Rent",
+      icon: "🏠",
+      color: "sky",
+      category: Category.HOME,
+      amount: 2_000_000,
+      spent: 0,
+      remaining: 2_000_000,
+      period: "month",
+      periodStartDate: "2020-01-01",
+      periodEndDate: "2020-01-31",
+    },
+  ] satisfies BudgetListItem[],
+};
+
 beforeEach(() => {
   globalThis.React = React;
+  mutationMocks.cloneBudgetMutateAsync.mockReset();
+  mutationMocks.createBudgetMutateAsync.mockReset();
+  mutationMocks.deleteBudgetMutateAsync.mockReset();
+  mutationMocks.updateBudgetMutateAsync.mockReset();
   queryMocks.refetchOverview.mockReset();
   queryMocks.useInfiniteQuery.mockReset();
   queryMocks.useQuery.mockReset();
   queryMocks.useSuspenseQuery.mockReset();
+  toastMocks.error.mockReset();
+  toastMocks.success.mockReset();
   queryMocks.useSuspenseQuery.mockReturnValue({
     data: { budgets: [] },
     error: null,
@@ -129,5 +276,152 @@ describe("BudgetWeeklyBudgetsClient", () => {
 
     expect(queryMocks.useSuspenseQuery).toHaveBeenCalled();
     expect(queryMocks.useQuery).not.toHaveBeenCalled();
+  });
+
+  it("clones the selected weekly group and switches to the target week", async () => {
+    const user = userEvent.setup();
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+    mutationMocks.cloneBudgetMutateAsync.mockResolvedValue({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 2,
+      createdCount: 2,
+      skippedCount: 0,
+      createdBudgetIds: [10, 11],
+    });
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Clone to next week" })
+    );
+
+    expect(mutationMocks.cloneBudgetMutateAsync).toHaveBeenCalledWith({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+    });
+    expect(toastMocks.success).toHaveBeenCalledWith(
+      "2 budgets cloned to next week."
+    );
+    expect(
+      screen.getByRole("option", { name: "14 Jun - 20 Jun", selected: true })
+    ).toBeInTheDocument();
+  });
+
+  it("shows skipped count after weekly clone conflicts", async () => {
+    const user = userEvent.setup();
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+    mutationMocks.cloneBudgetMutateAsync.mockResolvedValue({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 2,
+      createdCount: 1,
+      skippedCount: 1,
+      createdBudgetIds: [10],
+    });
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+    await user.click(
+      screen.getByRole("button", { name: "Clone to next week" })
+    );
+
+    expect(toastMocks.success).toHaveBeenCalledWith(
+      "1 budget cloned to next week. 1 already existed."
+    );
+  });
+
+  it("clones a selected monthly group and switches to the target month", async () => {
+    const user = userEvent.setup();
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+    mutationMocks.cloneBudgetMutateAsync.mockResolvedValue({
+      period: "month",
+      sourceStartDate: "2020-01-01",
+      sourceEndDate: "2020-01-31",
+      targetStartDate: "2020-02-01",
+      targetEndDate: "2020-02-29",
+      sourceCount: 1,
+      createdCount: 1,
+      skippedCount: 0,
+      createdBudgetIds: [30],
+    });
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+    await user.click(screen.getByRole("option", { name: "Monthly" }));
+    await user.click(screen.getByRole("option", { name: "Jan 2020" }));
+    await user.click(
+      screen.getByRole("button", { name: "Clone to next month" })
+    );
+
+    expect(mutationMocks.cloneBudgetMutateAsync).toHaveBeenCalledWith({
+      period: "month",
+      sourceStartDate: "2020-01-01",
+    });
+    expect(toastMocks.success).toHaveBeenCalledWith(
+      "1 budget cloned to next month."
+    );
+    expect(
+      screen.getByRole("option", { name: "Feb 2020" })
+    ).toBeInTheDocument();
+  });
+
+  it("does not show clone action on custom tab", async () => {
+    const user = userEvent.setup();
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+    await user.click(screen.getByRole("option", { name: "Custom" }));
+
+    expect(
+      screen.queryByRole("button", { name: /clone to next/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("leaves period unchanged and shows an error toast when clone fails", async () => {
+    const user = userEvent.setup();
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+    mutationMocks.cloneBudgetMutateAsync.mockRejectedValue(
+      new Error("Failed to clone budgets")
+    );
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+    await user.click(
+      screen.getByRole("button", { name: "Clone to next week" })
+    );
+
+    expect(toastMocks.error).toHaveBeenCalledWith("Failed to clone budgets.");
+    expect(
+      screen.getByRole("option", { name: "07 Jun - 13 Jun", selected: true })
+    ).toBeInTheDocument();
   });
 });
