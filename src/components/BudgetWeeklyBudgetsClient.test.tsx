@@ -245,9 +245,9 @@ const originalGlobalReact = globalThis.React;
 
 const overviewWithBudgets = {
   summary: {
-    totalBudget: 3_200_000,
+    totalBudget: 5_200_000,
     totalSpent: 0,
-    totalRemaining: 3_200_000,
+    totalRemaining: 5_200_000,
     budgetCount: 3,
   },
   budgets: [
@@ -283,9 +283,9 @@ const overviewWithBudgets = {
       icon: "🏠",
       color: "sky",
       category: Category.HOME,
-      amount: 2_000_000,
+      amount: 4_000_000,
       spent: 0,
-      remaining: 2_000_000,
+      remaining: 4_000_000,
       period: "month",
       periodStartDate: "2020-01-01",
       periodEndDate: "2020-01-31",
@@ -393,14 +393,16 @@ describe("BudgetWeeklyBudgetsClient", () => {
     expect(mutationMocks.cloneBudgetMutateAsync).not.toHaveBeenCalled();
     const preview = screen.getByTestId("clone-preview-drawer");
     expect(
-      within(preview).getByRole("heading", { name: "Preview budget clone" })
+      within(preview).getByRole("heading", { name: "Clone budgets" })
     ).toBeInTheDocument();
     expect(within(preview).getByText("07 Jun - 13 Jun")).toBeInTheDocument();
     expect(within(preview).getByText("14 Jun - 20 Jun")).toBeInTheDocument();
     expect(within(preview).getByText("Coffee")).toBeInTheDocument();
-    expect(within(preview).getByText("Already exists")).toBeInTheDocument();
-    expect(within(preview).getByText("Groceries")).toBeInTheDocument();
-    expect(within(preview).getByText("Will clone")).toBeInTheDocument();
+    expect(within(preview).getByText("Exists")).toBeInTheDocument();
+    expect(within(preview).getAllByText("Groceries").length).toBeGreaterThan(0);
+    expect(
+      within(preview).getByText("Total clone amount is")
+    ).toBeInTheDocument();
   });
 
   it("clones the selected weekly group after confirmation and switches to the target week", async () => {
@@ -433,6 +435,10 @@ describe("BudgetWeeklyBudgetsClient", () => {
     expect(mutationMocks.cloneBudgetMutateAsync).toHaveBeenCalledWith({
       period: "week",
       sourceStartDate: "2026-06-07",
+      budgets: [
+        { sourceBudgetId: 1, amount: 200_000 },
+        { sourceBudgetId: 2, amount: 1_000_000 },
+      ],
     });
     expect(toastMocks.success).toHaveBeenCalledWith(
       "2 budgets cloned to next week."
@@ -440,6 +446,50 @@ describe("BudgetWeeklyBudgetsClient", () => {
     expect(
       screen.getByRole("option", { name: "14 Jun - 20 Jun", selected: true })
     ).toBeInTheDocument();
+  });
+
+  it("clones with edited budget amounts from the preview drawer", async () => {
+    const user = userEvent.setup();
+    queryMocks.useSuspenseQuery.mockReturnValue({
+      data: overviewWithBudgets,
+      error: null,
+      isError: false,
+      refetch: queryMocks.refetchOverview,
+    });
+    mutationMocks.cloneBudgetMutateAsync.mockResolvedValue({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      sourceEndDate: "2026-06-13",
+      targetStartDate: "2026-06-14",
+      targetEndDate: "2026-06-20",
+      sourceCount: 2,
+      createdCount: 2,
+      skippedCount: 0,
+      createdBudgetIds: [10, 11],
+    });
+
+    render(<BudgetWeeklyBudgetsClient weekStartDate="2026-06-07" />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Clone to next week" })
+    );
+    const preview = screen.getByTestId("clone-preview-drawer");
+    await user.click(
+      within(preview).getByRole("button", { name: /budget: groceries/i })
+    );
+    const amountInput = screen.getByLabelText("Clone amount");
+    await user.clear(amountInput);
+    await user.type(amountInput, "1500000");
+    await user.click(screen.getByRole("button", { name: "Confirm clone" }));
+
+    expect(mutationMocks.cloneBudgetMutateAsync).toHaveBeenCalledWith({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [
+        { sourceBudgetId: 1, amount: 200_000 },
+        { sourceBudgetId: 2, amount: 1_500_000 },
+      ],
+    });
   });
 
   it("shows skipped count after weekly clone conflicts", async () => {
@@ -504,6 +554,7 @@ describe("BudgetWeeklyBudgetsClient", () => {
     expect(mutationMocks.cloneBudgetMutateAsync).toHaveBeenCalledWith({
       period: "month",
       sourceStartDate: "2020-01-01",
+      budgets: [{ sourceBudgetId: 3, amount: 4_000_000 }],
     });
     expect(toastMocks.success).toHaveBeenCalledWith(
       "1 budget cloned to next month."

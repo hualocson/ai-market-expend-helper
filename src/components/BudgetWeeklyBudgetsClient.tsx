@@ -14,6 +14,7 @@ import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
 import { getWeekRange } from "@/lib/week";
 import {
   type BudgetAssignedTransaction,
+  type BudgetCloneNextPeriodInput,
   type BudgetCloneNextPeriodResult,
   type BudgetClonePeriod,
   type BudgetListItem,
@@ -561,7 +562,7 @@ const BudgetWeeklyBudgetsClient = ({
     });
   };
 
-  const handleConfirmClone = async () => {
+  const handleConfirmClone = async (input: BudgetCloneNextPeriodInput) => {
     if (!clonePreview || cloneBudgetMutation.isPending) {
       return;
     }
@@ -569,10 +570,7 @@ const BudgetWeeklyBudgetsClient = ({
     const targetKey = clonePreview.targetNavigationKey;
 
     try {
-      const result = await cloneBudgetMutation.mutateAsync({
-        period: clonePreview.period,
-        sourceStartDate: clonePreview.sourceStartDate,
-      });
+      const result = await cloneBudgetMutation.mutateAsync(input);
 
       if (clonePreview.period === "week") {
         setPendingWeekKeys((keys) =>

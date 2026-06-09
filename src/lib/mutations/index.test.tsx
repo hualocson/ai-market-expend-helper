@@ -448,6 +448,7 @@ describe("mutation hooks", () => {
         result.current.mutateAsync({
           period: "week",
           sourceStartDate: "2026-06-07",
+          budgets: [{ sourceBudgetId: 1, amount: 250_000 }],
         })
       ).resolves.toEqual(responsePayload);
     });
@@ -459,6 +460,7 @@ describe("mutation hooks", () => {
         body: JSON.stringify({
           period: "week",
           sourceStartDate: "2026-06-07",
+          budgets: [{ sourceBudgetId: 1, amount: 250_000 }],
         }),
       })
     );
