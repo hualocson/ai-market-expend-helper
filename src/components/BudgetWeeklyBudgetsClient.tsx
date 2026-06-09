@@ -15,6 +15,7 @@ import { getWeekRange } from "@/lib/week";
 import {
   type BudgetAssignedTransaction,
   type BudgetCloneNextPeriodResult,
+  type BudgetClonePeriod,
   type BudgetListItem,
   type BudgetTransactionsResponse,
 } from "@/types/budget-weekly";
@@ -61,6 +62,10 @@ import {
 } from "@/components/ui/select";
 
 import BudgetBadge from "@/components/BudgetBadge";
+import BudgetClonePreviewDrawer, {
+  type BudgetClonePreview,
+  normalizeClonePreviewName,
+} from "@/components/BudgetClonePreviewDrawer";
 import BudgetRemainingChart from "@/components/BudgetRemainingChart";
 import BudgetTransferDrawer from "@/components/BudgetTransferDrawer";
 import ExpenseItemIcon from "@/components/ExpenseItemIcon";
@@ -247,6 +252,9 @@ const BudgetWeeklyBudgetsClient = ({
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clonePreview, setClonePreview] = useState<BudgetClonePreview | null>(
+    null
+  );
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferDestination, setTransferDestination] =
     useState<BudgetListItem | null>(null);
@@ -465,6 +473,26 @@ const BudgetWeeklyBudgetsClient = ({
     totalSpent: 0,
   };
 
+  const getExistingTargetBudgetNames = (
+    period: BudgetClonePeriod,
+    targetKey: string
+  ) =>
+    new Set(
+      budgets
+        .filter((budget) => {
+          if (budget.period !== period) {
+            return false;
+          }
+
+          if (period === "week") {
+            return getWeekKey(budget.periodStartDate) === targetKey;
+          }
+
+          return getMonthKey(budget.periodStartDate) === targetKey;
+        })
+        .map((budget) => normalizeClonePreviewName(budget.name))
+    );
+
   useEffect(() => {
     if (!weeklyGroups.length) {
       setActiveWeekKey(null);
@@ -492,48 +520,76 @@ const BudgetWeeklyBudgetsClient = ({
     setFormOpen(true);
   };
 
-  const handleCloneWeekly = async () => {
+  const handleCloneWeekly = () => {
     if (!activeWeekGroup || cloneBudgetMutation.isPending) {
       return;
     }
 
     const targetWeekKey = getNextWeekKey(activeWeekGroup.key);
 
-    try {
-      const result = await cloneBudgetMutation.mutateAsync({
-        period: "week",
-        sourceStartDate: activeWeekGroup.key,
-      });
-      setPendingWeekKeys((keys) =>
-        keys.includes(targetWeekKey) ? keys : [...keys, targetWeekKey]
-      );
-      setActiveTab("week");
-      setActiveWeekKey(targetWeekKey);
-      toast.success(formatCloneToast(result, "next week"));
-    } catch (cloneError) {
-      console.error(cloneError);
-      toast.error("Failed to clone budgets.");
-    }
+    setClonePreview({
+      period: "week",
+      sourceStartDate: activeWeekGroup.key,
+      sourceLabel: activeWeekGroup.label,
+      targetLabel: formatWeekLabel(targetWeekKey),
+      targetNavigationKey: targetWeekKey,
+      targetToastLabel: "next week",
+      budgets: activeWeekGroup.budgets,
+      existingBudgetNames: getExistingTargetBudgetNames("week", targetWeekKey),
+    });
   };
 
-  const handleCloneMonthly = async () => {
+  const handleCloneMonthly = () => {
     if (!activeMonthKey || cloneBudgetMutation.isPending) {
       return;
     }
 
     const targetMonthKey = getNextMonthKey(activeMonthKey);
 
+    setClonePreview({
+      period: "month",
+      sourceStartDate: monthKeyToDate(activeMonthKey).format("YYYY-MM-DD"),
+      sourceLabel: formatMonthLabel(activeMonthKey),
+      targetLabel: formatMonthLabel(targetMonthKey),
+      targetNavigationKey: targetMonthKey,
+      targetToastLabel: "next month",
+      budgets: filteredMonthlyBudgets,
+      existingBudgetNames: getExistingTargetBudgetNames(
+        "month",
+        targetMonthKey
+      ),
+    });
+  };
+
+  const handleConfirmClone = async () => {
+    if (!clonePreview || cloneBudgetMutation.isPending) {
+      return;
+    }
+
+    const targetKey = clonePreview.targetNavigationKey;
+
     try {
       const result = await cloneBudgetMutation.mutateAsync({
-        period: "month",
-        sourceStartDate: monthKeyToDate(activeMonthKey).format("YYYY-MM-DD"),
+        period: clonePreview.period,
+        sourceStartDate: clonePreview.sourceStartDate,
       });
-      setPendingMonthKeys((keys) =>
-        keys.includes(targetMonthKey) ? keys : [...keys, targetMonthKey]
-      );
-      setActiveTab("month");
-      setMonthFilter(targetMonthKey);
-      toast.success(formatCloneToast(result, "next month"));
+
+      if (clonePreview.period === "week") {
+        setPendingWeekKeys((keys) =>
+          keys.includes(targetKey) ? keys : [...keys, targetKey]
+        );
+        setActiveTab("week");
+        setActiveWeekKey(targetKey);
+      } else {
+        setPendingMonthKeys((keys) =>
+          keys.includes(targetKey) ? keys : [...keys, targetKey]
+        );
+        setActiveTab("month");
+        setMonthFilter(targetKey);
+      }
+
+      setClonePreview(null);
+      toast.success(formatCloneToast(result, clonePreview.targetToastLabel));
     } catch (cloneError) {
       console.error(cloneError);
       toast.error("Failed to clone budgets.");
@@ -1222,6 +1278,18 @@ const BudgetWeeklyBudgetsClient = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BudgetClonePreviewDrawer
+        preview={clonePreview}
+        isPending={cloneBudgetMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open && !cloneBudgetMutation.isPending) {
+            setClonePreview(null);
+          }
+        }}
+        onCancel={() => setClonePreview(null)}
+        onConfirm={handleConfirmClone}
+      />
 
       {transferDestination ? (
         <BudgetTransferDrawer
