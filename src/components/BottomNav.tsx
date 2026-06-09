@@ -142,7 +142,7 @@ const BottomNav = () => {
       className="standalone:pb-[calc(env(safe-area-inset-bottom))] fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pt-3 pb-4"
     >
       <div
-        className="flex w-full max-w-[390px] items-end justify-between gap-4"
+        className="flex w-full items-end justify-between gap-4"
         style={animationVars}
       >
         <div
@@ -176,11 +176,11 @@ const BottomNav = () => {
                     aria-label={item.label}
                     aria-pressed={active}
                     onClick={() => handleNavigate(item)}
-                    className="group text-foreground focus-visible:ring-ring/40 grid h-11 w-full grid-cols-[36px_minmax(0,1fr)] items-center rounded-full text-left text-[17px] font-semibold transition-opacity duration-200 ease-out focus-visible:ring-2 focus-visible:outline-none"
+                    className="group text-foreground focus-visible:ring-ring/40 grid h-11 w-full grid-cols-[32px_minmax(0,1fr)] items-center rounded-full text-left text-[17px] font-semibold transition-opacity duration-200 ease-out focus-visible:ring-2 focus-visible:outline-none"
                   >
                     <span
                       className={cn(
-                        "col-span-2 grid h-11 grid-cols-[36px_minmax(0,1fr)] items-center rounded-full px-4 transition-[transform,background-color,box-shadow] duration-200 ease-out group-hover:bg-white/10",
+                        "col-span-2 grid h-11 grid-cols-[32px_minmax(0,1fr)] items-center rounded-full px-4 transition-[transform,background-color,box-shadow] duration-200 ease-out group-hover:bg-white/10",
                         active && "bg-white/8"
                       )}
                     >
@@ -212,7 +212,7 @@ const BottomNav = () => {
                     <span
                       className={cn(
                         baseIconGroupClassName,
-                        "h-12 w-18",
+                        "h-12 w-16",
                         active && "bg-white/10"
                       )}
                     >
@@ -234,7 +234,7 @@ const BottomNav = () => {
                 <span
                   className={cn(
                     baseIconGroupClassName,
-                    "h-12 w-18",
+                    "h-12 w-16",
                     SecondaryIcon && "relative isolate bg-white/10"
                   )}
                 >
@@ -251,35 +251,36 @@ const BottomNav = () => {
             </div>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={
+              showAIQuickEntryPending
+                ? "Open AI quick entry, background work in progress"
+                : "Open AI quick entry"
+            }
+            onClick={() => {
+              haptics.impact("medium");
+              openAIQuickEntry(true);
+            }}
+            className="text-primary relative grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.96]"
+          >
+            <Sparkles className="size-6" />
+            {showAIQuickEntryPending && (
+              <span
+                aria-hidden="true"
+                data-testid="ai-quick-entry-pending-indicator"
+                className="bg-primary before:bg-primary absolute top-1.5 right-1.5 size-3 rounded-full shadow-[0_0_0_3px_color-mix(in_srgb,var(--surface-3)_82%,transparent),0_0_18px_color-mix(in_srgb,var(--primary)_75%,transparent)] before:absolute before:inset-0 before:animate-ping before:rounded-full before:opacity-45 before:content-['']"
+              />
+            )}
+          </button>
 
-        <button
-          type="button"
-          aria-label={
-            showAIQuickEntryPending
-              ? "Open AI quick entry, background work in progress"
-              : "Open AI quick entry"
-          }
-          onClick={() => {
-            haptics.impact("medium");
-            openAIQuickEntry(true);
-          }}
-          className="text-primary relative grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl transition-transform active:scale-[0.96]"
-        >
-          <Sparkles className="size-6" />
-          {showAIQuickEntryPending && (
-            <span
-              aria-hidden="true"
-              data-testid="ai-quick-entry-pending-indicator"
-              className="bg-primary before:bg-primary absolute top-1.5 right-1.5 size-3 rounded-full shadow-[0_0_0_3px_color-mix(in_srgb,var(--surface-3)_82%,transparent),0_0_18px_color-mix(in_srgb,var(--primary)_75%,transparent)] before:absolute before:inset-0 before:animate-ping before:rounded-full before:opacity-45 before:content-['']"
+          <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
+            <QuickExpenseDrawer
+              compact
+              onTriggerClick={() => haptics.impact("medium")}
             />
-          )}
-        </button>
-
-        <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,color-mix(in_srgb,#ffffff_9%,transparent),color-mix(in_srgb,#ffffff_2%,transparent)),color-mix(in_srgb,var(--surface-3)_78%,transparent)] p-1 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff_20%,transparent),0_20px_46px_color-mix(in_srgb,#000000_58%,transparent)] backdrop-blur-2xl [&_[data-slot=button]]:size-14 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]:active>span]:scale-[0.96] [&_[data-slot=button]>span]:transition-transform [&_[data-slot=button]>span]:duration-200 [&_[data-slot=button]>span]:ease-out">
-          <QuickExpenseDrawer
-            compact
-            onTriggerClick={() => haptics.impact("medium")}
-          />
+          </div>
         </div>
       </div>
     </nav>
