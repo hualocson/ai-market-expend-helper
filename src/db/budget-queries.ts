@@ -439,6 +439,7 @@ export const cloneBudgetsToNextPeriod = async (
 
   const sourceRows = await db
     .select({
+      id: budgets.id,
       name: budgets.name,
       icon: budgets.icon,
       color: budgets.color,
@@ -475,6 +476,12 @@ export const cloneBudgetsToNextPeriod = async (
   const targetNames = new Set(
     targetRows.map((budget) => normalizeCloneName(budget.name))
   );
+  const amountOverrides = new Map(
+    (input.budgets ?? []).map((budget) => [
+      budget.sourceBudgetId,
+      budget.amount,
+    ])
+  );
   const cloneValues = sourceRows
     .filter((budget) => !targetNames.has(normalizeCloneName(budget.name)))
     .map((budget) => ({
@@ -482,7 +489,8 @@ export const cloneBudgetsToNextPeriod = async (
       icon: normalizeBudgetIcon(budget.icon),
       color: normalizeBudgetColor(budget.color),
       category: budget.category,
-      amount: Number(budget.amount ?? 0),
+      amount:
+        amountOverrides.get(Number(budget.id)) ?? Number(budget.amount ?? 0),
       period: input.period,
       periodStartDate: bounds.targetStartDate,
       periodEndDate: bounds.targetEndDate,

@@ -255,6 +255,76 @@ describe("cloneBudgetsToNextPeriod", () => {
     expect(result.targetEndDate).toBe("2026-07-31");
   });
 
+  it("uses submitted clone amounts for matching source budgets", async () => {
+    mockSelectResultQueue([
+      [
+        {
+          id: 1,
+          name: "Coffee",
+          icon: "☕",
+          color: "lime",
+          category: Category.FOOD,
+          amount: 200000,
+          period: "week",
+          periodStartDate: "2026-06-07",
+          periodEndDate: "2026-06-13",
+        },
+      ],
+      [],
+    ]);
+    dbMocks.insertReturning.mockResolvedValue([{ id: 20 }]);
+
+    const result = await cloneBudgetsToNextPeriod({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [{ sourceBudgetId: 1, amount: 275000 }],
+    });
+
+    expect(dbMocks.insertValues).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "Coffee",
+        amount: 275000,
+        period: "week",
+        periodStartDate: "2026-06-14",
+        periodEndDate: "2026-06-20",
+      }),
+    ]);
+    expect(result.createdCount).toBe(1);
+  });
+
+  it("ignores amount overrides that do not match source budgets", async () => {
+    mockSelectResultQueue([
+      [
+        {
+          id: 1,
+          name: "Coffee",
+          icon: "☕",
+          color: "lime",
+          category: Category.FOOD,
+          amount: 200000,
+          period: "week",
+          periodStartDate: "2026-06-07",
+          periodEndDate: "2026-06-13",
+        },
+      ],
+      [],
+    ]);
+    dbMocks.insertReturning.mockResolvedValue([{ id: 20 }]);
+
+    await cloneBudgetsToNextPeriod({
+      period: "week",
+      sourceStartDate: "2026-06-07",
+      budgets: [{ sourceBudgetId: 999, amount: 999999 }],
+    });
+
+    expect(dbMocks.insertValues).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "Coffee",
+        amount: 200000,
+      }),
+    ]);
+  });
+
   it("skips target budgets with the same normalized name", async () => {
     mockSelectResultQueue([
       [
