@@ -487,14 +487,41 @@ describe("REST read routes", () => {
   });
 
   it("returns the monthly report service payload", async () => {
-    const payload = {
+    const monthlyReportPayload = {
       activeMonth: "2026-05",
       categoryTotals: [],
+      insights: {
+        pulse: {
+          selectedMonth: "2026-05",
+          selectedTotal: 500000,
+          previousMonth: "2026-04",
+          previousMonthTotal: 400000,
+          previousMonthDelta: 100000,
+          previousMonthDeltaPercent: 25,
+          priorThreeMonthAverage: 300000,
+          priorThreeMonthDelta: 200000,
+          priorThreeMonthDeltaPercent: 66.7,
+          hasPreviousMonth: true,
+          hasPriorThreeMonthBaseline: true,
+        },
+        budgetVariance: {
+          summary: {
+            totalAllowance: 1000000,
+            totalAssignedSpend: 500000,
+            totalVariance: 500000,
+            unassignedSpend: 0,
+          },
+          rows: [],
+        },
+        monthTrend: [],
+        topMerchants: [],
+        recurringSpend: [],
+      },
       paidByCategoryTotals: [],
       paidByTotalSpent: 0,
       paidByTotals: [],
     };
-    mocks.getMonthlyReport.mockResolvedValue(payload);
+    mocks.getMonthlyReport.mockResolvedValue(monthlyReportPayload);
 
     const response = await getMonthlyReport(
       new Request("http://localhost/api/reports/monthly?month=2026-05")
@@ -503,7 +530,7 @@ describe("REST read routes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       success: true,
-      data: payload,
+      data: monthlyReportPayload,
     });
     expect(mocks.getMonthlyReport).toHaveBeenCalledWith("2026-05");
   });

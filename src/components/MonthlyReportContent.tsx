@@ -15,6 +15,7 @@ import CategorySpendPieChart from "@/components/CategorySpendPieChart";
 import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
 import PaidByIcon from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
+import MonthlyReportInsights from "@/components/report/MonthlyReportInsights";
 
 type MonthlyReportContentProps = {
   selectedMonth?: string;
@@ -50,28 +51,34 @@ const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
   });
 
   return (
-    <div className="relative mx-auto flex h-[calc(100svh-100px-env(safe-area-inset-bottom))] max-w-lg flex-col items-stretch gap-3 overflow-y-auto px-4 pt-6 sm:px-6">
-      <div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="active:scale-[0.97]">
-              <ArrowLeftIcon />
-            </Button>
-          </Link>
-          <h1 className="text-foreground text-lg font-semibold sm:text-xl">
-            Report
-          </h1>
-          <span className="text-muted-foreground text-sm">
-            {activeMonth.format("MMM YYYY")}
-          </span>
+    <div className="standalone:pb-[calc(env(safe-area-inset-bottom))] relative mx-auto flex min-h-svh max-w-lg flex-col px-4 pb-6 sm:px-6">
+      <header className="app-header-blur fixed top-0 right-0 left-0 z-30 px-4 pt-6 pb-2 sm:px-6 sm:pt-8">
+        <div className="mx-auto flex max-w-lg flex-col gap-3">
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="active:scale-[0.97]"
+              >
+                <ArrowLeftIcon />
+              </Button>
+            </Link>
+            <h1 className="text-foreground text-lg font-semibold sm:text-xl">
+              Report
+            </h1>
+            <span className="text-muted-foreground text-sm">
+              {activeMonth.format("MMM YYYY")}
+            </span>
+          </div>
+
+          <ExpenseMonthTabs items={monthItems} />
         </div>
-      </div>
+      </header>
 
-      <div className="shrink-0">
-        <ExpenseMonthTabs items={monthItems} />
-      </div>
+      <div className="no-scrollbar flex flex-col gap-4 pt-32">
+        <MonthlyReportInsights insights={report.insights} />
 
-      <div className="no-scrollbar flex grow flex-col gap-4 overflow-y-auto">
         <div>
           <CategorySpendPieChart
             totals={report.categoryTotals}

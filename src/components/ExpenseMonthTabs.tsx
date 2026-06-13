@@ -42,7 +42,7 @@ const ExpenseMonthTabs = ({ items }: ExpenseMonthTabsProps) => {
           className={cn(
             "snap-center rounded-full px-5 py-2 text-xs font-medium transition-all focus:ring-0 focus:ring-offset-0 focus:outline-none",
             item.isActive
-              ? "bg-primary text-primary-foreground shadow-[0_10px_24px_color-mix(in_srgb,var(--accent)_30%,transparent)]"
+              ? "bg-primary text-primary-foreground"
               : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
           )}
         >

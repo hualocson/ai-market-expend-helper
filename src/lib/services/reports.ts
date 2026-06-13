@@ -7,8 +7,14 @@ import {
   normalizeBudgetColor,
   normalizeBudgetIcon,
 } from "@/lib/budget-appearance";
+import {
+  type MonthlyInsightBudget,
+  type MonthlyInsightExpense,
+  type MonthlyReportInsights,
+  buildMonthlyReportInsights,
+} from "@/lib/reports/monthly-insights";
 import { getWeekRange } from "@/lib/week";
-import { and, desc, eq, gte, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 export type CategoryTotal = {
   category: string;
@@ -27,6 +33,7 @@ export type PaidByTotal = {
 export type MonthlyReport = {
   activeMonth: string;
   categoryTotals: CategoryTotal[];
+  insights: MonthlyReportInsights;
   paidByCategoryTotals: PaidByCategoryTotal[];
   paidByTotalSpent: number;
   paidByTotals: PaidByTotal[];
@@ -69,6 +76,9 @@ export type DailyReport = {
 
 const formatWeekRange = (start: dayjs.Dayjs, end: dayjs.Dayjs) =>
   `${start.format("DD MMM")} - ${end.format("DD MMM")}`;
+
+const inclusiveDays = (start: dayjs.Dayjs, end: dayjs.Dayjs) =>
+  end.diff(start, "day") + 1;
 
 export const summarizePaidByCategoryTotals = (
   paidByCategoryTotals: PaidByCategoryTotal[]
@@ -138,9 +148,127 @@ export const getMonthlyReport = async (
   const { categoryTotals, paidByTotalSpent, paidByTotals } =
     summarizePaidByCategoryTotals(normalizedTotals);
 
+  const selectedMonthEnd = activeMonth.endOf("month");
+  const selectedMonthStartKey = startOfMonth.format("YYYY-MM-DD");
+  const selectedMonthEndKey = selectedMonthEnd.format("YYYY-MM-DD");
+  const selectedMonthDays = inclusiveDays(startOfMonth, selectedMonthEnd);
+  const recurringWindowStartKey = activeMonth
+    .endOf("month")
+    .subtract(180, "day")
+    .format("YYYY-MM-DD");
+  const trendWindowStartKey = activeMonth
+    .startOf("month")
+    .subtract(5, "month")
+    .format("YYYY-MM-DD");
+  const insightWindowStartKey =
+    recurringWindowStartKey < trendWindowStartKey
+      ? recurringWindowStartKey
+      : trendWindowStartKey;
+
+  const insightExpenseRows = await db
+    .select({
+      id: expenses.id,
+      date: expenses.date,
+      amount: expenses.amount,
+      note: expenses.note,
+      category: expenses.category,
+      paidBy: expenses.paidBy,
+      budgetId: expenseBudgets.budgetId,
+    })
+    .from(expenses)
+    .leftJoin(expenseBudgets, eq(expenseBudgets.expenseId, expenses.id))
+    .where(
+      and(
+        eq(expenses.isDeleted, false),
+        gte(expenses.date, insightWindowStartKey),
+        lt(expenses.date, endOfMonth.format("YYYY-MM-DD"))
+      )
+    );
+
+  const insightBudgetRows = await db
+    .select({
+      id: budgets.id,
+      name: budgets.name,
+      amount: budgets.amount,
+      icon: budgets.icon,
+      color: budgets.color,
+      period: budgets.period,
+      periodStartDate: budgets.periodStartDate,
+      periodEndDate: budgets.periodEndDate,
+    })
+    .from(budgets)
+    .where(
+      and(
+        lte(budgets.periodStartDate, selectedMonthEndKey),
+        or(
+          isNull(budgets.periodEndDate),
+          gte(budgets.periodEndDate, selectedMonthStartKey)
+        )
+      )
+    );
+
+  const insightExpenses: MonthlyInsightExpense[] = insightExpenseRows.map(
+    (row) => ({
+      id: Number(row.id),
+      date: String(row.date),
+      amount: Number(row.amount ?? 0),
+      note: row.note ?? "",
+      category: row.category ?? "",
+      paidBy: row.paidBy ?? "",
+      budgetId: row.budgetId === null ? null : Number(row.budgetId),
+    })
+  );
+
+  const insightBudgets: MonthlyInsightBudget[] = insightBudgetRows.map(
+    (row) => {
+      const isOpenEndedMonthlyBudget =
+        row.period === "month" && row.periodEndDate === null;
+      const isOpenEndedWeeklyBudget =
+        row.period === "week" && row.periodEndDate === null;
+      const isOpenEndedRecurringBudget =
+        isOpenEndedMonthlyBudget || isOpenEndedWeeklyBudget;
+      const rowPeriodStart = dayjs(row.periodStartDate);
+      const activeStart = rowPeriodStart.isAfter(startOfMonth)
+        ? rowPeriodStart
+        : startOfMonth;
+      const activeEnd = selectedMonthEnd;
+      const activeDays = inclusiveDays(activeStart, activeEnd);
+      const rowAmount = Number(row.amount ?? 0);
+      const syntheticOpenEndedAmount = isOpenEndedMonthlyBudget
+        ? (rowAmount * activeDays) / selectedMonthDays
+        : (rowAmount * activeDays) / 7;
+
+      return {
+        id: Number(row.id),
+        name: row.name,
+        amount: isOpenEndedRecurringBudget
+          ? syntheticOpenEndedAmount
+          : rowAmount,
+        icon: normalizeBudgetIcon(row.icon),
+        color: normalizeBudgetColor(row.color),
+        period: row.period,
+        periodStartDate: isOpenEndedRecurringBudget
+          ? activeStart.format("YYYY-MM-DD")
+          : rowPeriodStart.format("YYYY-MM-DD"),
+        periodEndDate: isOpenEndedRecurringBudget
+          ? activeEnd.format("YYYY-MM-DD")
+          : row.periodEndDate
+            ? dayjs(row.periodEndDate).format("YYYY-MM-DD")
+            : null,
+      };
+    }
+  );
+
+  const insights = buildMonthlyReportInsights({
+    selectedMonth: activeMonth.format("YYYY-MM"),
+    expenses: insightExpenses,
+    budgets: insightBudgets,
+  });
+
   return {
     activeMonth: activeMonth.format("YYYY-MM"),
     categoryTotals,
+    insights,
     paidByCategoryTotals: normalizedTotals,
     paidByTotalSpent,
     paidByTotals,

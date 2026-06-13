@@ -186,7 +186,40 @@ describe("read query fetchers", () => {
   });
 
   it("fetches monthly and daily reports", async () => {
-    const monthlyPayload = { activeMonth: "2026-05" };
+    const monthlyPayload = {
+      activeMonth: "2026-05",
+      categoryTotals: [],
+      insights: {
+        pulse: {
+          selectedMonth: "2026-05",
+          selectedTotal: 0,
+          previousMonth: "2026-04",
+          previousMonthTotal: 0,
+          previousMonthDelta: null,
+          previousMonthDeltaPercent: null,
+          priorThreeMonthAverage: 0,
+          priorThreeMonthDelta: null,
+          priorThreeMonthDeltaPercent: null,
+          hasPreviousMonth: false,
+          hasPriorThreeMonthBaseline: false,
+        },
+        budgetVariance: {
+          summary: {
+            totalAllowance: 0,
+            totalAssignedSpend: 0,
+            totalVariance: 0,
+            unassignedSpend: 0,
+          },
+          rows: [],
+        },
+        monthTrend: [],
+        topMerchants: [],
+        recurringSpend: [],
+      },
+      paidByCategoryTotals: [],
+      paidByTotalSpent: 0,
+      paidByTotals: [],
+    };
     const dailyPayload = { activeDate: "2026-05-23" };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

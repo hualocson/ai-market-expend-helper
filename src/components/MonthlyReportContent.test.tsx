@@ -84,6 +84,33 @@ describe("MonthlyReportContent", () => {
         { category: "Food", total: 250_000 },
         { category: "Transport", total: 100_000 },
       ],
+      insights: {
+        pulse: {
+          selectedMonth: "2026-05",
+          selectedTotal: 350_000,
+          previousMonth: "2026-04",
+          previousMonthTotal: 300_000,
+          previousMonthDelta: 50_000,
+          previousMonthDeltaPercent: 16.7,
+          priorThreeMonthAverage: 250_000,
+          priorThreeMonthDelta: 100_000,
+          priorThreeMonthDeltaPercent: 40,
+          hasPreviousMonth: true,
+          hasPriorThreeMonthBaseline: true,
+        },
+        budgetVariance: {
+          summary: {
+            totalAllowance: 500_000,
+            totalAssignedSpend: 350_000,
+            totalVariance: 150_000,
+            unassignedSpend: 0,
+          },
+          rows: [],
+        },
+        monthTrend: [{ month: "2026-05", total: 350_000, isSelected: true }],
+        topMerchants: [],
+        recurringSpend: [],
+      },
       paidByCategoryTotals: [
         { paidBy: "Loc", category: "Food", total: 150_000 },
         { paidBy: "Sachi", category: "Food", total: 100_000 },
@@ -110,11 +137,15 @@ describe("MonthlyReportContent", () => {
     expect(screen.getByRole("heading", { name: "Report" })).toBeInTheDocument();
     expect(screen.getByText("May 2026")).toBeInTheDocument();
     expect(screen.getByTestId("month-tabs")).toHaveTextContent("May");
+    expect(screen.getByRole("banner")).toHaveClass("app-header-blur", "fixed");
+    expect(screen.getByText("Monthly pulse")).toBeInTheDocument();
+    expect(screen.getByText("Budget variance")).toBeInTheDocument();
+    expect(screen.getByText("6-month trend")).toBeInTheDocument();
     expect(screen.getByText("May 2026 - All")).toBeInTheDocument();
     expect(screen.getByText("May 2026 - Loc")).toBeInTheDocument();
     expect(screen.getByText("May 2026 - Sachi")).toBeInTheDocument();
     expect(screen.getByText("Spending by payer")).toBeInTheDocument();
-    expect(screen.getByText("350.000")).toBeInTheDocument();
+    expect(screen.getAllByText("350.000").length).toBeGreaterThan(0);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
