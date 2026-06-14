@@ -5,6 +5,8 @@ import type { DailyReport } from "@/lib/services/reports";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import DailyReportContent from "./DailyReportContent";
@@ -80,6 +82,12 @@ afterEach(() => {
 
   globalThis.React = originalGlobalReact;
 });
+
+function renderWithClient(ui: React.ReactElement, client: QueryClient) {
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+  );
+}
 
 describe("DailyReportContent", () => {
   const buildClient = () =>
@@ -192,5 +200,28 @@ describe("DailyReportContent", () => {
     expect(screen.getByTestId("expense-edit-sheet-host")).toHaveTextContent(
       "Lunch"
     );
+  });
+
+  it("shows a skeleton (not null) while there is no data yet", () => {
+    globalThis.React = React;
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { container } = renderWithClient(
+      <DailyReportContent date="2026-06-14" />,
+      client
+    );
+    expect(
+      container.querySelectorAll('[data-slot="skeleton"]').length
+    ).toBeGreaterThan(0);
+  });
+
+  it("uses keepPreviousData on the daily query", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/DailyReportContent.tsx"),
+      "utf8"
+    );
+    expect(source).toContain("keepPreviousData");
   });
 });

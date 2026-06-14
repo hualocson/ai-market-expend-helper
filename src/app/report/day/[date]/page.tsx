@@ -17,7 +17,7 @@ export default async function DailyReportPage({
   const { date } = await params;
   const queryClient = getQueryClient();
 
-  await queryClient.prefetchQuery({
+  void queryClient.prefetchQuery({
     queryKey: queries.reports.daily(date).queryKey,
     queryFn: () => getDailyReport(date),
   });

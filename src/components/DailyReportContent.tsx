@@ -7,7 +7,7 @@ import Link from "next/link";
 import dayjs from "@/configs/date";
 import { queries } from "@/lib/queries";
 import { cn, formatVnd, formatVndSigned } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeftIcon,
   CalendarDays,
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
+import DailyReportSkeleton from "@/components/DailyReportSkeleton";
 import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
 import ExpenseListItem, {
   type ExpenseListItemData,
@@ -29,7 +30,10 @@ type DailyReportContentProps = {
 };
 
 const DailyReportContent = ({ date }: DailyReportContentProps) => {
-  const { data: report } = useQuery(queries.reports.daily(date));
+  const { data: report } = useQuery({
+    ...queries.reports.daily(date),
+    placeholderData: keepPreviousData,
+  });
   const [editingExpense, setEditingExpense] =
     useState<ExpenseListItemData | null>(null);
   const handleEditExpense = useCallback((expense: ExpenseListItemData) => {
@@ -42,7 +46,7 @@ const DailyReportContent = ({ date }: DailyReportContentProps) => {
   }, []);
 
   if (!report) {
-    return null;
+    return <DailyReportSkeleton />;
   }
 
   const activeDate = dayjs(report.activeDate);
