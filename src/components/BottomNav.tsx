@@ -2,7 +2,8 @@
 
 import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
 
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { cn } from "@/lib/utils";
@@ -83,7 +84,6 @@ const getActiveItemId = (pathname: string): TBottomNavItemId =>
 
 const BottomNav = () => {
   const pathname = usePathname();
-  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [activeItem, setActiveItem] = useState<TBottomNavItemId>(() =>
     getActiveItemId(pathname)
@@ -133,7 +133,6 @@ const BottomNav = () => {
   const handleNavigate = (item: TBottomNavItem) => {
     setActiveItem(item.id);
     setExpanded(false);
-    router.push(item.href);
   };
 
   return (
@@ -170,11 +169,12 @@ const BottomNav = () => {
                 const active = item.id === activeItem;
 
                 return (
-                  <button
+                  <Link
                     key={item.id}
-                    type="button"
+                    href={item.href}
+                    prefetch
                     aria-label={item.label}
-                    aria-pressed={active}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => handleNavigate(item)}
                     className="group text-foreground focus-visible:ring-ring/40 grid h-11 w-full grid-cols-[32px_minmax(0,1fr)] items-center rounded-full text-left text-[17px] font-semibold transition-opacity duration-200 ease-out focus-visible:ring-2 focus-visible:outline-none"
                   >
@@ -187,7 +187,7 @@ const BottomNav = () => {
                       <Icon className="size-5" />
                       <span className="truncate">{item.label}</span>
                     </span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
@@ -198,11 +198,12 @@ const BottomNav = () => {
                 const active = item.id === activeItem;
 
                 return (
-                  <button
+                  <Link
                     key={item.id}
-                    type="button"
+                    href={item.href}
+                    prefetch
                     aria-label={item.label}
-                    aria-pressed={active}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => handleNavigate(item)}
                     className={cn(
                       baseButtonClassName,
@@ -219,7 +220,7 @@ const BottomNav = () => {
                       <Icon className="size-6" />
                     </span>
                     <span className="sr-only">{item.label}</span>
-                  </button>
+                  </Link>
                 );
               })}
 
