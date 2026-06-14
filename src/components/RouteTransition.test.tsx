@@ -32,4 +32,20 @@ describe("RouteTransition", () => {
     expect(css).toContain("@keyframes route-transition-enter");
     expect(css).toContain("prefers-reduced-motion: reduce");
   });
+
+  it("does not use transform/will-change that would break fixed descendants", () => {
+    // A transform or will-change:transform on the route wrapper establishes a
+    // containing block for position:fixed children, breaking page-level fixed UI
+    // (e.g. the ExpenseSearch trigger). Guard against reintroducing it.
+    const css = readFileSync(
+      join(process.cwd(), "src/app/globals.css"),
+      "utf8"
+    );
+    const start = css.indexOf("@keyframes route-transition-enter");
+    const ruleStart = css.indexOf(".route-transition {", start);
+    const ruleEnd = css.indexOf("}", ruleStart);
+    const block = css.slice(start, ruleEnd);
+    expect(block).not.toContain("transform");
+    expect(block).not.toContain("will-change");
+  });
 });
