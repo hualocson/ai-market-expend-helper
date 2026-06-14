@@ -4,6 +4,8 @@ import { queries } from "@/lib/queries";
 import type { MonthlyReport } from "@/lib/services/reports";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import MonthlyReportContent from "./MonthlyReportContent";
@@ -67,6 +69,30 @@ afterEach(() => {
 });
 
 describe("MonthlyReportContent", () => {
+  it("shows a skeleton (not null) while there is no data yet", () => {
+    globalThis.React = React;
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <MonthlyReportContent selectedMonth={undefined} />
+      </QueryClientProvider>
+    );
+    expect(
+      container.querySelectorAll('[data-slot="skeleton"]').length
+    ).toBeGreaterThan(0);
+  });
+
+  it("uses keepPreviousData on the monthly query", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/MonthlyReportContent.tsx"),
+      "utf8"
+    );
+    expect(source).toContain("keepPreviousData");
+  });
+
   it("renders hydrated monthly report data without an immediate fetch", () => {
     globalThis.React = React;
 
