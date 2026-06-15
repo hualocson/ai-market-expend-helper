@@ -12,26 +12,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ExpenseList from "./ExpenseList";
 
-vi.mock("next/link", () => ({
-  default: ({
-    children,
-    href,
-    prefetch,
-    ...props
-  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
-    href: string;
-    prefetch?: boolean;
-  }) => (
-    <a
-      href={href}
-      data-prefetch={prefetch === false ? "false" : "true"}
-      {...props}
-    >
-      {children}
-    </a>
-  ),
-}));
-
 vi.mock("@/components/ExpenseListItem", () => ({
   default: ({
     expense,
@@ -211,7 +191,7 @@ describe("ExpenseList", () => {
     );
   });
 
-  it("disables prefetch for repeated day summary links", () => {
+  it("renders the day summary header without a navigation link", () => {
     globalThis.React = React;
 
     const queryClient = buildClient();
@@ -229,11 +209,10 @@ describe("ExpenseList", () => {
       </QueryClientProvider>
     );
 
-    const dayLink = screen.getByRole("link", {
-      name: /Saturday, 23\/05\/2026/,
-    });
-    expect(dayLink).toHaveAttribute("href", "/report/day/2026-05-23");
-    expect(dayLink).toHaveAttribute("data-prefetch", "false");
+    expect(
+      screen.queryByRole("link", { name: /Saturday, 23\/05\/2026/ })
+    ).toBeNull();
+    expect(screen.getByText(/Saturday, 23\/05\/2026/)).toBeInTheDocument();
   });
 
   it("uses drawer presentation spacing when requested", () => {
