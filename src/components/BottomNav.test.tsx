@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import BottomNav from "./BottomNav";
 
-const { hapticsMock, pathnameState, routerPushMock } = vi.hoisted(() => ({
+const { hapticsMock, pathnameState } = vi.hoisted(() => ({
   hapticsMock: {
     success: vi.fn(),
     warning: vi.fn(),
@@ -20,7 +20,6 @@ const { hapticsMock, pathnameState, routerPushMock } = vi.hoisted(() => ({
   pathnameState: {
     value: "/",
   },
-  routerPushMock: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAppHaptics", () => ({
@@ -29,9 +28,6 @@ vi.mock("@/hooks/useAppHaptics", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameState.value,
-  useRouter: () => ({
-    push: routerPushMock,
-  }),
 }));
 
 vi.mock("@/components/QuickExpenseDrawer", () => ({
@@ -53,7 +49,6 @@ const originalGlobalReact = (globalThis as unknown as Record<string, unknown>)
 beforeEach(() => {
   (globalThis as unknown as Record<string, unknown>).React = React;
   pathnameState.value = "/";
-  routerPushMock.mockReset();
   hapticsMock.success.mockReset();
   hapticsMock.warning.mockReset();
   hapticsMock.error.mockReset();
@@ -79,49 +74,77 @@ afterEach(() => {
 });
 
 describe("BottomNav", () => {
-  it("renders collapsed primary controls as buttons", () => {
+  it("renders collapsed primary tabs as links and shows the expand button", () => {
     render(<BottomNav />);
 
-    expect(screen.getByRole("button", { name: /home/i })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-    expect(screen.getByRole("button", { name: /^budget$/i })).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
+    const homeLink = screen.getByRole("link", { name: /home/i });
+    expect(homeLink).toHaveAttribute("href", "/");
+    expect(homeLink).toHaveAttribute("aria-current", "page");
+
+    const budgetLink = screen.getByRole("link", { name: /^budget$/i });
+    expect(budgetLink).toHaveAttribute("href", "/budgets");
+    expect(budgetLink).not.toHaveAttribute("aria-current");
+
     expect(
       screen.getByRole("button", { name: /expand navigation/i })
     ).toHaveAttribute("aria-expanded", "false");
+
     expect(
-      screen.queryByRole("button", { name: /^report$/i })
+      screen.queryByRole("link", { name: /^report$/i })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+
     expect(
       screen.getByRole("button", { name: /add expense/i })
     ).toBeInTheDocument();
   });
 
-  it("pushes routes from collapsed nav buttons and updates local active state", async () => {
+  it("renders the primary tabs as links with hrefs (enables route prefetch)", () => {
+    render(<BottomNav />);
+
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/"
+    );
+    expect(screen.getByRole("link", { name: "Budget" })).toHaveAttribute(
+      "href",
+      "/budgets"
+    );
+  });
+
+  it("does not call useRouter (no router.push navigation)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const source = require("node:fs").readFileSync(
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("node:path").join(process.cwd(), "src/components/BottomNav.tsx"),
+      "utf8"
+    );
+    expect(source).not.toContain("useRouter");
+    expect(source).not.toContain("router.push");
+  });
+
+  it("navigates via Link hrefs from collapsed nav and updates local active state", async () => {
     const user = userEvent.setup();
 
     render(<BottomNav />);
 
-    await user.click(screen.getByRole("button", { name: /^budget$/i }));
+    const budgetLink = screen.getByRole("link", { name: /^budget$/i });
+    expect(budgetLink).toHaveAttribute("href", "/budgets");
 
-    expect(routerPushMock).toHaveBeenCalledTimes(1);
-    expect(routerPushMock).toHaveBeenCalledWith("/budgets");
-    expect(screen.getByRole("button", { name: /^budget$/i })).toHaveAttribute(
-      "aria-pressed",
-      "true"
+    // Clicking the Link in jsdom does not navigate, but the onClick handler runs
+    // (handleNavigate → setActiveItem). Simulate the route change via the mock.
+    pathnameState.value = "/budgets";
+    await user.click(budgetLink);
+
+    expect(screen.getByRole("link", { name: /^budget$/i })).toHaveAttribute(
+      "aria-current",
+      "page"
     );
-    expect(screen.getByRole("button", { name: /home/i })).toHaveAttribute(
-      "aria-pressed",
-      "false"
+    expect(screen.getByRole("link", { name: /home/i })).not.toHaveAttribute(
+      "aria-current"
     );
   });
 
-  it("expands into a vertical menu and pushes routes from expanded items", async () => {
+  it("expands into a vertical menu and shows expanded items as links with correct hrefs", async () => {
     const user = userEvent.setup();
 
     render(<BottomNav />);
@@ -130,26 +153,35 @@ describe("BottomNav", () => {
       screen.getByRole("button", { name: /expand navigation/i })
     );
 
-    const menuButtons = screen
-      .getAllByRole("button")
-      .filter((button) =>
+    const menuLinks = screen
+      .getAllByRole("link")
+      .filter((link) =>
         ["Home", "Budget", "Report", "Settings"].includes(
-          button.getAttribute("aria-label") ?? ""
+          link.getAttribute("aria-label") ?? ""
         )
       );
 
-    expect(
-      menuButtons.map((button) => button.getAttribute("aria-label"))
-    ).toEqual(["Home", "Budget", "Report", "Settings"]);
+    expect(menuLinks.map((link) => link.getAttribute("aria-label"))).toEqual([
+      "Home",
+      "Budget",
+      "Report",
+      "Settings",
+    ]);
 
-    await user.click(screen.getByRole("button", { name: /^report$/i }));
+    // Each expanded item has the correct href
+    expect(screen.getByRole("link", { name: /^report$/i })).toHaveAttribute(
+      "href",
+      "/report"
+    );
 
-    expect(routerPushMock).toHaveBeenCalledWith("/report");
+    // Clicking an expanded link collapses the menu (onClick calls setExpanded(false))
+    await user.click(screen.getByRole("link", { name: /^report$/i }));
+
     expect(
       screen.getByRole("button", { name: /expand navigation/i })
     ).toHaveAttribute("aria-expanded", "false");
     expect(
-      screen.queryByRole("button", { name: /^report$/i })
+      screen.queryByRole("link", { name: /^report$/i })
     ).not.toBeInTheDocument();
   });
 
@@ -163,17 +195,16 @@ describe("BottomNav", () => {
       screen.getByRole("button", { name: /expand navigation/i })
     );
 
-    expect(screen.getByRole("button", { name: /^report$/i })).toHaveAttribute(
-      "aria-pressed",
-      "true"
+    expect(screen.getByRole("link", { name: /^report$/i })).toHaveAttribute(
+      "aria-current",
+      "page"
     );
 
     pathnameState.value = "/reporting";
     rerender(<BottomNav />);
 
-    expect(screen.getByRole("button", { name: /^report$/i })).toHaveAttribute(
-      "aria-pressed",
-      "false"
+    expect(screen.getByRole("link", { name: /^report$/i })).not.toHaveAttribute(
+      "aria-current"
     );
   });
 
@@ -197,7 +228,7 @@ describe("BottomNav", () => {
       screen.getByRole("button", { name: /expand navigation/i })
     ).toHaveAttribute("aria-expanded", "false");
     expect(
-      screen.queryByRole("button", { name: /^report$/i })
+      screen.queryByRole("link", { name: /^report$/i })
     ).not.toBeInTheDocument();
   });
 

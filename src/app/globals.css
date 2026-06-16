@@ -741,3 +741,27 @@ html[data-instant-shell-hydrated="true"]
     will-change: auto;
   }
 }
+
+/*
+ * Opacity-only on purpose: a `transform` or `will-change: transform` here would
+ * establish a containing block for `position: fixed` descendants, breaking
+ * page-level fixed UI (e.g. the ExpenseSearch trigger). Do NOT add transform.
+ */
+@keyframes route-transition-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.route-transition {
+  animation: route-transition-enter 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition {
+    animation: none;
+  }
+}

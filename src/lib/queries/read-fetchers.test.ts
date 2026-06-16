@@ -9,7 +9,7 @@ import {
 } from "./budgets";
 import { dashboardQueries, fetchDashboardMonthlySummary } from "./dashboard";
 import { expenseQueries, fetchExpenseList } from "./expenses";
-import { fetchDailyReport, fetchMonthlyReport, reportQueries } from "./reports";
+import { fetchMonthlyReport, reportQueries } from "./reports";
 
 const mockJsonResponse = (payload: unknown, init?: ResponseInit) =>
   new Response(JSON.stringify(payload), {
@@ -185,27 +185,19 @@ describe("read query fetchers", () => {
     );
   });
 
-  it("fetches monthly and daily reports", async () => {
+  it("fetches the monthly report", async () => {
     const monthlyPayload = { activeMonth: "2026-05" };
-    const dailyPayload = { activeDate: "2026-05-23" };
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(monthlyPayload)))
-      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(dailyPayload)));
+      .mockResolvedValueOnce(mockJsonResponse(successEnvelope(monthlyPayload)));
 
     await expect(fetchMonthlyReport("2026-05")).resolves.toEqual(
       monthlyPayload
     );
-    await expect(fetchDailyReport("2026-05-23")).resolves.toEqual(dailyPayload);
 
     expect(fetchSpy).toHaveBeenNthCalledWith(
       1,
       "/api/reports/monthly?month=2026-05",
-      { method: "GET", cache: "no-store" }
-    );
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      2,
-      "/api/reports/daily?date=2026-05-23",
       { method: "GET", cache: "no-store" }
     );
   });
@@ -291,6 +283,5 @@ describe("read query fetchers", () => {
       "function"
     );
     expect(typeof reportQueries.monthly("2026-05").queryFn).toBe("function");
-    expect(typeof reportQueries.daily("2026-05-23").queryFn).toBe("function");
   });
 });

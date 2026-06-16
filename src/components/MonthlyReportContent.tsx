@@ -5,7 +5,7 @@ import Link from "next/link";
 import dayjs from "@/configs/date";
 import { queries } from "@/lib/queries";
 import { formatVnd } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import CategorySpendPieChart from "@/components/CategorySpendPieChart";
 import ExpenseMonthTabs from "@/components/ExpenseMonthTabs";
+import MonthlyReportSkeleton from "@/components/MonthlyReportSkeleton";
 import PaidByIcon from "@/components/PaidByIcon";
 import VndSymbol from "@/components/VndSymbol";
 
@@ -29,10 +30,13 @@ const buildMonthOptions = (count = 12) => {
 };
 
 const MonthlyReportContent = ({ selectedMonth }: MonthlyReportContentProps) => {
-  const { data: report } = useQuery(queries.reports.monthly(selectedMonth));
+  const { data: report } = useQuery({
+    ...queries.reports.monthly(selectedMonth),
+    placeholderData: keepPreviousData,
+  });
 
   if (!report) {
-    return null;
+    return <MonthlyReportSkeleton />;
   }
 
   const activeMonth = dayjs(report.activeMonth, "YYYY-MM", true);

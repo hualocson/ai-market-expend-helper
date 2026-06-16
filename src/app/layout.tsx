@@ -13,6 +13,7 @@ import DeferredRecoveryWork from "@/components/DeferredRecoveryWork";
 import ExpenseSyncCoordinator from "@/components/ExpenseSyncCoordinator";
 import ProgressiveBlur from "@/components/ProgressiveBlur";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import RouteTransition from "@/components/RouteTransition";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { SettingsStoreProvider } from "@/components/providers/StoreProvider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -296,7 +297,9 @@ export default function RootLayout({
           >
             <SettingsStoreProvider>
               <AppMain>
-                <PullToRefresh>{children}</PullToRefresh>
+                <PullToRefresh>
+                  <RouteTransition>{children}</RouteTransition>
+                </PullToRefresh>
               </AppMain>
               <DeferredRecoveryWork />
               <ProgressiveBlur

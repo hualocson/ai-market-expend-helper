@@ -7,7 +7,6 @@ import { GET as getBudgetTransferCandidates } from "./budgets/transfer-candidate
 import { GET as getDashboardMonthlySummary } from "./dashboard/monthly-summary/route";
 import { GET as getExpenses } from "./expenses/route";
 import { GET as getExpenseSync } from "./expenses/sync/route";
-import { GET as getDailyReport } from "./reports/daily/route";
 import { GET as getMonthlyReport } from "./reports/monthly/route";
 
 const mocks = vi.hoisted(() => ({
@@ -17,7 +16,6 @@ const mocks = vi.hoisted(() => ({
   getBudgetTransactions: vi.fn(),
   getBudgetWeeklyReport: vi.fn(),
   getDashboardMonthlySummary: vi.fn(),
-  getDailyReport: vi.fn(),
   getExpenseChangesSince: vi.fn(),
   getExpenseList: vi.fn(),
   getMonthlyReport: vi.fn(),
@@ -49,7 +47,6 @@ vi.mock("@/lib/services/expense-sync", () => ({
 }));
 
 vi.mock("@/lib/services/reports", () => ({
-  getDailyReport: mocks.getDailyReport,
   getMonthlyReport: mocks.getMonthlyReport,
 }));
 
@@ -540,57 +537,5 @@ describe("REST read routes", () => {
         message: "Failed to fetch monthly report",
       },
     });
-  });
-
-  it("returns the daily report service payload", async () => {
-    const payload = {
-      activeDate: "2026-05-23",
-      dailyCategoryTotals: [],
-      dailyExpenses: [],
-      dailyRemaining: 0,
-      dailyTarget: 0,
-      dateKey: "2026-05-23",
-      dayIndex: 1,
-      expectedSpendToDate: 0,
-      hasWeeklyBudget: false,
-      monthKey: "2026-05",
-      paceDelta: 0,
-      paceProgress: 0,
-      paceStatus: "No weekly budget",
-      totalSpentToday: 0,
-      weekEndKey: "2026-05-24",
-      weekLabel: "18 May - 24 May",
-      weekSpentToDate: 0,
-      weekStartKey: "2026-05-18",
-      weeklyBudgetTotal: 0,
-    };
-    mocks.getDailyReport.mockResolvedValue(payload);
-
-    const response = await getDailyReport(
-      new Request("http://localhost/api/reports/daily?date=2026-05-23")
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      success: true,
-      data: payload,
-    });
-    expect(mocks.getDailyReport).toHaveBeenCalledWith("2026-05-23");
-  });
-
-  it("returns 400 for a missing daily report date", async () => {
-    const response = await getDailyReport(
-      new Request("http://localhost/api/reports/daily")
-    );
-
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      success: false,
-      error: {
-        code: "INVALID_PARAMS",
-        message: "Invalid date",
-      },
-    });
-    expect(mocks.getDailyReport).not.toHaveBeenCalled();
   });
 });

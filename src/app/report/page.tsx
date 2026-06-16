@@ -16,7 +16,7 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
   const selectedMonth = typeof month === "string" ? month : undefined;
   const queryClient = getQueryClient();
 
-  await queryClient.prefetchQuery({
+  void queryClient.prefetchQuery({
     queryKey: queries.reports.monthly(selectedMonth).queryKey,
     queryFn: () => getMonthlyReport(selectedMonth),
   });

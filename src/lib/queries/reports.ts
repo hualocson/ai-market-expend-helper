@@ -1,4 +1,4 @@
-import type { DailyReport, MonthlyReport } from "@/lib/services/reports";
+import type { MonthlyReport } from "@/lib/services/reports";
 import { createQueryKeys } from "@lukemorales/query-key-factory";
 
 import { fetchJson } from "./http";
@@ -21,22 +21,9 @@ export const fetchMonthlyReport = async (
   );
 };
 
-export const fetchDailyReport = async (date: string): Promise<DailyReport> => {
-  const query = new URLSearchParams({ date });
-
-  return fetchJson<DailyReport>(`/api/reports/daily?${query}`, {
-    method: "GET",
-    cache: "no-store",
-  });
-};
-
 export const reportQueries = createQueryKeys("reports", {
   monthly: (month?: string) => ({
     queryKey: [month ?? null] as [string | undefined],
     queryFn: () => fetchMonthlyReport(month),
-  }),
-  daily: (date: string) => ({
-    queryKey: [date],
-    queryFn: () => fetchDailyReport(date),
   }),
 });

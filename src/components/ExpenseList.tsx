@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import Link from "next/link";
-
 import dayjs from "@/configs/date";
 import { Category } from "@/enums";
 import { queries } from "@/lib/queries";
@@ -18,7 +16,7 @@ import { EXPENSE_SYNC_ENTITY } from "@/lib/sync/expenses/types";
 import { cn, formatVnd } from "@/lib/utils";
 import type { InfiniteData, QueryFunction } from "@tanstack/react-query";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { motion as m } from "motion/react";
 
 import ExpenseEditSheetHost from "@/components/ExpenseEditSheetHost";
@@ -217,22 +215,14 @@ const ExpenseList = ({
         {rows.length ? (
           groupedRows.map((group) => (
             <div key={group.key} className="space-y-3">
-              <Link
-                href={`/report/day/${group.key}`}
-                prefetch={false}
-                className="group hover:border-border hover:bg-card/80 flex items-center justify-between rounded-2xl border border-transparent px-2 py-1 transition"
-              >
-                <div className="flex items-center gap-2">
-                  <p className="text-muted-foreground group-hover:text-foreground text-xs font-semibold tracking-wide transition">
-                    {group.label}
-                  </p>
-                  <ChevronRight className="text-muted-foreground group-hover:text-foreground h-3.5 w-3.5 transition" />
-                </div>
-                {/* total amount of day */}
+              <div className="flex items-center justify-between rounded-2xl border border-transparent px-2 py-1">
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide">
+                  {group.label}
+                </p>
                 <div className="text-foreground text-right text-sm font-semibold">
                   -{formatVnd(group.totalAmount)} <VndSymbol />
                 </div>
-              </Link>
+              </div>
               <div className="flex flex-col gap-3">
                 {group.items.map((expense) => (
                   <ExpenseListItem
